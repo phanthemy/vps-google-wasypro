@@ -3,6 +3,4 @@ dist/
 *.log
 .env
 .env.*
-*.pptx
-*.docx
 vite_*.log
