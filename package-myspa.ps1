@@ -1,0 +1,1 @@
+Set-Location C:\Users\Administrator\.gemini\antigravity\scratch\myspa; tar -a -c -f C:\Users\Administrator\.gemini\antigravity\scratch\myspa-deploy1.zip --exclude="node_modules" --exclude=".git" --exclude="server/dev.db" --exclude="public/uploads" *; Write-Host "myspa-deploy1.zip created successfully! Safe to upload." -ForegroundColor Green

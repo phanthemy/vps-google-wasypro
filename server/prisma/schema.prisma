@@ -1,0 +1,127 @@
+// This is your Prisma schema file
+//
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model User {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  fullName  String
+  phone     String   @unique
+  password  String   @default("123456")
+  cccd      String?
+  bankInfo  String?
+  tier      String   @default("SILVER") // DIAMOND, GOLD, SILVER
+  role      String   @default("ctv") // admin, accountant, ctv
+  parentId  String?
+  status    String   @default("ACTIVE") // ACTIVE, INACTIVE
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  note      String?
+
+  parent      User?         @relation("UserToUser", fields: [parentId], references: [userId])
+  children    User[]        @relation("UserToUser")
+  customers   Customer[]
+  commissions Commission[]
+}
+
+model Customer {
+  id           String   @id @default(cuid())
+  fullName     String
+  phone        String   // Can store full phone or last 4 digits
+  sourceCtvId  String
+  status       String   @default("NEW") // NEW, APPOINT_BOOKED, ARRIVED, EXPIRED
+  registeredAt DateTime @default(now())
+  expiresAt    DateTime // usually registeredAt + 30 days
+  updatedAt    DateTime @updatedAt
+
+  sourceCtv    User     @relation(fields: [sourceCtvId], references: [userId])
+  appointments Appointment[]
+  orders       Order[]
+  auditLogs    CustomerAuditLog[]
+
+  @@unique([phone, sourceCtvId]) // A CTV can't register the same phone twice
+}
+
+model CustomerAuditLog {
+  id         String   @id @default(cuid())
+  customerId String
+  userId     String   // The admin/accountant who made the change
+  action     String   // e.g., 'UPDATE_STATUS'
+  details    String   // JSON string of changes (from -> to)
+  createdAt  DateTime @default(now())
+
+  customer   Customer @relation(fields: [customerId], references: [id])
+}
+
+model Appointment {
+  id          String   @id @default(cuid())
+  customerId  String
+  date        DateTime
+  status      String   @default("PENDING") // PENDING, ARRIVED, CANCELLED
+  createdAt   DateTime @default(now())
+
+  customer    Customer @relation(fields: [customerId], references: [id])
+}
+
+model ServiceCategory {
+  id          String   @id @default(cuid())
+  name        String   @unique // e.g. "Nội khoa", "Phẫu thuật", "Chăm sóc"
+  
+  services    Service[]
+}
+
+model Service {
+  id          String   @id @default(cuid())
+  name        String
+  categoryId  String
+  group       String?
+
+  price       Float
+  description String?
+  imageUrl    String?
+
+  category    ServiceCategory @relation(fields: [categoryId], references: [id])
+  orderItems  OrderItem[]
+}
+
+model Order {
+  id          String   @id @default(cuid())
+  customerId  String
+  totalAmount Float
+  status      String   @default("COMPLETED") // DEPOSIT, COMPLETED, CANCELLED
+  createdAt   DateTime @default(now())
+
+  customer    Customer    @relation(fields: [customerId], references: [id])
+  items       OrderItem[]
+  commissions Commission[]
+}
+
+model OrderItem {
+  id        String  @id @default(cuid())
+  orderId   String
+  serviceId String
+  amount    Float   // actual paid amount
+  qty       Int     @default(1)
+  
+  order     Order   @relation(fields: [orderId], references: [id])
+  service   Service @relation(fields: [serviceId], references: [id])
+}
+
+model Commission {
+  id          String   @id @default(cuid())
+  orderId     String
+  receiverId  String
+  amount      Float
+  type        String   // DIRECT, OVERRIDE
+  status      String   @default("PENDING") // PENDING, PAID
+  createdAt   DateTime @default(now())
+
+  order       Order    @relation(fields: [orderId], references: [id])
+  receiver    User     @relation(fields: [receiverId], references: [userId])
+}

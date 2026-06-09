@@ -1,0 +1,8 @@
+node_modules/
+dist/
+*.log
+.env
+.env.*
+*.pptx
+*.docx
+vite_*.log
