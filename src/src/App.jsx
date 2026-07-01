@@ -138,10 +138,12 @@ function App() {
       {/* Sidebar */}
       <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
         <div className="sidebar-header">
-          <div className="logo-icon">
-            <Layers size={24} />
-          </div>
-          <span className="logo-text text-gradient">WATER KING</span>
+          <a href="/" style={{textDecoration:'none',display:'flex',alignItems:'center',gap:'0.75rem',cursor:'pointer'}}>
+            <div className="logo-icon">
+              <Layers size={24} />
+            </div>
+            <span className="logo-text text-gradient">WATER KING</span>
+          </a>
         </div>
         <nav className="sidebar-nav">
           <div 
