@@ -1,6 +1,7 @@
 node_modules/
+.next/
 dist/
+build/
 *.log
-.env
-.env.*
-vite_*.log
+__pycache__/
+.DS_Store
