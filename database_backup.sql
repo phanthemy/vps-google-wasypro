@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict rnEDvsV8AyEn9IpO13LbovcqSawE0tS4r23dpZoX8kjkNTN4MYS61vQvGX2mwhA
+\restrict C5WZ4RUF2cOACpPDc2UXfz1kKbSWLMhnGTKXUuXcUodCiNXaRfruTLaFMDyFCGz
 
 -- Dumped from database version 14.23 (Ubuntu 14.23-0ubuntu0.22.04.1)
 -- Dumped by pg_dump version 14.23 (Ubuntu 14.23-0ubuntu0.22.04.1)
@@ -3345,6 +3345,7 @@ cmoazvizv0021bftn6k5qsa4y	TASK	Nhắc hẹn ĐL Kim Thăm KH/2026/030998  CC	<p>
 
 COPY public."AgentDevice" (id, "deviceId", hostname, "ipAddress", department, "isOnline", "lastPingAt", "createdAt", "updatedAt", note) FROM stdin;
 cmpm0xbxw000vzn7osy165ip6	b8b713d3-b7d3-4530-ba8e-70c0f329a5e6	FOTIOS	192.168.119.1	Telesale	t	2026-05-26 02:37:20.102	2026-05-26 02:36:19.508	2026-05-26 02:37:20.104	\N
+cmrjylux50000ec7k7o4uw9au	test-final	TEST-FINAL-PC	192.168.1.99	TEST	t	2026-07-14 01:15:17.21	2026-07-14 01:15:17.321	2026-07-14 01:15:17.321	\N
 \.
 
 
@@ -19318,5 +19319,5 @@ ALTER TABLE ONLY public."ZaloPersonalLog"
 -- PostgreSQL database dump complete
 --
 
-\unrestrict rnEDvsV8AyEn9IpO13LbovcqSawE0tS4r23dpZoX8kjkNTN4MYS61vQvGX2mwhA
+\unrestrict C5WZ4RUF2cOACpPDc2UXfz1kKbSWLMhnGTKXUuXcUodCiNXaRfruTLaFMDyFCGz
 
