@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict 2yJ1NURbeEKNIO7YwtQHTMZadrAe0Z8cAbuj11dU9tXnUHPUExohcLNhbTrmws3
+\restrict qOIn79W7aiTaN2Y5Z90HKCHIauZs0KuroLoa5DTZhLUnNY21ULQQjIplbRkkj4R
 
 -- Dumped from database version 14.23 (Ubuntu 14.23-0ubuntu0.22.04.1)
 -- Dumped by pg_dump version 14.23 (Ubuntu 14.23-0ubuntu0.22.04.1)
@@ -19319,5 +19319,5 @@ ALTER TABLE ONLY public."ZaloPersonalLog"
 -- PostgreSQL database dump complete
 --
 
-\unrestrict 2yJ1NURbeEKNIO7YwtQHTMZadrAe0Z8cAbuj11dU9tXnUHPUExohcLNhbTrmws3
+\unrestrict qOIn79W7aiTaN2Y5Z90HKCHIauZs0KuroLoa5DTZhLUnNY21ULQQjIplbRkkj4R
 
