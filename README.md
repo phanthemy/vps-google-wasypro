@@ -1,16 +1,52 @@
-# React + Vite
+# WASY PRO - Water King (Website Redesign & Admin Portal)
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Dự án thiết kế lại website thương hiệu máy lọc nước **WASY PRO / Water King** đạt tốc độ cực nhanh (<0.5s), giao diện sang trọng, tích hợp hệ thống quản trị Admin Portal chuyên nghiệp.
 
-Currently, two official plugins are available:
+---
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## 🛠️ Công Nghệ Sử Dụng
+- **Frontend**: React 18, Vite, Tailwind CSS, Lucide Icons.
+- **Design Tokens**: Ocean Blue (`#0284c7`), Aqua Cyan (`#06b6d4`), Mint Green (`#10b981`), Glassmorphism.
+- **Admin Portal**: Quản lý Sản phẩm, Bảo hành điện tử, Đơn đăng ký tư vấn khách hàng, Bài viết.
+- **State Coverage**: Đủ 4 trạng thái UI (Normal, Loading, Empty, Error), responsive 100%.
 
-## React Compiler
+---
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## 🔑 Tài Khoản Admin Đăng Nhập
+Bấm vào nút **"Trang Quản Trị Admin"** trên Header/Footer để mở Portal:
+- **Email**: `admin@wasypro.com`
+- **Mật khẩu**: `123456`
 
-## Expanding the ESLint configuration
+---
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+## 🛠️ Cài Đặt & Chạy Local
+
+1. **Cài đặt dependencies**:
+   ```bash
+   npm install
+   ```
+
+2. **Chạy dev server**:
+   ```bash
+   npm run dev
+   ```
+
+3. **Build production**:
+   ```bash
+   npm run build
+   ```
+
+---
+
+## 🚀 Deploy Tự Động Lên VPS (`149.118.62.155`)
+
+Dự án có sẵn script PowerShell tự động hóa 100% quá trình build & deploy lên VPS Ubuntu:
+
+```powershell
+.\deploy.ps1
+```
+
+Script sẽ tự động:
+1. Build production bundle (`npm run build`).
+2. Nén và SCP upload toàn bộ file sang VPS `/var/www/wasypro`.
+3. Tự động khởi chạy dịch vụ qua PM2 (Cổng `5005`) & Caddy/Nginx reverse proxy HTTPS.

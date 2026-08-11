@@ -1,18 +1,1 @@
-{
-  "name": "JINSHANG",
-  "short_name": "JINSHANG",
-  "description": "JINSHANG MEDICAL AESTHETICS",
-  "start_url": "/?source=pwa",
-  "display": "standalone",
-  "background_color": "#1a1a2e",
-  "theme_color": "#1a1a2e",
-  "orientation": "portrait",
-  "icons": [
-    {
-      "src": "/logo.jpg",
-      "sizes": "512x512",
-      "type": "image/jpeg",
-      "purpose": "any maskable"
-    }
-  ]
-}
+{" name\:\WASY PRO Water King\,\short_name\:\WaterKing\,\start_url\:\/\,\display\:\standalone\,\background_color\:\#0284c7\,\theme_color\:\#0284c7\}

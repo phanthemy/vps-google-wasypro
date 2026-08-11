@@ -1,17 +1,10 @@
 module.exports = {
   apps: [
     {
-      name: "happylife-frontend",
-      cwd: "./",
-      script: "node_modules/vite/bin/vite.js",
-      args: "dev --host --port 5175"
-    },
-    {
-      name: "happylife-backend",
-      cwd: "./server",
-      script: "index.js",
+      name: "wasypro",
+      script: "server.cjs",
       env: {
-        PORT: 3011
+        NODE_ENV: "production",
       }
     }
   ]

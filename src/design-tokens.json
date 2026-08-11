@@ -1,0 +1,55 @@
+{
+  "colors": {
+    "primary": "#0284c7",
+    "aquaCyan": "#06b6d4",
+    "emeraldMint": "#10b981",
+    "slate": "#0f172a",
+    "iceLight": "#f0f9ff",
+    "accentGold": "#f59e0b"
+  },
+  "typography": {
+    "fonts": {
+      "heading": "'Outfit', sans-serif",
+      "body": "'Inter', sans-serif"
+    },
+    "weights": {
+      "regular": 400,
+      "medium": 500,
+      "semibold": 600,
+      "bold": 700
+    },
+    "lineHeights": {
+      "tight": 1.2,
+      "base": 1.5,
+      "relaxed": 1.75
+    }
+  },
+  "spacing": {
+    "xs": "0.25rem",
+    "sm": "0.5rem",
+    "md": "1rem",
+    "lg": "1.5rem",
+    "xl": "2rem",
+    "2xl": "3rem",
+    "3xl": "4rem"
+  },
+  "radii": {
+    "sm": "0.25rem",
+    "md": "0.5rem",
+    "lg": "1rem",
+    "xl": "1.5rem",
+    "full": "9999px"
+  },
+  "shadows": {
+    "glassmorphism": "0 8px 32px 0 rgba(2, 132, 199, 0.15)",
+    "card": "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)",
+    "dropdown": "0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)"
+  },
+  "effects": {
+    "glass": {
+      "backdropFilter": "blur(12px)",
+      "backgroundColor": "rgba(255, 255, 255, 0.7)",
+      "border": "1px solid rgba(255, 255, 255, 0.3)"
+    }
+  }
+}
