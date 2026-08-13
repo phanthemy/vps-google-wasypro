@@ -1,4 +1,4 @@
-import { Product, Category, WarrantyRecord, Article, FAQ, AdminUser, Lead } from '../types/schema';
+import { Product, Category, WarrantyRecord, Article, FAQ, AdminUser, Lead, Order } from '../types/schema';
 
 export const mockCategories: Category[] = [
   {
@@ -416,5 +416,77 @@ export const mockLeads: Lead[] = [
     message: 'Hỏi về chính sách bảo hành',
     status: 'cancelled',
     createdAt: '2024-08-08T16:45:00Z'
+  }
+];
+
+export const mockOrders: Order[] = [
+  {
+    id: 'ord-01',
+    customerName: 'Nguyễn Văn An',
+    phone: '0901234567',
+    email: 'an.nguyen@gmail.com',
+    address: '123 Nguyễn Huệ, Q.1, TP.HCM',
+    productId: 'prod-01',
+    productName: 'Máy Tạo Nước Hydrogen Water King Pro 9',
+    quantity: 1,
+    unitPrice: 15900000,
+    totalPrice: 15900000,
+    status: 'new',
+    note: 'Giao buổi chiều',
+    createdAt: '2026-08-12T10:30:00Z'
+  },
+  {
+    id: 'ord-02',
+    customerName: 'Trần Thị Bích',
+    phone: '0912345678',
+    email: 'bich.tran@gmail.com',
+    address: '456 Lê Lợi, Q.3, TP.HCM',
+    productId: 'prod-02',
+    productName: 'Bình Nước Hydrogen 500ml Cầm Tay',
+    quantity: 2,
+    unitPrice: 2500000,
+    totalPrice: 5000000,
+    status: 'confirmed',
+    createdAt: '2026-08-11T14:20:00Z'
+  },
+  {
+    id: 'ord-03',
+    customerName: 'Phạm Văn Cường',
+    phone: '0988888888',
+    address: '789 Điện Biên Phủ, Ba Đình, Hà Nội',
+    productId: 'prod-06',
+    productName: 'Máy Lọc Nước Ion Kiềm WASY Max',
+    quantity: 1,
+    unitPrice: 28900000,
+    totalPrice: 28900000,
+    status: 'shipping',
+    note: 'Lắp đặt tại nhà',
+    createdAt: '2026-08-10T09:15:00Z'
+  },
+  {
+    id: 'ord-04',
+    customerName: 'Lê Thị Dương',
+    phone: '0977777777',
+    productId: 'prod-03',
+    productName: 'Lõi lọc Hydrogen Ion Kiềm',
+    quantity: 3,
+    unitPrice: 650000,
+    totalPrice: 1950000,
+    status: 'completed',
+    createdAt: '2026-08-08T16:45:00Z'
+  },
+  {
+    id: 'ord-05',
+    customerName: 'Hoàng Văn Em',
+    phone: '0966666666',
+    address: '321 Hai Bà Trưng, Q.1, TP.HCM',
+    productId: 'prod-04',
+    productName: 'Bút đo chỉ số Hydro/pH',
+    quantity: 1,
+    unitPrice: 1200000,
+    totalPrice: 1200000,
+    status: 'cancelled',
+    note: 'Khách hủy do đổi ý',
+    createdAt: '2026-08-07T11:00:00Z'
   }
 ];

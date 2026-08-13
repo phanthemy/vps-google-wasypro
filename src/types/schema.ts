@@ -93,6 +93,22 @@ export interface Lead {
   createdAt: string;
 }
 
+export interface Order {
+  id: string;
+  customerName: string;
+  phone: string;
+  email?: string;
+  address?: string;
+  productId: string;
+  productName: string;
+  quantity: number;
+  unitPrice: number;
+  totalPrice: number;
+  status: 'new' | 'confirmed' | 'shipping' | 'completed' | 'cancelled';
+  note?: string;
+  createdAt: string;
+}
+
 export type ProductInput = Omit<Product, 'id'>;
 
 export type WarrantyInput = Omit<WarrantyRecord, 'id'>;

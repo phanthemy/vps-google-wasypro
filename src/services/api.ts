@@ -1,5 +1,5 @@
-import { Product, Category, WarrantyRecord, Article, FAQ, AdminUser, Lead, ProductInput, WarrantyInput, ArticleInput } from '../types/schema';
-import { mockProducts, mockCategories, mockWarranties, mockArticles, mockFAQs, mockLeads, mockAdminUser } from '../data/mockData';
+import { Product, Category, WarrantyRecord, Article, FAQ, AdminUser, Lead, ProductInput, WarrantyInput, ArticleInput, Order } from '../types/schema';
+import { mockProducts, mockCategories, mockWarranties, mockArticles, mockFAQs, mockLeads, mockAdminUser, mockOrders } from '../data/mockData';
 
 export const api = {
   getProducts: async (params?: { categoryId?: string; search?: string; sort?: string; limit?: number; isHot?: boolean }): Promise<Product[]> => {
@@ -191,5 +191,28 @@ export const api = {
     if (index === -1) throw new Error('Không tìm thấy bài viết');
     mockArticles.splice(index, 1);
     return true;
+  },
+
+  getOrders: async (params?: { status?: string; search?: string }): Promise<Order[]> => {
+    let results = [...mockOrders];
+    if (params?.status && params.status !== 'all') {
+      results = results.filter((o: Order) => o.status === params.status);
+    }
+    if (params?.search) {
+      const q = params.search.toLowerCase();
+      results = results.filter((o: Order) => 
+        o.customerName.toLowerCase().includes(q) || 
+        o.phone.includes(q) ||
+        o.productName.toLowerCase().includes(q)
+      );
+    }
+    return results;
+  },
+
+  updateOrderStatus: async (id: string, status: Order['status']): Promise<Order> => {
+    const order = mockOrders.find((o: Order) => o.id === id);
+    if (!order) throw new Error('Không tìm thấy đơn hàng');
+    order.status = status;
+    return { ...order };
   }
 };

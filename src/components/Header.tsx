@@ -75,11 +75,11 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
 
           <div className="flex items-center gap-4 text-white ml-auto text-[11px] uppercase tracking-wider font-semibold">
-            <span className="cursor-pointer hover:text-accent transition-colors">GIỚI THIỆU</span>
+            <span className="cursor-pointer hover:text-accent transition-colors" onClick={() => handleNavClick('benefits')}>GIỚI THIỆU</span>
             <span className="opacity-50">|</span>
-            <span className="cursor-pointer hover:text-accent transition-colors">LIÊN HỆ</span>
+            <span className="cursor-pointer hover:text-accent transition-colors" onClick={onOpenContact}>LIÊN HỆ</span>
             <span className="opacity-50">|</span>
-            <span className="cursor-pointer hover:text-accent transition-colors">FAQS</span>
+            <span className="cursor-pointer hover:text-accent transition-colors" onClick={() => handleNavClick('faq')}>FAQS</span>
           </div>
         </div>
       </div>

@@ -3,6 +3,7 @@ import { Header } from './components/Header';
 import { Hero } from './components/Hero';
 import { ProductSection } from './components/ProductSection';
 import { HydrogenBenefits } from './components/HydrogenBenefits';
+import { SocialProof } from './components/SocialProof';
 import { WarrantyLookupSection } from './components/WarrantyLookupSection';
 import { NewsSection } from './components/NewsSection';
 import { FaqSection } from './components/FaqSection';
@@ -15,9 +16,10 @@ import { AdminOverview } from './components/admin/AdminOverview';
 import { AdminProducts } from './components/admin/AdminProducts';
 import { AdminWarranties } from './components/admin/AdminWarranties';
 import { AdminLeads } from './components/admin/AdminLeads';
+import { AdminOrders } from './components/admin/AdminOrders';
 import { AdminNews } from './components/admin/AdminNews';
 import { Product, AdminUser } from './types/schema';
-import { PhoneCall, MessageSquare, CheckCircle2, X, ArrowUp } from 'lucide-react';
+import { PhoneCall, MessageSquare, CheckCircle2, X, ArrowUp, Send } from 'lucide-react';
 
 export const App: React.FC = () => {
   // Client View States
@@ -132,6 +134,7 @@ export const App: React.FC = () => {
             {adminActiveTab === 'products' && <AdminProducts />}
             {adminActiveTab === 'warranties' && <AdminWarranties />}
             {adminActiveTab === 'leads' && <AdminLeads />}
+            {adminActiveTab === 'orders' && <AdminOrders />}
             {adminActiveTab === 'news' && <AdminNews />}
           </main>
         </div>
@@ -178,6 +181,9 @@ export const App: React.FC = () => {
 
         {/* Hydrogen Benefits Science Section */}
         <HydrogenBenefits />
+
+        {/* Social Proof Section */}
+        <SocialProof />
 
         {/* Electronic Warranty Lookup Section */}
         <WarrantyLookupSection />
@@ -251,6 +257,32 @@ export const App: React.FC = () => {
           <ArrowUp className="w-5 h-5" />
         </button>
       )}
+
+      {/* Sticky CTA Mobile Bar */}
+      <div className="fixed bottom-0 left-0 right-0 z-40 md:hidden bg-white border-t border-gray-200 shadow-[0_-4px_12px_rgba(0,0,0,0.1)] px-3 py-2.5 flex items-center gap-2">
+        <a 
+          href="tel:1900989878" 
+          className="flex-1 py-2.5 rounded-lg bg-primary text-white text-center text-[13px] font-bold flex items-center justify-center gap-1.5"
+        >
+          <PhoneCall className="w-4 h-4" />
+          GỌI NGAY
+        </a>
+        <a 
+          href="https://zalo.me/1900989878" 
+          target="_blank"
+          className="flex-1 py-2.5 rounded-lg bg-[#0068FF] text-white text-center text-[13px] font-bold flex items-center justify-center gap-1.5"
+        >
+          <MessageSquare className="w-4 h-4" />
+          ZALO
+        </a>
+        <button 
+          onClick={() => handleOpenContact(null)}
+          className="flex-1 py-2.5 rounded-lg bg-accent text-primary-darker text-center text-[13px] font-bold flex items-center justify-center gap-1.5"
+        >
+          <Send className="w-4 h-4" />
+          TƯ VẤN
+        </button>
+      </div>
     </div>
   );
 };

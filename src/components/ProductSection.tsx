@@ -220,7 +220,10 @@ export const ProductSection: React.FC<ProductSectionProps> = ({
                 className="bg-white rounded-md overflow-hidden border border-gray-200 shadow-sm hover:shadow-md hover:border-primary transition-all duration-300 group flex flex-col justify-between relative"
               >
                 {/* Top Image Box */}
-                <div className="relative aspect-square bg-white p-6 flex items-center justify-center overflow-hidden border-b border-gray-100">
+                <div 
+                  className="relative aspect-square bg-white p-6 flex items-center justify-center overflow-hidden border-b border-gray-100 cursor-pointer"
+                  onClick={() => setSelectedQuickViewProduct(product)}
+                >
                   {/* Badges */}
                   <div className="absolute top-2 left-2 flex flex-col gap-1 z-10">
                     {product.isHot && (
