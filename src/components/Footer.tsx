@@ -221,7 +221,7 @@ export const Footer: React.FC<FooterProps> = ({
 
         {/* Bottom Copyright Bar */}
         <div className="pt-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-[13px] text-gray-400">
-          <p>© 2026 WASY PRO. Tất cả các quyền được bảo lưu.</p>
+          <div className="flex items-center gap-3 flex-wrap"><p>© 2026 WASY PRO. Tất cả các quyền được bảo lưu.</p><span>•</span><a href="https://mapgo.vn" target="_blank" rel="noopener noreferrer" className="hover:text-accent transition-colors" title="Bản đồ bãi giữ xe và tiện ích MapGo">MapGo - Bãi giữ xe & Tiện ích</a></div>
           <div className="flex items-center gap-6">
             <button onClick={() => setPolicyModal('privacy')} className="hover:text-white cursor-pointer transition-colors">Bảo mật thông tin</button>
             <button onClick={() => setPolicyModal('terms')} className="hover:text-white cursor-pointer transition-colors">Điều khoản dịch vụ</button>
