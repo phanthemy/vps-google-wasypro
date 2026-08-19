@@ -74,6 +74,7 @@ export const ProductSection: React.FC<ProductSectionProps> = ({
   }, [selectedCategory, searchQuery, sortBy]);
 
   const formatPrice = (amount: number) => {
+    if (!amount || amount <= 0) return 'Liên hệ';
     return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
   };
 
@@ -294,7 +295,12 @@ export const ProductSection: React.FC<ProductSectionProps> = ({
                           </span>
                         )}
                       </div>
-                    </div>
+                    
+                          {product.promotion && (
+                            <div className="mt-1.5 text-[11px] font-bold text-orange-600 bg-orange-50 px-2 py-1 rounded-sm border border-orange-200 truncate">
+                              🎁 {product.promotion}
+                            </div>
+                          )}</div>
 
                     <div className="grid grid-cols-2 gap-2">
                       <button

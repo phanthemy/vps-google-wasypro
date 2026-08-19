@@ -37,19 +37,20 @@ export const ProductQuickViewModal: React.FC<ProductQuickViewModalProps> = ({
   const images = [product.image, ...(product.gallery || [])].filter(Boolean);
 
   const formatPrice = (amount: number) => {
+    if (!amount || amount <= 0) return 'Liên hệ';
     return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-gray-900/70 backdrop-blur-md overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-gray-900/70 backdrop-blur-md overflow-y-auto" onClick={onClose}>
       <div 
-        className="bg-white w-full max-w-4xl rounded-md overflow-hidden shadow-xl relative animate-in fade-in zoom-in duration-200 my-8 border border-primary-light"
+        className="bg-white w-full max-w-4xl rounded-md overflow-y-auto max-h-[90vh] shadow-xl relative animate-in fade-in zoom-in duration-200 my-8 border border-primary-light"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Close Button */}
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 z-10 w-10 h-10 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-700 flex items-center justify-center shadow-sm transition-all"
+          className="fixed sm:absolute top-4 right-4 z-50 w-10 h-10 rounded-full bg-white hover:bg-gray-100 text-gray-700 flex items-center justify-center shadow-lg transition-all border border-gray-200"
           aria-label="Close modal"
         >
           <X className="w-5 h-5" />
@@ -221,6 +222,17 @@ export const ProductQuickViewModal: React.FC<ProductQuickViewModalProps> = ({
                 </li>
               </ul>
             </div>
+
+            
+            {product.promotion && (
+              <div className="p-3 rounded-md bg-orange-50 border border-orange-200 mb-4 flex items-start gap-2">
+                <span className="text-lg">🎁</span>
+                <div>
+                  <p className="text-[12px] font-bold text-orange-700 uppercase">Khuyến mãi đặc biệt</p>
+                  <p className="text-[13px] font-bold text-orange-600">{product.promotion}</p>
+                </div>
+              </div>
+            )}
 
             {/* Action Buttons */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">

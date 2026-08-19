@@ -120,7 +120,7 @@ export const Hero: React.FC<HeroProps> = ({ onExploreClick, onContactClick }) =>
       ))}
 
       {/* Dark overlay — stronger on mobile for readability */}
-      <div className="absolute inset-0 bg-gradient-to-r from-[#0a1f12]/95 via-[#0f2d1a]/90 to-[#1a472a]/60 md:from-[#0a1f12]/95 md:via-[#0f2d1a]/80 md:to-[#1a472a]/40" />
+      <div className="absolute inset-0 bg-gradient-to-r from-[#0a1f12]/70 via-[#0f2d1a]/55 to-[#1a472a]/30 md:from-[#0a1f12]/65 md:via-[#0f2d1a]/45 md:to-transparent" />
       
       {/* Bottom fade */}
       <div className="absolute bottom-0 left-0 right-0 h-20 bg-gradient-to-t from-slate-50 to-transparent z-10" />

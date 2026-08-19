@@ -125,3 +125,54 @@ model Commission {
   order       Order    @relation(fields: [orderId], references: [id])
   receiver    User     @relation(fields: [receiverId], references: [userId])
 }
+
+model ProductCategory {
+  id          String    @id @default(cuid())
+  name        String    @unique
+  slug        String    @unique
+  description String?
+  image       String?
+  icon        String?
+  products    Product[]
+}
+
+model Product {
+  id            String   @id @default(cuid())
+  title         String
+  slug          String   @unique
+  categoryId    String
+  price         Float    @default(0)
+  originalPrice Float?
+  rating        Float    @default(5)
+  reviewsCount  Int      @default(0)
+  image         String?
+  gallery       String?  // JSON array string
+  description   String?
+  specs         String?  // JSON string of ProductSpecs
+  isHot         Boolean  @default(false)
+  isNew         Boolean  @default(false)
+  stock         Int      @default(0)
+  promotion     String?  // Gift/promotion text e.g. "Tặng bộ lọc thô trị giá 500k"
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  category      ProductCategory @relation(fields: [categoryId], references: [id])
+}
+
+
+model WebsiteOrder {
+  id            String   @id @default(cuid())
+  customerName  String
+  customerPhone String
+  address       String?
+  message       String?
+  type          String   @default("ORDER") // ORDER, CONSULTATION
+  productId     String?
+  productTitle  String?
+  productPrice  Float    @default(0)
+  qty           Int      @default(1)
+  totalAmount   Float    @default(0)
+  status        String   @default("NEW") // NEW, CONFIRMED, SHIPPING, COMPLETED, CANCELLED
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}

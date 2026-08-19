@@ -41,6 +41,7 @@ export const AdminProducts: React.FC = () => {
     slug: '',
     categoryId: 'cat-01',
     price: 0,
+    promotion: '',
     originalPrice: 0,
     rating: 5,
     reviewsCount: 0,
@@ -121,6 +122,7 @@ export const AdminProducts: React.FC = () => {
       slug: product.slug,
       categoryId: product.categoryId,
       price: product.price,
+      promotion: product.promotion || '',
       originalPrice: product.originalPrice || product.price,
       rating: product.rating,
       reviewsCount: product.reviewsCount,
@@ -142,8 +144,8 @@ export const AdminProducts: React.FC = () => {
       setModalError('Vui lòng nhập tên sản phẩm');
       return;
     }
-    if (formData.price <= 0) {
-      setModalError('Giá bán phải lớn hơn 0');
+    if (formData.price < 0) {
+      setModalError('Giá bán không được âm. Nhập 0 = Liên hệ');
       return;
     }
 
@@ -335,14 +337,16 @@ export const AdminProducts: React.FC = () => {
                       {/* Price */}
                       <td className="py-4 px-5">
                         <div className="font-extrabold text-ocean-600">
-                          {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(p.price)}
+                          {p.price > 0 ? new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(p.price) : <span className="text-primary font-semibold">Liên hệ</span>}
                         </div>
                         {p.originalPrice && p.originalPrice > p.price && (
                           <div className="text-xs text-slate-400 line-through">
                             {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(p.originalPrice)}
                           </div>
                         )}
-                      </td>
+                      
+                          {p.promotion && <div className="text-[11px] text-orange-600 font-bold mt-1">🎁 {p.promotion}</div>}
+                        </td>
 
                       {/* Specs (pH, ORP, Hydrogen) */}
                       <td className="py-4 px-5 text-xs font-medium text-slate-600">
@@ -506,6 +510,20 @@ export const AdminProducts: React.FC = () => {
                       className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-ocean-500"
                     />
                   </div>
+                </div>
+
+                {/* Promotion */}
+                <div className="col-span-2">
+                  <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
+                    🎁 Khuyến Mãi / Quà Tặng
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="VD: Tặng bộ lọc thô trị giá 500.000đ"
+                    value={formData.promotion || ''}
+                    onChange={(e) => setFormData({ ...formData, promotion: e.target.value })}
+                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-ocean-500"
+                  />
                 </div>
               </div>
 

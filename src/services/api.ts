@@ -3,6 +3,16 @@ import { mockProducts, mockCategories, mockWarranties, mockArticles, mockFAQs, m
 
 export const api = {
   getProducts: async (params?: { categoryId?: string; search?: string; sort?: string; limit?: number; isHot?: boolean }): Promise<Product[]> => {
+    try {
+      const q = new URLSearchParams();
+      if (params?.categoryId) q.set('categoryId', params.categoryId);
+      if (params?.search) q.set('search', params.search);
+      if (params?.sort) q.set('sort', params.sort);
+      if (params?.limit) q.set('limit', String(params.limit));
+      if (params?.isHot) q.set('isHot', 'true');
+      const res = await fetch('/api/products?' + q.toString());
+      if (res.ok) { const data = await res.json(); if (data.length) return data; }
+    } catch(e) { console.warn('API fallback', e); }
     let result = [...mockProducts];
     
     if (params?.categoryId) {
@@ -37,6 +47,7 @@ export const api = {
   },
 
   getCategories: async (): Promise<Category[]> => {
+    try { const res = await fetch('/api/product-categories'); if (res.ok) return await res.json(); } catch(e) {}
     return mockCategories;
   },
 
@@ -100,27 +111,30 @@ export const api = {
   },
 
   createProduct: async (productInput: ProductInput): Promise<Product> => {
-    const newProduct: Product = {
-      ...productInput,
-      id: `prod-${Date.now()}`
-    };
-    mockProducts.push(newProduct);
-    return newProduct;
+    const res = await fetch('/api/products', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(productInput)
+    });
+    if (!res.ok) throw new Error('Tạo sản phẩm thất bại');
+    return await res.json();
   },
 
   updateProduct: async (id: string, productInput: Partial<ProductInput>): Promise<Product> => {
     const index = mockProducts.findIndex(p => p.id === id);
     if (index === -1) throw new Error('Không tìm thấy sản phẩm');
     
-    mockProducts[index] = { ...mockProducts[index], ...productInput };
-    return mockProducts[index];
+    const res = await fetch('/api/products/' + id, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(productInput) });
+    if (!res.ok) throw new Error('Update failed');
+    return await res.json();
   },
 
   deleteProduct: async (id: string): Promise<boolean> => {
     const index = mockProducts.findIndex(p => p.id === id);
     if (index === -1) throw new Error('Không tìm thấy sản phẩm');
     
-    mockProducts.splice(index, 1);
+    const res = await fetch('/api/products/' + id, { method: 'DELETE' });
+    if (!res.ok) throw new Error('Delete failed');
     return true;
   },
 
@@ -162,6 +176,14 @@ export const api = {
   },
 
   getAdminStats: async (): Promise<{ totalProducts: number; newLeads: number; activeWarranties: number; revenue: number }> => {
+    try {
+      const [prods, orders] = await Promise.all([fetch('/api/products'), fetch('/api/orders')]);
+      if (prods.ok && orders.ok) {
+        const pData = await prods.json();
+        const oData = await orders.json();
+        return { totalProducts: pData.length, newLeads: 0, activeWarranties: 0, revenue: oData.reduce((s: number, o: any) => s + (o.totalAmount || 0), 0) };
+      }
+    } catch(e) {}
     const totalProducts = mockProducts.length;
     const newLeads = mockLeads.filter(l => l.status === 'new').length;
     const activeWarranties = mockWarranties.filter(w => w.status === 'active').length;
@@ -194,6 +216,13 @@ export const api = {
   },
 
   getOrders: async (params?: { status?: string; search?: string }): Promise<Order[]> => {
+    try {
+      const q = new URLSearchParams();
+      if (params?.status) q.set('status', params.status);
+      if (params?.search) q.set('search', params.search);
+      const res = await fetch('/api/orders?' + q.toString());
+      if (res.ok) { const data = await res.json(); if (data.length) return data; }
+    } catch(e) { console.warn('Orders API fallback', e); }
     let results = [...mockOrders];
     if (params?.status && params.status !== 'all') {
       results = results.filter((o: Order) => o.status === params.status);
@@ -210,6 +239,8 @@ export const api = {
   },
 
   updateOrderStatus: async (id: string, status: Order['status']): Promise<Order> => {
+    const res = await fetch('/api/orders/' + id + '/status', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status }) });
+    if (res.ok) return await res.json();
     const order = mockOrders.find((o: Order) => o.id === id);
     if (!order) throw new Error('Không tìm thấy đơn hàng');
     order.status = status;

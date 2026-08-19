@@ -23,6 +23,7 @@ export interface Product {
   isHot: boolean;
   isNew: boolean;
   stock: number;
+  promotion?: string;
 }
 
 export interface Category {
