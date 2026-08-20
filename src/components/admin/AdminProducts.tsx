@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import ImageUpload from './ImageUpload';
 import {
   Package,
   Plus,
@@ -526,6 +527,20 @@ export const AdminProducts: React.FC = () => {
                   />
                 </div>
               </div>
+
+                {/* Image Upload */}
+                <div className="col-span-2 pt-4">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-ocean-600 border-b border-slate-100 pb-2 mb-4">
+                    Hình Ảnh Sản Phẩm
+                  </h4>
+                  <ImageUpload
+                    images={(formData.gallery || []).map((g: any) => typeof g === 'string' ? { url: g } : g)}
+                    mainImage={formData.image || ''}
+                    onImagesChange={(imgs) => setFormData({ ...formData, gallery: imgs as any })}
+                    onMainImageChange={(url) => setFormData({ ...formData, image: url })}
+                  />
+                </div>
+
 
               {/* Specs Group */}
               <div className="space-y-4 pt-2">

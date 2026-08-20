@@ -250,7 +250,7 @@ export const ProductSection: React.FC<ProductSectionProps> = ({
 
                   {/* Product Image */}
                   <img
-                    src={product.image}
+                    src={product.image && product.image.startsWith("/uploads") ? product.image : ((product.gallery as any[])?.length > 0 ? (typeof (product.gallery as any[])[0] === "string" ? (product.gallery as any[])[0] : (product.gallery as any[])[0]?.url) : product.image)}
                     alt={product.title}
                     className="max-h-full max-w-full object-contain group-hover:scale-105 transition-transform duration-300"
                     onError={(e) => {

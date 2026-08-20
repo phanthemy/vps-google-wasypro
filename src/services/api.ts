@@ -104,10 +104,18 @@ export const api = {
   // --- ADMIN API ---
 
   adminLogin: async (email: string, password: string): Promise<{ success: boolean; user?: AdminUser; token?: string; message: string }> => {
-    if (email === mockAdminUser.email && password === '123456') {
-      return { success: true, user: mockAdminUser, token: 'mock-jwt-token-xyz', message: 'Đăng nhập thành công' };
+    try {
+      const res = await fetch('/api/admin/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Đăng nhập thất bại');
+      return data;
+    } catch (e) {
+      throw e;
     }
-    throw new Error('Email hoặc mật khẩu không chính xác');
   },
 
   createProduct: async (productInput: ProductInput): Promise<Product> => {
@@ -121,20 +129,17 @@ export const api = {
   },
 
   updateProduct: async (id: string, productInput: Partial<ProductInput>): Promise<Product> => {
-    const index = mockProducts.findIndex(p => p.id === id);
-    if (index === -1) throw new Error('Không tìm thấy sản phẩm');
-    
     const res = await fetch('/api/products/' + id, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(productInput) });
-    if (!res.ok) throw new Error('Update failed');
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || 'Cập nhật sản phẩm thất bại');
+    }
     return await res.json();
   },
 
   deleteProduct: async (id: string): Promise<boolean> => {
-    const index = mockProducts.findIndex(p => p.id === id);
-    if (index === -1) throw new Error('Không tìm thấy sản phẩm');
-    
     const res = await fetch('/api/products/' + id, { method: 'DELETE' });
-    if (!res.ok) throw new Error('Delete failed');
+    if (!res.ok) throw new Error('Xóa sản phẩm thất bại');
     return true;
   },
 
@@ -245,5 +250,37 @@ export const api = {
     if (!order) throw new Error('Không tìm thấy đơn hàng');
     order.status = status;
     return { ...order };
-  }
+  },
+
+  // Admin user management
+  getAdminUsers: async () => {
+    const res = await fetch('/api/admin/users');
+    if (!res.ok) throw new Error('Failed to get users');
+    return await res.json();
+  },
+
+  createAdminUser: async (data: { email: string; password: string; name: string; role?: string }) => {
+    const res = await fetch('/api/admin/users', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+    if (!res.ok) { const e = await res.json(); throw new Error(e.error || 'Failed'); }
+    return await res.json();
+  },
+
+  updateAdminUser: async (id: string, data: any) => {
+    const res = await fetch('/api/admin/users/' + id, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+    if (!res.ok) { const e = await res.json(); throw new Error(e.error || 'Failed'); }
+    return await res.json();
+  },
+
+  deleteAdminUser: async (id: string) => {
+    const res = await fetch('/api/admin/users/' + id, { method: 'DELETE' });
+    if (!res.ok) throw new Error('Failed');
+    return await res.json();
+  },
+
+  changePassword: async (userId: string, currentPassword: string, newPassword: string) => {
+    const res = await fetch('/api/admin/change-password', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId, currentPassword, newPassword }) });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed');
+    return data;
+  },
 };

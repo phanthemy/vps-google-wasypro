@@ -17,6 +17,7 @@ import { AdminProducts } from './components/admin/AdminProducts';
 import { AdminWarranties } from './components/admin/AdminWarranties';
 import { AdminLeads } from './components/admin/AdminLeads';
 import { AdminOrders } from './components/admin/AdminOrders';
+import AdminUsers from './components/admin/AdminUsers';
 import { AdminNews } from './components/admin/AdminNews';
 import { Product, AdminUser } from './types/schema';
 import { PhoneCall, MessageSquare, CheckCircle2, X, ArrowUp, Send } from 'lucide-react';
@@ -136,6 +137,7 @@ export const App: React.FC = () => {
             {adminActiveTab === 'leads' && <AdminLeads />}
             {adminActiveTab === 'orders' && <AdminOrders />}
             {adminActiveTab === 'news' && <AdminNews />}
+            {adminActiveTab === 'users' && <AdminUsers />}
           </main>
         </div>
       </div>
