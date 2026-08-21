@@ -2,10 +2,10 @@
 -- PostgreSQL database dump
 --
 
-\restrict iZLpUy81ahsyddubQsfdgNmTog0M5XZESgFGtuF04zWhgSoVCrniyVfTzfaG6h6
+\restrict YbhzrTbWv85NQJLYfuUnokVlhBH4PP3vqeBWHkGBxXBNrfeCx6uYGQUBlSEeSNw
 
--- Dumped from database version 14.23 (Ubuntu 14.23-0ubuntu0.22.04.1)
--- Dumped by pg_dump version 14.23 (Ubuntu 14.23-0ubuntu0.22.04.1)
+-- Dumped from database version 14.24 (Ubuntu 14.24-0ubuntu0.22.04.1)
+-- Dumped by pg_dump version 14.24 (Ubuntu 14.24-0ubuntu0.22.04.1)
 
 SET statement_timeout = 0;
 SET lock_timeout = 0;
@@ -19319,5 +19319,5 @@ ALTER TABLE ONLY public."ZaloPersonalLog"
 -- PostgreSQL database dump complete
 --
 
-\unrestrict iZLpUy81ahsyddubQsfdgNmTog0M5XZESgFGtuF04zWhgSoVCrniyVfTzfaG6h6
+\unrestrict YbhzrTbWv85NQJLYfuUnokVlhBH4PP3vqeBWHkGBxXBNrfeCx6uYGQUBlSEeSNw
 
