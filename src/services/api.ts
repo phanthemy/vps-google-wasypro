@@ -1,6 +1,21 @@
 import { Product, Category, WarrantyRecord, Article, FAQ, AdminUser, Lead, ProductInput, WarrantyInput, ArticleInput, Order } from '../types/schema';
 import { mockProducts, mockCategories, mockWarranties, mockArticles, mockFAQs, mockLeads, mockAdminUser, mockOrders } from '../data/mockData';
 
+function getCsrfToken(): string {
+  if (typeof document === 'undefined') return '';
+  const match = document.cookie.match(new RegExp('(^|;\\s*)csrf_token=([^;]*)'));
+  return match ? decodeURIComponent(match[2]) : '';
+}
+
+function getAuthHeaders(headers: Record<string, string> = {}): Record<string, string> {
+  const csrfToken = getCsrfToken();
+  const authHeaders: Record<string, string> = { ...headers };
+  if (csrfToken) {
+    authHeaders['X-CSRF-Token'] = csrfToken;
+  }
+  return authHeaders;
+}
+
 export const api = {
   getProducts: async (params?: { categoryId?: string; search?: string; sort?: string; limit?: number; isHot?: boolean }): Promise<Product[]> => {
     try {
@@ -103,12 +118,13 @@ export const api = {
 
   // --- ADMIN API ---
 
-  adminLogin: async (email: string, password: string): Promise<{ success: boolean; user?: AdminUser; token?: string; message: string }> => {
+  adminLogin: async (phone: string, password: string): Promise<{ success: boolean; user?: AdminUser; message: string }> => {
     try {
-      const res = await fetch('/api/admin/login', {
+      const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password })
+        body: JSON.stringify({ phone, password }),
+        credentials: 'include'
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || 'Đăng nhập thất bại');
@@ -121,7 +137,7 @@ export const api = {
   createProduct: async (productInput: ProductInput): Promise<Product> => {
     const res = await fetch('/api/products', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify(productInput)
     });
     if (!res.ok) throw new Error('Tạo sản phẩm thất bại');
@@ -129,7 +145,11 @@ export const api = {
   },
 
   updateProduct: async (id: string, productInput: Partial<ProductInput>): Promise<Product> => {
-    const res = await fetch('/api/products/' + id, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(productInput) });
+    const res = await fetch('/api/products/' + id, {
+      method: 'PUT',
+      headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify(productInput)
+    });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
       throw new Error(err.error || 'Cập nhật sản phẩm thất bại');
@@ -138,7 +158,10 @@ export const api = {
   },
 
   deleteProduct: async (id: string): Promise<boolean> => {
-    const res = await fetch('/api/products/' + id, { method: 'DELETE' });
+    const res = await fetch('/api/products/' + id, {
+      method: 'DELETE',
+      headers: getAuthHeaders()
+    });
     if (!res.ok) throw new Error('Xóa sản phẩm thất bại');
     return true;
   },

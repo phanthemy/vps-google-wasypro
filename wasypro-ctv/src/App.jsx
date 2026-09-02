@@ -116,7 +116,8 @@ function App() {
     fetch('/api/services').then(r=>r.json()).then(res => res.success && setServiceList(res.data));
   }, [refreshKey, currentUser]);
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try { await fetch('/api/auth/logout', { method: 'POST' }); } catch(e) {}
     localStorage.removeItem('crm_user');
     setCurrentUser(null);
   };
@@ -125,6 +126,9 @@ function App() {
     return <LoginView onLogin={(user) => {
       localStorage.setItem('crm_user', JSON.stringify(user));
       setCurrentUser(user);
+      if (user.mustChangePassword) {
+        setPassModalOpen(true);
+      }
       setActiveTab('dashboard');
     }} />
   }
