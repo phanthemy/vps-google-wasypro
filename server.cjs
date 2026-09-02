@@ -1,13 +1,11 @@
 const express = require('express');
 const path = require('path');
 const { PrismaClient } = require('./server/node_modules/@prisma/client');
-const { PrismaBetterSqlite3 } = require('./server/node_modules/@prisma/adapter-better-sqlite3');
 const multer = require('multer');
 const sharp = require('sharp');
 const fs = require('fs');
 
-const adapter = new PrismaBetterSqlite3({ url: 'file:./server/dev.db' });
-const prisma = new PrismaClient({ adapter });
+const prisma = new PrismaClient({ datasources: { db: { url: 'file:/var/www/wasypro/server/dev.db' } } });
 const app = express();
 const PORT = 5005;
 
