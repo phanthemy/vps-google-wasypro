@@ -16,3 +16,8 @@ test.db
 server/test.db
 
 
+
+# Database & Backup Hygiene
+server/dev.db
+server/dev_backup_*.db
+database_backup.sql
