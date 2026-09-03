@@ -1,0 +1,41 @@
+{
+  $schema: https://antigravity.dev/schemas/project-manifest.v1.json,
+  manifestVersion: 1.0.0,
+  schemaVersion: 1,
+  name: wasypro,
+  displayName: WASY PRO - Water King,
+  type: fullstack,
+  projectType: Oracle VPS,
+  sourceOfTruth: Oracle VPS,
+  stack: {
+    framework: React + Vite + Express,
+    language: TypeScript / JavaScript,
+    database: SQLite,
+    orm: Prisma,
+    css: Tailwind CSS,
+    ui: Lucide React
+  },
+  git: {
+    trackingRemote: origin,
+    trackingBranch: main,
+    repository: https://github.com/phanthemy/wasypro.git
+  },
+  runtime: {
+    host: 149.118.62.155,
+    rootPath: /var/www/wasypro,
+    port: 3011,
+    pm2Name: happylife-backend,
+    domain: https://wasypro.com,
+    deployMethod: SSH / SCP
+  },
+  build: {
+    installCmd: npm install,
+    buildCmd: npm run build,
+    startCmd: pm2 restart happylife-backend
+  },
+  database: {
+    type: sqlite,
+    name: dev.db,
+    extensions: []
+  }
+}
