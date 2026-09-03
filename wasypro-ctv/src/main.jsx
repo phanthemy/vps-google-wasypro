@@ -27,8 +27,11 @@ window.fetch = async function(url, options = {}) {
   const response = await originalFetch(url, opts);
 
   if (response.status === 401 && typeof url === 'string' && !url.includes('/api/auth/login')) {
+    // Ch? clear localStorage ? KH?NG reload
+    // App.jsx s? t? detect currentUser = null v? show LoginView
     localStorage.removeItem('crm_user');
-    window.location.reload();
+    // Dispatch event ?? App.jsx bi?t session h?t h?n
+    window.dispatchEvent(new CustomEvent('session-expired'));
   }
 
   return response;
@@ -39,4 +42,3 @@ createRoot(document.getElementById('root')).render(
     <App />
   </StrictMode>,
 )
-

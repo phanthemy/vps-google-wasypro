@@ -67,6 +67,13 @@ function App() {
 
   const [refreshKey, setRefreshKey] = useState(0);
 
+  // L?ng nghe session-expired t? fetch interceptor - show login m? kh?ng reload
+  useEffect(() => {
+    const handler = () => setCurrentUser(null);
+    window.addEventListener('session-expired', handler);
+    return () => window.removeEventListener('session-expired', handler);
+  }, []);
+
   // Service Menu State
   const [isServicesExpanded, setIsServicesExpanded] = useState(false);
   const [isServicesShowAll, setIsServicesShowAll] = useState(false);
