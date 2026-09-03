@@ -67,3 +67,45 @@ Trong session Phase 2B, t?i b??c verification, regex Python fix `className` unqu
 > 1. Ch?y `npm run build` ngay sau regex fix ?? ph?t hi?n l?i s?m
 > 2. KH?NG tin v?o "Vite ready" trong log l? b?ng ch?ng ?? ? ph?i curl t?ng file ?? Vite th?c s? transform
 > 3. Sau rsync, verify b?ng `diff` hai chi?u tr??c khi k?t lu?n ??ng b?
+
+---
+
+## [2026-09-03] BUG TH?T S?: app.wasypro.com F5 v? t?n (Infinite Reload Loop)
+
+### Root Cause Th?t S?
+`main.jsx` c? global fetch interceptor. Khi API tr? 401:
+```javascript
+if (response.status === 401 && !url.includes('/api/auth/login')) {
+    localStorage.removeItem('crm_user');
+    window.location.reload(); // ? BUG: g?y reload loop
+}
+```
+Session h?t h?n ? 401 ? reload ? session v?n h?t ? 401 ? reload ? v?ng l?p v? t?n.
+
+### Nguy?n nh?n B? Che Khu?t
+T?i ?? ?i sai h??ng 2 ti?ng v?:
+1. Ngh? do Vite HMR (??ng 1 ph?n, nh?ng kh?ng ph?i root cause ch?nh)
+2. Ngh? do Service Worker (kh?ng ph?i)
+3. Ngh? do watch.ignored Vite config (kh?ng ph?i)
+Root cause th?t n?m trong `main.jsx` ? ch? t?m ra khi ??c nginx access log ? th?y pattern GET/ + 401 l?p l?i ? trace v?o built JS bundle.
+
+### Fix
+```javascript
+// main.jsx - TR??C (BUG)
+window.location.reload();
+
+// main.jsx - SAU (FIX)
+window.dispatchEvent(new CustomEvent('session-expired'));
+
+// App.jsx - Th?m handler
+useEffect(() => {
+    const handler = () => setCurrentUser(null);
+    window.addEventListener('session-expired', handler);
+    return () => window.removeEventListener('session-expired', handler);
+}, []);
+```
+
+### Lesson Learned
+> ?? Khi app F5/reload v? t?n: LU?N ki?m tra nginx access log tr??c.
+> Pattern `GET / 200` ? `GET /api/xxx 401` ? `GET / 200` l?p l?i = reload loop do 401 handler.
+> Commit: 6f3c599
