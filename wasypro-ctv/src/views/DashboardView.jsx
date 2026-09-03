@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Crown, Award, Medal } from 'lucide-react';
 import SPointWidget from '../components/common/SPointWidget';
 import RankBadge from '../components/common/RankBadge';
+import AmbassadorProgressCard from '../components/common/AmbassadorProgressCard.jsx';
 
 export default function DashboardView({ refreshKey, currentUser, setActiveTab }) {
   const [data, setData] = useState({ totalDiamond: 0, totalGold: 0, totalSilver: 0, totalSales: 0 });
@@ -102,6 +103,12 @@ export default function DashboardView({ refreshKey, currentUser, setActiveTab })
             )}
           </div>
         </div>
+        {/* Phase 2B: Ambassador Progress - only show if not yet ambassador */}
+        {!personalStats?.isAmbassador && (
+          <div className="mt-2">
+            <AmbassadorProgressCard userId={currentUser.id} />
+          </div>
+        )}
       </div>
     );
   }

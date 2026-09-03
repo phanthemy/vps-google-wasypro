@@ -28,18 +28,24 @@ model User {
 
   // Phase 2A: Foundation rank & S-Points fields
   rank              String?   // AMBASSADOR, SALES_MANAGER, SALES_DIRECTOR, EXEC_OPERATIONS, EXEC_PROVINCE, EXEC_STRATEGIC
-  rankStatus        String?   // NOT_QUALIFIED, QUALIFIED, ACTIVE_RANK, DOWNGRADED
+  rankStatus        String?   // NOT_QUALIFIED, AUTO_QUALIFIED, ACTIVE_RANK, MANUAL_APPROVED, REVOKED
   rankAchievedAt    DateTime?
   regionCode        String?   // M? v?ng/t?nh ph? tr?ch
   sPoints           Float     @default(0)   // T?ng ?i?m S t?ch l?y hi?n c?
   wholesaleEligible Boolean   @default(false)
-  totalMachinesBought Int     @default(0)   // T?ng s? m?y ?? mua t?ch l?y
+  totalMachinesBought Int     @default(0)   // T?ng s? l?n t? mua (isSelfBuy=true) t?ch l?y
+
+  // Phase 2B: Ambassador activation audit
+  rankActivationMethod String? // AUTO_MACHINE_PURCHASE | AUTO_SPOINT_THRESHOLD | ADMIN_MANUAL_APPROVE
+  rankActivatedBy      String? // userId admin n?u manual approve, null n?u auto
 
   parent      User?         @relation("UserToUser", fields: [parentId], references: [userId])
   children    User[]        @relation("UserToUser")
   customers   Customer[]
   commissions Commission[]
   sPointTransactions SPointTransaction[]
+  wholesaleOrders    WholesaleOrder[]   @relation("WholesaleBuyer")
+  rankHistories      RankHistory[]
 }
 
 model Customer {
@@ -104,6 +110,7 @@ model Service {
 
   category    ServiceCategory @relation(fields: [categoryId], references: [id])
   orderItems  OrderItem[]
+  wholesaleItems WholesaleOrderItem[] @relation("WholesaleItems")
 }
 
 model Order {
@@ -112,6 +119,10 @@ model Order {
   totalAmount Float
   status      String   @default("COMPLETED") // DEPOSIT, COMPLETED, CANCELLED
   createdAt   DateTime @default(now())
+
+  // Phase 2B: Order classification
+  orderType   String   @default("RETAIL")  // RETAIL
+  isSelfBuy   Boolean  @default(false)     // buyer.phone == customer.phone
 
   customer    Customer    @relation(fields: [customerId], references: [id])
   items       OrderItem[]
@@ -137,6 +148,13 @@ model Commission {
   type        String   // DIRECT, OVERRIDE_F1, OVERRIDE_F2, SELF_CONSUMPTION, DIRECT_RETAIL, DISTRIBUTION_PARTNER, REGIONAL_DEVELOPMENT
   status      String   @default("PENDING") // PENDING, PAID
   createdAt   DateTime @default(now())
+
+  // Phase 2B: Audit snapshot fields
+  rateSnapshot Float?   // % rate applied at time of calculation
+  rankSnapshot String?  // receiver rank at time of calculation
+  baseAmount   Float?   // amount before rate multiplication
+  policyRef    String?  // Rule ID: AM-01, AM-02, AM-03, AM-04, DIRECT, OVERRIDE_F1, OVERRIDE_F2
+  metadata     String?  // JSON: additional rule details (ancestor depth, rule match, etc.)
 
   order       Order    @relation(fields: [orderId], references: [id])
   receiver    User     @relation(fields: [receiverId], references: [userId])
@@ -218,3 +236,73 @@ model AdminUser {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
+
+// Phase 2B ? Migration 2B-4: Configurable retail commission rules engine
+model CommissionPriceRule {
+  id           String   @id @default(cuid())
+  productType  String   // MACHINE, SUPPLY, SERVICE
+  minPrice     Float?   // null = no lower bound
+  maxPrice     Float?   // null = no upper bound
+  rate         Float?   // null = TBD/CONFIGURABLE (inactive rules)
+  commType     String   // Commission type to create: DIRECT_RETAIL, etc.
+  rankRequired String?  // AMBASSADOR, null = any rank
+  isActive     Boolean  @default(true)
+  note         String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+// Phase 2B ? Migration 2B-5a: Wholesale order module
+model WholesaleOrder {
+  id             String   @id @default(cuid())
+  buyerUserId    String
+  totalMachines  Int
+  discountRate   Float            // 0.35 | 0.40 | 0.45
+  basePriceType  String   @default("PRICE")  // PRICE ? chot (MAU_THUAN_03)
+  priceTotal     Float            // Total service.price before discount (snapshot)
+  listPriceTotal Float?           // Total listPrice for reference
+  finalAmount    Float            // Total after discount = priceTotal * (1 - discountRate)
+  status         String   @default("PENDING_APPROVAL")
+  approvedBy     String?
+  approvedAt     DateTime?
+  shippedAt      DateTime?
+  completedAt    DateTime?
+  notes          String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  buyer User                @relation("WholesaleBuyer", fields: [buyerUserId], references: [userId])
+  items WholesaleOrderItem[]
+}
+
+model WholesaleOrderItem {
+  id               String         @id @default(cuid())
+  wholesaleOrderId String
+  serviceId        String
+  qty              Int
+  unitPrice        Float          // service.price snapshot at order time (BASE)
+  unitListPrice    Float?         // service.listPrice snapshot (reference only)
+  discountRate     Float          // 0.35 | 0.40 | 0.45
+  discountedPrice  Float          // unitPrice * (1 - discountRate)
+  subtotal         Float          // discountedPrice * qty
+
+  wholesaleOrder WholesaleOrder @relation(fields: [wholesaleOrderId], references: [id])
+  service        Service        @relation("WholesaleItems", fields: [serviceId], references: [id])
+}
+
+// Phase 2B ? Migration 2B-5b: Rank change history for full audit trail
+model RankHistory {
+  id          String   @id @default(cuid())
+  userId      String
+  fromRank    String?  // null if first time achieving rank
+  toRank      String
+  fromStatus  String?
+  toStatus    String
+  reason      String   // AUTO_MACHINE_PURCHASE | AUTO_SPOINT_THRESHOLD | ADMIN_MANUAL_APPROVE | ADMIN_REVOKE
+  triggeredBy String?  // admin userId or SYSTEM
+  metadata    String?  // JSON snapshot: machinesBoughtAtTime, sPointsAtTime, approvalNote, revokeReason
+  createdAt   DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [userId])
+}
+

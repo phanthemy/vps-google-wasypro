@@ -17,7 +17,9 @@ import {
   UserCog,
   History,
   Key,
-  ShoppingCart
+  ShoppingCart,
+  Truck,
+  TrendingUp
 } from 'lucide-react';
 import './App.css';
 
@@ -42,6 +44,8 @@ import CommissionHistoryView from './views/CommissionHistoryView.jsx';
 import SystemUsersView from './views/SystemUsersView.jsx';
 import SystemLogsView from './views/SystemLogsView.jsx';
 import AboutView from './views/AboutView.jsx';
+import WholesaleOrdersView from './views/WholesaleOrdersView.jsx';
+import RankView from './views/RankView.jsx';
 
 function App() {
   const [currentUser, setCurrentUser] = useState(() => {
@@ -286,6 +290,20 @@ function App() {
             </div>
           )}
           <div 
+            className={`nav-item ${activeTab === 'wholesale' ? 'active' : ''}`}
+            onClick={() => { setActiveTab('wholesale'); setSidebarOpen(false); }}
+          >
+            <Truck size={20} />
+            <span>Đơn Hàng Sỉ</span>
+          </div>
+          <div 
+            className={`nav-item ${activeTab === 'rank' ? 'active' : ''}`}
+            onClick={() => { setActiveTab('rank'); setSidebarOpen(false); }}
+          >
+            <TrendingUp size={20} />
+            <span>Hạng & Ambassador</span>
+          </div>
+          <div 
             className={`nav-item ${activeTab === 'about' ? 'active' : ''}`}
             onClick={() => { setActiveTab('about'); setSidebarOpen(false); }}
           >
@@ -323,6 +341,8 @@ function App() {
               {activeTab === 'statistics' && 'Thống Kê Bán Hàng CTV'}
               {activeTab === 'commissions' && 'Lịch Sử Dòng Tiền Hoa Hồng'}
               {activeTab === 'about' && 'Thông Tin Hợp Tác WATER KING'}
+              {activeTab === 'wholesale' && 'Quản Lý Đơn Hàng Sỉ'}
+              {activeTab === 'rank' && 'Hạng & Ambassador'}
             </h2>
           </div>
           <div className="flex items-center gap-4">
@@ -370,6 +390,8 @@ function App() {
           {activeTab === 'commissions' && <CommissionHistoryView currentUser={currentUser} setActiveTab={setActiveTab} />}
           {activeTab === 'internal-users' && isAdmin && <SystemUsersView />}
           {activeTab === 'audit-logs' && isAdminOrAccountant && <SystemLogsView currentUser={currentUser} />}
+          {activeTab === 'wholesale' && <WholesaleOrdersView currentUser={currentUser} />}
+          {activeTab === 'rank' && <RankView currentUser={currentUser} />}
           {activeTab === 'about' && <AboutView />}
         </div>
       </main>

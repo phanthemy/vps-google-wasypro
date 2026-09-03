@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { User } from 'lucide-react';
+import CommissionRuleTag from '../components/common/CommissionRuleTag.jsx';
 
 export default function CommissionHistoryView({ currentUser, setActiveTab }) {
   const [commissions, setCommissions] = useState([]);
@@ -59,6 +60,8 @@ export default function CommissionHistoryView({ currentUser, setActiveTab }) {
               <tr className="border-b border-gray-700 text-secondary">
                 <th className="py-3 px-4 font-medium" style={{ whiteSpace: 'nowrap' }}>Thời Gian</th>
                 <th className="py-3 px-4 font-medium" style={{ whiteSpace: 'nowrap' }}>Loại Chiết Khấu</th>
+                <th className="py-3 px-4 font-medium" style={{ whiteSpace: 'nowrap' }}>Policy</th>
+                <th className="py-3 px-4 font-medium" style={{ whiteSpace: 'nowrap' }}>Tỷ lệ</th>
                 <th className="py-3 px-4 font-medium" style={{ whiteSpace: 'nowrap' }}>Khách Hàng Áp Dụng</th>
                 <th className="py-3 px-4 font-medium" style={{ whiteSpace: 'nowrap' }}>Mã Đơn Hàng</th>
                 <th className="py-3 px-4 font-medium" style={{ whiteSpace: 'nowrap' }}>Đơn Hàng</th>
@@ -75,7 +78,7 @@ export default function CommissionHistoryView({ currentUser, setActiveTab }) {
             <tbody>
               {groupedCommissions.length === 0 ? (
                 <tr>
-                  <td colSpan={showTaxes ? 9 : 6} className="py-8 text-center text-secondary">
+                  <td colSpan={showTaxes ? 11 : 8} className="py-8 text-center text-secondary">
                     Chưa có phát sinh hoa hồng nào.
                   </td>
                 </tr>
@@ -97,6 +100,12 @@ export default function CommissionHistoryView({ currentUser, setActiveTab }) {
                     <tr key={c.id} className="border-b border-gray-800/50 hover:bg-white/5 transition-colors">
                       <td className="py-4 px-4 text-sm text-secondary">{dt}</td>
                       <td className="py-4 px-4 font-medium" style={{ color: typeColor }}>{typeText}</td>
+                      <td className="py-4 px-4">
+                        <CommissionRuleTag policyRef={c.policyRef} size="sm" />
+                      </td>
+                      <td className="py-4 px-4 text-sm text-center">
+                        {c.rateSnapshot ? <span className="text-green-400 font-semibold">{c.rateSnapshot}%</span> : <span className="text-muted">-</span>}
+                      </td>
                       <td className="py-4 px-4">
                         <div className="flex items-center gap-2">
                           <User size={16} className="text-secondary" />

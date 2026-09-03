@@ -1110,8 +1110,17 @@ app.post('/api/orders', authenticateToken, async (req, res) => {
     const ctv = customer.sourceCtv;
     const commissionsToCreate = [];
 
+    // Phase 2B: Determine isSelfBuy and Ambassador status
+    const isSelfBuy = ctv ? (ctv.phone === customer.phone) : false;
+    const ambassadorActive = ctv ? isActiveAmbassador(ctv) : false;
+
+    // Update Order with Phase 2B fields
+    await prisma.order.update({
+      where: { id: order.id },
+      data: { orderType: 'RETAIL', isSelfBuy }
+    });
+
     if (ctv) {
-      const isSelfBuy = ctv.phone === customer.phone;
       const commissionRates = getCommissionRates();
 
       function getRate(tier, qty, isSelf) {
@@ -1126,36 +1135,96 @@ app.post('/api/orders', authenticateToken, async (req, res) => {
       const totalOrderQty = itemsData.reduce((sum, i) => sum + (i.qty || 1), 0);
 
       for (const item of itemsData) {
-        const baseRate = getRate(ctv.tier, totalOrderQty, isSelfBuy);
-        if (baseRate > 0) {
-          commissionsToCreate.push({
-            orderId: order.id,
-            receiverId: ctv.userId,
-            amount: item.amount * baseRate,
-            type: 'DIRECT',
-            status: 'PENDING'
-          });
-        }
+        // Fetch service details for commission rule lookup
+        const svcDetail = await prisma.service.findUnique({ where: { id: item.serviceId } });
+        const effectivePrice = (svcDetail && svcDetail.listPrice) ? svcDetail.listPrice : item.amount;
 
-        let currentParent = ctv.parent;
-        if (currentParent) {
-          commissionsToCreate.push({
-            orderId: order.id,
-            receiverId: currentParent.userId,
-            amount: item.amount * 0.10,
-            type: 'OVERRIDE_F1',
-            status: 'PENDING'
-          });
-
-          let grandParent = currentParent.parent;
-          if (grandParent) {
+        if (ambassadorActive) {
+          // AM-01: Self-consumption (20%) ? replaces DIRECT for Ambassador self-buy
+          if (isSelfBuy) {
             commissionsToCreate.push({
-              orderId: order.id,
-              receiverId: grandParent.userId,
-              amount: item.amount * 0.05,
-              type: 'OVERRIDE_F2',
-              status: 'PENDING'
+              orderId: order.id, receiverId: ctv.userId,
+              amount: item.amount * 0.20, type: 'SELF_CONSUMPTION', status: 'PENDING',
+              rateSnapshot: 0.20, rankSnapshot: ctv.rank, baseAmount: item.amount, policyRef: 'AM-01',
+              metadata: JSON.stringify({ isSelfBuy: true })
             });
+          } else {
+            // AM-02: Direct retail via configurable rules engine
+            const rule = svcDetail ? await getRetailCommRule(svcDetail.productType || 'SERVICE', svcDetail.price, 'AMBASSADOR') : null;
+            if (rule && rule.rate) {
+              commissionsToCreate.push({
+                orderId: order.id, receiverId: ctv.userId,
+                amount: item.amount * rule.rate, type: rule.commType, status: 'PENDING',
+                rateSnapshot: rule.rate, rankSnapshot: ctv.rank, baseAmount: item.amount, policyRef: 'AM-02',
+                metadata: JSON.stringify({ ruleId: rule.id, productType: svcDetail.productType, price: svcDetail.price })
+              });
+            } else {
+              // Fallback: legacy DIRECT for Ambassador when no matching retail rule
+              const legacyRate = getRate(ctv.tier, totalOrderQty, false);
+              if (legacyRate > 0) {
+                commissionsToCreate.push({
+                  orderId: order.id, receiverId: ctv.userId,
+                  amount: item.amount * legacyRate, type: 'DIRECT', status: 'PENDING',
+                  rateSnapshot: legacyRate, rankSnapshot: ctv.rank, baseAmount: item.amount, policyRef: 'DIRECT',
+                  metadata: JSON.stringify({ fallback: true, reason: 'no_matching_am02_rule' })
+                });
+              }
+            }
+          }
+
+          // AM-03: Distribution partner (10%) ? paid to direct parent if parent is Ambassador
+          if (ctv.parent && isActiveAmbassador(ctv.parent)) {
+            commissionsToCreate.push({
+              orderId: order.id, receiverId: ctv.parent.userId,
+              amount: item.amount * 0.10, type: 'DISTRIBUTION_PARTNER', status: 'PENDING',
+              rateSnapshot: 0.10, rankSnapshot: ctv.parent.rank, baseAmount: item.amount, policyRef: 'AM-03',
+              metadata: JSON.stringify({ partnerUserId: ctv.parent.userId })
+            });
+          }
+
+          // AM-04: Regional development (5%) ? nearest Ambassador ancestor (not parent if AM-03 already paid)
+          const ancestorStartId = (ctv.parent && isActiveAmbassador(ctv.parent)) ? ctv.parent.userId : (ctv.parentId || null);
+          if (ancestorStartId) {
+            const excludeId = (ctv.parent && isActiveAmbassador(ctv.parent)) ? ctv.parent.userId : null;
+            const ancestor = await findNearestAmbassadorAncestor(ancestorStartId, excludeId);
+            if (ancestor && ancestor.userId !== ctv.userId) {
+              const treeDepth = ancestorStartId ? 2 : 1;
+              commissionsToCreate.push({
+                orderId: order.id, receiverId: ancestor.userId,
+                amount: item.amount * 0.05, type: 'REGIONAL_DEVELOPMENT', status: 'PENDING',
+                rateSnapshot: 0.05, rankSnapshot: ancestor.rank, baseAmount: item.amount, policyRef: 'AM-04',
+                metadata: JSON.stringify({ ancestorUserId: ancestor.userId, ancestorRankStatus: ancestor.rankStatus })
+              });
+            }
+          }
+
+        } else {
+          // Legacy commission logic (Phase 1A) ? for non-Ambassador CTVs
+          const baseRate = getRate(ctv.tier, totalOrderQty, isSelfBuy);
+          if (baseRate > 0) {
+            commissionsToCreate.push({
+              orderId: order.id, receiverId: ctv.userId,
+              amount: item.amount * baseRate, type: 'DIRECT', status: 'PENDING',
+              rateSnapshot: baseRate, rankSnapshot: ctv.rank || null, baseAmount: item.amount, policyRef: 'DIRECT'
+            });
+          }
+
+          let currentParent = ctv.parent;
+          if (currentParent) {
+            commissionsToCreate.push({
+              orderId: order.id, receiverId: currentParent.userId,
+              amount: item.amount * 0.10, type: 'OVERRIDE_F1', status: 'PENDING',
+              rateSnapshot: 0.10, rankSnapshot: currentParent.rank || null, baseAmount: item.amount, policyRef: 'OVERRIDE_F1'
+            });
+
+            let grandParent = currentParent.parent;
+            if (grandParent) {
+              commissionsToCreate.push({
+                orderId: order.id, receiverId: grandParent.userId,
+                amount: item.amount * 0.05, type: 'OVERRIDE_F2', status: 'PENDING',
+                rateSnapshot: 0.05, rankSnapshot: grandParent.rank || null, baseAmount: item.amount, policyRef: 'OVERRIDE_F2'
+              });
+            }
           }
         }
       }
@@ -1163,6 +1232,9 @@ app.post('/api/orders', authenticateToken, async (req, res) => {
       if (commissionsToCreate.length > 0) {
         await prisma.commission.createMany({ data: commissionsToCreate });
       }
+
+      // Phase 2B: Auto-activate Ambassador check (non-blocking)
+      checkAndAutoActivateAmbassador(ctv.userId).catch(e => console.error('[AMBASSADOR CHECK]', e.message));
     }
 
     // Phase 2A: Passive S-Points award (non-blocking)
@@ -1639,6 +1711,517 @@ async function awardSPointsForOrder(order, ctv) {
     console.error(`[S-POINTS] Error for order ${order.id}:`, err.message);
   }
 }
+
+
+// ============================================================
+// PHASE 2B — HELPER FUNCTIONS
+// ============================================================
+
+/** Check if a user is an active Ambassador */
+function isActiveAmbassador(user) {
+  return user &&
+    user.rank === 'AMBASSADOR' &&
+    ['ACTIVE_RANK', 'MANUAL_APPROVED'].includes(user.rankStatus);
+}
+
+/** Find nearest Ambassador ancestor above a given userId */
+async function findNearestAmbassadorAncestor(startUserId, excludeUserId = null) {
+  let currentId = startUserId;
+  const visited = new Set();
+  while (currentId && !visited.has(currentId)) {
+    visited.add(currentId);
+    const user = await prisma.user.findUnique({ where: { userId: currentId } });
+    if (!user || !user.parentId) break;
+    const parent = await prisma.user.findUnique({ where: { userId: user.parentId } });
+    if (!parent) break;
+    if (parent.userId === excludeUserId) {
+      currentId = parent.userId;
+      continue;
+    }
+    if (isActiveAmbassador(parent)) {
+      return parent;
+    }
+    currentId = parent.userId;
+  }
+  return null;
+}
+
+/** Look up a retail commission rule for a given productType and price */
+async function getRetailCommRule(productType, price, rank) {
+  const rules = await prisma.commissionPriceRule.findMany({
+    where: {
+      productType,
+      isActive: true,
+      OR: [{ rankRequired: rank }, { rankRequired: null }]
+    },
+    orderBy: { minPrice: 'desc' }
+  });
+  for (const rule of rules) {
+    const aboveMin = rule.minPrice === null || price >= rule.minPrice;
+    const belowMax = rule.maxPrice === null || price <= rule.maxPrice;
+    if (aboveMin && belowMax) return rule;
+  }
+  return null;
+}
+
+/** Auto-activate Ambassador if user qualifies. Creates RankHistory audit. */
+async function checkAndAutoActivateAmbassador(userId) {
+  try {
+    const user = await prisma.user.findUnique({ where: { userId } });
+    if (!user || user.rank === 'AMBASSADOR') return;
+    const qualifies = user.totalMachinesBought >= 1 || user.sPoints >= 5000;
+    if (!qualifies) return;
+    const method = user.totalMachinesBought >= 1 ? 'AUTO_MACHINE_PURCHASE' : 'AUTO_SPOINT_THRESHOLD';
+    await prisma.user.update({
+      where: { userId },
+      data: {
+        rank: 'AMBASSADOR',
+        rankStatus: 'ACTIVE_RANK',
+        rankAchievedAt: new Date(),
+        rankActivationMethod: method,
+        rankActivatedBy: null
+      }
+    });
+    await prisma.rankHistory.create({
+      data: {
+        userId,
+        fromRank: null,
+        toRank: 'AMBASSADOR',
+        fromStatus: null,
+        toStatus: 'ACTIVE_RANK',
+        reason: method,
+        triggeredBy: 'SYSTEM',
+        metadata: JSON.stringify({
+          machinesBoughtAtTime: user.totalMachinesBought,
+          sPointsAtTime: user.sPoints
+        })
+      }
+    });
+    console.log(`[AMBASSADOR AUTO] ${userId} qualified via ${method}`);
+  } catch (e) {
+    console.error('[AMBASSADOR AUTO ERROR]', e.message);
+  }
+}
+
+// ============================================================
+// PHASE 2B — AMBASSADOR RANK MANAGEMENT ENDPOINTS
+// ============================================================
+
+/** GET /api/rank/ambassador/check/:userId — Preview eligibility */
+app.get('/api/rank/ambassador/check/:userId', authenticateToken, async (req, res) => {
+  try {
+    const targetId = req.params.userId;
+    if (req.user.role !== 'admin' && req.user.id !== targetId) {
+      return res.status(403).json({ success: false, message: 'Không có quyền.' });
+    }
+    const user = await prisma.user.findUnique({ where: { userId: targetId } });
+    if (!user) return res.status(404).json({ success: false, message: 'Không tìm thấy user.' });
+    const conditionA = user.totalMachinesBought >= 1;
+    const conditionB = user.sPoints >= 5000;
+    res.json({
+      success: true,
+      data: {
+        userId: user.userId,
+        name: user.fullName,
+        currentRank: user.rank,
+        currentRankStatus: user.rankStatus,
+        isAmbassador: user.rank === 'AMBASSADOR',
+        eligibility: {
+          qualifies: conditionA || conditionB,
+          conditionA: { met: conditionA, value: user.totalMachinesBought, required: 1, label: 'Đã mua ≥1 sản phẩm' },
+          conditionB: { met: conditionB, value: user.sPoints, required: 5000, label: 'S-Points ≥5.000' }
+        }
+      }
+    });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+/** GET /api/rank/ambassador/eligible — List CTVs eligible for auto-activation */
+app.get('/api/rank/ambassador/eligible', authenticateToken, requireRole(['admin']), async (req, res) => {
+  try {
+    const eligible = await prisma.user.findMany({
+      where: {
+        role: 'ctv',
+        rank: null,
+        OR: [
+          { totalMachinesBought: { gte: 1 } },
+          { sPoints: { gte: 5000 } }
+        ]
+      },
+      select: { userId: true, fullName: true, phone: true, tier: true, totalMachinesBought: true, sPoints: true, createdAt: true }
+    });
+    res.json({ success: true, data: eligible, count: eligible.length });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+/** POST /api/rank/ambassador/activate/:userId — Admin manual approve */
+app.post('/api/rank/ambassador/activate/:userId', authenticateToken, requireRole(['admin']), async (req, res) => {
+  try {
+    const targetId = req.params.userId;
+    const { note } = req.body;
+    const user = await prisma.user.findUnique({ where: { userId: targetId } });
+    if (!user) return res.status(404).json({ success: false, message: 'Không tìm thấy user.' });
+    if (user.rank === 'AMBASSADOR' && user.rankStatus === 'ACTIVE_RANK') {
+      return res.status(400).json({ success: false, message: 'User đã là Ambassador ACTIVE.' });
+    }
+    await prisma.user.update({
+      where: { userId: targetId },
+      data: {
+        rank: 'AMBASSADOR',
+        rankStatus: 'MANUAL_APPROVED',
+        rankAchievedAt: new Date(),
+        rankActivationMethod: 'ADMIN_MANUAL_APPROVE',
+        rankActivatedBy: req.user.id
+      }
+    });
+    await prisma.rankHistory.create({
+      data: {
+        userId: targetId,
+        fromRank: user.rank,
+        toRank: 'AMBASSADOR',
+        fromStatus: user.rankStatus,
+        toStatus: 'MANUAL_APPROVED',
+        reason: 'ADMIN_MANUAL_APPROVE',
+        triggeredBy: req.user.id,
+        metadata: JSON.stringify({
+          approvalNote: note || '',
+          machinesBoughtAtTime: user.totalMachinesBought,
+          sPointsAtTime: user.sPoints,
+          approvedByAdmin: req.user.id
+        })
+      }
+    });
+    res.json({ success: true, message: `Đã kích hoạt Ambassador cho ${user.name}.` });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+/** POST /api/rank/ambassador/revoke/:userId — Admin revoke */
+app.post('/api/rank/ambassador/revoke/:userId', authenticateToken, requireRole(['admin']), async (req, res) => {
+  try {
+    const targetId = req.params.userId;
+    const { reason } = req.body;
+    if (!reason) return res.status(400).json({ success: false, message: 'Vui lòng cung cấp lý do thu hồi.' });
+    const user = await prisma.user.findUnique({ where: { userId: targetId } });
+    if (!user) return res.status(404).json({ success: false, message: 'Không tìm thấy user.' });
+    if (user.rank !== 'AMBASSADOR') {
+      return res.status(400).json({ success: false, message: 'User không phải Ambassador.' });
+    }
+    await prisma.user.update({
+      where: { userId: targetId },
+      data: { rankStatus: 'REVOKED', rankActivationMethod: null }
+    });
+    await prisma.rankHistory.create({
+      data: {
+        userId: targetId,
+        fromRank: 'AMBASSADOR',
+        toRank: 'AMBASSADOR',
+        fromStatus: user.rankStatus,
+        toStatus: 'REVOKED',
+        reason: 'ADMIN_REVOKE',
+        triggeredBy: req.user.id,
+        metadata: JSON.stringify({ revokeReason: reason, revokedByAdmin: req.user.id })
+      }
+    });
+    res.json({ success: true, message: `Đã thu hồi Ambassador của ${user.name}.` });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+/** GET /api/rank/history/:userId — Rank change history */
+app.get('/api/rank/history/:userId', authenticateToken, async (req, res) => {
+  try {
+    const targetId = req.params.userId;
+    if (req.user.role !== 'admin' && req.user.id !== targetId) {
+      return res.status(403).json({ success: false, message: 'Không có quyền.' });
+    }
+    const history = await prisma.rankHistory.findMany({
+      where: { userId: targetId },
+      orderBy: { createdAt: 'desc' }
+    });
+    res.json({ success: true, data: history });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+// ============================================================
+// PHASE 2B — WHOLESALE ORDER MODULE
+// All CTVs can create wholesale orders (no rank restriction)
+// Base price = service.price (CHOT — MAU_THUAN_03)
+// ============================================================
+
+function getWholesaleDiscountRate(totalMachines) {
+  if (totalMachines >= 20) return 0.45;
+  if (totalMachines >= 10) return 0.40;
+  if (totalMachines >= 5) return 0.35;
+  return null; // below minimum
+}
+
+/** GET /api/wholesale/price-preview — Preview wholesale pricing */
+app.get('/api/wholesale/price-preview', authenticateToken, requireRole(['admin', 'ctv']), async (req, res) => {
+  try {
+    const { qty } = req.query;
+    const totalQty = parseInt(qty) || 0;
+    const rate = getWholesaleDiscountRate(totalQty);
+    res.json({
+      success: true,
+      data: {
+        totalMachines: totalQty,
+        discountRate: rate,
+        discountPercent: rate ? Math.round(rate * 100) + '%' : null,
+        eligible: rate !== null,
+        message: rate ? `Chiết khấu ${Math.round(rate * 100)}% trên giá bán` : 'Cần tối thiểu 5 máy để được chiết khấu sỉ.'
+      }
+    });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+/** GET /api/wholesale/orders */
+app.get('/api/wholesale/orders', authenticateToken, requireRole(['admin', 'ctv']), async (req, res) => {
+  try {
+    const { status } = req.query;
+    const where = {};
+    if (req.user.role === 'ctv') where.buyerUserId = req.user.id;
+    if (status) where.status = status;
+    const orders = await prisma.wholesaleOrder.findMany({
+      where,
+      include: {
+        buyer: { select: { userId: true, fullName: true, phone: true, tier: true, rank: true } },
+        items: { include: { service: { select: { id: true, name: true, price: true, listPrice: true } } } }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+    res.json({ success: true, data: orders });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+/** POST /api/wholesale/orders — Create wholesale order */
+app.post('/api/wholesale/orders', authenticateToken, requireRole(['admin', 'ctv']), async (req, res) => {
+  try {
+    const { items, notes } = req.body;
+    if (!items || !Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ success: false, message: 'Vui lòng cung cấp danh sách sản phẩm.' });
+    }
+    // Validate and calculate
+    let totalMachines = 0;
+    let priceTotal = 0;
+    let listPriceTotal = 0;
+    const itemsData = [];
+    for (const item of items) {
+      const svc = await prisma.service.findUnique({ where: { id: item.serviceId } });
+      if (!svc) return res.status(400).json({ success: false, message: `Không tìm thấy sản phẩm ${item.serviceId}` });
+      const qty = Math.max(1, parseInt(item.qty) || 1);
+      totalMachines += qty;
+      const unitPrice = svc.price;
+      const unitListPrice = svc.listPrice || null;
+      priceTotal += unitPrice * qty;
+      if (unitListPrice) listPriceTotal += unitListPrice * qty;
+      itemsData.push({ serviceId: item.serviceId, qty, unitPrice, unitListPrice, serviceName: svc.name });
+    }
+    const discountRate = getWholesaleDiscountRate(totalMachines);
+    if (!discountRate) {
+      return res.status(400).json({ success: false, message: `Cần tối thiểu 5 máy để đặt đơn sỉ. Hiện tại: ${totalMachines} máy.` });
+    }
+    const finalAmount = priceTotal * (1 - discountRate);
+    const buyerUserId = req.user.id;
+    const order = await prisma.wholesaleOrder.create({
+      data: {
+        buyerUserId,
+        totalMachines,
+        discountRate,
+        basePriceType: 'PRICE',
+        priceTotal,
+        listPriceTotal: listPriceTotal || null,
+        finalAmount,
+        notes: notes || null,
+        status: 'PENDING_APPROVAL',
+        items: {
+          create: itemsData.map(i => ({
+            serviceId: i.serviceId,
+            qty: i.qty,
+            unitPrice: i.unitPrice,
+            unitListPrice: i.unitListPrice,
+            discountRate,
+            discountedPrice: i.unitPrice * (1 - discountRate),
+            subtotal: i.unitPrice * (1 - discountRate) * i.qty
+          }))
+        }
+      },
+      include: { items: true }
+    });
+    res.json({ success: true, data: order, message: `Đơn sỉ đã tạo. Chiết khấu ${Math.round(discountRate * 100)}% trên giá bán.` });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+/** GET /api/wholesale/orders/:id */
+app.get('/api/wholesale/orders/:id', authenticateToken, requireRole(['admin', 'ctv']), async (req, res) => {
+  try {
+    const order = await prisma.wholesaleOrder.findUnique({
+      where: { id: req.params.id },
+      include: {
+        buyer: { select: { userId: true, fullName: true, phone: true, tier: true, rank: true } },
+        items: { include: { service: { select: { id: true, name: true, price: true, listPrice: true } } } }
+      }
+    });
+    if (!order) return res.status(404).json({ success: false, message: 'Không tìm thấy đơn sỉ.' });
+    if (req.user.role === 'ctv' && order.buyerUserId !== req.user.id) {
+      return res.status(403).json({ success: false, message: 'Không có quyền.' });
+    }
+    res.json({ success: true, data: order });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+/** PUT /api/wholesale/orders/:id/approve */
+app.put('/api/wholesale/orders/:id/approve', authenticateToken, requireRole(['admin']), async (req, res) => {
+  try {
+    const order = await prisma.wholesaleOrder.update({
+      where: { id: req.params.id },
+      data: { status: 'APPROVED', approvedBy: req.user.id, approvedAt: new Date() }
+    });
+    res.json({ success: true, data: order, message: 'Đã duyệt đơn sỉ.' });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+/** PUT /api/wholesale/orders/:id/ship */
+app.put('/api/wholesale/orders/:id/ship', authenticateToken, requireRole(['admin']), async (req, res) => {
+  try {
+    const order = await prisma.wholesaleOrder.update({
+      where: { id: req.params.id },
+      data: { status: 'SHIPPING', shippedAt: new Date() }
+    });
+    res.json({ success: true, data: order, message: 'Đã cập nhật trạng thái giao hàng.' });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+/** PUT /api/wholesale/orders/:id/complete */
+app.put('/api/wholesale/orders/:id/complete', authenticateToken, requireRole(['admin']), async (req, res) => {
+  try {
+    const order = await prisma.wholesaleOrder.update({
+      where: { id: req.params.id },
+      data: { status: 'COMPLETED', completedAt: new Date() }
+    });
+    res.json({ success: true, data: order, message: 'Đơn sỉ đã hoàn tất.' });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+/** PUT /api/wholesale/orders/:id/cancel */
+app.put('/api/wholesale/orders/:id/cancel', authenticateToken, requireRole(['admin']), async (req, res) => {
+  try {
+    const { reason } = req.body;
+    const order = await prisma.wholesaleOrder.update({
+      where: { id: req.params.id },
+      data: { status: 'CANCELLED', notes: reason || null }
+    });
+    res.json({ success: true, data: order, message: 'Đã hủy đơn sỉ.' });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+// ============================================================
+// PHASE 2B — COMMISSION PRICE RULES MANAGEMENT (Admin)
+// ============================================================
+
+/** GET /api/commission-rules */
+app.get('/api/commission-rules', authenticateToken, requireRole(['admin']), async (req, res) => {
+  try {
+    const rules = await prisma.commissionPriceRule.findMany({ orderBy: [{ productType: 'asc' }, { minPrice: 'desc' }] });
+    res.json({ success: true, data: rules });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+/** POST /api/commission-rules */
+app.post('/api/commission-rules', authenticateToken, requireRole(['admin']), async (req, res) => {
+  try {
+    const { productType, minPrice, maxPrice, rate, commType, rankRequired, isActive, note } = req.body;
+    if (!productType || !commType) {
+      return res.status(400).json({ success: false, message: 'productType và commType là bắt buộc.' });
+    }
+    const rule = await prisma.commissionPriceRule.create({
+      data: { productType, minPrice: minPrice || null, maxPrice: maxPrice || null, rate: rate || null, commType, rankRequired: rankRequired || null, isActive: isActive !== false, note: note || null }
+    });
+    res.json({ success: true, data: rule });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+/** PUT /api/commission-rules/:id */
+app.put('/api/commission-rules/:id', authenticateToken, requireRole(['admin']), async (req, res) => {
+  try {
+    const { minPrice, maxPrice, rate, commType, rankRequired, isActive, note } = req.body;
+    const rule = await prisma.commissionPriceRule.update({
+      where: { id: req.params.id },
+      data: {
+        ...(minPrice !== undefined && { minPrice }),
+        ...(maxPrice !== undefined && { maxPrice }),
+        ...(rate !== undefined && { rate }),
+        ...(commType && { commType }),
+        ...(rankRequired !== undefined && { rankRequired }),
+        ...(isActive !== undefined && { isActive }),
+        ...(note !== undefined && { note })
+      }
+    });
+    res.json({ success: true, data: rule });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+/** GET /api/commissions/preview — Preview commission for a hypothetical order */
+app.get('/api/commissions/preview', authenticateToken, requireRole(['admin']), async (req, res) => {
+  try {
+    const { ctvUserId, serviceId, amount, qty } = req.query;
+    if (!ctvUserId || !serviceId || !amount) {
+      return res.status(400).json({ success: false, message: 'ctvUserId, serviceId, amount required.' });
+    }
+    const ctv = await prisma.user.findUnique({
+      where: { userId: ctvUserId },
+      include: { parent: { include: { parent: true } } }
+    });
+    const svc = await prisma.service.findUnique({ where: { id: serviceId } });
+    if (!ctv || !svc) return res.status(404).json({ success: false, message: 'User hoặc Service không tồn tại.' });
+    const orderAmount = parseFloat(amount);
+    const preview = [];
+    const ambassadorActive = isActiveAmbassador(ctv);
+    if (ambassadorActive) {
+      const rule = await getRetailCommRule(svc.productType || 'SERVICE', svc.price, 'AMBASSADOR');
+      if (rule && rule.rate) {
+        preview.push({ receiver: ctv.name, type: rule.commType, rate: rule.rate, amount: orderAmount * rule.rate, policyRef: 'AM-02' });
+      }
+      if (ctv.parent && isActiveAmbassador(ctv.parent)) {
+        preview.push({ receiver: ctv.parent.name, type: 'DISTRIBUTION_PARTNER', rate: 0.10, amount: orderAmount * 0.10, policyRef: 'AM-03' });
+      }
+    }
+    res.json({ success: true, data: preview });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
 
 // GET /api/s-points/:userId
 app.get('/api/s-points/:userId', authenticateToken, async (req, res) => {
