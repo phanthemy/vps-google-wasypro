@@ -26,10 +26,20 @@ model User {
   updatedAt DateTime @updatedAt
   note      String?
 
+  // Phase 2A: Foundation rank & S-Points fields
+  rank              String?   // AMBASSADOR, SALES_MANAGER, SALES_DIRECTOR, EXEC_OPERATIONS, EXEC_PROVINCE, EXEC_STRATEGIC
+  rankStatus        String?   // NOT_QUALIFIED, QUALIFIED, ACTIVE_RANK, DOWNGRADED
+  rankAchievedAt    DateTime?
+  regionCode        String?   // M? v?ng/t?nh ph? tr?ch
+  sPoints           Float     @default(0)   // T?ng ?i?m S t?ch l?y hi?n c?
+  wholesaleEligible Boolean   @default(false)
+  totalMachinesBought Int     @default(0)   // T?ng s? m?y ?? mua t?ch l?y
+
   parent      User?         @relation("UserToUser", fields: [parentId], references: [userId])
   children    User[]        @relation("UserToUser")
   customers   Customer[]
   commissions Commission[]
+  sPointTransactions SPointTransaction[]
 }
 
 model Customer {
@@ -73,7 +83,7 @@ model Appointment {
 
 model ServiceCategory {
   id          String   @id @default(cuid())
-  name        String   @unique // e.g. "Nội khoa", "Phẫu thuật", "Chăm sóc"
+  name        String   @unique // e.g. "N?i khoa", "Ph?u thu?t", "Ch?m s?c"
   
   services    Service[]
 }
@@ -87,6 +97,10 @@ model Service {
   price       Float
   description String?
   imageUrl    String?
+
+  // Phase 2A: Product type for S-Points and wholesale classification
+  productType String?   // MACHINE, SUPPLY, SERVICE ? null = ch?a ph?n lo?i (c?n admin set)
+  listPrice   Float?    // Gi? ni?m y?t (null = d?ng price)
 
   category    ServiceCategory @relation(fields: [categoryId], references: [id])
   orderItems  OrderItem[]
@@ -120,12 +134,25 @@ model Commission {
   orderId     String
   receiverId  String
   amount      Float
-  type        String   // DIRECT, OVERRIDE
+  type        String   // DIRECT, OVERRIDE_F1, OVERRIDE_F2, SELF_CONSUMPTION, DIRECT_RETAIL, DISTRIBUTION_PARTNER, REGIONAL_DEVELOPMENT
   status      String   @default("PENDING") // PENDING, PAID
   createdAt   DateTime @default(now())
 
   order       Order    @relation(fields: [orderId], references: [id])
   receiver    User     @relation(fields: [receiverId], references: [userId])
+}
+
+// Phase 2A ? Migration 3: S-Point Transaction log
+model SPointTransaction {
+  id          String   @id @default(cuid())
+  userId      String
+  orderId     String?  // Link to order that generated the points (nullable for adjustments)
+  points      Float    // Positive = earn, Negative = redeem/deduct
+  type        String   // EARN, REDEEM, EXPIRE, ADJUST
+  description String?
+  createdAt   DateTime @default(now())
+
+  user        User     @relation(fields: [userId], references: [userId])
 }
 
 model ProductCategory {
@@ -154,7 +181,7 @@ model Product {
   isHot         Boolean  @default(false)
   isNew         Boolean  @default(false)
   stock         Int      @default(0)
-  promotion     String?  // Gift/promotion text e.g. "Tặng bộ lọc thô trị giá 500k"
+  promotion     String?  // Gift/promotion text e.g. "T?ng b? l?c th? tr? gi? 500k"
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 

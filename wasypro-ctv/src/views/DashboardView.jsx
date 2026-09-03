@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Crown, Award, Medal } from 'lucide-react';
+import SPointWidget from '../components/common/SPointWidget';
+import RankBadge from '../components/common/RankBadge';
 
 export default function DashboardView({ refreshKey, currentUser, setActiveTab }) {
   const [data, setData] = useState({ totalDiamond: 0, totalGold: 0, totalSilver: 0, totalSales: 0 });
@@ -81,6 +83,23 @@ export default function DashboardView({ refreshKey, currentUser, setActiveTab })
             <div className="text-muted text-xs text-center mt-3 animate-pulse border-t border-gray-800 pt-2">
               👉 Click vào đây để xem chi tiết sao kê {showTaxes ? 'trừ Thuế/Phí' : 'Hoa Hồng'}
             </div>
+          </div>
+        </div>
+
+        {/* Phase 2A: S-Points & Rank Foundation ? display only */}
+        <div className="grid gap-4 mt-2" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))' }}>
+          <SPointWidget userId={currentUser.id} />
+          <div className="bg-white rounded-xl p-4 border border-gray-100">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm font-medium text-gray-600">C?p b?c c?a b?n</span>
+            </div>
+            <div className="flex items-center gap-3 mt-1">
+              <RankBadge tier={currentUser.tier} rank={currentUser.rank} size="lg" />
+              <span className="text-xs text-gray-400">?ang ho?t ??ng</span>
+            </div>
+            {currentUser.rank && (
+              <p className="text-xs text-purple-500 mt-2 italic">Rank ??c bi?t ?? ???c k?ch ho?t</p>
+            )}
           </div>
         </div>
       </div>

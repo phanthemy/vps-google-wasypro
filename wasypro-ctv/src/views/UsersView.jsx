@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Crown, Award, Medal, Plus, Download, Edit, BarChart3, Users, Wallet } from 'lucide-react';
 import PageHeader from '../components/common/PageHeader.jsx';
+import RankBadge from '../components/common/RankBadge.jsx';
 
 export default function UsersView({ refreshKey, onAddUser, onEditUser }) {
   const [users, setUsers] = useState([]);
@@ -177,8 +178,11 @@ export default function UsersView({ refreshKey, onAddUser, onEditUser }) {
                     <div className="text-xs text-muted">{user.id} - {user.phone}</div>
                   </td>
                   <td>
-                    <div className="flex items-center gap-1 font-bold" style={{ color: getColor(user.tier) }}>
-                      {getIcon(user.tier)} {user.tier === 'DIAMOND' ? 'Giám đốc PT' : user.tier === 'GOLD' ? 'Quản lý PT' : 'Đại sứ KD'}
+                    <div className="flex flex-col gap-1">
+                      <div className="flex items-center gap-1 font-bold" style={{ color: getColor(user.tier) }}>
+                        {getIcon(user.tier)} {user.tier === 'DIAMOND' ? 'Giám đốc PT' : user.tier === 'GOLD' ? 'Quản lý PT' : 'Đại sứ KD'}
+                      </div>
+                      {user.rank && <RankBadge tier={user.tier} rank={user.rank} size="sm" />}
                     </div>
                   </td>
                   <td>

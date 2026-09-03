@@ -1165,6 +1165,11 @@ app.post('/api/orders', authenticateToken, async (req, res) => {
       }
     }
 
+    // Phase 2A: Passive S-Points award (non-blocking)
+    if (order.status === 'COMPLETED' && typeof ctv !== 'undefined') {
+      awardSPointsForOrder(order, ctv).catch(e => console.error('[S-POINTS HOOK]', e.message));
+    }
+
     res.json({ success: true, data: order, commissions: commissionsToCreate });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
@@ -1583,6 +1588,139 @@ app.delete('/api/products/:id', authenticateToken, requireRole(['admin']), async
     res.json({ success: true, message: 'Deleted product' });
   } catch (e) {
     res.status(500).json({ error: e.message });
+  }
+});
+
+
+// ================= PHASE 2A: S-POINTS & RANK FOUNDATION API =================
+
+// HELPER: Award S-Points passively after order completion
+// Only awards if service.productType = 'MACHINE' (per spec)
+// If productType is null, no points are awarded (safe default ? pending MAU_THUAN_04 decision)
+async function awardSPointsForOrder(order, ctv) {
+  try {
+    const items = await prisma.orderItem.findMany({
+      where: { orderId: order.id },
+      include: { service: true }
+    });
+
+    let totalPointsEarned = 0;
+    for (const item of items) {
+      if (item.service && item.service.productType === 'MACHINE') {
+        // 1 point = 1,000 VND per policy
+        const pointsEarned = Math.floor(item.amount / 1000);
+        if (pointsEarned > 0) {
+          await prisma.sPointTransaction.create({
+            data: {
+              userId: ctv.userId,
+              orderId: order.id,
+              points: pointsEarned,
+              type: 'EARN',
+              description: `Don hang #${order.id} - ${item.service.name} (${item.qty} may)`
+            }
+          });
+          totalPointsEarned += pointsEarned;
+          await prisma.user.update({
+            where: { userId: ctv.userId },
+            data: { totalMachinesBought: { increment: item.qty } }
+          });
+        }
+      }
+    }
+
+    if (totalPointsEarned > 0) {
+      await prisma.user.update({
+        where: { userId: ctv.userId },
+        data: { sPoints: { increment: totalPointsEarned } }
+      });
+      console.log(`[S-POINTS] Awarded ${totalPointsEarned} pts to ${ctv.userId} for order ${order.id}`);
+    }
+  } catch (err) {
+    console.error(`[S-POINTS] Error for order ${order.id}:`, err.message);
+  }
+}
+
+// GET /api/s-points/:userId
+app.get('/api/s-points/:userId', authenticateToken, async (req, res) => {
+  try {
+    const { userId } = req.params;
+    if (req.user.role !== 'admin' && req.user.role !== 'accountant' && req.user.id !== userId) {
+      return res.status(403).json({ success: false, message: 'Khong co quyen xem diem S tai khoan nay.' });
+    }
+    const user = await prisma.user.findUnique({
+      where: { userId },
+      select: { userId: true, fullName: true, sPoints: true, rank: true, rankStatus: true, totalMachinesBought: true }
+    });
+    if (!user) return res.status(404).json({ success: false, message: 'Khong tim thay nguoi dung.' });
+    res.json({ success: true, data: user });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// GET /api/s-points/:userId/history
+app.get('/api/s-points/:userId/history', authenticateToken, async (req, res) => {
+  try {
+    const { userId } = req.params;
+    if (req.user.role !== 'admin' && req.user.role !== 'accountant' && req.user.id !== userId) {
+      return res.status(403).json({ success: false, message: 'Khong co quyen xem lich su diem S nay.' });
+    }
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
+    const skip = (page - 1) * limit;
+    const [total, transactions] = await Promise.all([
+      prisma.sPointTransaction.count({ where: { userId } }),
+      prisma.sPointTransaction.findMany({ where: { userId }, orderBy: { createdAt: 'desc' }, skip, take: limit })
+    ]);
+    res.json({ success: true, data: transactions, pagination: { page, limit, total, totalPages: Math.ceil(total / limit) } });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// GET /api/rank/info/:userId
+app.get('/api/rank/info/:userId', authenticateToken, async (req, res) => {
+  try {
+    const { userId } = req.params;
+    if (req.user.role !== 'admin' && req.user.role !== 'accountant' && req.user.id !== userId) {
+      return res.status(403).json({ success: false, message: 'Khong co quyen truy cap thong tin cap bac nay.' });
+    }
+    const user = await prisma.user.findUnique({
+      where: { userId },
+      select: { userId: true, fullName: true, tier: true, rank: true, rankStatus: true, rankAchievedAt: true, sPoints: true, totalMachinesBought: true, wholesaleEligible: true, regionCode: true }
+    });
+    if (!user) return res.status(404).json({ success: false, message: 'Khong tim thay nguoi dung.' });
+    res.json({ success: true, data: user });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// GET /api/services/product-types  (admin only)
+app.get('/api/services/product-types', authenticateToken, requireRole(['admin']), async (req, res) => {
+  try {
+    const services = await prisma.service.findMany({ select: { id: true, name: true, productType: true, price: true, listPrice: true } });
+    res.json({ success: true, data: services });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// PUT /api/services/:id/product-type  (admin only)
+app.put('/api/services/:id/product-type', authenticateToken, requireRole(['admin']), async (req, res) => {
+  try {
+    const { productType, listPrice } = req.body;
+    const allowed = ['MACHINE', 'SUPPLY', 'SERVICE', null];
+    if (!allowed.includes(productType)) {
+      return res.status(400).json({ success: false, message: 'productType khong hop le. Chap nhan: MACHINE, SUPPLY, SERVICE, hoac null.' });
+    }
+    const updated = await prisma.service.update({
+      where: { id: req.params.id },
+      data: { productType: productType || null, listPrice: listPrice !== undefined ? parseFloat(listPrice) : undefined }
+    });
+    res.json({ success: true, data: updated });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
