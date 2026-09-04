@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Header } from './components/Header';
 import { Hero } from './components/Hero';
 import { ProductSection } from './components/ProductSection';
@@ -7,31 +7,89 @@ import { SocialProof } from './components/SocialProof';
 import { WarrantyLookupSection } from './components/WarrantyLookupSection';
 import { NewsSection } from './components/NewsSection';
 import { FaqSection } from './components/FaqSection';
-import { ContactModal } from './components/ContactModal';
 import { Footer } from './components/Footer';
+import { ContactModal } from './components/ContactModal';
 import { AdminLoginModal } from './components/admin/AdminLoginModal';
-import { AdminHeader } from './components/admin/AdminHeader';
 import { AdminSidebar } from './components/admin/AdminSidebar';
+import { AdminHeader } from './components/admin/AdminHeader';
 import { AdminOverview } from './components/admin/AdminOverview';
 import { AdminProducts } from './components/admin/AdminProducts';
 import { AdminWarranties } from './components/admin/AdminWarranties';
 import { AdminLeads } from './components/admin/AdminLeads';
 import { AdminOrders } from './components/admin/AdminOrders';
-import AdminUsers from './components/admin/AdminUsers';
 import { AdminNews } from './components/admin/AdminNews';
+import AdminUsers from './components/admin/AdminUsers';
+
+// CTV & Unified Auth Integrations
+import { CTVPortalContainer } from './components/ctv/CTVPortalContainer';
+import { UnifiedAuthModal } from './components/auth/UnifiedAuthModal';
+import { useUnifiedAuth, UserSession } from './hooks/useUnifiedAuth';
+import { useReferralAttribution } from './hooks/useReferralAttribution';
+
 import { Product, AdminUser } from './types/schema';
-import { PhoneCall, MessageSquare, CheckCircle2, X, ArrowUp, Send } from 'lucide-react';
+import { 
+  PhoneCall, 
+  MessageSquare, 
+  ArrowUp, 
+  CheckCircle2, 
+  X,
+  Award,
+  Sparkles
+} from 'lucide-react';
 
 export const App: React.FC = () => {
-  // Client View States
   const [activeSection, setActiveSection] = useState<string>('hero');
-  const [isContactModalOpen, setIsContactModalOpen] = useState<boolean>(false);
+  const [isContactModalOpen, setIsContactModalOpen] = useState(false);
   const [selectedProductForOrder, setSelectedProductForOrder] = useState<Product | null>(null);
+  const [showScrollTop, setShowScrollTop] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
-  const [showScrollTop, setShowScrollTop] = useState<boolean>(false);
+
+  // Unified Auth & Referral Hooks
+  const { user, logout, checkSession } = useUnifiedAuth();
+  const { referralCode } = useReferralAttribution();
+
+  // Auth Modal State
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [authModalTab, setAuthModalTab] = useState<'login' | 'register'>('login');
+
+  // Admin Legacy State
+  const [isAdminLoginOpen, setIsAdminLoginOpen] = useState(false);
+  const [isAdminMode, setIsAdminMode] = useState(false);
+  const [adminUser, setAdminUser] = useState<AdminUser | null>(() => {
+    const saved = localStorage.getItem('wasy_admin_user');
+    return saved ? JSON.parse(saved) : null;
+  });
+  const [adminActiveTab, setAdminActiveTab] = useState('overview');
+  const [isMobileAdminSidebarOpen, setIsMobileAdminSidebarOpen] = useState(false);
+
+  // Check URL path or hash on load
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const path = window.location.pathname;
+      const hash = window.location.hash;
+      if (path.startsWith('/ctv') || hash === '#ctv') {
+        setActiveSection('ctv');
+      }
+    }
+  }, []);
+
+  // Listen for browser popstate
+  useEffect(() => {
+    const handlePopState = () => {
+      const path = window.location.pathname;
+      const hash = window.location.hash;
+      if (path.startsWith('/ctv') || hash === '#ctv') {
+        setActiveSection('ctv');
+      } else if (hash) {
+        setActiveSection(hash.replace('#', ''));
+      }
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
 
   // Scroll listener for scroll-to-top button
-  React.useEffect(() => {
+  useEffect(() => {
     const handleScroll = () => {
       setShowScrollTop(window.scrollY > 400);
     };
@@ -39,18 +97,30 @@ export const App: React.FC = () => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // Admin View States
-  const [isAdminMode, setIsAdminMode] = useState<boolean>(false);
-  const [adminUser, setAdminUser] = useState<AdminUser | null>(null);
-  const [isAdminLoginOpen, setIsAdminLoginOpen] = useState<boolean>(false);
-  const [adminActiveTab, setAdminActiveTab] = useState<string>('overview');
-  const [isMobileAdminSidebarOpen, setIsMobileAdminSidebarOpen] = useState<boolean>(false);
+  const showToast = (message: string) => {
+    setToastMessage(message);
+    setTimeout(() => {
+      setToastMessage(null);
+    }, 4000);
+  };
 
   const handleNavigate = (sectionId: string) => {
     setActiveSection(sectionId);
+    if (sectionId === 'ctv') {
+      window.history.pushState(null, '', '/ctv');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+
+    if (window.location.pathname.startsWith('/ctv')) {
+      window.history.pushState(null, '', '/');
+    }
+
     const element = document.getElementById(sectionId);
     if (element) {
       element.scrollIntoView({ behavior: 'smooth' });
+    } else {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
 
@@ -58,8 +128,8 @@ export const App: React.FC = () => {
     handleNavigate('warranty');
   };
 
-  const handleOpenContact = (product?: Product | null) => {
-    setSelectedProductForOrder(product || null);
+  const handleOpenContact = (product: Product | null = null) => {
+    setSelectedProductForOrder(product);
     setIsContactModalOpen(true);
   };
 
@@ -67,11 +137,23 @@ export const App: React.FC = () => {
     window.location.href = 'tel:1900989878';
   };
 
-  const showToast = (message: string) => {
-    setToastMessage(message);
-    setTimeout(() => {
-      setToastMessage(null);
-    }, 4000);
+  const handleOpenAuthModal = (tab: 'login' | 'register' = 'login') => {
+    setAuthModalTab(tab);
+    setIsAuthModalOpen(true);
+  };
+
+  const handleAuthSuccess = (loggedInUser: UserSession) => {
+    showToast(`Xin chào, ${loggedInUser.fullName}! Đăng nhập thành công.`);
+    setActiveSection('ctv');
+    window.history.pushState(null, '', '/ctv');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleLogout = async () => {
+    await logout();
+    showToast('Đã đăng xuất khỏi hệ thống.');
+    setActiveSection('hero');
+    window.history.pushState(null, '', '/');
   };
 
   const handleOpenAdminPortal = () => {
@@ -85,20 +167,21 @@ export const App: React.FC = () => {
   const handleSuccessAdminLogin = (user: AdminUser) => {
     setAdminUser(user);
     setIsAdminMode(true);
-    showToast(`Chào mừng quay trở lại, ${user.name}!`);
+    setIsAdminLoginOpen(false);
+    showToast(`Chào mừng ${user.name} trở lại trang Quản trị Website!`);
   };
 
   const handleAdminLogout = () => {
     setAdminUser(null);
     setIsAdminMode(false);
+    localStorage.removeItem('wasy_admin_user');
     showToast('Đã đăng xuất khỏi hệ thống Admin Portal.');
   };
 
-  // Render Admin Portal View
+  // Render Admin Portal View (Website content management)
   if (isAdminMode && adminUser) {
     return (
       <div className="min-h-screen bg-slate-100 flex flex-col lg:flex-row text-slate-800 font-sans selection:bg-ocean-500 selection:text-white">
-        {/* Toast Alert Notification */}
         {toastMessage && (
           <div className="fixed top-5 right-5 z-50 max-w-md bg-slate-900 text-white rounded-2xl p-4 shadow-2xl border border-cyan-400/40 flex items-start gap-3 animate-in fade-in slide-in-from-top-4 duration-300">
             <CheckCircle2 className="w-5 h-5 text-emerald-400 flex-shrink-0 mt-0.5" />
@@ -109,7 +192,6 @@ export const App: React.FC = () => {
           </div>
         )}
 
-        {/* Sidebar */}
         <AdminSidebar
           activeTab={adminActiveTab}
           onSelectTab={(tab) => setAdminActiveTab(tab)}
@@ -118,7 +200,6 @@ export const App: React.FC = () => {
           onSwitchToClient={() => setIsAdminMode(false)}
         />
 
-        {/* Main Workspace Area */}
         <div className="flex-1 flex flex-col min-w-0 min-h-screen">
           <AdminHeader
             adminUser={adminUser}
@@ -144,7 +225,7 @@ export const App: React.FC = () => {
     );
   }
 
-  // Render Client Website View
+  // Render Unified Client Website View
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800 font-sans relative selection:bg-ocean-500 selection:text-white">
       {/* Toast Alert Notification */}
@@ -158,46 +239,84 @@ export const App: React.FC = () => {
         </div>
       )}
 
-      {/* Main Header */}
+      {/* Referral Attribution Notification Banner */}
+      {referralCode && activeSection !== 'ctv' && (
+        <div className="bg-gradient-to-r from-accent via-amber-400 to-amber-500 text-primary-darker text-xs font-bold py-1.5 px-4 text-center flex items-center justify-center gap-2 shadow-sm">
+          <Sparkles className="w-3.5 h-3.5 text-primary-darker animate-pulse" />
+          <span>Bạn đang được giới thiệu bởi Đại sứ WATER KING (Mã: {referralCode}). Hãy đăng ký nhận ưu đãi độc quyền!</span>
+        </div>
+      )}
+
+      {/* Main Unified Header */}
       <Header
         activeSection={activeSection}
         onNavigate={handleNavigate}
         onOpenWarranty={handleOpenWarranty}
         onOpenContact={() => handleOpenContact(null)}
         onOpenAdmin={handleOpenAdminPortal}
+        onOpenAuth={handleOpenAuthModal}
+        onLogout={handleLogout}
+        user={user}
       />
 
       {/* Main Container Content */}
-      <main>
-        {/* Hero Section */}
-        <Hero
-          onExploreClick={() => handleNavigate('products')}
-          onContactClick={() => handleOpenContact(null)}
-        />
-
-        {/* Products Section */}
-        <ProductSection
-          onOrderProduct={(product) => handleOpenContact(product)}
-          onCallHotline={handleCallHotline}
-        />
-
-        {/* Hydrogen Benefits Science Section */}
-        <HydrogenBenefits />
-
-        {/* Social Proof Section */}
-        <SocialProof />
-
-        {/* Electronic Warranty Lookup Section */}
-        <WarrantyLookupSection />
-
-        {/* News & Blog Section */}
-        <NewsSection />
-
-        {/* FAQ Accordion Section */}
-        <FaqSection />
+      <main className="pt-28 sm:pt-32">
+        {activeSection === 'ctv' ? (
+          /* CTV Portal Section */
+          user ? (
+            <CTVPortalContainer
+              currentUser={user}
+              onLogout={handleLogout}
+              onNavigateHome={() => handleNavigate('hero')}
+            />
+          ) : (
+            <div className="max-w-3xl mx-auto px-4 py-16 text-center">
+              <div className="w-20 h-20 mx-auto mb-4 rounded-3xl bg-gradient-to-tr from-primary to-accent flex items-center justify-center shadow-xl text-white">
+                <Award className="w-10 h-10" />
+              </div>
+              <h2 className="text-2xl sm:text-3xl font-extrabold text-primary uppercase tracking-wide">
+                Cổng Quản Trị Đại Sứ & CTV WATER KING
+              </h2>
+              <p className="text-sm text-gray-600 mt-2 max-w-lg mx-auto font-medium">
+                Vui lòng đăng nhập để truy cập Dashboard, quản lý sơ đồ tuyến dưới, theo dõi đơn sỉ và lịch sử hoa hồng.
+              </p>
+              <div className="mt-6 flex flex-wrap justify-center gap-3">
+                <button
+                  onClick={() => handleOpenAuthModal('login')}
+                  className="px-6 py-3 rounded-xl bg-primary hover:bg-primary-dark text-white font-bold text-sm uppercase tracking-wider shadow-lg shadow-primary/25 transition-all"
+                >
+                  Đăng Nhập Ngay
+                </button>
+                <button
+                  onClick={() => handleOpenAuthModal('register')}
+                  className="px-6 py-3 rounded-xl bg-white border border-primary/30 text-primary hover:bg-primary/5 font-bold text-sm uppercase tracking-wider transition-all"
+                >
+                  Đăng Ký Làm Đại Sứ
+                </button>
+              </div>
+            </div>
+          )
+        ) : (
+          /* Landing Page Sections */
+          <>
+            <Hero
+              onExploreClick={() => handleNavigate('products')}
+              onContactClick={() => handleOpenContact(null)}
+            />
+            <ProductSection
+              onOrderProduct={(product) => handleOpenContact(product)}
+              onCallHotline={handleCallHotline}
+            />
+            <HydrogenBenefits />
+            <SocialProof />
+            <WarrantyLookupSection />
+            <NewsSection />
+            <FaqSection />
+          </>
+        )}
       </main>
 
-      {/* Footer */}
+      {/* Main Unified Footer */}
       <Footer
         onNavigate={handleNavigate}
         onOpenWarranty={handleOpenWarranty}
@@ -217,7 +336,16 @@ export const App: React.FC = () => {
         onSuccessToast={showToast}
       />
 
-      {/* Admin Login Modal */}
+      {/* Unified Auth Modal (Login / Register CTV) */}
+      <UnifiedAuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+        initialTab={authModalTab}
+        referralCode={referralCode}
+        onSuccess={handleAuthSuccess}
+      />
+
+      {/* Admin Legacy Login Modal */}
       <AdminLoginModal
         isOpen={isAdminLoginOpen}
         onClose={() => setIsAdminLoginOpen(false)}
@@ -259,32 +387,6 @@ export const App: React.FC = () => {
           <ArrowUp className="w-5 h-5" />
         </button>
       )}
-
-      {/* Sticky CTA Mobile Bar */}
-      <div className="fixed bottom-0 left-0 right-0 z-40 md:hidden bg-white border-t border-gray-200 shadow-[0_-4px_12px_rgba(0,0,0,0.1)] px-3 py-2.5 flex items-center gap-2">
-        <a 
-          href="tel:1900989878" 
-          className="flex-1 py-2.5 rounded-lg bg-primary text-white text-center text-[13px] font-bold flex items-center justify-center gap-1.5"
-        >
-          <PhoneCall className="w-4 h-4" />
-          GỌI NGAY
-        </a>
-        <a 
-          href="https://zalo.me/1900989878" 
-          target="_blank"
-          className="flex-1 py-2.5 rounded-lg bg-[#0068FF] text-white text-center text-[13px] font-bold flex items-center justify-center gap-1.5"
-        >
-          <MessageSquare className="w-4 h-4" />
-          ZALO
-        </a>
-        <button 
-          onClick={() => handleOpenContact(null)}
-          className="flex-1 py-2.5 rounded-lg bg-accent text-primary-darker text-center text-[13px] font-bold flex items-center justify-center gap-1.5"
-        >
-          <Send className="w-4 h-4" />
-          TƯ VẤN
-        </button>
-      </div>
     </div>
   );
 };

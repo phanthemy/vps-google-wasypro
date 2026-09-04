@@ -1,24 +1,26 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
-  Droplets, 
   PhoneCall, 
-  ShieldCheck, 
   Menu, 
   X, 
-  MessageSquare, 
-  Sparkles,
   ChevronRight,
-  Clock,
-  Shield,
   Search,
   ShoppingCart,
-  User
+  User,
+  Award,
+  LogOut,
+  LayoutDashboard,
+  ShieldCheck
 } from 'lucide-react';
+import { UserSession } from '../hooks/useUnifiedAuth';
 
 interface HeaderProps {
   onOpenWarranty: () => void;
   onOpenContact: () => void;
   onOpenAdmin: () => void;
+  onOpenAuth: (tab?: 'login' | 'register') => void;
+  onLogout: () => void;
+  user: UserSession | null;
   activeSection: string;
   onNavigate: (sectionId: string) => void;
 }
@@ -27,11 +29,16 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenWarranty,
   onOpenContact,
   onOpenAdmin,
+  onOpenAuth,
+  onLogout,
+  user,
   activeSection,
   onNavigate,
 }) => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [userDropdownOpen, setUserDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -41,16 +48,36 @@ export const Header: React.FC<HeaderProps> = ({
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setUserDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   const navItems = [
     { id: 'hero', label: 'TRANG CHỦ' },
     { id: 'products', label: 'SẢN PHẨM' },
+    { id: 'ctv', label: '👑 ĐẠI SỨ / CTV', highlight: true },
     { id: 'news', label: 'TIN TỨC' },
     { id: 'warranty', label: 'CHÍNH SÁCH BẢO HÀNH' },
   ];
 
   const handleNavClick = (id: string) => {
-    onNavigate(id);
+    if (id === 'ctv') {
+      if (!user) {
+        onOpenAuth('login');
+      } else {
+        onNavigate('ctv');
+      }
+    } else {
+      onNavigate(id);
+    }
     setMobileMenuOpen(false);
+    setUserDropdownOpen(false);
   };
 
   return (
@@ -109,6 +136,21 @@ export const Header: React.FC<HeaderProps> = ({
           <nav className="hidden lg:flex items-center gap-6">
             {navItems.map((item) => {
               const isActive = activeSection === item.id;
+              if (item.highlight) {
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => handleNavClick(item.id)}
+                    className={`text-[13px] font-extrabold uppercase tracking-wide px-3.5 py-1.5 rounded-full transition-all flex items-center gap-1.5 ${
+                      isActive
+                        ? 'bg-primary text-white shadow-md shadow-primary/25'
+                        : 'bg-gradient-to-r from-accent/20 to-primary/15 text-primary-dark hover:bg-primary hover:text-white border border-primary/20'
+                    }`}
+                  >
+                    <span>{item.label}</span>
+                  </button>
+                );
+              }
               return (
                 <button
                   key={item.id}
@@ -125,26 +167,80 @@ export const Header: React.FC<HeaderProps> = ({
             })}
           </nav>
 
-          {/* CTA Action Buttons */}
+          {/* CTA Action Buttons & User Menu */}
           <div className="hidden sm:flex items-center gap-4 text-primary">
-            <button
-              onClick={onOpenAdmin}
-              className="flex items-center gap-1.5 text-[13px] font-semibold uppercase hover:text-primary-dark transition-colors"
-            >
-              <User className="w-4 h-4" />
-              <span>ĐĂNG NHẬP / ĐĂNG KÝ</span>
-            </button>
-            <button className="hover:text-primary-dark transition-colors">
+            {user ? (
+              <div className="relative" ref={dropdownRef}>
+                <button
+                  onClick={() => setUserDropdownOpen(!userDropdownOpen)}
+                  className="flex items-center gap-2 py-1.5 px-3 rounded-full bg-primary/10 border border-primary/25 text-primary text-xs font-bold hover:bg-primary/15 transition-all"
+                >
+                  <Award className="w-4 h-4 text-primary" />
+                  <span>{user.tier || 'CTV'} {user.id}</span>
+                  <span className="max-w-[120px] truncate text-gray-700">{user.fullName}</span>
+                </button>
+
+                {userDropdownOpen && (
+                  <div className="absolute right-0 mt-2 w-56 bg-white rounded-2xl shadow-2xl border border-gray-100 py-2 z-50 animate-fadeIn">
+                    <div className="px-4 py-2 border-b border-gray-100">
+                      <p className="text-xs text-gray-500 font-medium">Đang đăng nhập:</p>
+                      <p className="text-sm font-bold text-gray-900 truncate">{user.fullName}</p>
+                      <span className="inline-block mt-1 text-[10px] uppercase font-extrabold px-2 py-0.5 rounded bg-primary/10 text-primary">
+                        {user.role} • {user.tier || 'SILVER'}
+                      </span>
+                    </div>
+
+                    <button
+                      onClick={() => handleNavClick('ctv')}
+                      className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-semibold text-gray-700 hover:bg-primary/5 hover:text-primary transition-colors text-left"
+                    >
+                      <LayoutDashboard className="w-4 h-4 text-primary" />
+                      <span>Vào Dashboard CTV</span>
+                    </button>
+
+                    {user.role === 'admin' && (
+                      <button
+                        onClick={() => { onOpenAdmin(); setUserDropdownOpen(false); }}
+                        className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-semibold text-gray-700 hover:bg-primary/5 hover:text-primary transition-colors text-left"
+                      >
+                        <ShieldCheck className="w-4 h-4 text-primary" />
+                        <span>Quản Trị Website</span>
+                      </button>
+                    )}
+
+                    <div className="my-1 border-t border-gray-100" />
+
+                    <button
+                      onClick={() => { onLogout(); setUserDropdownOpen(false); }}
+                      className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-semibold text-red-600 hover:bg-red-50 transition-colors text-left"
+                    >
+                      <LogOut className="w-4 h-4" />
+                      <span>Đăng Xuất</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <button
+                onClick={() => onOpenAuth('login')}
+                className="flex items-center gap-1.5 text-[13px] font-semibold uppercase hover:text-primary-dark transition-colors px-3 py-1.5 rounded-lg border border-primary/20 hover:border-primary"
+              >
+                <User className="w-4 h-4" />
+                <span>ĐĂNG NHẬP / ĐĂNG KÝ</span>
+              </button>
+            )}
+
+            <button className="hover:text-primary-dark transition-colors p-1">
               <Search className="w-5 h-5" />
             </button>
-            <button className="hover:text-primary-dark transition-colors">
+            <button className="hover:text-primary-dark transition-colors p-1">
               <ShoppingCart className="w-5 h-5" />
             </button>
           </div>
 
           {/* Mobile Menu Toggle Button */}
           <div className="flex lg:hidden items-center gap-2 text-primary">
-             <button className="p-2">
+            <button className="p-2">
               <Search className="w-5 h-5" />
             </button>
             <button className="p-2">
@@ -181,16 +277,39 @@ export const Header: React.FC<HeaderProps> = ({
             ))}
 
             <div className="pt-4 border-t border-gray-100 space-y-2">
-               <button
-                onClick={() => {
-                  onOpenAdmin();
-                  setMobileMenuOpen(false);
-                }}
-                className="w-full flex items-center justify-center gap-2 py-3 rounded-md font-semibold text-primary bg-gray-50 border border-gray-200 text-sm uppercase"
-              >
-                <User className="w-4 h-4" />
-                <span>ĐĂNG NHẬP / ĐĂNG KÝ</span>
-              </button>
+              {user ? (
+                <div className="p-3 rounded-xl bg-gray-50 border border-gray-200 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-gray-800">{user.fullName}</span>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-primary text-white uppercase">
+                      {user.tier || 'CTV'}
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => handleNavClick('ctv')}
+                    className="w-full py-2.5 rounded-lg bg-primary text-white text-xs font-bold uppercase"
+                  >
+                    Vào Dashboard CTV
+                  </button>
+                  <button
+                    onClick={() => { onLogout(); setMobileMenuOpen(false); }}
+                    className="w-full py-2 rounded-lg bg-red-50 text-red-600 text-xs font-bold uppercase"
+                  >
+                    Đăng Xuất
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => {
+                    onOpenAuth('login');
+                    setMobileMenuOpen(false);
+                  }}
+                  className="w-full flex items-center justify-center gap-2 py-3 rounded-md font-semibold text-primary bg-gray-50 border border-gray-200 text-sm uppercase"
+                >
+                  <User className="w-4 h-4" />
+                  <span>ĐĂNG NHẬP / ĐĂNG KÝ ĐẠI SỨ</span>
+                </button>
+              )}
             </div>
           </div>
         </div>
