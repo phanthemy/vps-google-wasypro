@@ -64,6 +64,7 @@ export const UnifiedAuthModal: React.FC<UnifiedAuthModalProps> = ({
         throw new Error(data.message || 'Số điện thoại hoặc mật khẩu không chính xác');
       }
 
+      localStorage.setItem('crm_user', JSON.stringify(data.data));
       onSuccess(data.data);
       onClose();
     } catch (err: any) {

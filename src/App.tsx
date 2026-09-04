@@ -45,7 +45,7 @@ export const App: React.FC = () => {
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   // Unified Auth & Referral Hooks
-  const { user, logout, checkSession } = useUnifiedAuth();
+  const { user, setUser, logout, checkSession } = useUnifiedAuth();
   const { referralCode } = useReferralAttribution();
 
   // Auth Modal State
@@ -143,6 +143,8 @@ export const App: React.FC = () => {
   };
 
   const handleAuthSuccess = (loggedInUser: UserSession) => {
+    setUser(loggedInUser);
+    localStorage.setItem('crm_user', JSON.stringify(loggedInUser));
     showToast(`Xin chào, ${loggedInUser.fullName}! Đăng nhập thành công.`);
     setActiveSection('ctv');
     window.history.pushState(null, '', '/ctv');
