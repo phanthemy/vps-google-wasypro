@@ -51,6 +51,7 @@ export const App: React.FC = () => {
   // Auth Modal State
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authModalTab, setAuthModalTab] = useState<'login' | 'register'>('login');
+  const [authModalMode, setAuthModalMode] = useState<'ctv' | 'system'>('ctv');
 
   // Admin Legacy State
   const [isAdminLoginOpen, setIsAdminLoginOpen] = useState(false);
@@ -69,6 +70,9 @@ export const App: React.FC = () => {
       const hash = window.location.hash;
       if (path.startsWith('/ctv') || hash === '#ctv') {
         setActiveSection('ctv');
+        if (!user && !localStorage.getItem('crm_user')) {
+          setIsAuthModalOpen(true);
+        }
       }
     }
   }, []);
@@ -137,10 +141,7 @@ export const App: React.FC = () => {
     window.location.href = 'tel:1900989878';
   };
 
-  const handleOpenAuthModal = (tab: 'login' | 'register' = 'login') => {
-    setAuthModalTab(tab);
-    setIsAuthModalOpen(true);
-  };
+
 
   const handleAuthSuccess = (loggedInUser: UserSession) => {
     setUser(loggedInUser);
@@ -158,11 +159,39 @@ export const App: React.FC = () => {
     window.history.pushState(null, '', '/');
   };
 
+  // Synchronize Unified Admin session with CMS mode
+  useEffect(() => {
+    if (user?.role === 'admin') {
+      if (!adminUser || adminUser.id !== user.id) {
+        setAdminUser({
+          id: user.id,
+          name: user.fullName || 'System Administrator',
+          email: 'admin@wasypro.com',
+          role: 'superadmin'
+        });
+      }
+    }
+  }, [user, adminUser]);
+
+  const handleOpenAuthModal = (tab: 'login' | 'register' = 'login', mode: 'ctv' | 'system' = 'ctv') => {
+    setAuthModalTab(tab);
+    setAuthModalMode(mode);
+    setIsAuthModalOpen(true);
+  };
+
   const handleOpenAdminPortal = () => {
-    if (adminUser) {
+    if (user?.role === 'admin') {
+      if (!adminUser) {
+        setAdminUser({
+          id: user.id,
+          name: user.fullName || 'System Administrator',
+          email: 'admin@wasypro.com',
+          role: 'superadmin'
+        });
+      }
       setIsAdminMode(true);
     } else {
-      setIsAdminLoginOpen(true);
+      handleOpenAuthModal('login', 'system');
     }
   };
 
@@ -272,28 +301,22 @@ export const App: React.FC = () => {
               onNavigateHome={() => handleNavigate('hero')}
             />
           ) : (
-            <div className="max-w-3xl mx-auto px-4 py-16 text-center">
-              <div className="w-20 h-20 mx-auto mb-4 rounded-3xl bg-gradient-to-tr from-primary to-accent flex items-center justify-center shadow-xl text-white">
-                <Award className="w-10 h-10" />
+            <div className="max-w-xl mx-auto px-4 py-16 text-center animate-fadeIn">
+              <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-tr from-primary to-accent flex items-center justify-center shadow-lg text-white">
+                <Award className="w-8 h-8 text-white" />
               </div>
-              <h2 className="text-2xl sm:text-3xl font-extrabold text-primary uppercase tracking-wide">
-                Cổng Quản Trị Đại Sứ & CTV WATER KING
+              <h2 className="text-xl sm:text-2xl font-extrabold text-primary uppercase tracking-wide">
+                Kinh Doanh WATER KING
               </h2>
-              <p className="text-sm text-gray-600 mt-2 max-w-lg mx-auto font-medium">
-                Vui lòng đăng nhập để truy cập Dashboard, quản lý sơ đồ tuyến dưới, theo dõi đơn sỉ và lịch sử hoa hồng.
+              <p className="text-xs sm:text-sm text-gray-600 mt-2 max-w-md mx-auto font-medium leading-relaxed">
+                Khu vực dành riêng cho Đại sứ & CTV. Vui lòng đăng nhập để truy cập Dashboard, xem cây hệ thống và theo dõi hoa hồng.
               </p>
-              <div className="mt-6 flex flex-wrap justify-center gap-3">
+              <div className="mt-6 flex justify-center">
                 <button
                   onClick={() => handleOpenAuthModal('login')}
-                  className="px-6 py-3 rounded-xl bg-primary hover:bg-primary-dark text-white font-bold text-sm uppercase tracking-wider shadow-lg shadow-primary/25 transition-all"
+                  className="px-6 py-2.5 rounded-xl bg-primary hover:bg-primary-dark text-white font-bold text-xs sm:text-sm uppercase tracking-wider shadow-md shadow-primary/20 hover:scale-[1.02] transition-all"
                 >
-                  Đăng Nhập Ngay
-                </button>
-                <button
-                  onClick={() => handleOpenAuthModal('register')}
-                  className="px-6 py-3 rounded-xl bg-white border border-primary/30 text-primary hover:bg-primary/5 font-bold text-sm uppercase tracking-wider transition-all"
-                >
-                  Đăng Ký Làm Đại Sứ
+                  Đăng Nhập Kinh Doanh
                 </button>
               </div>
             </div>
@@ -338,11 +361,12 @@ export const App: React.FC = () => {
         onSuccessToast={showToast}
       />
 
-      {/* Unified Auth Modal (Login / Register CTV) */}
+      {/* Unified Auth Modal (Login / Register CTV & System Admin) */}
       <UnifiedAuthModal
         isOpen={isAuthModalOpen}
         onClose={() => setIsAuthModalOpen(false)}
         initialTab={authModalTab}
+        mode={authModalMode}
         referralCode={referralCode}
         onSuccess={handleAuthSuccess}
       />

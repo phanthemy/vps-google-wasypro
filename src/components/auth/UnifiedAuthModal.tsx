@@ -6,6 +6,7 @@ interface UnifiedAuthModalProps {
   isOpen: boolean;
   onClose: () => void;
   initialTab?: 'login' | 'register';
+  mode?: 'ctv' | 'system';
   referralCode?: string;
   onSuccess: (user: UserSession) => void;
 }
@@ -14,6 +15,7 @@ export const UnifiedAuthModal: React.FC<UnifiedAuthModalProps> = ({
   isOpen,
   onClose,
   initialTab = 'login',
+  mode = 'ctv',
   referralCode = '',
   onSuccess,
 }) => {
@@ -140,10 +142,14 @@ export const UnifiedAuthModal: React.FC<UnifiedAuthModalProps> = ({
           </button>
           
           <div className="w-12 h-12 mx-auto mb-2 rounded-xl bg-white/20 backdrop-blur flex items-center justify-center border border-white/30 shadow-inner">
-            <Award className="w-6 h-6 text-white" />
+            {mode === 'system' ? <ShieldCheck className="w-6 h-6 text-white" /> : <Award className="w-6 h-6 text-white" />}
           </div>
-          <h3 className="text-xl font-extrabold tracking-wide uppercase">Hệ Thống Đại Sứ WATER KING</h3>
-          <p className="text-xs text-white/80 mt-1 font-medium">Nước Tốt - Thân An - Trí Sáng</p>
+          <h3 className="text-xl font-extrabold tracking-wide uppercase">
+            {mode === 'system' ? 'QUẢN TRỊ HỆ THỐNG WATER KING' : 'KINH DOANH WATER KING'}
+          </h3>
+          <p className="text-xs text-white/90 mt-1 font-medium">
+            {mode === 'system' ? 'Đăng nhập Quản Trị Viên & Kế Toán Hệ Thống' : 'Cổng Quản Trị Đại Sứ & Cộng Tác Viên'}
+          </p>
         </div>
 
         {/* Tab switcher */}

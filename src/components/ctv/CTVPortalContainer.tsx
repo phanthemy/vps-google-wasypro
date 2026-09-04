@@ -1,51 +1,42 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   BarChart3, 
-  Users, 
-  Network, 
-  Settings, 
-  Contact, 
-  BookOpen, 
-  PieChart as PieChartIcon, 
-  UserCog, 
-  History, 
-  Key, 
   ShoppingCart, 
-  Truck, 
+  Users, 
+  Settings, 
   TrendingUp, 
-  Award, 
+  LogOut, 
   Copy, 
   Check, 
-  ArrowLeft, 
-  LogOut, 
+  Key, 
+  Contact, 
+  BookOpen, 
+  Network, 
+  Truck, 
+  Award,
+  Wallet,
+  PieChart as PieChartIcon,
+  UserCog,
+  History,
   Info,
-  Wallet 
+  ArrowLeft,
+  ChevronDown,
+  MoreHorizontal
 } from 'lucide-react';
-import './ctv.css';
 
-// Modals
-// @ts-ignore
-import CustomerModal from './components/modals/CustomerModal.jsx';
-// @ts-ignore
-import OrderModal from './components/modals/OrderModal.jsx';
-// @ts-ignore
-import UserModal from './components/modals/UserModal.jsx';
-// @ts-ignore
-import ChangePasswordModal from './components/modals/ChangePasswordModal.jsx';
-
-// Views
+// Subviews
 // @ts-ignore
 import DashboardView from './views/DashboardView.jsx';
 // @ts-ignore
-import NetworkView from './views/NetworkView.jsx';
-// @ts-ignore
-import UsersView from './views/UsersView.jsx';
+import OrdersView from './views/OrdersView.jsx';
 // @ts-ignore
 import CustomersView from './views/CustomersView.jsx';
 // @ts-ignore
-import OrdersView from './views/OrdersView.jsx';
+import UsersView from './views/UsersView.jsx';
 // @ts-ignore
 import SettingsView from './views/SettingsView.jsx';
+// @ts-ignore
+import NetworkView from './views/NetworkView.jsx';
 // @ts-ignore
 import PriceListView from './views/PriceListView.jsx';
 // @ts-ignore
@@ -65,6 +56,16 @@ import WholesaleOrdersView from './views/WholesaleOrdersView.jsx';
 // @ts-ignore
 import RankView from './views/RankView.jsx';
 
+// Shared Modals
+// @ts-ignore
+import CustomerModal from './components/modals/CustomerModal.jsx';
+// @ts-ignore
+import OrderModal from './components/modals/OrderModal.jsx';
+// @ts-ignore
+import UserModal from './components/modals/UserModal.jsx';
+// @ts-ignore
+import ChangePasswordModal from './components/modals/ChangePasswordModal.jsx';
+
 import { UserSession } from '../../hooks/useUnifiedAuth';
 
 interface CTVPortalContainerProps {
@@ -82,6 +83,8 @@ export const CTVPortalContainer: React.FC<CTVPortalContainerProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState(initialTab);
   const [copiedLink, setCopiedLink] = useState(false);
+  const [moreDropdownOpen, setMoreDropdownOpen] = useState(false);
+  const moreDropdownRef = useRef<HTMLDivElement>(null);
 
   // Modals state
   const [isCustomerModalOpen, setCustomerModalOpen] = useState(false);
@@ -100,10 +103,20 @@ export const CTVPortalContainer: React.FC<CTVPortalContainerProps> = ({
   const [activeServiceId, setActiveServiceId] = useState<string | null>(null);
 
   useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (moreDropdownRef.current && !moreDropdownRef.current.contains(event.target as Node)) {
+        setMoreDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  useEffect(() => {
     fetch('/api/users', { credentials: 'include' }).then(r=>r.json()).then(res => res.success && setUserList(res.data)).catch(()=>{});
     fetch('/api/customers', { credentials: 'include' }).then(r=>r.json()).then(res => {
       if(res.success) {
-        if (currentUser?.role === 'admin' || currentUser?.id === 'ADMIN') {
+        if (currentUser?.role === 'admin' || currentUser?.id === 'ADMIN' || currentUser?.id === 'ADMIN01') {
           setCustomerList(res.data);
         } else {
           setCustomerList(res.data.filter((c: any) => c.sourceCtvId === currentUser?.id));
@@ -125,30 +138,44 @@ export const CTVPortalContainer: React.FC<CTVPortalContainerProps> = ({
     }
   };
 
-  const isAdmin = currentUser?.role === 'admin' || currentUser?.id === 'ADMIN';
-  const isAccountant = currentUser?.role === 'accountant' || currentUser?.id === 'ACCOUNTANT';
+  const isAdmin = currentUser?.role === 'admin' || currentUser?.id === 'ADMIN' || currentUser?.id === 'ADMIN01';
+  const isAccountant = currentUser?.role === 'accountant' || currentUser?.id === 'ACCOUNTANT' || currentUser?.id === 'ACC01';
   const isAdminOrAccountant = isAdmin || isAccountant;
   const isCustomer = currentUser?.role === 'customer';
 
-  const navItems = [
+  // 1. Primary Navigation Tabs (Pinned on main bar)
+  const primaryNavItems = [
     { id: 'dashboard', label: 'Dashboard', icon: BarChart3, visible: true },
-    { id: 'orders', label: 'Quản lý Đơn Hàng', icon: ShoppingCart, visible: true },
+    { id: 'orders', label: 'Đơn Hàng', icon: ShoppingCart, visible: true },
     { id: 'wholesale', label: 'Đơn Hàng Sỉ', icon: Truck, visible: true },
+    { id: 'customers', label: 'Khách Hàng', icon: Contact, visible: !isCustomer },
     { id: 'rank', label: 'Cấp Bậc & S-Points', icon: TrendingUp, visible: true },
-    { id: 'network', label: 'Sơ đồ Tuyến dưới', icon: Network, visible: !isCustomer },
-    { id: 'customers', label: 'Danh sách Khách', icon: Contact, visible: !isCustomer },
-    { id: 'commissions', label: 'Lịch sử Hoa Hồng', icon: Wallet, visible: !isCustomer },
-    { id: 'pricelist', label: 'Danh Mục Sản Phẩm', icon: BookOpen, visible: true },
-    { id: 'statistics', label: 'Thống Kê Bán Hàng', icon: PieChartIcon, visible: !isCustomer },
-    { id: 'users', label: 'Danh sách CTV Toàn HT', icon: Users, visible: isAdminOrAccountant },
-    { id: 'settings', label: 'Cấu hình Cơ chế', icon: Settings, visible: isAdmin },
-    { id: 'internal-users', label: 'Quản lý Nhân Sự', icon: UserCog, visible: isAdmin },
-    { id: 'audit-logs', label: 'Lịch sử Hệ thống', icon: History, visible: isAdminOrAccountant },
-    { id: 'about', label: 'Chính sách WATER KING', icon: Info, visible: true },
+    { id: 'commissions', label: 'Hoa Hồng', icon: Wallet, visible: !isCustomer },
   ];
 
+  // 2. Secondary Navigation Tabs (Grouped in "Thêm ▾" dropdown)
+  const moreNavItems = [
+    { id: 'network', label: 'Sơ đồ Tuyến dưới', icon: Network, visible: !isCustomer, group: 'ctv' },
+    { id: 'pricelist', label: 'Bảng Giá Sản Phẩm', icon: BookOpen, visible: true, group: 'ctv' },
+    { id: 'statistics', label: 'Thống Kê Bán Hàng', icon: PieChartIcon, visible: !isCustomer, group: 'ctv' },
+    { id: 'about', label: 'Chính sách WATER KING', icon: Info, visible: true, group: 'ctv' },
+    { id: 'users', label: 'Quản Lý CTV Toàn HT', icon: Users, visible: isAdminOrAccountant, group: 'admin' },
+    { id: 'settings', label: 'Cấu Hình Cơ Chế', icon: Settings, visible: isAdmin, group: 'admin' },
+    { id: 'internal-users', label: 'Quản Lý Nhân Sự', icon: UserCog, visible: isAdmin, group: 'admin' },
+    { id: 'audit-logs', label: 'Lịch Sử Hệ Thống', icon: History, visible: isAdminOrAccountant, group: 'admin' },
+  ];
+
+  const visibleMoreItems = moreNavItems.filter(i => i.visible);
+  const isMoreActive = visibleMoreItems.some(i => i.id === activeTab);
+  const activeMoreItem = visibleMoreItems.find(i => i.id === activeTab);
+
+  const handleSelectTab = (id: string) => {
+    setActiveTab(id);
+    setMoreDropdownOpen(false);
+  };
+
   return (
-    <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+    <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 font-sans">
       {/* Top CTV Quick Banner */}
       <div className="mb-6 p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-primary-dark via-primary to-accent text-white shadow-xl flex flex-col md:flex-row items-center justify-between gap-4">
         <div className="flex items-center gap-3.5">
@@ -209,17 +236,18 @@ export const CTVPortalContainer: React.FC<CTVPortalContainerProps> = ({
       </div>
 
       {/* Main CTV Portal Card Container */}
-      <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
-        {/* Navigation Tabs Bar */}
-        <div className="border-b border-gray-100 bg-gray-50/80 p-2 overflow-x-auto scrollbar-none flex items-center gap-1.5">
-          {navItems.filter(i => i.visible).map((item) => {
+      <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-visible">
+        {/* Navigation Tabs Bar with Primary Tabs + "Thêm ▾" Dropdown */}
+        <div className="border-b border-gray-100 bg-gray-50/80 p-2 overflow-visible flex items-center gap-1.5 flex-wrap">
+          {/* Primary Tabs */}
+          {primaryNavItems.filter(i => i.visible).map((item) => {
             const Icon = item.icon;
             const isActive = activeTab === item.id;
             return (
               <button
                 key={item.id}
-                onClick={() => setActiveTab(item.id)}
-                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider whitespace-nowrap transition-all ${
+                onClick={() => handleSelectTab(item.id)}
+                className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold uppercase tracking-wider whitespace-nowrap transition-all ${
                   isActive
                     ? 'bg-primary text-white shadow-md shadow-primary/20 scale-[1.02]'
                     : 'text-gray-600 hover:bg-white hover:text-primary'
@@ -230,6 +258,85 @@ export const CTVPortalContainer: React.FC<CTVPortalContainerProps> = ({
               </button>
             );
           })}
+
+          {/* "Thêm ▾" Dropdown Menu */}
+          {visibleMoreItems.length > 0 && (
+            <div className="relative" ref={moreDropdownRef}>
+              <button
+                onClick={() => setMoreDropdownOpen(!moreDropdownOpen)}
+                className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold uppercase tracking-wider whitespace-nowrap transition-all ${
+                  isMoreActive
+                    ? 'bg-primary text-white shadow-md shadow-primary/20 scale-[1.02]'
+                    : 'text-gray-600 hover:bg-white hover:text-primary border border-gray-200/80 bg-white/70'
+                }`}
+              >
+                {isMoreActive && activeMoreItem ? (
+                  <>
+                    <activeMoreItem.icon className="w-4 h-4" />
+                    <span>{activeMoreItem.label}</span>
+                  </>
+                ) : (
+                  <>
+                    <MoreHorizontal className="w-4 h-4" />
+                    <span>Thêm</span>
+                  </>
+                )}
+                <ChevronDown className={`w-3.5 h-3.5 transition-transform ${moreDropdownOpen ? 'rotate-180' : ''}`} />
+              </button>
+
+              {moreDropdownOpen && (
+                <div className="absolute left-0 mt-2 w-64 bg-white rounded-2xl shadow-2xl border border-gray-100 py-2 z-50 animate-fadeIn divide-y divide-gray-50">
+                  {/* CTV Group */}
+                  <div className="py-1">
+                    <p className="px-4 py-1 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Khu vực CTV</p>
+                    {visibleMoreItems.filter(i => i.group === 'ctv').map((item) => {
+                      const Icon = item.icon;
+                      const isActive = activeTab === item.id;
+                      return (
+                        <button
+                          key={item.id}
+                          onClick={() => handleSelectTab(item.id)}
+                          className={`w-full flex items-center gap-2.5 px-4 py-2 text-xs font-semibold text-left transition-colors ${
+                            isActive
+                              ? 'bg-primary/10 text-primary font-bold'
+                              : 'text-gray-700 hover:bg-primary/5 hover:text-primary'
+                          }`}
+                        >
+                          <Icon className="w-4 h-4 text-primary/80" />
+                          <span>{item.label}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Admin / System Group */}
+                  {visibleMoreItems.some(i => i.group === 'admin') && (
+                    <div className="py-1 bg-slate-50/50">
+                      <p className="px-4 py-1 text-[10px] font-bold text-slate-500 uppercase tracking-wider">Quản trị & Cấu hình</p>
+                      {visibleMoreItems.filter(i => i.group === 'admin').map((item) => {
+                        const Icon = item.icon;
+                        const isActive = activeTab === item.id;
+                        return (
+                          <button
+                            key={item.id}
+                            onClick={() => handleSelectTab(item.id)}
+                            className={`w-full flex items-center gap-2.5 px-4 py-2 text-xs font-semibold text-left transition-colors ${
+                              isActive
+                                ? 'bg-primary/10 text-primary font-bold'
+                                : 'text-gray-700 hover:bg-primary/5 hover:text-primary'
+                            }`}
+                          >
+                            <Icon className="w-4 h-4 text-blue-600" />
+                            <span>{item.label}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* View Content Rendering Area */}
