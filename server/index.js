@@ -799,10 +799,14 @@ app.post('/api/customers', authenticateToken, async (req, res) => {
     phone = phone.trim();
 
     let validCtvId = req.user.id;
+    let sponsorDbId = req.user.dbId;
     if (req.user.role === 'admin' || req.user.role === 'accountant') {
       if (sourceCtvId && sourceCtvId.trim()) {
         const ctvUser = await prisma.user.findUnique({ where: { userId: sourceCtvId.trim() } });
-        if (ctvUser) validCtvId = ctvUser.userId;
+        if (ctvUser) {
+          validCtvId = ctvUser.userId;
+          sponsorDbId = ctvUser.id;
+        }
       }
     }
 
@@ -1093,160 +1097,65 @@ app.post('/api/orders', authenticateToken, async (req, res) => {
       const itemAmount = Number(item.amount) || (svc.price * (item.qty || 1));
       totalAmount += itemAmount;
       const qty = item.qty ? Math.max(1, parseInt(item.qty, 10)) : 1;
-      itemsData.push({ serviceId: item.serviceId, amount: itemAmount, qty });
+
+      // Phase 2C: Snapshot commissionPoints at order time (IMMUTABLE per SPEC v2.2 §X)
+      // commissionPoints is INDEPENDENT from price — admin sets manually
+      const unitCommissionPts = svc.commissionPoints || 0;
+      const lineCommissionPts = unitCommissionPts * qty;
+
+      itemsData.push({ serviceId: item.serviceId, amount: itemAmount, qty, unitCommissionPts, lineCommissionPts });
     }
 
+    
+    // Phase 2C: Resolve customer for compute purchaseType
+    const customerRecord = await prisma.customer.findUnique({
+      where: { id: customerId },
+      select: { linkedUserId: true, sponsorUserId: true }
+    });
+    const isSelfPurchasePhase2C = customerRecord.linkedUserId !== null && 
+                           customerRecord.linkedUserId === req.user.id;
+    const purchaseType = isSelfPurchasePhase2C ? 'SELF_PURCHASE' : 'CUSTOMER_PURCHASE';
+
+    // Phase 2C: Create order with commission point snapshots on OrderItem
     const order = await prisma.order.create({
       data: {
         customerId,
         totalAmount,
         status: 'COMPLETED',
+        ordererUserId: req.user.id,
+        purchaseType: purchaseType,
         items: {
-          create: itemsData.map(i => ({ serviceId: i.serviceId, amount: i.amount, qty: i.qty }))
+          create: itemsData.map(i => ({
+            serviceId: i.serviceId,
+            amount: i.amount,
+            qty: i.qty,
+            unitCommissionPts: i.unitCommissionPts,
+            lineCommissionPts: i.lineCommissionPts,
+          }))
         }
       }
     });
 
     const ctv = customer.sourceCtv;
-    const commissionsToCreate = [];
-
-    // Phase 2B: Determine isSelfBuy and Ambassador status
     const isSelfBuy = ctv ? (ctv.phone === customer.phone) : false;
-    const ambassadorActive = ctv ? isActiveAmbassador(ctv) : false;
 
-    // Update Order with Phase 2B fields
+    // Update Order with Phase 2B/2C fields
     await prisma.order.update({
       where: { id: order.id },
       data: { orderType: 'RETAIL', isSelfBuy }
     });
 
-    if (ctv) {
-      const commissionRates = getCommissionRates();
+    // Run Commission Engine v3 (non-blocking)
+    createCommissionsForOrder_v3(order.id).catch(err => 
+      console.error('[Commission Engine v3] Error:', err)
+    );
 
-      function getRate(tier, qty, isSelf) {
-        const tRates = commissionRates[tier] || DEFAULT_RATES[tier] || DEFAULT_RATES['SILVER'];
-        if (!isSelf) return tRates['referral'] || 0.20;
-        if (qty >= 20) return tRates['20'] || 0.40;
-        if (qty >= 10) return tRates['10'] || 0.35;
-        if (qty >= 5) return tRates['5'] || 0.30;
-        return tRates['1'] || 0.25;
-      }
-
-      const totalOrderQty = itemsData.reduce((sum, i) => sum + (i.qty || 1), 0);
-
-      for (const item of itemsData) {
-        // Fetch service details for commission rule lookup
-        const svcDetail = await prisma.service.findUnique({ where: { id: item.serviceId } });
-        const effectivePrice = (svcDetail && svcDetail.listPrice) ? svcDetail.listPrice : item.amount;
-
-        if (ambassadorActive) {
-          // AM-01: Self-consumption (20%) ? replaces DIRECT for Ambassador self-buy
-          if (isSelfBuy) {
-            commissionsToCreate.push({
-              orderId: order.id, receiverId: ctv.userId,
-              amount: item.amount * 0.20, type: 'SELF_CONSUMPTION', status: 'PENDING',
-              rateSnapshot: 0.20, rankSnapshot: ctv.rank, baseAmount: item.amount, policyRef: 'AM-01',
-              metadata: JSON.stringify({ isSelfBuy: true })
-            });
-          } else {
-            // AM-02: Direct retail via configurable rules engine
-            const rule = svcDetail ? await getRetailCommRule(svcDetail.productType || 'SERVICE', svcDetail.price, 'AMBASSADOR') : null;
-            if (rule && rule.rate) {
-              commissionsToCreate.push({
-                orderId: order.id, receiverId: ctv.userId,
-                amount: item.amount * rule.rate, type: rule.commType, status: 'PENDING',
-                rateSnapshot: rule.rate, rankSnapshot: ctv.rank, baseAmount: item.amount, policyRef: 'AM-02',
-                metadata: JSON.stringify({ ruleId: rule.id, productType: svcDetail.productType, price: svcDetail.price })
-              });
-            } else {
-              // Fallback: legacy DIRECT for Ambassador when no matching retail rule
-              const legacyRate = getRate(ctv.tier, totalOrderQty, false);
-              if (legacyRate > 0) {
-                commissionsToCreate.push({
-                  orderId: order.id, receiverId: ctv.userId,
-                  amount: item.amount * legacyRate, type: 'DIRECT', status: 'PENDING',
-                  rateSnapshot: legacyRate, rankSnapshot: ctv.rank, baseAmount: item.amount, policyRef: 'DIRECT',
-                  metadata: JSON.stringify({ fallback: true, reason: 'no_matching_am02_rule' })
-                });
-              }
-            }
-          }
-
-          // AM-03: Distribution partner (10%) ? paid to direct parent if parent is Ambassador
-          if (ctv.parent && isActiveAmbassador(ctv.parent)) {
-            commissionsToCreate.push({
-              orderId: order.id, receiverId: ctv.parent.userId,
-              amount: item.amount * 0.10, type: 'DISTRIBUTION_PARTNER', status: 'PENDING',
-              rateSnapshot: 0.10, rankSnapshot: ctv.parent.rank, baseAmount: item.amount, policyRef: 'AM-03',
-              metadata: JSON.stringify({ partnerUserId: ctv.parent.userId })
-            });
-          }
-
-          // AM-04: Regional development (5%) ? nearest Ambassador ancestor (not parent if AM-03 already paid)
-          const ancestorStartId = (ctv.parent && isActiveAmbassador(ctv.parent)) ? ctv.parent.userId : (ctv.parentId || null);
-          if (ancestorStartId) {
-            const excludeId = (ctv.parent && isActiveAmbassador(ctv.parent)) ? ctv.parent.userId : null;
-            const ancestor = await findNearestAmbassadorAncestor(ancestorStartId, excludeId);
-            if (ancestor && ancestor.userId !== ctv.userId) {
-              const treeDepth = ancestorStartId ? 2 : 1;
-              commissionsToCreate.push({
-                orderId: order.id, receiverId: ancestor.userId,
-                amount: item.amount * 0.05, type: 'REGIONAL_DEVELOPMENT', status: 'PENDING',
-                rateSnapshot: 0.05, rankSnapshot: ancestor.rank, baseAmount: item.amount, policyRef: 'AM-04',
-                metadata: JSON.stringify({ ancestorUserId: ancestor.userId, ancestorRankStatus: ancestor.rankStatus })
-              });
-            }
-          }
-
-        } else {
-          // Legacy commission logic (Phase 1A) ? for non-Ambassador CTVs
-          const baseRate = getRate(ctv.tier, totalOrderQty, isSelfBuy);
-          if (baseRate > 0) {
-            commissionsToCreate.push({
-              orderId: order.id, receiverId: ctv.userId,
-              amount: item.amount * baseRate, type: 'DIRECT', status: 'PENDING',
-              rateSnapshot: baseRate, rankSnapshot: ctv.rank || null, baseAmount: item.amount, policyRef: 'DIRECT'
-            });
-          }
-
-          let currentParent = ctv.parent;
-          if (currentParent) {
-            commissionsToCreate.push({
-              orderId: order.id, receiverId: currentParent.userId,
-              amount: item.amount * 0.10, type: 'OVERRIDE_F1', status: 'PENDING',
-              rateSnapshot: 0.10, rankSnapshot: currentParent.rank || null, baseAmount: item.amount, policyRef: 'OVERRIDE_F1'
-            });
-
-            let grandParent = currentParent.parent;
-            if (grandParent) {
-              commissionsToCreate.push({
-                orderId: order.id, receiverId: grandParent.userId,
-                amount: item.amount * 0.05, type: 'OVERRIDE_F2', status: 'PENDING',
-                rateSnapshot: 0.05, rankSnapshot: grandParent.rank || null, baseAmount: item.amount, policyRef: 'OVERRIDE_F2'
-              });
-            }
-          }
-        }
-      }
-
-      if (commissionsToCreate.length > 0) {
-        await prisma.commission.createMany({ data: commissionsToCreate });
-      }
-
-      // Phase 2B: Auto-activate Ambassador check (non-blocking)
-      checkAndAutoActivateAmbassador(ctv.userId).catch(e => console.error('[AMBASSADOR CHECK]', e.message));
-    }
-
-    // Phase 2A: Passive S-Points award (non-blocking)
-    if (order.status === 'COMPLETED' && typeof ctv !== 'undefined') {
-      awardSPointsForOrder(order, ctv).catch(e => console.error('[S-POINTS HOOK]', e.message));
-    }
-
-    res.json({ success: true, data: order, commissions: commissionsToCreate });
+    res.json({ success: true, data: order, commissions: [] });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
 });
+
 
 // VOID / CANCEL ORDER (No hard delete! Preserves full accounting audit trail with REVERSAL for PAID commissions)
 app.delete('/api/orders/:id', authenticateToken, requireRole(['admin', 'accountant']), async (req, res) => {
@@ -1499,7 +1408,7 @@ app.get('/api/services', async (req, res) => {
 
 app.post('/api/services', authenticateToken, requireRole(['admin', 'accountant']), async (req, res) => {
   try {
-    const { name, group, price, categoryName, description, imageUrl } = req.body;
+    const { name, group, price, commissionPoints, categoryName, description, imageUrl } = req.body;
     let cat = null;
     if (categoryName) {
       cat = await prisma.serviceCategory.findUnique({ where: { name: categoryName } });
@@ -1510,8 +1419,14 @@ app.post('/api/services', authenticateToken, requireRole(['admin', 'accountant']
         cat = await prisma.serviceCategory.create({ data: { name: 'Chăm sóc' } });
       }
     }
+    // Phase 2C: commissionPoints is INDEPENDENT from price (SPEC v2.2 §XI)
+    // Admin sets commissionPoints manually — NEVER price / 1000
+    const cp = commissionPoints !== undefined ? Number(commissionPoints) : 0;
+    if (cp === 0) {
+      console.warn(`[SERVICE CREATE] commissionPoints=0 for service "${name}". Admin should set this manually.`);
+    }
     const s = await prisma.service.create({
-      data: { name, group, price: Number(price), categoryId: cat.id, description, imageUrl }
+      data: { name, group, price: Number(price), commissionPoints: cp, categoryId: cat.id, description, imageUrl }
     });
     res.json({ success: true, data: s });
   } catch (error) {
@@ -1519,23 +1434,55 @@ app.post('/api/services', authenticateToken, requireRole(['admin', 'accountant']
   }
 });
 
+
 app.put('/api/services/:id', authenticateToken, requireRole(['admin', 'accountant']), async (req, res) => {
   try {
-    let { price, description, imageUrl } = req.body;
+    let { price, commissionPoints, description, imageUrl } = req.body;
     const updateData = {};
     if (price !== undefined) updateData.price = Number(price);
+    // Phase 2C: commissionPoints is INDEPENDENT — admin sets manually
+    if (commissionPoints !== undefined) updateData.commissionPoints = Number(commissionPoints);
     if (description !== undefined) updateData.description = description;
     if (imageUrl !== undefined) updateData.imageUrl = imageUrl;
+
+    // SPEC v3.0 §IX.3: Audit trail for commissionPoints change
+    let oldCp = null;
+    if (commissionPoints !== undefined) {
+      const existing = await prisma.service.findUnique({ where: { id: req.params.id }, select: { commissionPoints: true, name: true } });
+      oldCp = existing ? existing.commissionPoints : null;
+    }
 
     const s = await prisma.service.update({
       where: { id: req.params.id },
       data: updateData
     });
+
+    // Write audit log if commissionPoints changed
+    if (commissionPoints !== undefined && oldCp !== null && oldCp !== Number(commissionPoints)) {
+      await prisma.customerAuditLog.create({
+        data: {
+          customerId: req.params.id,
+          action: 'UPDATE_COMMISSION_POINTS',
+          details: JSON.stringify({
+            serviceId: req.params.id,
+            serviceName: s.name,
+            field: 'commissionPoints',
+            oldValue: oldCp,
+            newValue: Number(commissionPoints),
+            actor: req.user.userId || req.user.id,
+            timestamp: new Date().toISOString(),
+          }),
+          userId: req.user.userId || req.user.id,
+        },
+      }).catch(e => console.error('[COMMISSION_AUDIT]', e.message));
+    }
+
     res.json({ success: true, data: s });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
 });
+
 
 app.delete('/api/services/:id', authenticateToken, requireRole(['admin']), async (req, res) => {
   try {
@@ -1643,7 +1590,37 @@ app.put('/api/products/:id', authenticateToken, requireRole(['admin']), async (r
     if (req.body.gallery !== undefined) data.gallery = typeof req.body.gallery === 'string' ? req.body.gallery : JSON.stringify(req.body.gallery);
     if (req.body.specs !== undefined) data.specs = typeof req.body.specs === 'string' ? req.body.specs : JSON.stringify(req.body.specs);
 
+    // SPEC v3.0 §IX: commissionPoints independent from price
+    if (req.body.commissionPoints !== undefined) data.commissionPoints = Number(req.body.commissionPoints);
+
+    // SPEC v3.0 §IX.3: Audit commissionPoints changes
+    let oldCp = null;
+    if (req.body.commissionPoints !== undefined) {
+      const existing = await prisma.product.findUnique({ where: { id: req.params.id }, select: { commissionPoints: true, title: true } });
+      oldCp = existing ? existing.commissionPoints : null;
+    }
+
     const updated = await prisma.product.update({ where: { id: req.params.id }, data });
+
+    if (req.body.commissionPoints !== undefined && oldCp !== null && oldCp !== Number(req.body.commissionPoints)) {
+      await prisma.customerAuditLog.create({
+        data: {
+          customerId: req.params.id,
+          action: 'UPDATE_COMMISSION_POINTS',
+          details: JSON.stringify({
+            productId: req.params.id,
+            productTitle: updated.title,
+            field: 'commissionPoints',
+            oldValue: oldCp,
+            newValue: Number(req.body.commissionPoints),
+            actor: req.user.userId || req.user.id,
+            timestamp: new Date().toISOString(),
+          }),
+          userId: req.user.userId || req.user.id,
+        },
+      }).catch(e => console.error('[COMMISSION_AUDIT_PRODUCT]', e.message));
+    }
+
     res.json({
       ...updated,
       gallery: JSON.parse(updated.gallery || '[]'),
@@ -1653,6 +1630,7 @@ app.put('/api/products/:id', authenticateToken, requireRole(['admin']), async (r
     res.status(500).json({ error: e.message });
   }
 });
+
 
 app.delete('/api/products/:id', authenticateToken, requireRole(['admin']), async (req, res) => {
   try {
@@ -1664,11 +1642,594 @@ app.delete('/api/products/:id', authenticateToken, requireRole(['admin']), async
 });
 
 
+
+// =============================================================================
+// PHASE 2C — COMMISSION ENGINE v2.2 (FINAL SPEC v2.2)
+// =============================================================================
+// Architecture principles:
+//   - F0/F1/F2 are RELATIVE per-transaction, not absolute 3-tier system
+//   - commission depth max = 2 from each buyer's perspective
+//   - NO skip: customers without businessId are not nodes in Business Tree
+//   - ALL rates loaded from SystemPolicyConfig — no hard-code
+//   - earnedPoints = commissionPoints × rate (NOT amount × rate)
+//   - earnedMoney = earnedPoints × 1000
+//   - rateSnapshot + policyVersion are IMMUTABLE after Commission record created
+// =============================================================================
+
+// ── Policy Config Cache ────────────────────────────────────────────────────────
+// Cache in-process for the lifetime of the request to avoid N+1 DB hits
+let _policyCache = null;
+let _policyCacheAt = 0;
+const POLICY_CACHE_TTL_MS = 60_000; // 60 seconds
+
+async function loadPolicyCache() {
+  const now = Date.now();
+  if (_policyCache && (now - _policyCacheAt) < POLICY_CACHE_TTL_MS) return _policyCache;
+  const rows = await prisma.systemPolicyConfig.findMany();
+  _policyCache = {};
+  for (const r of rows) _policyCache[r.key] = r.value;
+  _policyCacheAt = now;
+  return _policyCache;
+}
+
+/** Get a numeric rate from SystemPolicyConfig. Returns null if NOT_CONFIGURED or missing. */
+async function getPolicyRate(key) {
+  const cache = await loadPolicyCache();
+  const val = cache[key];
+  if (!val || val === 'NOT_CONFIGURED') return null;
+  const num = parseFloat(val);
+  return isNaN(num) ? null : num;
+}
+
+/** Get current POLICY_VERSION string from config */
+async function getPolicyVersion() {
+  const cache = await loadPolicyCache();
+  return cache['POLICY_VERSION'] || '1.0.0';
+}
+
+/** Get AMBASSADOR_THRESHOLD as number */
+async function getAmbassadorThreshold() {
+  const cache = await loadPolicyCache();
+  return parseFloat(cache['AMBASSADOR_THRESHOLD'] || '5000');
+}
+
+// ── Business ID Generation ─────────────────────────────────────────────────────
+/** Generate next WK-NNNNN Business ID atomically within a Prisma transaction */
+async function generateBusinessId(tx) {
+  const record = await tx.businessIdSequence.update({
+    where: { id: 1 },
+    data: { nextVal: { increment: 1 } },
+    select: { nextVal: true },
+  });
+  return `WK-${record.nextVal}`;
+}
+
+// ── Network Tree Helpers ───────────────────────────────────────────────────────
+/**
+ * Find the F1 of a given user: direct sponsor child of userId
+ * that has a Business ID (is a Business Tree node).
+ * NOTE: We look UP the sponsor chain (buyer's sponsor), not DOWN.
+ *
+ * When buyer places an order:
+ *   F1_of_buyer = buyer.sponsorUserId's user (if that user has businessId)
+ *   F2_of_buyer = F1's sponsorUserId's user (if that user has businessId)
+ *
+ * This function: given a userId (the BUYER), find their direct sponsor who has businessId.
+ */
+async function getSponsorWithBusinessId(userId) {
+  if (!userId) return null;
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { sponsorUserId: true }
+  });
+  if (!user || !user.sponsorUserId) return null;
+
+  const sponsor = await prisma.user.findUnique({
+    where: { id: user.sponsorUserId },
+    select: { id: true, userId: true, businessId: true, rank: true, rankStatus: true,
+              isSystemParticipant: true, status: true, qualifyingPoints: true,
+              sponsorUserId: true, fullName: true }
+  });
+  // Sponsor must have businessId (be a Business Tree node) and be active
+  if (!sponsor || !sponsor.businessId || sponsor.status !== 'ACTIVE') return null;
+  return sponsor;
+}
+
+/**
+ * SPEC v2.2 § IV: F1 of F0 = direct sponsor of F0 with businessId
+ * F2 of F0 = direct sponsor of F1 with businessId
+ * NO BFS/DFS skip — strictly direct relationship only
+ */
+async function getF1andF2ofBuyer(buyerInternalId) {
+  const f1 = await getSponsorWithBusinessId(buyerInternalId);
+  if (!f1) return { f1: null, f2: null };
+  const f2 = await getSponsorWithBusinessId(f1.id);
+  return { f1, f2 };
+}
+
+// ── Split-Point Algorithm ──────────────────────────────────────────────────────
+/**
+ * Compute split-point commission for Ambassador self-activation purchases.
+ * Returns { qualifyingPart, excessPart, qualifyingRate, excessRate, totalEarned }
+ * SPEC v2.2 § VII
+ */
+async function computeSplitPoint(currentQualifyingPoints, orderTotalCP) {
+  const threshold = await getAmbassadorThreshold();
+  const qualifyingRate = await getPolicyRate('AMBASSADOR_QUALIFYING_PORTION') || 0.20;
+  const excessRate = await getPolicyRate('AMBASSADOR_EXCESS_PORTION') || 0.10;
+
+  let qualifyingPart, excessPart;
+  const remaining = threshold - currentQualifyingPoints;
+
+  if (remaining <= 0) {
+    // Already past threshold — all excess
+    qualifyingPart = 0;
+    excessPart = orderTotalCP;
+  } else if (orderTotalCP <= remaining) {
+    // Order does not reach threshold
+    qualifyingPart = orderTotalCP;
+    excessPart = 0;
+  } else {
+    // Order crosses threshold
+    qualifyingPart = remaining;
+    excessPart = orderTotalCP - remaining;
+  }
+
+  return { qualifyingPart, excessPart, qualifyingRate, excessRate,
+           totalEarned: qualifyingPart * qualifyingRate + excessPart * excessRate };
+}
+
+// ── Commission Engine v2.2 ─────────────────────────────────────────────────────
+/**
+ * Main commission engine — called within POST /api/orders transaction.
+ * Returns array of Commission data objects to be created.
+ * SPEC v2.2 § V: F0/F1/F2 relative, max depth 2, no skip
+ *
+ * @param {object} buyer - The User who placed the order (loaded with Prisma, has .id, .rank, .businessId, etc.)
+ * @param {object} order - The created Order record
+ * @param {Array}  items - Array of { serviceId, unitCommissionPts, lineCommissionPts, qty, amount }
+ * @param {object} customer - The Customer record (has .phone)
+ */
+async function createCommissionsForOrder_v2(buyer, order, items, customer) {
+  const commissions = [];
+  const policyVersion = await getPolicyVersion();
+  const threshold = await getAmbassadorThreshold();
+
+  // Total commission points for this order
+  const orderTotalCP = items.reduce((sum, i) => sum + (i.lineCommissionPts || 0), 0);
+  if (orderTotalCP <= 0) return commissions; // No commissionable points → skip
+
+  const buyerRank = buyer.rank || null;
+  const buyerHasId = !!buyer.businessId;
+  const isSelfBuy = buyer.phone === customer.phone; // buyer IS the customer
+
+  // Determine customer's businessId status
+  // In this system, customer records are separate from User records.
+  // A customer "has Business ID" means they are also a User with businessId.
+  // We look up by phone match.
+  let customerUser = null;
+  if (!isSelfBuy) {
+    customerUser = await prisma.user.findUnique({
+      where: { phone: customer.phone },
+      select: { id: true, businessId: true, rank: true }
+    });
+  }
+  const customerHasId = customerUser && !!customerUser.businessId;
+
+  // ── Find F1 and F2 of buyer (sponsor chain, strict depth 2) ──────────────
+  const { f1, f2 } = await getF1andF2ofBuyer(buyer.id);
+
+  // ── SELF commission (buyer earns on own purchase) ─────────────────────────
+  if (buyerHasId) {
+    let selfRate = null;
+    let selfRuleKey = null;
+
+    if (buyerRank === 'DIRECTOR') {
+      selfRate = isSelfBuy || !customerHasId
+        ? await getPolicyRate('DIRECTOR_SELF_BUY')
+        : await getPolicyRate('DIRECTOR_DIRECT_WITH_ID');
+      selfRuleKey = isSelfBuy || !customerHasId ? 'DIRECTOR_SELF_BUY' : 'DIRECTOR_DIRECT_WITH_ID';
+      if (!isSelfBuy && !customerHasId) selfRuleKey = 'DIRECTOR_DIRECT_NO_ID';
+      if (!isSelfBuy && !customerHasId) selfRate = await getPolicyRate('DIRECTOR_DIRECT_NO_ID');
+
+    } else if (buyerRank === 'MANAGER') {
+      if (isSelfBuy) {
+        selfRate = await getPolicyRate('MANAGER_SELF_BUY');
+        selfRuleKey = 'MANAGER_SELF_BUY';
+      } else if (!customerHasId) {
+        selfRate = await getPolicyRate('MANAGER_DIRECT_NO_ID');
+        selfRuleKey = 'MANAGER_DIRECT_NO_ID';
+      } else {
+        selfRate = await getPolicyRate('MANAGER_DIRECT_WITH_ID');
+        selfRuleKey = 'MANAGER_DIRECT_WITH_ID';
+      }
+
+    } else if (buyerRank === 'AMBASSADOR') {
+      // SPEC v3.0 §I.2: AMBASSADOR_SELF_BUY ≠ AMBASSADOR_DIRECT_NO_ID
+      // Both are 20% but separate rules — Admin may tune independently
+      if (isSelfBuy) {
+        selfRate = await getPolicyRate('AMBASSADOR_SELF_BUY');
+        selfRuleKey = 'AMBASSADOR_SELF_BUY';
+      } else if (!customerHasId) {
+        selfRate = await getPolicyRate('AMBASSADOR_DIRECT_NO_ID');
+        selfRuleKey = 'AMBASSADOR_DIRECT_NO_ID';
+      } else {
+        selfRate = await getPolicyRate('AMBASSADOR_DIRECT_WITH_ID');
+        selfRuleKey = 'AMBASSADOR_DIRECT_WITH_ID';
+      }
+    }
+
+    if (selfRate !== null && selfRuleKey) {
+      const earnedPoints = orderTotalCP * selfRate;
+      commissions.push({
+        orderId: order.id,
+        receiverId: buyer.userId,
+        amount: earnedPoints * 1000,
+        type: 'SELF',
+        status: 'PENDING',
+        rateSnapshot: selfRate,
+        rankSnapshot: buyerRank,
+        baseAmount: orderTotalCP * 1000,
+        policyRef: selfRuleKey,
+        // Phase 2C fields
+        ruleKey: selfRuleKey,
+        policyVersion,
+        role: 'SELF',
+        basePoints: orderTotalCP,
+        earnedPoints,
+        earnedMoney: earnedPoints * 1000,
+      });
+    }
+  }
+
+  // ── F1 commission (buyer's direct sponsor with businessId) ────────────────
+  // SPEC v2.2 §V: F1 rate depends on F1's rank and the transaction type
+  if (f1) {
+    let f1Rate = null;
+    let f1RuleKey = null;
+    const f1Rank = f1.rank || null;
+
+    if (f1Rank === 'DIRECTOR') {
+      f1Rate = await getPolicyRate('DIRECTOR_F1');
+      f1RuleKey = 'DIRECTOR_F1';
+    } else if (f1Rank === 'MANAGER') {
+      if (isSelfBuy || buyerHasId) {
+        // Buyer (F0) is self-buying or has ID → F1 earns F1_PURCHASE rate
+        f1Rate = await getPolicyRate('MANAGER_F1_PURCHASE');
+        f1RuleKey = 'MANAGER_F1_PURCHASE';
+      } else {
+        // Buyer sold to customer without ID → MANAGER_F1_SELL_TO_CUSTOMER_NO_ID
+        f1Rate = await getPolicyRate('MANAGER_F1_SELL_TO_CUSTOMER_NO_ID');
+        f1RuleKey = 'MANAGER_F1_SELL_TO_CUSTOMER_NO_ID';
+      }
+    } else if (f1Rank === 'AMBASSADOR') {
+      // Ambassador as F1 — use Ambassador direct rates for their own customers
+      // Per spec: not double-dipping, F1 earns based on their own rank
+      f1Rate = null; // Ambassador F1 rates TBD — OPEN-Q1
+      f1RuleKey = null;
+    }
+
+    if (f1Rate !== null && f1RuleKey) {
+      const earnedPoints = orderTotalCP * f1Rate;
+      commissions.push({
+        orderId: order.id,
+        receiverId: f1.userId,
+        amount: earnedPoints * 1000,
+        type: 'OVERRIDE_F1',
+        status: 'PENDING',
+        rateSnapshot: f1Rate,
+        rankSnapshot: f1Rank,
+        baseAmount: orderTotalCP * 1000,
+        policyRef: f1RuleKey,
+        ruleKey: f1RuleKey,
+        policyVersion,
+        role: 'F1',
+        basePoints: orderTotalCP,
+        earnedPoints,
+        earnedMoney: earnedPoints * 1000,
+      });
+    }
+  }
+
+  // ── F2 commission (F1's direct sponsor with businessId) ───────────────────
+  // SPEC v2.2 §V: depth 2 max — no F3+
+  if (f2) {
+    let f2Rate = null;
+    let f2RuleKey = null;
+    const f2Rank = f2.rank || null;
+
+    if (f2Rank === 'DIRECTOR') {
+      f2Rate = await getPolicyRate('DIRECTOR_F2');
+      f2RuleKey = 'DIRECTOR_F2';
+    } else if (f2Rank === 'MANAGER') {
+      f2Rate = await getPolicyRate('MANAGER_F2_PURCHASE');
+      f2RuleKey = 'MANAGER_F2_PURCHASE';
+    }
+    // depth >= 3 → 0 commission → no record created (SPEC v2.2 §II.3)
+
+    if (f2Rate !== null && f2RuleKey) {
+      const earnedPoints = orderTotalCP * f2Rate;
+      commissions.push({
+        orderId: order.id,
+        receiverId: f2.userId,
+        amount: earnedPoints * 1000,
+        type: 'OVERRIDE_F2',
+        status: 'PENDING',
+        rateSnapshot: f2Rate,
+        rankSnapshot: f2Rank,
+        baseAmount: orderTotalCP * 1000,
+        policyRef: f2RuleKey,
+        ruleKey: f2RuleKey,
+        policyVersion,
+        role: 'F2',
+        basePoints: orderTotalCP,
+        earnedPoints,
+        earnedMoney: earnedPoints * 1000,
+      });
+    }
+  }
+  // SPEC v2.2 §II.3: depth >= 3 → NO commission record → enforced by stopping here
+
+  return commissions;
+}
+
+// ── Split-Point Commission (Ambassador self-qualification orders) ──────────────
+/**
+ * Special case: buyer is NOT yet Ambassador (isSystemParticipant=true, businessId=null).
+ * Commission goes to buyer's F1 (sponsor) using split-point algorithm.
+ * Creates 2 Commission records (QUALIFYING_SPLIT + EXCESS_SPLIT) for audit.
+ * SPEC v2.2 § VII, TC-C06, TC-C07 (TC-18)
+ */
+async function createSplitPointCommissions(buyer, order, orderTotalCP, f1) {
+  if (!f1 || orderTotalCP <= 0) return [];
+  const policyVersion = await getPolicyVersion();
+  const split = await computeSplitPoint(buyer.qualifyingPoints || 0, orderTotalCP);
+  const commissions = [];
+
+  if (split.qualifyingPart > 0 && split.qualifyingRate > 0) {
+    const earnedPoints = split.qualifyingPart * split.qualifyingRate;
+    commissions.push({
+      orderId: order.id,
+      receiverId: f1.userId,
+      amount: earnedPoints * 1000,
+      type: 'DIRECT',
+      status: 'PENDING',
+      rateSnapshot: split.qualifyingRate,
+      rankSnapshot: f1.rank,
+      baseAmount: split.qualifyingPart * 1000,
+      policyRef: 'AMBASSADOR_QUALIFYING_SPLIT',
+      ruleKey: 'AMBASSADOR_QUALIFYING_SPLIT',
+      policyVersion,
+      role: 'F1',
+      basePoints: split.qualifyingPart,
+      earnedPoints,
+      earnedMoney: earnedPoints * 1000,
+    });
+  }
+
+  if (split.excessPart > 0 && split.excessRate > 0) {
+    const earnedPoints = split.excessPart * split.excessRate;
+    commissions.push({
+      orderId: order.id,
+      receiverId: f1.userId,
+      amount: earnedPoints * 1000,
+      type: 'DIRECT',
+      status: 'PENDING',
+      rateSnapshot: split.excessRate,
+      rankSnapshot: f1.rank,
+      baseAmount: split.excessPart * 1000,
+      policyRef: 'AMBASSADOR_EXCESS_SPLIT',
+      ruleKey: 'AMBASSADOR_EXCESS_SPLIT',
+      policyVersion,
+      role: 'F1',
+      basePoints: split.excessPart,
+      earnedPoints,
+      earnedMoney: earnedPoints * 1000,
+    });
+  }
+
+  return commissions;
+}
+
+// ── S-Points Engine v2 ────────────────────────────────────────────────────────
+/**
+ * Award S-Points and qualifyingPoints after order completion.
+ * SPEC v2.2 § X:
+ *   - qualifyingPoints only counted from participantAt onward
+ *   - commissionPoints (not amount/1000) is the source of truth
+ *   - All MACHINE type services earn points
+ */
+async function awardSPointsForOrder_v2(order, buyer) {
+  try {
+    const policyVersion = await getPolicyVersion();
+    const items = await prisma.orderItem.findMany({
+      where: { orderId: order.id },
+      include: { service: true },
+    });
+
+    let totalCP = 0;
+    for (const item of items) {
+      if (item.service && item.service.productType === 'MACHINE') {
+        // Use commissionPoints snapshot on OrderItem (NOT amount/1000)
+        totalCP += item.lineCommissionPts || 0;
+      }
+    }
+
+    if (totalCP <= 0) return;
+
+    const isQualifying = buyer.isSystemParticipant && !!buyer.participantAt;
+    const newBalance = (buyer.sPoints || 0) + totalCP;
+    const newQualifyingPoints = isQualifying
+      ? (buyer.qualifyingPoints || 0) + totalCP
+      : (buyer.qualifyingPoints || 0);
+
+    // Update user balances
+    await prisma.user.update({
+      where: { userId: buyer.userId },
+      data: {
+        sPoints: newBalance,
+        qualifyingPoints: newQualifyingPoints,
+        totalMachinesBought: {
+          increment: items.filter(i => i.service?.productType === 'MACHINE')
+                         .reduce((s, i) => s + i.qty, 0)
+        },
+      },
+    });
+
+    // Create SPointTransaction with Phase 2C fields
+    await prisma.sPointTransaction.create({
+      data: {
+        userId: buyer.userId,
+        orderId: order.id,
+        points: totalCP,
+        type: 'EARN',
+        isQualifying,
+        snapshotBalance: newBalance,
+        policyVersion,
+        description: `Don hang #${order.id} - ${totalCP} CP`,
+      },
+    });
+
+    console.log(`[S-POINTS v2] +${totalCP} CP to ${buyer.userId} (qualifying=${isQualifying}). Balance: ${newBalance}`);
+  } catch (err) {
+    console.error(`[S-POINTS v2 ERROR] order ${order.id}:`, err.message);
+  }
+}
+
+// ── Ambassador Auto-Activation v2 ─────────────────────────────────────────────
+/**
+ * Check and auto-activate Ambassador if qualifyingPoints >= threshold.
+ * SPEC v2.2 § VIII.1: Uses qualifyingPoints + AMBASSADOR_THRESHOLD config.
+ * Issues businessId from atomic sequence.
+ */
+async function checkAndAutoActivateAmbassador_v2(userId) {
+  try {
+    const user = await prisma.user.findUnique({ where: { userId } });
+    if (!user || user.businessId) return; // Already has ID
+    if (!user.isSystemParticipant) return; // Must have joined system
+
+    const threshold = await getAmbassadorThreshold();
+    if ((user.qualifyingPoints || 0) < threshold) return;
+
+    // Atomically generate businessId and update user
+    await prisma.$transaction(async (tx) => {
+      const bizId = await generateBusinessId(tx);
+      await tx.user.update({
+        where: { userId },
+        data: {
+          businessId: bizId,
+          rank: 'AMBASSADOR',
+          rankStatus: 'ACTIVE_RANK',
+          rankAchievedAt: new Date(),
+          rankActivationMethod: 'AUTO_SPOINT_THRESHOLD',
+          rankActivatedBy: null,
+        },
+      });
+      await tx.rankHistory.create({
+        data: {
+          userId,
+          fromRank: user.rank || null,
+          toRank: 'AMBASSADOR',
+          fromStatus: user.rankStatus || null,
+          toStatus: 'ACTIVE_RANK',
+          reason: 'AUTO_SPOINT_THRESHOLD',
+          triggeredBy: 'SYSTEM',
+          metadata: JSON.stringify({
+            qualifyingPointsAtTime: user.qualifyingPoints,
+            threshold,
+            businessIdAssigned: bizId,
+          }),
+        },
+      });
+      console.log(`[AMBASSADOR v2] ${userId} auto-activated. businessId=${bizId}`);
+    });
+
+    // After activation, check if sponsor can be promoted
+    if (user.sponsorUserId) {
+      checkAndAutoPromoteRank(user.sponsorUserId).catch(e =>
+        console.error('[RANK PROMOTE ERROR]', e.message));
+    }
+  } catch (e) {
+    console.error('[AMBASSADOR v2 ERROR]', e.message);
+  }
+}
+
+// ── Rank Auto-Promotion v2 ────────────────────────────────────────────────────
+/**
+ * Check if a user should be auto-promoted to Manager or Director.
+ * SPEC v2.2 § VIII.2-3:
+ *   Ambassador → Manager: 5 direct F1s who are AMBASSADOR with businessId
+ *   Manager → Director:   5 direct F1s who are MANAGER with businessId
+ * "Direct F1" = users whose sponsorUserId = this user's .id (depth 1 only).
+ */
+async function checkAndAutoPromoteRank(internalId) {
+  try {
+    const user = await prisma.user.findUnique({ where: { id: internalId } });
+    if (!user || !user.businessId) return;
+
+    const currentRank = user.rank;
+    let targetRank = null;
+    let requiredF1Rank = null;
+
+    if (currentRank === 'AMBASSADOR') {
+      targetRank = 'MANAGER';
+      requiredF1Rank = 'AMBASSADOR';
+    } else if (currentRank === 'MANAGER') {
+      targetRank = 'DIRECTOR';
+      requiredF1Rank = 'MANAGER';
+    } else {
+      return; // Already Director or no rank
+    }
+
+    // Count direct F1s (sponsorUserId = user.id) who have achieved requiredF1Rank and have businessId
+    const qualifyingF1Count = await prisma.user.count({
+      where: {
+        sponsorUserId: user.id,
+        businessId: { not: null },
+        rank: requiredF1Rank,
+        status: 'ACTIVE',
+      },
+    });
+
+    if (qualifyingF1Count < 5) return;
+
+    // Promote!
+    await prisma.$transaction(async (tx) => {
+      await tx.user.update({
+        where: { id: internalId },
+        data: {
+          rank: targetRank,
+          rankStatus: 'ACTIVE_RANK',
+          rankAchievedAt: new Date(),
+          rankActivationMethod: 'AUTO_F1_COUNT',
+          rankActivatedBy: null,
+        },
+      });
+      await tx.rankHistory.create({
+        data: {
+          userId: user.userId,
+          fromRank: currentRank,
+          toRank: targetRank,
+          fromStatus: user.rankStatus || null,
+          toStatus: 'ACTIVE_RANK',
+          reason: 'AUTO_F1_COUNT',
+          triggeredBy: 'SYSTEM',
+          metadata: JSON.stringify({ qualifyingF1Count, requiredF1Rank }),
+        },
+      });
+      console.log(`[RANK PROMOTE v2] ${user.userId}: ${currentRank} -> ${targetRank} (${qualifyingF1Count} F1s)`);
+    });
+  } catch (e) {
+    console.error('[RANK PROMOTE v2 ERROR]', e.message);
+  }
+}
+
 // ================= PHASE 2A: S-POINTS & RANK FOUNDATION API =================
 
-// HELPER: Award S-Points passively after order completion
+// HELPER: Award S-Points passively after order completion (LEGACY — kept for old orders)
 // Only awards if service.productType = 'MACHINE' (per spec)
-// If productType is null, no points are awarded (safe default ? pending MAU_THUAN_04 decision)
+// If productType is null, no points are awarded (safe default — pending MAU_THUAN_04 decision)
+
 async function awardSPointsForOrder(order, ctv) {
   try {
     const items = await prisma.orderItem.findMany({
@@ -2307,6 +2868,201 @@ app.put('/api/services/:id/product-type', authenticateToken, requireRole(['admin
   }
 });
 
+// =============================================================================
+// PHASE 2C — ADMIN: POLICY CONFIG MANAGEMENT
+// =============================================================================
+
+/** GET /api/policy-config — List all policy config entries */
+app.get('/api/policy-config', authenticateToken, requireRole(['admin']), async (req, res) => {
+  try {
+    const configs = await prisma.systemPolicyConfig.findMany({ orderBy: { key: 'asc' } });
+    res.json({ success: true, data: configs });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+/** PUT /api/policy-config/:key — Admin update a single policy value */
+app.put('/api/policy-config/:key', authenticateToken, requireRole(['admin']), async (req, res) => {
+  try {
+    const { key } = req.params;
+    const { value } = req.body;
+    if (value === undefined || value === null) {
+      return res.status(400).json({ success: false, message: 'value is required' });
+    }
+    // Invalidate policy cache on update
+    _policyCache = null;
+    const updated = await prisma.systemPolicyConfig.update({
+      where: { key },
+      data: {
+        value: String(value),
+        updatedBy: req.user.userId || req.user.id,
+        updatedAt: new Date(),
+      },
+    });
+    console.log(`[POLICY UPDATE] ${key} = ${value} by ${req.user.userId || req.user.id}`);
+    res.json({ success: true, data: updated });
+  } catch (e) {
+    if (e.code === 'P2025') {
+      return res.status(404).json({ success: false, message: `Policy key "${req.params.key}" not found` });
+    }
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+// =============================================================================
+// PHASE 2C — NETWORK TREE API (v2.2: sponsorUserId, depth-limited)
+// =============================================================================
+
+/**
+ * GET /api/network-tree/:userId — Get F1 and F2 of a given user (by userId display code)
+ * SPEC v2.2: F0/F1/F2 are relative — this returns the sponsor chain UP from this user's perspective
+ * plus their direct F1 downline (for dashboard display)
+ */
+app.get('/api/network-tree/:userId', authenticateToken, async (req, res) => {
+  try {
+    const targetUserId = req.params.userId;
+    if (req.user.role !== 'admin' && req.user.id !== targetUserId) {
+      return res.status(403).json({ success: false, message: 'Khong co quyen.' });
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { userId: targetUserId },
+      select: { id: true, userId: true, businessId: true, rank: true, sponsorUserId: true, fullName: true }
+    });
+    if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+
+    // F1 sponsor of this user (depth 1 UP)
+    const sponsorF1 = user.sponsorUserId
+      ? await prisma.user.findUnique({
+          where: { id: user.sponsorUserId },
+          select: { id: true, userId: true, businessId: true, rank: true, fullName: true, sponsorUserId: true }
+        })
+      : null;
+
+    // F2 sponsor (depth 2 UP)
+    const sponsorF2 = sponsorF1?.sponsorUserId
+      ? await prisma.user.findUnique({
+          where: { id: sponsorF1.sponsorUserId },
+          select: { id: true, userId: true, businessId: true, rank: true, fullName: true }
+        })
+      : null;
+
+    // Direct F1 downline of this user (sponsorUserId = user.id, with businessId)
+    const directF1Downline = await prisma.user.findMany({
+      where: { sponsorUserId: user.id, businessId: { not: null } },
+      select: { id: true, userId: true, businessId: true, rank: true, fullName: true },
+    });
+
+    res.json({
+      success: true,
+      data: {
+        self: { userId: user.userId, businessId: user.businessId, rank: user.rank, fullName: user.fullName },
+        sponsorF1: sponsorF1
+          ? { userId: sponsorF1.userId, businessId: sponsorF1.businessId, rank: sponsorF1.rank, fullName: sponsorF1.fullName }
+          : null,
+        sponsorF2: sponsorF2
+          ? { userId: sponsorF2.userId, businessId: sponsorF2.businessId, rank: sponsorF2.rank, fullName: sponsorF2.fullName }
+          : null,
+        directF1Downline,
+        note: 'F0/F1/F2 are relative per SPEC v3.0. This shows sponsor chain UP and direct downline DOWN.'
+      }
+    });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+// =============================================================================
+// PHASE 2C — SYSTEM PARTICIPATION (isSystemParticipant)
+// SPEC v3.0 §III.3: Audit trail bắt buộc — không sửa âm thầm
+// =============================================================================
+
+/**
+ * POST /api/users/:userId/join-system
+ * Tích "THAM GIA HỆ THỐNG" cho user.
+ * Actor: admin hoặc ctv (nếu là sponsor của user đó).
+ * Body: { sponsorUserId?: string (internal id), reason?: string }
+ */
+app.post('/api/users/:userId/join-system', authenticateToken, requireRole(['admin', 'ctv']), async (req, res) => {
+  try {
+    const { userId: targetUserId } = req.params;
+    const { sponsorUserId, reason } = req.body;
+
+    const target = await prisma.user.findUnique({ where: { userId: targetUserId } });
+    if (!target) return res.status(404).json({ success: false, message: 'Khong tim thay user.' });
+
+    if (target.isSystemParticipant) {
+      return res.status(400).json({ success: false, message: 'User da tham gia he thong.' });
+    }
+
+    // Resolve sponsor: use provided sponsorUserId or actor's id (for CTV)
+    let resolvedSponsorId = sponsorUserId || null;
+    if (req.user.role === 'ctv' && !sponsorUserId) {
+      resolvedSponsorId = req.user.id; // CTV tự làm sponsor
+    }
+
+    const now = new Date();
+    const updated = await prisma.user.update({
+      where: { userId: targetUserId },
+      data: {
+        isSystemParticipant: true,
+        participantAt: now,
+        ...(resolvedSponsorId && { sponsorUserId: resolvedSponsorId }),
+      },
+    });
+
+    // Ghi AuditLog theo SPEC v3.0 §III.3
+    await prisma.customerAuditLog.create({
+      data: {
+        customerId: target.id, // dùng user.id làm ref (có thể tạo UserAuditLog riêng sau)
+        action: 'JOIN_SYSTEM',
+        details: JSON.stringify({
+          targetUserId: targetUserId,
+          oldValue: { isSystemParticipant: false },
+          newValue: { isSystemParticipant: true, participantAt: now.toISOString() },
+          sponsorId: resolvedSponsorId || null,
+          actor: req.user.userId || req.user.id,
+          reason: reason || null,
+          timestamp: now.toISOString(),
+        }),
+        userId: req.user.userId || req.user.id,
+      },
+    });
+
+    console.log(`[JOIN_SYSTEM] User ${targetUserId} joined by ${req.user.userId}. sponsorId=${resolvedSponsorId}`);
+    res.json({ success: true, message: `User ${targetUserId} da tham gia he thong.`, data: sanitizeUser(updated) });
+  } catch (e) {
+    console.error('[JOIN_SYSTEM ERROR]', e.message);
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+// =============================================================================
+// PHASE 2C — COMMISSION POINTS AUDIT (Product / Service)
+// SPEC v3.0 §IX.3: ghi log mỗi lần Admin thay đổi commissionPoints
+// =============================================================================
+
+/**
+ * GET /api/service-commission-audit/:serviceId
+ * Xem lịch sử thay đổi commissionPoints của service
+ */
+app.get('/api/service-commission-audit/:serviceId', authenticateToken, requireRole(['admin']), async (req, res) => {
+  try {
+    const logs = await prisma.customerAuditLog.findMany({
+      where: {
+        customerId: req.params.serviceId,
+        action: 'UPDATE_COMMISSION_POINTS',
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 50,
+    });
+    res.json({ success: true, data: logs });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
 // START SERVER
 if (require.main === module) {
   app.listen(PORT, () => {
@@ -2315,3 +3071,266 @@ if (require.main === module) {
 }
 
 module.exports = app;
+// =============================================================================
+// PHASE 2C - COMMISSION ENGINE V3
+// =============================================================================
+async function createCommissionsForOrder_v3(orderId) {
+  await prisma.$transaction(async (tx) => {
+    // 1. IDEMPOTENCY GUARD
+    const alreadyProcessed = await tx.commissionProcessing.findUnique({
+      where: { orderId }
+    });
+    if (alreadyProcessed) return;
+
+    // 2. Load order + orderer + customer
+    const order = await tx.order.findUnique({
+      where: { id: orderId },
+      include: {
+        items: true,
+        customer: {
+          select: { sponsorUserId: true, linkedUserId: true }
+        }
+      }
+    });
+    if (!order || order.status !== 'COMPLETED') return;
+
+    const orderer = order.ordererUserId
+      ? await tx.user.findUnique({
+          where: { id: order.ordererUserId },
+          select: { id: true, userId: true, businessId: true, rank: true, isSystemParticipant: true, qualifyingPoints: true, sponsorUserId: true }
+        })
+      : null;
+
+    // Customer member (User có linkedUserId)
+    const customerMember = order.customer.linkedUserId
+      ? await tx.user.findUnique({
+          where: { id: order.customer.linkedUserId },
+          select: { id: true, userId: true, businessId: true, rank: true, isSystemParticipant: true, qualifyingPoints: true, sponsorUserId: true }
+        })
+      : null;
+
+    const isSelfPurchase = order.purchaseType === 'SELF_PURCHASE';
+
+    // Qualifying Member
+    const qualifyingMember = isSelfPurchase ? orderer : customerMember;
+
+    // Order total commission points
+    const orderTotalCP = order.items.reduce((s, i) => s + (i.lineCommissionPts || 0), 0);
+    const policyVersion = '1.0.0';
+
+    // 3. CREATE MARKER (before commission creation)
+    await tx.commissionProcessing.create({
+      data: { orderId: order.id, status: 'COMPLETED', policyVersion }
+    });
+
+    const commissions = [];
+
+    if (orderTotalCP > 0) {
+      // Load policy rates from DB
+      const getPolicyRate = async (key) => {
+        const cfg = await tx.systemPolicyConfig.findUnique({ where: { key } });
+        return cfg ? parseFloat(cfg.value) : null;
+      };
+
+      // ─── NHÁNH A: SELF TRANSACTION ───────────────────────────
+      if (isSelfPurchase && orderer?.businessId) {
+        const ruleKey = `${orderer.rank}_SELF_BUY`;
+        const rate = await getPolicyRate(ruleKey);
+        if (rate !== null) {
+          commissions.push({
+            orderId: order.id, receiverId: orderer.userId,
+            amount: 0, type: 'POINT_COMMISSION', status: 'PENDING',
+            role: 'SELF', ruleKey, policyVersion, rateSnapshot: rate,
+            basePoints: orderTotalCP,
+            earnedPoints: orderTotalCP * rate,
+            earnedMoney: orderTotalCP * rate * 1000
+          });
+        }
+      }
+
+      // ─── NHÁNH B: DIRECT CUSTOMER / SPLIT ─────────────────────
+      if (!isSelfPurchase && order.customer.sponsorUserId) {
+        const directSponsor = await tx.user.findUnique({
+          where: { id: order.customer.sponsorUserId },
+          select: { id: true, userId: true, businessId: true, rank: true, status: true }
+        });
+
+        if (directSponsor?.businessId && directSponsor.status === 'ACTIVE') {
+          const threshold = await getPolicyRate('AMBASSADOR_THRESHOLD') || 5000;
+          const currentQP = qualifyingMember ? qualifyingMember.qualifyingPoints : 0;
+          const customerHasId = customerMember?.businessId != null;
+
+          // SPLIT ELIGIBLE: all 6 conditions
+          const splitEligible = (
+            qualifyingMember !== null &&
+            qualifyingMember.isSystemParticipant === true &&
+            qualifyingMember.businessId === null &&
+            orderTotalCP > 0 &&
+            (currentQP + orderTotalCP) >= threshold
+          );
+
+          if (splitEligible) {
+            // SPLIT thay thế DIRECT_NO_ID
+            const remaining = threshold - currentQP;
+            let qualifyingPart, excessPart;
+            if (remaining <= 0) {
+              qualifyingPart = 0; excessPart = orderTotalCP;
+            } else if (orderTotalCP <= remaining) {
+              qualifyingPart = orderTotalCP; excessPart = 0;
+            } else {
+              qualifyingPart = remaining; excessPart = orderTotalCP - remaining;
+            }
+            const qRate = await getPolicyRate('AMBASSADOR_QUALIFYING_PORTION') || 0.20;
+            const eRate = await getPolicyRate('AMBASSADOR_EXCESS_PORTION') || 0.10;
+            if (qualifyingPart > 0) {
+              commissions.push({
+                orderId: order.id, receiverId: directSponsor.userId,
+                amount: 0, type: 'POINT_COMMISSION', status: 'PENDING',
+                role: 'QUALIFYING_SPLIT', ruleKey: 'AMBASSADOR_QUALIFYING_PORTION',
+                policyVersion, rateSnapshot: qRate, basePoints: qualifyingPart,
+                earnedPoints: qualifyingPart * qRate,
+                earnedMoney: qualifyingPart * qRate * 1000
+              });
+            }
+            if (excessPart > 0) {
+              commissions.push({
+                orderId: order.id, receiverId: directSponsor.userId,
+                amount: 0, type: 'POINT_COMMISSION', status: 'PENDING',
+                role: 'EXCESS_SPLIT', ruleKey: 'AMBASSADOR_EXCESS_PORTION',
+                policyVersion, rateSnapshot: eRate, basePoints: excessPart,
+                earnedPoints: excessPart * eRate,
+                earnedMoney: excessPart * eRate * 1000
+              });
+            }
+          } else {
+            // DIRECT bình thường
+            const ruleKey = customerHasId
+              ? `${directSponsor.rank}_DIRECT_WITH_ID`
+              : `${directSponsor.rank}_DIRECT_NO_ID`;
+            const rate = await getPolicyRate(ruleKey);
+            if (rate !== null) {
+              commissions.push({
+                orderId: order.id, receiverId: directSponsor.userId,
+                amount: 0, type: 'POINT_COMMISSION', status: 'PENDING',
+                role: customerHasId ? 'DIRECT_WITH_ID' : 'DIRECT_NO_ID',
+                ruleKey, policyVersion, rateSnapshot: rate,
+                basePoints: orderTotalCP,
+                earnedPoints: orderTotalCP * rate,
+                earnedMoney: orderTotalCP * rate * 1000
+              });
+            }
+          }
+        }
+      }
+
+      // ─── NHÁNH C: UPSTREAM PURCHASE ───────────────────────────
+      // Chỉ khi customerMember có businessId
+      const upstreamBase = isSelfPurchase ? orderer : customerMember;
+      if (upstreamBase?.businessId) {
+        // Depth-1
+        const upD1 = upstreamBase.sponsorUserId
+          ? await tx.user.findUnique({
+              where: { id: upstreamBase.sponsorUserId },
+              select: { id: true, userId: true, businessId: true, rank: true, status: true, sponsorUserId: true }
+            })
+          : null;
+        if (upD1?.businessId && upD1.status === 'ACTIVE') {
+          const rk1 = `${upD1.rank}_F1_PURCHASE`;
+          const r1 = await getPolicyRate(rk1);
+          if (r1 !== null) {
+            commissions.push({
+              orderId: order.id, receiverId: upD1.userId,
+              amount: 0, type: 'POINT_COMMISSION', status: 'PENDING',
+              role: 'UPSTREAM_D1', ruleKey: rk1, policyVersion, rateSnapshot: r1,
+              basePoints: orderTotalCP,
+              earnedPoints: orderTotalCP * r1,
+              earnedMoney: orderTotalCP * r1 * 1000
+            });
+          }
+          // Depth-2
+          const upD2 = upD1.sponsorUserId
+            ? await tx.user.findUnique({
+                where: { id: upD1.sponsorUserId },
+                select: { id: true, userId: true, businessId: true, rank: true, status: true }
+              })
+            : null;
+          if (upD2?.businessId && upD2.status === 'ACTIVE') {
+            const rk2 = `${upD2.rank}_F2_PURCHASE`;
+            const r2 = await getPolicyRate(rk2);
+            if (r2 !== null) {
+              commissions.push({
+                orderId: order.id, receiverId: upD2.userId,
+                amount: 0, type: 'POINT_COMMISSION', status: 'PENDING',
+                role: 'UPSTREAM_D2', ruleKey: rk2, policyVersion, rateSnapshot: r2,
+                basePoints: orderTotalCP,
+                earnedPoints: orderTotalCP * r2,
+                earnedMoney: orderTotalCP * r2 * 1000
+              });
+            }
+          }
+        }
+      }
+    } // end if orderTotalCP > 0
+
+    // 4. CREATE COMMISSIONS
+    if (commissions.length > 0) {
+      await tx.commission.createMany({ data: commissions });
+    }
+
+    // 5. QUALIFYING POINTS (customerMember, không phải orderer)
+    if (
+      qualifyingMember !== null &&
+      qualifyingMember.isSystemParticipant === true &&
+      qualifyingMember.businessId === null
+    ) {
+      await tx.user.update({
+        where: { id: qualifyingMember.id },
+        data: { qualifyingPoints: { increment: orderTotalCP } }
+      });
+
+      const freshQM = await tx.user.findUnique({
+        where: { id: qualifyingMember.id },
+        select: { qualifyingPoints: true, businessId: true, userId: true }
+      });
+
+      // 6. AMBASSADOR ACTIVATION
+      const thresholdObj = await tx.systemPolicyConfig.findUnique({ where: { key: 'AMBASSADOR_THRESHOLD' } });
+      const thresh = thresholdObj ? parseFloat(thresholdObj.value) : 5000;
+
+      if (freshQM.businessId === null && freshQM.qualifyingPoints >= thresh) {
+        // Generate Business ID
+        const seq = await tx.businessIdSequence.update({
+          where: { id: 1 },
+          data: { nextVal: { increment: 1 } },
+          select: { nextVal: true }
+        });
+        const newBusinessId = `WK-${seq.nextVal}`;
+
+        await tx.user.update({
+          where: { id: qualifyingMember.id },
+          data: {
+            businessId: newBusinessId,
+            rank: 'AMBASSADOR',
+            rankAchievedAt: new Date(),
+            rankStatus: 'ACTIVE_RANK'
+          }
+        });
+        await tx.rankHistory.create({
+          data: {
+            userId: freshQM.userId,
+            fromRank: 'CUSTOMER',
+            toRank: 'AMBASSADOR',
+            toStatus: 'ACTIVE_RANK',
+            reason: 'AUTO_QUALIFYING_POINTS',
+            triggeredBy: 'SYSTEM'
+          }
+        });
+      }
+    }
+
+  }, {
+    isolationLevel: 'Serializable',
+    maxWait: 5000,
+    timeout: 10000
+  });
+}
