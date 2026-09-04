@@ -109,3 +109,11 @@ useEffect(() => {
 > ?? Khi app F5/reload v? t?n: LU?N ki?m tra nginx access log tr??c.
 > Pattern `GET / 200` ? `GET /api/xxx 401` ? `GET / 200` l?p l?i = reload loop do 401 handler.
 > Commit: 6f3c599
+
+### Lỗi #2026-09-04: Lệch trạng thái session Admin và thiếu menu Hệ Thống trên Header
+- **Nguyên nhân:** Sau khi login admin, state `user` chỉ tồn tại trong context Unified Auth nhưng chưa được map tự động sang state `adminUser` của CMS. Đồng thời Header chưa phân tách rõ 2 luồng "Kinh Doanh" (CTV) và "Hệ Thống" (Admin/CMS).
+- **Khắc phục:** 
+  1. Header bổ sung điều kiện `(!user || isAdmin)` cho nút "🛡️ HỆ THỐNG".
+  2. Bổ sung hook `useEffect` trong `App.tsx` tự động gán `adminUser` khi `user.role === 'admin'`.
+  3. Hỗ trợ prop `mode: 'ctv' | 'system'` trong `UnifiedAuthModal` để hiển thị đúng ngữ cảnh đăng nhập.
+- **Trạng thái:** Đã fix và kiểm thử PASS 100%.

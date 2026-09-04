@@ -61,3 +61,11 @@
 3. **Sub-Agent Workflow**: Thực hiện đúng các bước theo `project-workflow.md`.
 5. **Admin UI/UX**: Sử dụng Slate & Ocean Palette, tối ưu Data Table và Form quản trị, đủ 4 trạng thái.
 4. **Deploy Workflow**: Dùng PM2 phục vụ static build qua package `serve` trên cổng 5005, Caddy/Nginx reverse proxy, deploy tự động qua PowerShell `deploy.ps1`.
+
+## Cập nhật 04/09/2026 - Tích hợp Menu Hệ Thống & Unified SSO Admin/CTV
+- **Phân quyền Header:**
+  - Khách (Anonymous): Hiện 🏆 KINH DOANH (Modal CTV) và 🛡️ HỆ THỐNG (Modal Quản trị Hệ Thống).
+  - CTV (`role === 'ctv'`): Hiện 🏆 KINH DOANH, ẩn hoàn toàn 🛡️ HỆ THỐNG và quyền CMS.
+  - Admin (`role === 'admin'`): Hiện cả 2 menu. Nút 🛡️ HỆ THỐNG có dropdown truy cập nhanh (Website CMS, Quản lý CTV, Cấu hình Hoa hồng, Audit Logs).
+- **Cơ chế Single Sign-On (SSO):** Tự động đồng bộ `user.role === 'admin'` từ Unified Auth sang state `adminUser` của CMS, cho phép Admin chuyển đổi giữa CMS và CTV Portal mà không bị hỏi lại mật khẩu.
+- **Tối ưu Mobile Drawer:** Đồng bộ đầy đủ các nút phân quyền và menu trên thiết bị di động.
