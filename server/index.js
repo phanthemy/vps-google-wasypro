@@ -798,13 +798,22 @@ app.post('/api/customers', authenticateToken, async (req, res) => {
 
     phone = phone.trim();
 
-    let validCtvId = req.user.id;
+    let sponsorUser = null;
     if (req.user.role === 'admin' || req.user.role === 'accountant') {
       if (sourceCtvId && sourceCtvId.trim()) {
-        const ctvUser = await prisma.user.findUnique({ where: { userId: sourceCtvId.trim() } });
-        if (ctvUser) validCtvId = ctvUser.userId;
+        sponsorUser = await prisma.user.findFirst({
+          where: { OR: [{ userId: sourceCtvId.trim() }, { id: sourceCtvId.trim() }] }
+        });
       }
     }
+    if (!sponsorUser) {
+      sponsorUser = await prisma.user.findFirst({
+        where: { OR: [{ id: req.user.id }, { userId: req.user.id }] }
+      });
+    }
+
+    const validCtvId = sponsorUser ? sponsorUser.userId : req.user.id;
+    const sponsorUserId = sponsorUser ? sponsorUser.id : null;
 
     const existing = await prisma.customer.findFirst({
       where: { phone, sourceCtvId: validCtvId }
@@ -813,11 +822,17 @@ app.post('/api/customers', authenticateToken, async (req, res) => {
       return res.status(400).json({ success: false, message: 'Khách hàng này đã được đăng ký trong danh sách của bạn.' });
     }
 
+    // Check if customer already has a User account
+    const existingUser = await prisma.user.findUnique({ where: { phone } });
+    const linkedUserId = existingUser ? existingUser.id : null;
+
     const customer = await prisma.customer.create({
       data: {
         fullName,
         phone,
         sourceCtvId: validCtvId,
+        sponsorUserId,
+        linkedUserId,
         expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
       }
     });
@@ -832,8 +847,7 @@ app.post('/api/customers', authenticateToken, async (req, res) => {
       }
     });
 
-    // Auto-create customer account with secure password
-    const existingUser = await prisma.user.findUnique({ where: { phone } });
+    // Auto-create customer account with secure password if not existing
     if (!existingUser) {
       let isUnique = false;
       let genId = '';
@@ -844,7 +858,7 @@ app.post('/api/customers', authenticateToken, async (req, res) => {
       }
 
       const defaultHashed = await bcrypt.hash('123456', 10);
-      await prisma.user.create({
+      const newUser = await prisma.user.create({
         data: {
           userId: genId,
           fullName,
@@ -856,6 +870,10 @@ app.post('/api/customers', authenticateToken, async (req, res) => {
           mustChangePassword: true
         }
       });
+      await prisma.customer.update({
+        where: { id: customer.id },
+        data: { linkedUserId: newUser.id }
+      }).catch(() => {});
     }
 
     res.json({ success: true, data: customer });
@@ -1086,163 +1104,94 @@ app.post('/api/orders', authenticateToken, async (req, res) => {
     let totalAmount = 0;
     const itemsData = [];
 
-    for (const item of items) {
-      const svc = await prisma.service.findUnique({ where: { id: item.serviceId }, include: { category: true } });
-      if (!svc) return res.status(400).json({ success: false, message: `Dịch vụ/Sản phẩm ${item.serviceId} không tồn tại` });
+    // Phase 2C-4: Orderer is strictly from JWT authentication session
+    const ordererUserId = req.user.dbId || req.user.id;
 
-      const itemAmount = Number(item.amount) || (svc.price * (item.qty || 1));
-      totalAmount += itemAmount;
+    for (const item of items) {
+      const hasService = !!item.serviceId;
+      const hasProduct = !!item.productId;
+
+      // Invariant 1: Exactly 1 source (serviceId XOR productId)
+      if ((hasService && hasProduct) || (!hasService && !hasProduct)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Mỗi mục đơn hàng phải có chính xác một nguồn (serviceId HOẶC productId, không được có cả hai hoặc không có nguồn nào).'
+        });
+      }
+
       const qty = item.qty ? Math.max(1, parseInt(item.qty, 10)) : 1;
-      itemsData.push({ serviceId: item.serviceId, amount: itemAmount, qty });
+      let itemAmount = 0;
+      let unitCommissionPts = 0;
+      let serviceId = null;
+      let productId = null;
+
+      if (hasService) {
+        const svc = await prisma.service.findUnique({ where: { id: item.serviceId }, include: { category: true } });
+        if (!svc) return res.status(400).json({ success: false, message: `Dịch vụ/Sản phẩm ${item.serviceId} không tồn tại` });
+        serviceId = svc.id;
+        itemAmount = Number(item.amount) || (svc.price * qty);
+        unitCommissionPts = Math.round(Number(svc.commissionPoints || 0));
+      } else {
+        const prod = await prisma.product.findUnique({ where: { id: item.productId } });
+        if (!prod) return res.status(400).json({ success: false, message: `Sản phẩm ${item.productId} không tồn tại` });
+        productId = prod.id;
+        itemAmount = Number(item.amount) || (prod.price * qty);
+        unitCommissionPts = Math.round(Number(prod.commissionPoints || 0));
+      }
+
+      totalAmount += itemAmount;
+      const lineCommissionPts = unitCommissionPts * qty;
+
+      itemsData.push({
+        serviceId,
+        productId,
+        amount: itemAmount,
+        qty,
+        unitCommissionPts,
+        lineCommissionPts
+      });
     }
+
+    // Phase 2C-4: SELF purchase is strictly determined by Customer.linkedUserId === ordererUserId (NOT phone!)
+    const isSelf = !!(customer.linkedUserId && customer.linkedUserId === ordererUserId);
+    const purchaseType = isSelf ? 'SELF_PURCHASE' : 'CUSTOMER_PURCHASE';
 
     const order = await prisma.order.create({
       data: {
         customerId,
         totalAmount,
         status: 'COMPLETED',
+        orderType: 'RETAIL',
+        isSelfBuy: isSelf,
+        purchaseType,
+        ordererUserId,
         items: {
-          create: itemsData.map(i => ({ serviceId: i.serviceId, amount: i.amount, qty: i.qty }))
+          create: itemsData.map(i => ({
+            serviceId: i.serviceId,
+            productId: i.productId,
+            amount: i.amount,
+            qty: i.qty,
+            unitCommissionPts: i.unitCommissionPts,
+            lineCommissionPts: i.lineCommissionPts
+          }))
         }
       }
     });
 
-    const ctv = customer.sourceCtv;
-    const commissionsToCreate = [];
+    // Phase 2C Unified Order Settlement (idempotent, atomic transaction)
+    let settlementResult = null;
+    try {
+      settlementResult = await executeOrderSettlement(order.id);
+    } catch (settleErr) {
+      console.error('[SETTLEMENT ERROR] order', order.id, settleErr.message);
+    }
 
-    // Phase 2B: Determine isSelfBuy and Ambassador status
-    const isSelfBuy = ctv ? (ctv.phone === customer.phone) : false;
-    const ambassadorActive = ctv ? isActiveAmbassador(ctv) : false;
-
-    // Update Order with Phase 2B fields
-    await prisma.order.update({
-      where: { id: order.id },
-      data: { orderType: 'RETAIL', isSelfBuy }
+    res.json({
+      success: true,
+      data: order,
+      settlement: settlementResult,
+      commissions: settlementResult?.createdCommissions || []
     });
-
-    if (ctv) {
-      const commissionRates = getCommissionRates();
-
-      function getRate(tier, qty, isSelf) {
-        const tRates = commissionRates[tier] || DEFAULT_RATES[tier] || DEFAULT_RATES['SILVER'];
-        if (!isSelf) return tRates['referral'] || 0.20;
-        if (qty >= 20) return tRates['20'] || 0.40;
-        if (qty >= 10) return tRates['10'] || 0.35;
-        if (qty >= 5) return tRates['5'] || 0.30;
-        return tRates['1'] || 0.25;
-      }
-
-      const totalOrderQty = itemsData.reduce((sum, i) => sum + (i.qty || 1), 0);
-
-      for (const item of itemsData) {
-        // Fetch service details for commission rule lookup
-        const svcDetail = await prisma.service.findUnique({ where: { id: item.serviceId } });
-        const effectivePrice = (svcDetail && svcDetail.listPrice) ? svcDetail.listPrice : item.amount;
-
-        if (ambassadorActive) {
-          // AM-01: Self-consumption (20%) ? replaces DIRECT for Ambassador self-buy
-          if (isSelfBuy) {
-            commissionsToCreate.push({
-              orderId: order.id, receiverId: ctv.userId,
-              amount: item.amount * 0.20, type: 'SELF_CONSUMPTION', status: 'PENDING',
-              rateSnapshot: 0.20, rankSnapshot: ctv.rank, baseAmount: item.amount, policyRef: 'AM-01',
-              metadata: JSON.stringify({ isSelfBuy: true })
-            });
-          } else {
-            // AM-02: Direct retail via configurable rules engine
-            const rule = svcDetail ? await getRetailCommRule(svcDetail.productType || 'SERVICE', svcDetail.price, 'AMBASSADOR') : null;
-            if (rule && rule.rate) {
-              commissionsToCreate.push({
-                orderId: order.id, receiverId: ctv.userId,
-                amount: item.amount * rule.rate, type: rule.commType, status: 'PENDING',
-                rateSnapshot: rule.rate, rankSnapshot: ctv.rank, baseAmount: item.amount, policyRef: 'AM-02',
-                metadata: JSON.stringify({ ruleId: rule.id, productType: svcDetail.productType, price: svcDetail.price })
-              });
-            } else {
-              // Fallback: legacy DIRECT for Ambassador when no matching retail rule
-              const legacyRate = getRate(ctv.tier, totalOrderQty, false);
-              if (legacyRate > 0) {
-                commissionsToCreate.push({
-                  orderId: order.id, receiverId: ctv.userId,
-                  amount: item.amount * legacyRate, type: 'DIRECT', status: 'PENDING',
-                  rateSnapshot: legacyRate, rankSnapshot: ctv.rank, baseAmount: item.amount, policyRef: 'DIRECT',
-                  metadata: JSON.stringify({ fallback: true, reason: 'no_matching_am02_rule' })
-                });
-              }
-            }
-          }
-
-          // AM-03: Distribution partner (10%) ? paid to direct parent if parent is Ambassador
-          if (ctv.parent && isActiveAmbassador(ctv.parent)) {
-            commissionsToCreate.push({
-              orderId: order.id, receiverId: ctv.parent.userId,
-              amount: item.amount * 0.10, type: 'DISTRIBUTION_PARTNER', status: 'PENDING',
-              rateSnapshot: 0.10, rankSnapshot: ctv.parent.rank, baseAmount: item.amount, policyRef: 'AM-03',
-              metadata: JSON.stringify({ partnerUserId: ctv.parent.userId })
-            });
-          }
-
-          // AM-04: Regional development (5%) ? nearest Ambassador ancestor (not parent if AM-03 already paid)
-          const ancestorStartId = (ctv.parent && isActiveAmbassador(ctv.parent)) ? ctv.parent.userId : (ctv.parentId || null);
-          if (ancestorStartId) {
-            const excludeId = (ctv.parent && isActiveAmbassador(ctv.parent)) ? ctv.parent.userId : null;
-            const ancestor = await findNearestAmbassadorAncestor(ancestorStartId, excludeId);
-            if (ancestor && ancestor.userId !== ctv.userId) {
-              const treeDepth = ancestorStartId ? 2 : 1;
-              commissionsToCreate.push({
-                orderId: order.id, receiverId: ancestor.userId,
-                amount: item.amount * 0.05, type: 'REGIONAL_DEVELOPMENT', status: 'PENDING',
-                rateSnapshot: 0.05, rankSnapshot: ancestor.rank, baseAmount: item.amount, policyRef: 'AM-04',
-                metadata: JSON.stringify({ ancestorUserId: ancestor.userId, ancestorRankStatus: ancestor.rankStatus })
-              });
-            }
-          }
-
-        } else {
-          // Legacy commission logic (Phase 1A) ? for non-Ambassador CTVs
-          const baseRate = getRate(ctv.tier, totalOrderQty, isSelfBuy);
-          if (baseRate > 0) {
-            commissionsToCreate.push({
-              orderId: order.id, receiverId: ctv.userId,
-              amount: item.amount * baseRate, type: 'DIRECT', status: 'PENDING',
-              rateSnapshot: baseRate, rankSnapshot: ctv.rank || null, baseAmount: item.amount, policyRef: 'DIRECT'
-            });
-          }
-
-          let currentParent = ctv.parent;
-          if (currentParent) {
-            commissionsToCreate.push({
-              orderId: order.id, receiverId: currentParent.userId,
-              amount: item.amount * 0.10, type: 'OVERRIDE_F1', status: 'PENDING',
-              rateSnapshot: 0.10, rankSnapshot: currentParent.rank || null, baseAmount: item.amount, policyRef: 'OVERRIDE_F1'
-            });
-
-            let grandParent = currentParent.parent;
-            if (grandParent) {
-              commissionsToCreate.push({
-                orderId: order.id, receiverId: grandParent.userId,
-                amount: item.amount * 0.05, type: 'OVERRIDE_F2', status: 'PENDING',
-                rateSnapshot: 0.05, rankSnapshot: grandParent.rank || null, baseAmount: item.amount, policyRef: 'OVERRIDE_F2'
-              });
-            }
-          }
-        }
-      }
-
-      if (commissionsToCreate.length > 0) {
-        await prisma.commission.createMany({ data: commissionsToCreate });
-      }
-
-      // Phase 2B: Auto-activate Ambassador check (non-blocking)
-      checkAndAutoActivateAmbassador(ctv.userId).catch(e => console.error('[AMBASSADOR CHECK]', e.message));
-    }
-
-    // Phase 2A: Passive S-Points award (non-blocking)
-    if (order.status === 'COMPLETED' && typeof ctv !== 'undefined') {
-      awardSPointsForOrder(order, ctv).catch(e => console.error('[S-POINTS HOOK]', e.message));
-    }
-
-    res.json({ success: true, data: order, commissions: commissionsToCreate });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
@@ -1499,7 +1448,8 @@ app.get('/api/services', async (req, res) => {
 
 app.post('/api/services', authenticateToken, requireRole(['admin', 'accountant']), async (req, res) => {
   try {
-    const { name, group, price, categoryName, description, imageUrl } = req.body;
+    const { name, group, price, commissionPoints, categoryName, description, imageUrl, reason } = req.body;
+    const cp = commissionPoints !== undefined ? Math.max(0, Math.round(Number(commissionPoints))) : 0;
     let cat = null;
     if (categoryName) {
       cat = await prisma.serviceCategory.findUnique({ where: { name: categoryName } });
@@ -1511,8 +1461,21 @@ app.post('/api/services', authenticateToken, requireRole(['admin', 'accountant']
       }
     }
     const s = await prisma.service.create({
-      data: { name, group, price: Number(price), categoryId: cat.id, description, imageUrl }
+      data: { name, group, price: Number(price), commissionPoints: cp, categoryId: cat.id, description, imageUrl }
     });
+    if (cp > 0) {
+      await prisma.commissionPointAuditLog.create({
+        data: {
+          itemType: 'SERVICE',
+          itemId: s.id,
+          itemName: s.name,
+          oldValue: null,
+          newValue: cp,
+          actor: req.user?.userId || req.user?.email || 'ADMIN',
+          reason: reason || 'INITIAL_SERVICE_CREATION'
+        }
+      }).catch(e => console.error('[AUDIT ERROR]', e.message));
+    }
     res.json({ success: true, data: s });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
@@ -1521,16 +1484,40 @@ app.post('/api/services', authenticateToken, requireRole(['admin', 'accountant']
 
 app.put('/api/services/:id', authenticateToken, requireRole(['admin', 'accountant']), async (req, res) => {
   try {
-    let { price, description, imageUrl } = req.body;
+    let { price, commissionPoints, description, imageUrl, reason } = req.body;
     const updateData = {};
     if (price !== undefined) updateData.price = Number(price);
     if (description !== undefined) updateData.description = description;
     if (imageUrl !== undefined) updateData.imageUrl = imageUrl;
 
+    let oldService = null;
+    if (commissionPoints !== undefined) {
+      const newCP = Math.max(0, Math.round(Number(commissionPoints)));
+      oldService = await prisma.service.findUnique({ where: { id: req.params.id } });
+      if (oldService && oldService.commissionPoints !== newCP) {
+        updateData.commissionPoints = newCP;
+      }
+    }
+
     const s = await prisma.service.update({
       where: { id: req.params.id },
       data: updateData
     });
+
+    if (updateData.commissionPoints !== undefined && oldService) {
+      await prisma.commissionPointAuditLog.create({
+        data: {
+          itemType: 'SERVICE',
+          itemId: s.id,
+          itemName: s.name,
+          oldValue: oldService.commissionPoints,
+          newValue: updateData.commissionPoints,
+          actor: req.user?.userId || req.user?.email || 'ADMIN',
+          reason: reason || 'ADMIN_UPDATE_COMMISSION_POINTS'
+        }
+      }).catch(e => console.error('[AUDIT ERROR]', e.message));
+    }
+
     res.json({ success: true, data: s });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
@@ -1604,13 +1591,15 @@ app.get('/api/product-categories', async (req, res) => {
 // PROTECTED PRODUCT CRUD (Admin only)
 app.post('/api/products', authenticateToken, requireRole(['admin']), async (req, res) => {
   try {
-    const { title, slug, categoryId, price, originalPrice, image, gallery, description, specs, isHot, isNew, stock } = req.body;
+    const { title, slug, categoryId, price, originalPrice, image, gallery, description, specs, isHot, isNew, stock, commissionPoints, reason } = req.body;
+    const cp = commissionPoints !== undefined ? Math.max(0, Math.round(Number(commissionPoints))) : 0;
     const product = await prisma.product.create({
       data: {
         title,
         slug,
         categoryId,
         price: Number(price || 0),
+        commissionPoints: cp,
         originalPrice: originalPrice ? Number(originalPrice) : null,
         image: image || '',
         gallery: typeof gallery === 'string' ? gallery : JSON.stringify(gallery || []),
@@ -1621,6 +1610,20 @@ app.post('/api/products', authenticateToken, requireRole(['admin']), async (req,
         stock: Number(stock || 0)
       }
     });
+
+    if (cp > 0) {
+      await prisma.commissionPointAuditLog.create({
+        data: {
+          itemType: 'PRODUCT',
+          itemId: product.id,
+          itemName: product.title,
+          oldValue: null,
+          newValue: cp,
+          actor: req.user?.userId || req.user?.email || 'ADMIN',
+          reason: reason || 'INITIAL_PRODUCT_CREATION'
+        }
+      }).catch(e => console.error('[AUDIT ERROR]', e.message));
+    }
     res.json({
       ...product,
       gallery: JSON.parse(product.gallery || '[]'),
@@ -1643,7 +1646,30 @@ app.put('/api/products/:id', authenticateToken, requireRole(['admin']), async (r
     if (req.body.gallery !== undefined) data.gallery = typeof req.body.gallery === 'string' ? req.body.gallery : JSON.stringify(req.body.gallery);
     if (req.body.specs !== undefined) data.specs = typeof req.body.specs === 'string' ? req.body.specs : JSON.stringify(req.body.specs);
 
+    let oldProduct = null;
+    if (req.body.commissionPoints !== undefined) {
+      const newCP = Math.max(0, Math.round(Number(req.body.commissionPoints)));
+      oldProduct = await prisma.product.findUnique({ where: { id: req.params.id } });
+      if (oldProduct && oldProduct.commissionPoints !== newCP) {
+        data.commissionPoints = newCP;
+      }
+    }
+
     const updated = await prisma.product.update({ where: { id: req.params.id }, data });
+
+    if (data.commissionPoints !== undefined && oldProduct) {
+      await prisma.commissionPointAuditLog.create({
+        data: {
+          itemType: 'PRODUCT',
+          itemId: updated.id,
+          itemName: updated.title,
+          oldValue: oldProduct.commissionPoints,
+          newValue: data.commissionPoints,
+          actor: req.user?.userId || req.user?.email || 'ADMIN',
+          reason: req.body.reason || 'ADMIN_UPDATE_COMMISSION_POINTS'
+        }
+      }).catch(e => console.error('[AUDIT ERROR]', e.message));
+    }
     res.json({
       ...updated,
       gallery: JSON.parse(updated.gallery || '[]'),
@@ -1714,6 +1740,552 @@ async function awardSPointsForOrder(order, ctv) {
 
 
 // ============================================================
+// PHASE 2B — HELPER FUNCTIONS
+// ============================================================
+
+
+/**
+ * Phase 2C Unified Order Settlement Orchestrator (FINAL SPEC v3.6)
+ *
+ * UNIFIED TRANSACTION BOUNDARY:
+ * All operations run inside ONE atomic prisma.$transaction:
+ * 1. Idempotency Marker (CommissionProcessing table)
+ * 2. Resolve Parties (Orderer, Customer, Qualifying Member, Direct Sponsor, Upstream)
+ * 3. Calculate & persist Commission records (SELF, DIRECT/SPLIT, UPSTREAM) with all 6 snapshot fields
+ * 4. Award S-Points & Qualifying Points (SPointTransaction)
+ * 5. Ambassador Activation (BusinessIdSequence WK-NNNNN, rank -> AMBASSADOR, RankHistory)
+ *
+ * ATOMIC GUARANTEE:
+ * - If Commission calculation/write fails -> points, Business ID, rank, and RankHistory ROLL BACK.
+ * - If Activation/sequence fails -> Commission records ROLL BACK.
+ * - Retry same order -> CommissionProcessing prevents double execution.
+ */
+/**
+ * Normalize rank to policy prefix:
+ * AMBASSADOR -> 'AMBASSADOR'
+ * SALES_MANAGER / MANAGER -> 'MANAGER'
+ * SALES_DIRECTOR / DIRECTOR -> 'DIRECTOR'
+ */
+function normalizeRankPrefix(rank) {
+  if (!rank) return null;
+  const upper = String(rank).toUpperCase().trim();
+  if (upper === 'AMBASSADOR') return 'AMBASSADOR';
+  if (upper === 'SALES_MANAGER' || upper === 'MANAGER') return 'MANAGER';
+  if (upper === 'SALES_DIRECTOR' || upper === 'DIRECTOR') return 'DIRECTOR';
+  return null;
+}
+
+/**
+ * Phase 2C-6: Core Commission Calculation Engine (FINAL SPEC v3.6)
+ * Strictly calculates & inserts Commission records inside the active prisma transaction:
+ * - SELF: for qualifyingMember when isSelf (Ambassador: 20%, Manager: 25%, Director: 30%)
+ * - DIRECT / SPLIT: for customer.sponsorUserId
+ *   * If Customer not in system -> DIRECT_NO_ID
+ *   * If Customer in system, no ID:
+ *     - If orderTotalCP + currentQP < 5000 -> DIRECT_NO_ID
+ *     - If orderTotalCP + currentQP >= 5000 -> SPLIT (qualifyingPart: 20%, excessPart: 10%)
+ *   * If Customer already has ID -> DIRECT_WITH_ID (10%)
+ * - UPSTREAM (D1 & D2):
+ *   * For qualifyingMember's sponsor chain (D1 = parent, D2 = parent of parent)
+ *   * Does NOT skip unranked sponsors
+ *   * D1: Manager F1 purchase = 10%
+ *   * D2: Manager F2 purchase = 5%
+ *   * NOT_CONFIGURED rates -> 0 commissions created
+ *   * Depth >= 3 -> NO commission
+ * - Integer points & VND arithmetic:
+ *   * earnedPoints = Math.round(basePoints * rateSnapshot)
+ *   * earnedMoney = earnedPoints * 1000
+ * - Mandatory 6 snapshot fields recorded on every Commission
+ */
+async function calculateAndCreateCommissions(tx, context) {
+  const {
+    order,
+    orderTotalCP,
+    orderer,
+    customer,
+    qualifyingMember,
+    directSponsor,
+    isSelf,
+    priorQP,
+    priorBusinessId,
+    isParticipant,
+    threshold,
+    policyMap,
+    policyVersion,
+    activated,
+  } = context;
+
+  if (orderTotalCP <= 0) {
+    return [];
+  }
+
+  const createdCommissions = [];
+
+  function getPolicyRate(key) {
+    const val = policyMap[key];
+    if (!val || val === 'NOT_CONFIGURED') return null;
+    const num = parseFloat(val);
+    return isNaN(num) ? null : num;
+  }
+
+  async function createCommissionRecord({ receiver, role, ruleKey, rateSnapshot, basePoints, type, metadata }) {
+    if (!receiver || !ruleKey || !rateSnapshot || rateSnapshot <= 0 || basePoints <= 0) {
+      return null;
+    }
+    const earnedPoints = Math.round(basePoints * rateSnapshot);
+    const earnedMoney = Math.round(earnedPoints * 1000);
+    if (earnedPoints <= 0 && earnedMoney <= 0) {
+      return null;
+    }
+
+    const comm = await tx.commission.create({
+      data: {
+        orderId: order.id,
+        receiverId: receiver.userId,
+        amount: earnedMoney,
+        type: type || 'DIRECT',
+        status: 'PENDING',
+        rateSnapshot,
+        rankSnapshot: receiver.rank || null,
+        baseAmount: Math.round(basePoints * 1000),
+        policyRef: ruleKey,
+        ruleKey,
+        policyVersion,
+        role,
+        basePoints: Math.round(basePoints),
+        earnedPoints,
+        earnedMoney,
+        metadata: metadata ? JSON.stringify(metadata) : null,
+      }
+    });
+    createdCommissions.push(comm);
+    return comm;
+  }
+
+  // -------------------------------------------------------------
+  // 1. SELF COMMISSION
+  // -------------------------------------------------------------
+  // SELF only when Customer.linkedUserId == Orderer.id
+  // Receiver = Orderer (Customer Member)
+  // Ambassador SELF = 20%, Manager SELF = 25%, Director SELF = 30%
+  if (isSelf && orderer) {
+    const effectiveRank = (activated && isSelf) ? 'AMBASSADOR' : orderer.rank;
+    const rankPrefix = normalizeRankPrefix(effectiveRank);
+
+    if (rankPrefix) {
+      const selfRuleKey = rankPrefix + '_SELF_BUY';
+      const selfRate = getPolicyRate(selfRuleKey);
+      if (selfRate) {
+        await createCommissionRecord({
+          receiver: orderer,
+          role: 'SELF',
+          ruleKey: selfRuleKey,
+          rateSnapshot: selfRate,
+          basePoints: orderTotalCP,
+          type: 'SELF',
+          metadata: { isSelf: true, rank: effectiveRank },
+        });
+      }
+    }
+  }
+
+  // -------------------------------------------------------------
+  // 2. DIRECT / SPLIT COMMISSION
+  // -------------------------------------------------------------
+  // DIRECT receiver = Customer.sponsorUserId (NEVER Orderer.sponsorUserId)
+  // Only applies if directSponsor exists
+  if (!isSelf && directSponsor) {
+    const sponsorRank = directSponsor.rank || (directSponsor.role === 'ctv' ? 'AMBASSADOR' : null);
+    const sponsorPrefix = normalizeRankPrefix(sponsorRank);
+    if (sponsorPrefix) {
+      // Check SPLIT conditions:
+      // - CUSTOMER_PURCHASE (!isSelf)
+      // - qualifyingMember != null
+      // - isSystemParticipant = true
+      // - businessId = null (prior to this order)
+      // - orderTotalCP > 0
+      // - priorQP + orderTotalCP >= threshold
+      const isSplitEligible = !isSelf &&
+        qualifyingMember &&
+        isParticipant &&
+        !priorBusinessId &&
+        orderTotalCP > 0 &&
+        (priorQP + orderTotalCP >= threshold);
+
+      if (isSplitEligible) {
+        // SPLIT replaces DIRECT_NO_ID completely (NO DIRECT_NO_ID created!)
+        const qualifyingPart = Math.max(0, threshold - priorQP);
+        const excessPart = Math.max(0, orderTotalCP - qualifyingPart);
+
+        // Rates:
+        // qualifying rate: 20% (Ambassador), or sponsor's DIRECT_NO_ID
+        // excess rate: 10% (Ambassador/Manager/Director), or sponsor's DIRECT_WITH_ID
+        const qualifyingRate = getPolicyRate(sponsorPrefix + '_QUALIFYING_SPLIT') || getPolicyRate(sponsorPrefix + '_DIRECT_NO_ID') || 0.20;
+        const excessRate = getPolicyRate(sponsorPrefix + '_EXCESS_SPLIT') || getPolicyRate(sponsorPrefix + '_DIRECT_WITH_ID') || 0.10;
+
+        if (qualifyingPart > 0) {
+          await createCommissionRecord({
+            receiver: directSponsor,
+            role: 'DIRECT_SPONSOR',
+            ruleKey: sponsorPrefix + '_QUALIFYING_SPLIT',
+            rateSnapshot: qualifyingRate,
+            basePoints: qualifyingPart,
+            type: 'SPLIT',
+            metadata: {
+              splitType: 'QUALIFYING',
+              threshold,
+              priorQP,
+              qualifyingPart,
+            }
+          });
+        }
+
+        if (excessPart > 0) {
+          await createCommissionRecord({
+            receiver: directSponsor,
+            role: 'DIRECT_SPONSOR',
+            ruleKey: sponsorPrefix + '_EXCESS_SPLIT',
+            rateSnapshot: excessRate,
+            basePoints: excessPart,
+            type: 'SPLIT',
+            metadata: {
+              splitType: 'EXCESS',
+              threshold,
+              priorQP,
+              excessPart,
+            }
+          });
+        }
+      } else {
+        // NON-SPLIT: Either DIRECT_WITH_ID or DIRECT_NO_ID
+        const hasId = qualifyingMember && (priorBusinessId || qualifyingMember.businessId);
+
+        if (hasId) {
+          // Customer has ID -> DIRECT_WITH_ID
+          const directRuleKey = sponsorPrefix + '_DIRECT_WITH_ID';
+          const directRate = getPolicyRate(directRuleKey);
+          if (directRate) {
+            await createCommissionRecord({
+              receiver: directSponsor,
+              role: 'DIRECT_SPONSOR',
+              ruleKey: directRuleKey,
+              rateSnapshot: directRate,
+              basePoints: orderTotalCP,
+              type: 'DIRECT',
+              metadata: { hasId: true },
+            });
+          }
+        } else {
+          // Customer has NO ID:
+          // - either retail customer (qualifyingMember == null)
+          // - or not system participant
+          // - or system participant who did not cross threshold (priorQP + orderTotalCP < threshold)
+          const directRuleKey = sponsorPrefix + '_DIRECT_NO_ID';
+          const directRate = getPolicyRate(directRuleKey);
+          if (directRate) {
+            await createCommissionRecord({
+              receiver: directSponsor,
+              role: 'DIRECT_SPONSOR',
+              ruleKey: directRuleKey,
+              rateSnapshot: directRate,
+              basePoints: orderTotalCP,
+              type: 'DIRECT',
+              metadata: { hasId: false },
+            });
+          }
+        }
+      }
+    }
+  }
+
+  // -------------------------------------------------------------
+  // 3. UPSTREAM COMMISSION (Depth-1 & Depth-2)
+  // -------------------------------------------------------------
+  // Chỉ xét sponsor chain của Customer Member / Qualifying Member.
+  // Depth-1 và Depth-2 ONLY. Không skip sponsor chưa có businessId.
+  // Rate NOT_CONFIGURED -> không tạo Commission record.
+  const memberForUpstream = isSelf ? orderer : qualifyingMember;
+
+  if (memberForUpstream) {
+    // Traverse Upstream:
+    // Depth-1
+    let d1User = null;
+    if (memberForUpstream.parentId) {
+      d1User = await tx.user.findUnique({ where: { userId: memberForUpstream.parentId } });
+    } else if (customer && customer.sponsorUserId) {
+      d1User = directSponsor || (await tx.user.findUnique({ where: { id: customer.sponsorUserId } }));
+    }
+
+    if (d1User) {
+      const d1Rank = d1User.rank || (d1User.role === 'ctv' ? 'AMBASSADOR' : null);
+      const d1Prefix = normalizeRankPrefix(d1Rank);
+      if (d1Prefix) {
+        const d1RuleKey = d1Prefix === 'DIRECTOR' ? 'DIRECTOR_F1' : (isSelf ? (d1Prefix + '_F1_PURCHASE') : (d1Prefix + '_F1_SELL_TO_CUSTOMER_NO_ID'));
+        const d1Rate = getPolicyRate(d1RuleKey);
+        if (d1Rate) {
+          await createCommissionRecord({
+            receiver: d1User,
+            role: 'UPSTREAM_D1',
+            ruleKey: d1RuleKey,
+            rateSnapshot: d1Rate,
+            basePoints: orderTotalCP,
+            type: 'OVERRIDE_F1',
+            metadata: { depth: 1, buyerUserId: memberForUpstream.userId },
+          });
+        }
+      }
+
+      // Depth-2: parent of Depth-1. Do NOT skip even if d1User has no businessId!
+      let d2User = null;
+      if (d1User.parentId) {
+        d2User = await tx.user.findUnique({ where: { userId: d1User.parentId } });
+      }
+
+      if (d2User) {
+        const d2Rank = d2User.rank || (d2User.role === 'ctv' ? 'AMBASSADOR' : null);
+        const d2Prefix = normalizeRankPrefix(d2Rank);
+        if (d2Prefix) {
+          const d2RuleKey = d2Prefix === 'DIRECTOR' ? 'DIRECTOR_F2' : (isSelf ? (d2Prefix + '_F2_PURCHASE') : (d2Prefix + '_F2'));
+          const d2Rate = getPolicyRate(d2RuleKey);
+          if (d2Rate) {
+            await createCommissionRecord({
+              receiver: d2User,
+              role: 'UPSTREAM_D2',
+              ruleKey: d2RuleKey,
+              rateSnapshot: d2Rate,
+              basePoints: orderTotalCP,
+              type: 'OVERRIDE_F2',
+              metadata: { depth: 2, buyerUserId: memberForUpstream.userId },
+            });
+          }
+        }
+      }
+
+      // Depth-3+ is NEVER processed: "Depth-1 và Depth-2 בלבד. F3 không commission."
+    }
+  }
+
+  return createdCommissions;
+}
+
+/**
+ * Phase 2C Unified Order Settlement Orchestrator (FINAL SPEC v3.6)
+ *
+ * UNIFIED TRANSACTION BOUNDARY:
+ * All operations run inside ONE atomic prisma.$transaction:
+ * 1. Idempotency Marker (CommissionProcessing table)
+ * 2. Resolve Parties (Orderer, Customer, Qualifying Member, Direct Sponsor, Upstream)
+ * 3. Calculate & persist Commission records (SELF, DIRECT/SPLIT, UPSTREAM) with all 6 snapshot fields
+ * 4. Award S-Points & Qualifying Points (SPointTransaction)
+ * 5. Ambassador Activation (BusinessIdSequence WK-NNNNN, rank -> AMBASSADOR, RankHistory)
+ *
+ * ATOMIC GUARANTEE:
+ * - If Commission calculation/write fails -> points, Business ID, rank, and RankHistory ROLL BACK.
+ * - If Activation/sequence fails -> Commission records ROLL BACK.
+ * - Retry same order -> CommissionProcessing prevents double execution.
+ */
+async function executeOrderSettlement(orderId, options = {}) {
+  // Idempotency check 1: Outside transaction
+  const existingProcessing = await prisma.commissionProcessing.findUnique({
+    where: { orderId }
+  });
+  if (existingProcessing) {
+    return {
+      success: true,
+      alreadyProcessed: true,
+      message: 'Order settlement already completed (idempotent guard)',
+      processing: existingProcessing,
+    };
+  }
+
+  return await prisma.$transaction(async (tx) => {
+    // 1. Idempotency marker inside transaction
+    const processing = await tx.commissionProcessing.create({
+      data: {
+        orderId,
+        status: 'COMPLETED',
+        policyVersion: '1.0.0',
+      }
+    });
+
+    // 2. Load Order & Attributions
+    const order = await tx.order.findUnique({
+      where: { id: orderId },
+      include: {
+        items: true,
+        customer: {
+          include: {
+            sponsorUser: true,
+            linkedUser: true,
+          }
+        },
+        orderer: true,
+      }
+    });
+
+    if (!order) throw new Error('Order ' + orderId + ' not found');
+
+    const orderer = order.orderer || (order.ordererUserId ? await tx.user.findUnique({ where: { id: order.ordererUserId } }) : null);
+    const customer = order.customer;
+    const qualifyingMember = customer.linkedUser || null;
+    const isSelf = !!(qualifyingMember && orderer && qualifyingMember.id === orderer.id);
+
+    let directSponsor = customer.sponsorUser || null;
+    if (!directSponsor && customer.sponsorUserId) {
+      directSponsor = await tx.user.findUnique({ where: { id: customer.sponsorUserId } });
+    }
+
+    // 3. S-Points & Qualifying Points
+    const orderTotalCP = order.items.reduce((sum, item) => sum + Math.round(item.lineCommissionPts || 0), 0);
+    let pointsAwarded = 0;
+    let activated = false;
+    let allocatedBusinessId = null;
+
+    // Load Policy Configs
+    const configs = await tx.systemPolicyConfig.findMany();
+    const policyMap = Object.fromEntries(configs.map(c => [c.key, c.value]));
+    const policyVersion = policyMap['POLICY_VERSION'] || '1.0.0';
+    const threshold = parseInt(policyMap['AMBASSADOR_THRESHOLD'] || '5000', 10);
+
+    // Track qualifyingMember state BEFORE points awarded (for SPLIT eligibility)
+    let priorQP = 0;
+    let priorBusinessId = null;
+    let isParticipant = false;
+
+    if (qualifyingMember) {
+      const freshQM = await tx.user.findUnique({ where: { id: qualifyingMember.id } });
+      if (freshQM) {
+        priorQP = freshQM.qualifyingPoints || 0;
+        priorBusinessId = freshQM.businessId || null;
+        isParticipant = !!freshQM.isSystemParticipant;
+      }
+    }
+
+    if (orderTotalCP > 0 && qualifyingMember) {
+      const currentUser = await tx.user.findUnique({ where: { id: qualifyingMember.id } });
+      const isQualifying = !!currentUser.isSystemParticipant;
+      const newQualifyingPoints = isQualifying
+        ? Math.round((currentUser.qualifyingPoints || 0) + orderTotalCP)
+        : Math.round(currentUser.qualifyingPoints || 0);
+      const newSPoints = Math.round((currentUser.sPoints || 0) + orderTotalCP);
+
+      await tx.sPointTransaction.create({
+        data: {
+          userId: currentUser.userId,
+          orderId: order.id,
+          points: orderTotalCP,
+          type: 'EARN',
+          isQualifying,
+          snapshotBalance: newSPoints,
+          policyVersion,
+          description: 'Tích lũy điểm xét Ambassador từ đơn hàng #' + order.id,
+        }
+      });
+      pointsAwarded = orderTotalCP;
+
+      // 4. Ambassador Activation
+      const userUpdateData = {
+        sPoints: newSPoints,
+        qualifyingPoints: newQualifyingPoints,
+      };
+
+      if (currentUser.isSystemParticipant && !currentUser.businessId && newQualifyingPoints >= threshold) {
+        const seq = await tx.businessIdSequence.findUnique({ where: { id: 1 } });
+        const currentSeqVal = seq ? seq.nextVal : 10001;
+        allocatedBusinessId = 'WK-' + currentSeqVal;
+
+        await tx.businessIdSequence.update({
+          where: { id: 1 },
+          data: { nextVal: currentSeqVal + 1 },
+        });
+
+        userUpdateData.businessId = allocatedBusinessId;
+        userUpdateData.rank = 'AMBASSADOR';
+        userUpdateData.rankStatus = 'ACTIVE_RANK';
+        userUpdateData.rankAchievedAt = new Date();
+        userUpdateData.rankActivationMethod = 'AUTO_SPOINT_THRESHOLD';
+        userUpdateData.rankActivatedBy = 'SYSTEM';
+
+        await tx.rankHistory.create({
+          data: {
+            userId: currentUser.userId,
+            fromRank: currentUser.rank || 'CUSTOMER',
+            toRank: 'AMBASSADOR',
+            fromStatus: currentUser.rankStatus || 'NOT_QUALIFIED',
+            toStatus: 'ACTIVE_RANK',
+            reason: 'AUTO_SPOINT_THRESHOLD',
+            triggeredBy: 'SYSTEM',
+            metadata: JSON.stringify({
+              orderId: order.id,
+              qualifyingPoints: newQualifyingPoints,
+              threshold,
+              allocatedBusinessId,
+              activatedAt: new Date().toISOString(),
+            }),
+          }
+        });
+        activated = true;
+      }
+
+      await tx.user.update({
+        where: { id: currentUser.id },
+        data: userUpdateData,
+      });
+    }
+
+    // 5. Commission Calculation & Creation inside the SAME transaction boundary
+    let createdCommissions = [];
+    const commContext = {
+      order,
+      orderTotalCP,
+      orderer,
+      customer,
+      qualifyingMember,
+      directSponsor,
+      isSelf,
+      priorQP,
+      priorBusinessId,
+      isParticipant,
+      threshold,
+      policyMap,
+      policyVersion,
+      activated,
+      allocatedBusinessId,
+    };
+
+    if (typeof options.commissionHandler === 'function') {
+      createdCommissions = await options.commissionHandler(tx, commContext);
+    } else {
+      createdCommissions = await calculateAndCreateCommissions(tx, commContext);
+    }
+
+    return {
+      success: true,
+      orderId: order.id,
+      pointsAwarded,
+      activated,
+      allocatedBusinessId,
+      createdCommissions,
+      processingId: processing.id,
+    };
+  });
+}
+// Keep backwards-compatible helper alias
+async function processOrderPointsAndActivation(orderId) {
+  return await executeOrderSettlement(orderId);
+}
+
+// Endpoint to trigger/inspect order settlement
+app.post('/api/orders/:id/process-activation', authenticateToken, async (req, res) => {
+  try {
+    const result = await executeOrderSettlement(req.params.id);
+    res.json({ success: true, data: result });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+
 // PHASE 2B — HELPER FUNCTIONS
 // ============================================================
 
@@ -2307,11 +2879,23 @@ app.put('/api/services/:id/product-type', authenticateToken, requireRole(['admin
   }
 });
 
+
+// Export app with attached helper functions for testing and backwards compatibility
+app.executeOrderSettlement = executeOrderSettlement;
+app.calculateAndCreateCommissions = calculateAndCreateCommissions;
+app.processOrderPointsAndActivation = processOrderPointsAndActivation;
+app.normalizeRankPrefix = normalizeRankPrefix;
+
+module.exports = app;
+module.exports.app = app;
+module.exports.executeOrderSettlement = executeOrderSettlement;
+module.exports.calculateAndCreateCommissions = calculateAndCreateCommissions;
+module.exports.processOrderPointsAndActivation = processOrderPointsAndActivation;
+module.exports.normalizeRankPrefix = normalizeRankPrefix;
+
 // START SERVER
 if (require.main === module) {
   app.listen(PORT, () => {
-    console.log(`[SECURE BACKEND ENGINE] Running on http://localhost:${PORT}`);
+    console.log('[SECURE BACKEND ENGINE] Running on port ' + PORT);
   });
 }
-
-module.exports = app;

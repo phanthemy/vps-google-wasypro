@@ -39,13 +39,24 @@ model User {
   rankActivationMethod String? // AUTO_MACHINE_PURCHASE | AUTO_SPOINT_THRESHOLD | ADMIN_MANUAL_APPROVE
   rankActivatedBy      String? // userId admin n?u manual approve, null n?u auto
 
+  // Phase 2C: Participant status & BusinessId (FINAL SPEC v3.6)
+  isSystemParticipant  Boolean   @default(false)
+  businessId           String?   @unique
+  participantAt        DateTime?
+  qualifyingPoints     Int       @default(0)
+
   parent      User?         @relation("UserToUser", fields: [parentId], references: [userId])
   children    User[]        @relation("UserToUser")
-  customers   Customer[]
+  customers   Customer[]    @relation("LegacyCustomerSource")
   commissions Commission[]
   sPointTransactions SPointTransaction[]
   wholesaleOrders    WholesaleOrder[]   @relation("WholesaleBuyer")
   rankHistories      RankHistory[]
+
+  // Phase 2C relations
+  sponsoredCustomers Customer[] @relation("CustomerSponsor")
+  linkedCustomers    Customer[] @relation("CustomerLinked")
+  createdOrders      Order[]    @relation("OrderCreator")
 }
 
 model Customer {
@@ -58,7 +69,14 @@ model Customer {
   expiresAt    DateTime // usually registeredAt + 30 days
   updatedAt    DateTime @updatedAt
 
-  sourceCtv    User     @relation(fields: [sourceCtvId], references: [userId])
+  // Phase 2C: Direct sponsor & Linked user account (FINAL SPEC v3.6)
+  sponsorUserId String?
+  linkedUserId  String?  @unique
+
+  sourceCtv    User     @relation("LegacyCustomerSource", fields: [sourceCtvId], references: [userId])
+  sponsorUser  User?    @relation("CustomerSponsor", fields: [sponsorUserId], references: [id])
+  linkedUser   User?    @relation("CustomerLinked", fields: [linkedUserId], references: [id])
+
   appointments Appointment[]
   orders       Order[]
   auditLogs    CustomerAuditLog[]
@@ -90,7 +108,7 @@ model Appointment {
 model ServiceCategory {
   id          String   @id @default(cuid())
   name        String   @unique // e.g. "N?i khoa", "Ph?u thu?t", "Ch?m s?c"
-  
+
   services    Service[]
 }
 
@@ -108,6 +126,9 @@ model Service {
   productType String?   // MACHINE, SUPPLY, SERVICE ? null = ch?a ph?n lo?i (c?n admin set)
   listPrice   Float?    // Gi? ni?m y?t (null = d?ng price)
 
+  // Phase 2C: Commission Points independent from price (FINAL SPEC v3.6) - Integer representation
+  commissionPoints Int   @default(0)
+
   category    ServiceCategory @relation(fields: [categoryId], references: [id])
   orderItems  OrderItem[]
   wholesaleItems WholesaleOrderItem[] @relation("WholesaleItems")
@@ -124,20 +145,32 @@ model Order {
   orderType   String   @default("RETAIL")  // RETAIL
   isSelfBuy   Boolean  @default(false)     // buyer.phone == customer.phone
 
+  // Phase 2C: Purchase Type & Orderer Attribution (FINAL SPEC v3.6)
+  purchaseType  String   @default("CUSTOMER_PURCHASE") // SELF_PURCHASE | CUSTOMER_PURCHASE
+  ordererUserId String?
+
   customer    Customer    @relation(fields: [customerId], references: [id])
+  orderer     User?       @relation("OrderCreator", fields: [ordererUserId], references: [id])
   items       OrderItem[]
   commissions Commission[]
+  commissionProcessing CommissionProcessing?
 }
 
 model OrderItem {
-  id        String  @id @default(cuid())
+  id        String   @id @default(cuid())
   orderId   String
-  serviceId String
-  amount    Float   // actual paid amount
-  qty       Int     @default(1)
-  
-  order     Order   @relation(fields: [orderId], references: [id])
-  service   Service @relation(fields: [serviceId], references: [id])
+  serviceId String?
+  productId String?
+  amount    Float    // actual paid amount
+  qty       Int      @default(1)
+
+  // Phase 2C: Commission Points snapshot at order time (FINAL SPEC v3.6) - Integer representation
+  unitCommissionPts Int @default(0)
+  lineCommissionPts Int @default(0)
+
+  order     Order    @relation(fields: [orderId], references: [id])
+  service   Service? @relation(fields: [serviceId], references: [id])
+  product   Product? @relation(fields: [productId], references: [id])
 }
 
 model Commission {
@@ -156,6 +189,14 @@ model Commission {
   policyRef    String?  // Rule ID: AM-01, AM-02, AM-03, AM-04, DIRECT, OVERRIDE_F1, OVERRIDE_F2
   metadata     String?  // JSON: additional rule details (ancestor depth, rule match, etc.)
 
+  // Phase 2C: Mandatory 6 audit snapshot fields (FINAL SPEC v3.6) - Integer point/money representation
+  ruleKey       String?  // Exact rule key applied: e.g. AMBASSADOR_SELF_BUY, MANAGER_F1_PURCHASE
+  policyVersion String?  // Policy version snapshot: e.g. 1.0.0
+  role          String?  // Role in transaction: SELF, DIRECT_SPONSOR, UPSTREAM_D1, UPSTREAM_D2
+  basePoints    Int?     // Base integer points used for calculation (orderTotalCP or split points)
+  earnedPoints  Int?     // Calculated integer points: Math.round(basePoints * rateSnapshot)
+  earnedMoney   Int?     // Calculated integer VND: earnedPoints * 1000
+
   order       Order    @relation(fields: [orderId], references: [id])
   receiver    User     @relation(fields: [receiverId], references: [userId])
 }
@@ -169,6 +210,11 @@ model SPointTransaction {
   type        String   // EARN, REDEEM, EXPIRE, ADJUST
   description String?
   createdAt   DateTime @default(now())
+
+  // Phase 2C: Qualifying audit fields (FINAL SPEC v3.6)
+  isQualifying    Boolean @default(false)
+  snapshotBalance Float?
+  policyVersion   String?
 
   user        User     @relation(fields: [userId], references: [userId])
 }
@@ -203,9 +249,12 @@ model Product {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
+  // Phase 2C: Commission Points independent from price (FINAL SPEC v3.6) - Integer representation
+  commissionPoints Int   @default(0)
+  orderItems        OrderItem[]
+
   category      ProductCategory @relation(fields: [categoryId], references: [id])
 }
-
 
 model WebsiteOrder {
   id            String   @id @default(cuid())
@@ -223,7 +272,6 @@ model WebsiteOrder {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 }
-
 
 model AdminUser {
   id        String   @id @default(cuid())
@@ -306,3 +354,61 @@ model RankHistory {
   user User @relation(fields: [userId], references: [userId])
 }
 
+// Phase 2C ? Migration 2C-1: Idempotency table for Commission Processing (FINAL SPEC v3.6)
+model CommissionProcessing {
+  id            String   @id @default(cuid())
+  orderId       String   @unique
+  status        String   @default("COMPLETED")
+  processedAt   DateTime @default(now())
+  policyVersion String   @default("1.0.0")
+
+  order Order @relation(fields: [orderId], references: [id])
+}
+
+// Phase 2C ? Migration 2C-2: BusinessId Sequence table (SQLite-safe auto-increment)
+model BusinessIdSequence {
+  id      Int @id @default(1)
+  nextVal Int @default(10000)
+}
+
+// Phase 2C ? Migration 2C-3: Dynamic System Policy Config (FINAL SPEC v3.6)
+model SystemPolicyConfig {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  value       String
+  description String?
+  version     String   @default("1.0.0")
+  updatedBy   String?  // User ID or ADMIN who updated the policy
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  auditLogs   SystemPolicyAuditLog[]
+}
+
+// Phase 2C ? Migration 2C-4: System Policy Audit History (FINAL SPEC v3.6 ? IX.3)
+model SystemPolicyAuditLog {
+  id          String   @id @default(cuid())
+  policyId    String
+  key         String
+  oldValue    String?
+  newValue    String
+  version     String
+  updatedBy   String?
+  createdAt   DateTime @default(now())
+
+  policy      SystemPolicyConfig @relation(fields: [policyId], references: [id])
+  reason      String?
+}
+
+// Phase 2C ? Migration 2C-5: Product/Service Commission Points Audit History (FINAL SPEC v3.6)
+model CommissionPointAuditLog {
+  id         String   @id @default(cuid())
+  itemType   String   // 'PRODUCT' | 'SERVICE'
+  itemId     String
+  itemName   String?
+  oldValue   Int?
+  newValue   Int
+  actor      String?  // userId or email
+  reason     String?
+  createdAt  DateTime @default(now())
+}

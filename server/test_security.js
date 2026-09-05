@@ -226,12 +226,12 @@ async function runTests() {
     // TEST 7: Paid Commission Cancellation REVERSAL Audit Protocol
     // -------------------------------------------------------------
     console.log('\n[TEST 7] Paid Commission Cancellation REVERSAL Audit Protocol');
-    let service = await prisma.service.findFirst();
+    let service = await prisma.service.findFirst({ where: { commissionPoints: { gt: 0 } } });
     if (!service) {
       let cat = await prisma.serviceCategory.findFirst();
       if (!cat) cat = await prisma.serviceCategory.create({ data: { name: 'Máy lọc nước' } });
       service = await prisma.service.create({
-        data: { name: 'Máy Water King WS-03', price: 10000000, categoryId: cat.id }
+        data: { name: 'Máy Water King WS-03', price: 10000000, commissionPoints: 2000, categoryId: cat.id }
       });
     }
 
