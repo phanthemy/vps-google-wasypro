@@ -39,18 +39,9 @@ model User {
   rankActivationMethod String? // AUTO_MACHINE_PURCHASE | AUTO_SPOINT_THRESHOLD | ADMIN_MANUAL_APPROVE
   rankActivatedBy      String? // userId admin n?u manual approve, null n?u auto
 
-  // Phase 2C fields for Commission v3
-  businessId          String?  @unique
-  isSystemParticipant Boolean  @default(false)
-  qualifyingPoints    Float    @default(0)
-  sponsorUserId       String?
-
   parent      User?         @relation("UserToUser", fields: [parentId], references: [userId])
   children    User[]        @relation("UserToUser")
-  customers   Customer[]    @relation("CtvCustomers")
-  sponsoredCustomers Customer[] @relation("CustomerSponsor")
-  linkedCustomer Customer?  @relation("LinkedCustomer")
-  ordersCreated  Order[]    @relation("OrderCreator")
+  customers   Customer[]
   commissions Commission[]
   sPointTransactions SPointTransaction[]
   wholesaleOrders    WholesaleOrder[]   @relation("WholesaleBuyer")
@@ -66,13 +57,8 @@ model Customer {
   registeredAt DateTime @default(now())
   expiresAt    DateTime // usually registeredAt + 30 days
   updatedAt    DateTime @updatedAt
-  
-  sponsorUserId String?
-  linkedUserId  String?  @unique
 
-  sourceCtv    User     @relation("CtvCustomers", fields: [sourceCtvId], references: [userId])
-  sponsor      User?    @relation("CustomerSponsor", fields: [sponsorUserId], references: [id])
-  linkedUser   User?    @relation("LinkedCustomer", fields: [linkedUserId], references: [id])
+  sourceCtv    User     @relation(fields: [sourceCtvId], references: [userId])
   appointments Appointment[]
   orders       Order[]
   auditLogs    CustomerAuditLog[]
@@ -138,15 +124,9 @@ model Order {
   orderType   String   @default("RETAIL")  // RETAIL
   isSelfBuy   Boolean  @default(false)     // buyer.phone == customer.phone
 
-  // Phase 2C: Purchase Type
-  purchaseType  String   @default("CUSTOMER_PURCHASE")
-  ordererUserId String?
-
   customer    Customer    @relation(fields: [customerId], references: [id])
-  orderer       User?    @relation("OrderCreator", fields: [ordererUserId], references: [id])
   items       OrderItem[]
   commissions Commission[]
-  commissionProcessing CommissionProcessing?
 }
 
 model OrderItem {
@@ -326,27 +306,3 @@ model RankHistory {
   user User @relation(fields: [userId], references: [userId])
 }
 
-
-model CommissionProcessing {
-  id            String   @id @default(cuid())
-  orderId       String   @unique
-  status        String   @default("COMPLETED")
-  processedAt   DateTime @default(now())
-  policyVersion String   @default("1.0.0")
-  order         Order    @relation(fields: [orderId], references: [id])
-}
-
-model BusinessIdSequence {
-  id      Int @id @default(1)
-  nextVal Int @default(10000)
-}
-
-model SystemPolicyConfig {
-  id          String   @id @default(cuid())
-  key         String   @unique
-  value       String
-  description String?
-  version     String   @default("1.0.0")
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-}
