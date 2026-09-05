@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 
 /**
- * SPointWidget ? Phase 2A display-only component
+ * SPointWidget - Phase 2A/2C display-only component
  * Shows S-Point balance and total machines bought for current user
  * Data fetched from GET /api/s-points/:userId
  */
@@ -17,9 +17,9 @@ export default function SPointWidget({ userId }) {
       .then(r => r.json())
       .then(res => {
         if (res.success) setData(res.data);
-        else setError(res.message || 'Kh?ng th? t?i ?i?m S');
+        else setError(res.message || 'Không thể tải điểm S');
       })
-      .catch(() => setError('L?i k?t n?i'))
+      .catch(() => setError('Lỗi kết nối'))
       .finally(() => setLoading(false));
   }, [userId]);
 
@@ -33,7 +33,7 @@ export default function SPointWidget({ userId }) {
   }
 
   if (error || !data) {
-    return null; // Silent fail ? S-Points is supplementary info
+    return null; // Silent fail - S-Points is supplementary info
   }
 
   const points = data.sPoints || 0;
@@ -43,22 +43,22 @@ export default function SPointWidget({ userId }) {
   return (
     <div className="bg-gradient-to-br from-violet-50 to-purple-50 rounded-xl p-4 border border-violet-100">
       <div className="flex items-center justify-between mb-3">
-        <span className="text-sm font-medium text-violet-700">?i?m S t?ch l?y</span>
-        <span className="text-xs text-violet-400 bg-violet-100 px-2 py-0.5 rounded-full">1 ?i?m = 1.000?</span>
+        <span className="text-sm font-medium text-violet-700">Điểm S tích lũy</span>
+        <span className="text-xs text-violet-600 bg-violet-100 px-2 py-0.5 rounded-full font-medium">1 điểm = 1.000đ</span>
       </div>
       <div className="flex items-end gap-3">
         <div>
           <p className="text-3xl font-bold text-violet-800">{points.toLocaleString('vi-VN')}</p>
-          <p className="text-xs text-violet-500 mt-0.5">? {vndValue}?</p>
+          <p className="text-xs text-violet-600 mt-0.5 font-medium">≈ {vndValue}đ</p>
         </div>
         <div className="ml-auto text-right">
-          <p className="text-xs text-gray-500">S? m?y ?? mua</p>
-          <p className="text-lg font-semibold text-gray-700">{machines} <span className="text-xs font-normal text-gray-400">m?y</span></p>
+          <p className="text-xs text-gray-500">Số máy đã mua</p>
+          <p className="text-lg font-semibold text-gray-700">{machines} <span className="text-xs font-normal text-gray-400">máy</span></p>
         </div>
       </div>
       {points === 0 && (
-        <p className="text-xs text-violet-400 mt-2 italic">
-          ?i?m S s? ???c c?ng sau khi mua thi?t b? m?y Water King
+        <p className="text-xs text-violet-500 mt-2 italic">
+          Điểm S sẽ được cộng sau khi mua thiết bị máy Water King
         </p>
       )}
     </div>

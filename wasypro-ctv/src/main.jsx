@@ -27,10 +27,10 @@ window.fetch = async function(url, options = {}) {
   const response = await originalFetch(url, opts);
 
   if (response.status === 401 && typeof url === 'string' && !url.includes('/api/auth/login')) {
-    // Ch? clear localStorage ? KH?NG reload
-    // App.jsx s? t? detect currentUser = null v? show LoginView
+    // Chỉ clear localStorage - KHÔNG reload
+    // App.jsx sẽ tự detect currentUser = null và show LoginView
     localStorage.removeItem('crm_user');
-    // Dispatch event ?? App.jsx bi?t session h?t h?n
+    // Dispatch event để App.jsx biết session hết hạn
     window.dispatchEvent(new CustomEvent('session-expired'));
   }
 

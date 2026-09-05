@@ -19,7 +19,8 @@ import {
   Key,
   ShoppingCart,
   Truck,
-  TrendingUp
+  TrendingUp,
+  AlertCircle
 } from 'lucide-react';
 import './App.css';
 
@@ -67,7 +68,7 @@ function App() {
 
   const [refreshKey, setRefreshKey] = useState(0);
 
-  // L?ng nghe session-expired t? fetch interceptor - show login m? kh?ng reload
+  // Lắng nghe session-expired từ fetch interceptor - show login mà không reload
   useEffect(() => {
     const handler = () => setCurrentUser(null);
     window.addEventListener('session-expired', handler);
@@ -208,15 +209,7 @@ function App() {
             <ShoppingCart size={20} />
             <span>Quản lý Đơn Hàng</span>
           </div>
-          {isAdmin && (
-            <div 
-              className={`nav-item ${activeTab === 'settings' ? 'active' : ''}`}
-              onClick={() => { setActiveTab('settings'); setSidebarOpen(false); }}
-            >
-              <Settings size={20} />
-              <span>Cấu hình Cơ chế</span>
-            </div>
-          )}
+          {/* Settings tạm ẩn theo Phase 2C */}
           <div className="nav-group" style={{ display: 'flex', flexDirection: 'column' }}>
             <div 
               className={`nav-item ${(activeTab === 'pricelist' || activeTab === 'service-detail') ? 'active' : ''}`}
@@ -375,7 +368,14 @@ function App() {
               <div className="btn-icon" style={{ padding: '0', background: 'var(--grad-primary)', width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white' }}>
                 <User size={16} />
               </div>
-              <span className="text-primary font-medium" style={{ fontSize: '0.875rem' }}>{currentUser.fullName}</span>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', lineHeight: 1.2 }}>
+                <span className="text-primary font-medium" style={{ fontSize: '0.875rem' }}>{currentUser.fullName}</span>
+                {currentUser.businessId && (
+                  <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#d97706' }}>
+                    Mã ĐT: {currentUser.businessId}
+                  </span>
+                )}
+              </div>
             </div>
           </div>
         </header>

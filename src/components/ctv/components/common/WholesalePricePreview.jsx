@@ -6,7 +6,7 @@ export default function WholesalePricePreview({ items = [] }) {
   if (!items || items.length === 0) {
     return (
       <div className="p-4 text-center text-secondary text-sm">
-        Ch?a c? s?n ph?m n?o ?? xem tr??c gi?.
+        Chưa có sản phẩm nào để xem trước giá sỉ.
       </div>
     );
   }
@@ -19,9 +19,9 @@ export default function WholesalePricePreview({ items = [] }) {
 
   return (
     <div className="space-y-3">
-      <div className="p-2 rounded-lg bg-blue-500/10 border border-blue-500/20">
-        <p className="text-blue-400 text-xs">
-          ?? Gi? c? s?: gi? b?n hi?n t?i tr?n website (kh?ng ph?i gi? ni?m y?t)
+      <div className="p-2.5 rounded-lg bg-blue-500/10 border border-blue-500/20">
+        <p className="text-blue-300 text-xs">
+          💡 Giá cơ sở: Giá bán hiện tại trên website (không phải giá niêm yết cũ). Chiết khấu tính theo tổng số lượng máy đặt mua.
         </p>
       </div>
 
@@ -29,12 +29,12 @@ export default function WholesalePricePreview({ items = [] }) {
         <table className="w-full text-sm">
           <thead>
             <tr className="text-secondary text-xs border-b border-gray-700">
-              <th className="text-left py-2 pr-3">S?n ph?m</th>
+              <th className="text-left py-2 pr-3">Sản phẩm</th>
               <th className="text-center py-2 px-2">SL</th>
-              <th className="text-right py-2 px-2">??n gi?</th>
+              <th className="text-right py-2 px-2">Đơn giá</th>
               <th className="text-center py-2 px-2">CK%</th>
               <th className="text-right py-2 px-2">Sau CK</th>
-              <th className="text-right py-2 pl-2">Th?nh ti?n</th>
+              <th className="text-right py-2 pl-2">Thành tiền</th>
             </tr>
           </thead>
           <tbody>
@@ -62,19 +62,19 @@ export default function WholesalePricePreview({ items = [] }) {
 
       <div className="bg-gray-800/60 rounded-lg p-3 space-y-1.5">
         <div className="flex justify-between text-sm text-secondary">
-          <span>T?ng s? l??ng:</span>
-          <span className="font-semibold text-primary">{totalQty} m?y</span>
+          <span>Tổng số lượng:</span>
+          <span className="font-semibold text-primary">{totalQty} máy</span>
         </div>
         <div className="flex justify-between text-sm text-secondary">
-          <span>T?ng ti?n g?c:</span>
+          <span>Tổng tiền gốc:</span>
           <span>{vnd(totalOriginal)}</span>
         </div>
         <div className="flex justify-between text-sm text-green-400">
-          <span>Chi?t kh?u ({avgDiscount}%):</span>
+          <span>Chiết khấu ({avgDiscount}%):</span>
           <span className="font-semibold">-{vnd(totalDiscount)}</span>
         </div>
         <div className="flex justify-between text-base font-bold border-t border-gray-700 pt-1.5">
-          <span className="text-primary">T?ng sau chi?t kh?u:</span>
+          <span className="text-primary">Tổng sau chiết khấu:</span>
           <span className="text-yellow-300">{vnd(totalAfterDiscount)}</span>
         </div>
       </div>

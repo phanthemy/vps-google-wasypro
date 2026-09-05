@@ -160,7 +160,7 @@ export const CTVPortalContainer: React.FC<CTVPortalContainerProps> = ({
     { id: 'statistics', label: 'Thống Kê Bán Hàng', icon: PieChartIcon, visible: !isCustomer, group: 'ctv' },
     { id: 'about', label: 'Chính sách WATER KING', icon: Info, visible: true, group: 'ctv' },
     { id: 'users', label: 'Quản Lý CTV Toàn HT', icon: Users, visible: isAdminOrAccountant, group: 'admin' },
-    { id: 'settings', label: 'Cấu Hình Cơ Chế', icon: Settings, visible: isAdmin, group: 'admin' },
+    { id: 'settings', label: 'Cấu Hình Cơ Chế', icon: Settings, visible: false, group: 'admin' },
     { id: 'internal-users', label: 'Quản Lý Nhân Sự', icon: UserCog, visible: isAdmin, group: 'admin' },
     { id: 'audit-logs', label: 'Lịch Sử Hệ Thống', icon: History, visible: isAdminOrAccountant, group: 'admin' },
   ];
@@ -187,6 +187,11 @@ export const CTVPortalContainer: React.FC<CTVPortalContainerProps> = ({
               <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-white/20 uppercase tracking-wider">
                 {currentUser.tier || 'SILVER'}
               </span>
+              {(currentUser as any).businessId && (
+                <span className="text-xs font-extrabold bg-amber-400 text-slate-900 px-2 py-0.5 rounded shadow-sm">
+                  Mã đối tác: {(currentUser as any).businessId}
+                </span>
+              )}
               <span className="text-xs font-mono bg-black/20 px-2 py-0.5 rounded text-white/90">
                 ID: {currentUser.id}
               </span>

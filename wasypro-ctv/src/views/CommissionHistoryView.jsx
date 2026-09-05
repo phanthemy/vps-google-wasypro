@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { User } from 'lucide-react';
+import { User, Layers, ArrowUpRight } from 'lucide-react';
 import CommissionRuleTag from '../components/common/CommissionRuleTag.jsx';
+
+const vnd = (n) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(n || 0);
 
 export default function CommissionHistoryView({ currentUser, setActiveTab }) {
   const [commissions, setCommissions] = useState([]);
@@ -8,12 +10,11 @@ export default function CommissionHistoryView({ currentUser, setActiveTab }) {
   const [showTaxes, setShowTaxes] = useState(false);
 
   useEffect(() => {
-    const fetchId = (currentUser.role === 'admin' || currentUser.role === 'accountant' || currentUser.id === 'ADMIN' || currentUser.id === 'ACCOUNTANT') ? 'ADMIN' : currentUser.id;
-    fetch(`/api/commissions?userId=${fetchId}`)
-      .then(res => res.json())
-      .then(data => {
-        if (data.success) {
-          setCommissions(data.data);
+    fetch(`/api/commissions?userId=${currentUser.id}`)
+      .then(r => r.json())
+      .then(res => {
+        if (res.success) {
+          setCommissions(res.data);
         }
         setLoading(false);
       })
@@ -25,52 +26,41 @@ export default function CommissionHistoryView({ currentUser, setActiveTab }) {
 
   if (loading) return <div className="p-8 text-center text-primary">Đang tải sao kê...</div>;
 
-  const groupedCommissions = [];
-  const groups = {};
-  commissions.forEach(c => {
-      const key = c.orderId ? `${c.orderId}_${c.type}` : c.id;
-      if (!groups[key]) {
-         groups[key] = { ...c };
-      } else {
-         groups[key].amount += c.amount;
-      }
-  });
-  Object.values(groups).forEach(c => groupedCommissions.push(c));
-  groupedCommissions.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  const groupedCommissions = [...commissions].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
   return (
     <div className="space-y-6">
-      <div className="card glass-panel text-center">
-        <h2 className="text-xl font-bold text-primary mb-2">Sao Kê Chi Tiết Dòng Tiền</h2>
+      <div className="card glass-panel text-center p-6">
+        <h2 className="text-xl font-bold text-primary mb-2">Sao Kê Chi Tiết Dòng Tiền & Hoa Hồng</h2>
         <p className="text-sm text-secondary">
-          Bảng liệt kê toàn bộ lịch sử hoa hồng bạn nhận được từ hệ thống
+          Minh bạch toàn bộ dòng tiền hoa hồng theo cơ chế chuẩn Phase 2C
         </p>
         <div className="flex justify-center mt-4">
-            <label className="flex items-center gap-1 text-sm font-bold text-muted cursor-pointer">
-                <input type="checkbox" checked={showTaxes} onChange={e => setShowTaxes(e.target.checked)} />
-                Áp dụng Thuế & Phí (11%)
-            </label>
+          <label className="flex items-center gap-2 text-sm font-bold text-muted cursor-pointer">
+            <input type="checkbox" checked={showTaxes} onChange={e => setShowTaxes(e.target.checked)} />
+            Áp dụng Thuế & Phí (11%)
+          </label>
         </div>
       </div>
 
-      <div className="card glass-panel">
+      <div className="card glass-panel p-4">
         <div className="table-responsive" style={{ overflowX: 'auto' }}>
-          <table className="w-full text-left" style={{ minWidth: '600px' }}>
+          <table className="w-full text-left" style={{ minWidth: '850px' }}>
             <thead>
-              <tr className="border-b border-gray-700 text-secondary">
-                <th className="py-3 px-4 font-medium" style={{ whiteSpace: 'nowrap' }}>Thời Gian</th>
-                <th className="py-3 px-4 font-medium" style={{ whiteSpace: 'nowrap' }}>Loại Chiết Khấu</th>
-                <th className="py-3 px-4 font-medium" style={{ whiteSpace: 'nowrap' }}>Policy</th>
-                <th className="py-3 px-4 font-medium" style={{ whiteSpace: 'nowrap' }}>Tỷ lệ</th>
-                <th className="py-3 px-4 font-medium" style={{ whiteSpace: 'nowrap' }}>Khách Hàng Áp Dụng</th>
-                <th className="py-3 px-4 font-medium" style={{ whiteSpace: 'nowrap' }}>Mã Đơn Hàng</th>
-                <th className="py-3 px-4 font-medium" style={{ whiteSpace: 'nowrap' }}>Đơn Hàng</th>
-                <th className="py-3 px-4 font-medium text-right" style={{ whiteSpace: 'nowrap' }}>Hoa Hồng Gộp</th>
+              <tr className="border-b border-gray-700 text-secondary text-xs uppercase tracking-wider">
+                <th className="py-3 px-3 font-semibold">Thời Gian</th>
+                <th className="py-3 px-3 font-semibold">Quy Tắc</th>
+                <th className="py-3 px-3 font-semibold text-right">Điểm Cơ Sở</th>
+                <th className="py-3 px-3 font-semibold text-center">Tỷ Lệ</th>
+                <th className="py-3 px-3 font-semibold text-right">Điểm Nhận</th>
+                <th className="py-3 px-3 font-semibold">Khách Hàng</th>
+                <th className="py-3 px-3 font-semibold">Mã Đơn</th>
+                <th className="py-3 px-3 font-semibold text-right">Hoa Hồng Thực Nhận</th>
                 {showTaxes && (
                   <>
-                    <th className="py-3 px-4 font-medium text-right" style={{ whiteSpace: 'nowrap' }}>Thuế TNCN (10%)</th>
-                    <th className="py-3 px-4 font-medium text-right" style={{ whiteSpace: 'nowrap' }}>Phí Nền Tảng (1%)</th>
-                    <th className="py-3 px-4 font-medium text-right" style={{ whiteSpace: 'nowrap' }}>Thực Nhận</th>
+                    <th className="py-3 px-3 font-semibold text-right text-red-400">Thuế TNCN (10%)</th>
+                    <th className="py-3 px-3 font-semibold text-right text-amber-400">Phí Nền Tảng (1%)</th>
+                    <th className="py-3 px-3 font-semibold text-right text-emerald-400">Thực Nhận Sau Thuế</th>
                   </>
                 )}
               </tr>
@@ -84,76 +74,75 @@ export default function CommissionHistoryView({ currentUser, setActiveTab }) {
                 </tr>
               ) : (
                 groupedCommissions.map(c => {
-                  let typeText = 'Không rõ';
-                  let typeColor = 'var(--text-primary)';
-                  if (c.type === 'DIRECT') { typeText = 'Hoa hồng Trực tiếp'; typeColor = '#3b82f6'; }
-                  if (c.type === 'OVERRIDE') { typeText = 'Hoa hồng Cắt cầu (Tuyến dưới)'; typeColor = '#f59e0b'; }
-                  if (c.type === 'SPECIAL_BONUS_120M') { typeText = 'Thưởng Vượt Mốc 120M'; typeColor = '#ec4899'; }
-
                   const dt = new Date(c.createdAt).toLocaleString('vi-VN');
-                  const amt = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(c.amount);
                   const customerName = c.order?.customer?.fullName || 'Khách Vãng Lai';
-                  const orderVal = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(c.order?.totalAmount || 0);
-                  const serviceNames = c.order?.items?.map(i => i.service?.name).join(', ') || 'Sản Phẩm rỗng';
+                  const basePts = c.basePoints != null ? c.basePoints : (c.baseAmount ? Math.round(c.baseAmount / 1000) : '-');
+                  const earnedPts = c.earnedPoints != null ? c.earnedPoints : (c.amount ? Math.round(c.amount / 1000) : 0);
+                  const moneyAmount = c.earnedMoney != null ? c.earnedMoney : c.amount;
+                  const ruleKey = c.ruleKey || c.policyRef || c.type || 'DIRECT';
 
                   return (
-                    <tr key={c.id} className="border-b border-gray-800/50 hover:bg-white/5 transition-colors">
-                      <td className="py-4 px-4 text-sm text-secondary">{dt}</td>
-                      <td className="py-4 px-4 font-medium" style={{ color: typeColor }}>{typeText}</td>
-                      <td className="py-4 px-4">
-                        <CommissionRuleTag policyRef={c.policyRef} size="sm" />
+                    <tr key={c.id} className="border-b border-gray-800/50 hover:bg-white/5 transition-colors text-sm">
+                      <td className="py-3.5 px-3 text-secondary text-xs whitespace-nowrap">{dt}</td>
+                      <td className="py-3.5 px-3">
+                        <CommissionRuleTag policyRef={ruleKey} size="sm" />
                       </td>
-                      <td className="py-4 px-4 text-sm text-center">
-                        {c.rateSnapshot ? <span className="text-green-400 font-semibold">{c.rateSnapshot}%</span> : <span className="text-muted">-</span>}
+                      <td className="py-3.5 px-3 text-right font-mono text-secondary">
+                        {typeof basePts === 'number' ? basePts.toLocaleString('vi-VN') : basePts}
                       </td>
-                      <td className="py-4 px-4">
-                        <div className="flex items-center gap-2">
-                          <User size={16} className="text-secondary" />
-                          <span>{customerName}</span>
+                      <td className="py-3.5 px-3 text-center">
+                        {c.rateSnapshot ? (
+                          <span className="text-green-400 font-semibold">{c.rateSnapshot}%</span>
+                        ) : (
+                          <span className="text-muted">-</span>
+                        )}
+                      </td>
+                      <td className="py-3.5 px-3 text-right font-mono font-bold text-yellow-300">
+                        {typeof earnedPts === 'number' ? `+${earnedPts.toLocaleString('vi-VN')}` : earnedPts}
+                      </td>
+                      <td className="py-3.5 px-3">
+                        <div className="flex items-center gap-1.5">
+                          <User size={14} className="text-secondary shrink-0" />
+                          <span className="truncate max-w-[140px]" title={customerName}>{customerName}</span>
                         </div>
                       </td>
-                      <td className="py-4 px-4 text-sm font-semibold">
-                         {c.orderId ? (
-                            <span 
-                               className="text-blue-500 hover:text-blue-400 cursor-pointer hover:underline"
-                               onClick={() => {
-                                  navigator.clipboard.writeText(c.orderId.slice(0, 8).toUpperCase());
-                                  alert(`Đã copy mã đơn hàng: ${c.orderId.slice(0, 8).toUpperCase()}`);
-                                  setActiveTab('orders');
-                               }}
-                               title="Click để copy mã và chuyển sang Quản lý Đơn hàng"
-                            >
-                               #{c.orderId.slice(0, 8).toUpperCase()}
-                            </span>
-                         ) : <span className="text-muted">N/A</span>}
+                      <td className="py-3.5 px-3 font-mono text-xs">
+                        {c.orderId ? (
+                          <span
+                            className="text-blue-400 hover:text-blue-300 cursor-pointer hover:underline"
+                            onClick={() => {
+                              navigator.clipboard.writeText(c.orderId.slice(0, 8).toUpperCase());
+                              alert(`Đã sao chép mã đơn: ${c.orderId.slice(0, 8).toUpperCase()}`);
+                              if (setActiveTab) setActiveTab('orders');
+                            }}
+                            title="Bấm để sao chép mã đơn"
+                          >
+                            #{c.orderId.slice(0, 8).toUpperCase()}
+                          </span>
+                        ) : (
+                          <span className="text-muted">N/A</span>
+                        )}
                       </td>
-                      <td className="py-4 px-4 text-sm text-secondary">Trị giá: {orderVal}</td>
-                      <td className="py-4 px-4 text-right">
-                        <span className="font-bold text-diamond text-lg" style={{ textShadow: '0 0 10px rgba(0,240,255,0.3)' }}>
-                          {amt}
+                      <td className="py-3.5 px-3 text-right">
+                        <span className="font-bold text-diamond text-base">
+                          {vnd(moneyAmount)}
                         </span>
                       </td>
                       {showTaxes && (
                         <>
-                          <td className="py-4 px-4 text-right">
-                            <span className="text-red-500 font-bold text-sm">
-                              -{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(c.amount * 0.1)}
-                            </span>
+                          <td className="py-3.5 px-3 text-right text-red-400 font-medium">
+                            -{vnd(moneyAmount * 0.1)}
                           </td>
-                          <td className="py-4 px-4 text-right">
-                            <span className="text-amber-500 font-bold text-sm">
-                              {c.type === 'DIRECT' ? '-' + new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format((c.order?.totalAmount || 0) * 0.01) : '-'}
-                            </span>
+                          <td className="py-3.5 px-3 text-right text-amber-400 font-medium">
+                            {c.type === 'DIRECT' ? '-' + vnd((c.order?.totalAmount || 0) * 0.01) : '-'}
                           </td>
-                          <td className="py-4 px-4 text-right">
-                            <span className="font-bold text-green-500 text-lg">
-                              +{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format((c.amount * 0.9) - (c.type === 'DIRECT' ? (c.order?.totalAmount || 0) * 0.01 : 0))}
-                            </span>
+                          <td className="py-3.5 px-3 text-right text-emerald-400 font-bold text-base">
+                            +{vnd((moneyAmount * 0.9) - (c.type === 'DIRECT' ? (c.order?.totalAmount || 0) * 0.01 : 0))}
                           </td>
                         </>
                       )}
                     </tr>
-                  )
+                  );
                 })
               )}
             </tbody>

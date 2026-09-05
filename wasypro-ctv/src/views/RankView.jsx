@@ -1,47 +1,42 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Star, Award, Clock, TrendingUp, Info, Loader } from 'lucide-react';
 import AmbassadorProgressCard from '../components/common/AmbassadorProgressCard.jsx';
 import RankBadge from '../components/common/RankBadge.jsx';
 
-const vnd = (n) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(n || 0);
-
-const BENEFITS = [
+// Phase 2C Official Commission Benefits Matrix
+const RANK_BENEFITS = [
   {
-    code: 'AM-01',
-    label: 'Tự mua (Self-Consumption)',
-    rate: '20%',
-    desc: '20% hoa hồng khi Ambassador tự mua thiết bị cho bản thân',
-    color: 'text-yellow-400',
-    bg: 'bg-yellow-500/10',
-    border: 'border-yellow-500/30',
+    role: 'AMBASSADOR',
+    title: 'Đại sứ (Ambassador)',
+    badgeColor: 'text-purple-400 bg-purple-500/10 border-purple-500/30',
+    rules: [
+      { key: 'SELF', label: 'Tự tiêu dùng', rate: '20%', desc: '20% điểm hoa hồng khi tự mua thiết bị' },
+      { key: 'DIRECT_NO_ID', label: 'Bán trực tiếp (Khách mới)', rate: '20%', desc: '20% điểm hoa hồng khi bán cho khách hàng chưa có ID' },
+      { key: 'DIRECT_WITH_ID', label: 'Bán trực tiếp (Thành viên)', rate: '10%', desc: '10% điểm hoa hồng khi bán cho khách hàng đã có ID' },
+    ]
   },
   {
-    code: 'AM-02',
-    label: 'Bán lẻ (Direct Retail)',
-    rate: '20%',
-    desc: '20% hoa hồng bán lẻ trực tiếp (thiết bị 15M–45M)',
-    color: 'text-green-400',
-    bg: 'bg-green-500/10',
-    border: 'border-green-500/30',
+    role: 'MANAGER',
+    title: 'Quản lý (Manager)',
+    badgeColor: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/30',
+    rules: [
+      { key: 'SELF', label: 'Tự tiêu dùng', rate: '25%', desc: '25% điểm hoa hồng khi tự mua thiết bị' },
+      { key: 'DIRECT_NO_ID', label: 'Bán trực tiếp (Khách mới)', rate: '25%', desc: '25% điểm hoa hồng khi bán cho khách hàng chưa có ID' },
+      { key: 'DIRECT_WITH_ID', label: 'Bán trực tiếp (Thành viên)', rate: '10%', desc: '10% điểm hoa hồng khi bán cho khách hàng đã có ID' },
+      { key: 'UPSTREAM_D1', label: 'Đồng hành F1 (D1)', rate: '10%', desc: '10% điểm hoa hồng từ đơn hàng của F1 trực tiếp' },
+      { key: 'UPSTREAM_D2', label: 'Đồng hành F2 (D2)', rate: '5%', desc: '5% điểm hoa hồng từ đơn hàng của F2 trực thuộc' },
+    ]
   },
   {
-    code: 'AM-03',
-    label: 'Đối tác phân phối (Distribution)',
-    rate: '10%',
-    desc: '10% hoa hồng từ F1 trong tuyến bán hàng',
-    color: 'text-blue-400',
-    bg: 'bg-blue-500/10',
-    border: 'border-blue-500/30',
-  },
-  {
-    code: 'AM-04',
-    label: 'Hỗ trợ vùng (Regional Development)',
-    rate: '5%',
-    desc: '5% hỗ trợ vùng (1 lần/giao dịch), không tích lũy',
-    color: 'text-purple-400',
-    bg: 'bg-purple-500/10',
-    border: 'border-purple-500/30',
-  },
+    role: 'DIRECTOR',
+    title: 'Giám đốc (Director)',
+    badgeColor: 'text-rose-400 bg-rose-500/10 border-rose-500/30',
+    rules: [
+      { key: 'SELF', label: 'Tự tiêu dùng', rate: '30%', desc: '30% điểm hoa hồng khi tự mua thiết bị' },
+      { key: 'DIRECT_NO_ID', label: 'Bán trực tiếp (Khách mới)', rate: '30%', desc: '30% điểm hoa hồng khi bán cho khách hàng chưa có ID' },
+      { key: 'DIRECT_WITH_ID', label: 'Bán trực tiếp (Thành viên)', rate: '10%', desc: '10% điểm hoa hồng khi bán cho khách hàng đã có ID' },
+    ]
+  }
 ];
 
 export default function RankView({ currentUser }) {
@@ -52,7 +47,7 @@ export default function RankView({ currentUser }) {
   useEffect(() => {
     if (!currentUser?.id) return;
     fetch(`/api/rank/history/${currentUser.id}`, { credentials: 'include' })
-      .then(res => { if (!res.ok) throw new Error('Lỗi tải lịch sử'); return res.json(); })
+      .then(res => { if (!res.ok) throw new Error('Lỗi tải lịch sử cấp bậc'); return res.json(); })
       .then(res => { if (res.success) setHistory(res.data || []); else throw new Error(res.message); })
       .catch(err => setHistError(err.message))
       .finally(() => setHistLoading(false));
@@ -63,9 +58,11 @@ export default function RankView({ currentUser }) {
       {/* Header */}
       <div className="glass-panel p-5">
         <h2 className="text-xl font-bold text-primary flex items-center gap-2 mb-1">
-          <Star size={22} className="text-yellow-400" /> Hạng & Ambassador
+          <Star size={22} className="text-yellow-400" /> Cấp Bậc & Cơ Chế Hoa Hồng
         </h2>
-        <p className="text-sm text-secondary">Theo dõi hạng bậc và điều kiện trở thành Đại sứ Thương mại</p>
+        <p className="text-sm text-secondary">
+          Quyền lợi hoa hồng và tiến trình phát triển chức danh theo cơ chế chính thức Phase 2C
+        </p>
       </div>
 
       {/* Current Rank + Ambassador Progress */}
@@ -79,9 +76,9 @@ export default function RankView({ currentUser }) {
             <RankBadge tier={currentUser?.tier} rank={currentUser?.rank} size="lg" />
             <div>
               <p className="font-bold text-primary text-lg">{currentUser?.fullName}</p>
-              <p className="text-xs text-secondary">ID: {currentUser?.id}</p>
+              <p className="text-xs text-secondary">Mã đối tác: <strong className="text-primary font-mono">{currentUser?.businessId || currentUser?.id}</strong></p>
               {currentUser?.rank && (
-                <p className="text-xs text-purple-400 mt-1 italic">Rank đặc biệt đã được kích hoạt</p>
+                <p className="text-xs text-purple-400 mt-1 font-medium">Chức danh đối tác chính thức</p>
               )}
             </div>
           </div>
@@ -91,31 +88,42 @@ export default function RankView({ currentUser }) {
         <AmbassadorProgressCard userId={currentUser?.id} />
       </div>
 
-      {/* Benefits */}
-      <div className="glass-panel p-5 space-y-4">
+      {/* Phase 2C Commission Structure By Role */}
+      <div className="glass-panel p-5 space-y-5">
         <div className="flex items-center gap-2 text-sm font-semibold text-secondary uppercase tracking-wide">
-          <TrendingUp size={16} /> Quyền lợi Ambassador
+          <TrendingUp size={16} /> Bảng Cơ Chế Hoa Hồng Theo Cấp Bậc (Phase 2C)
         </div>
-        <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))' }}>
-          {BENEFITS.map(b => (
-            <div key={b.code} className={`p-4 rounded-xl border ${b.bg} ${b.border} space-y-2`}>
-              <div className="flex items-center justify-between">
-                <span className={`text-xs font-bold px-2 py-0.5 rounded-full border ${b.bg} ${b.color} ${b.border}`}>
-                  {b.code}
+
+        <div className="grid gap-5" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))' }}>
+          {RANK_BENEFITS.map(grp => (
+            <div key={grp.role} className="p-4 rounded-xl border border-gray-700/60 bg-gray-800/40 space-y-3 flex flex-col justify-between">
+              <div className="flex items-center justify-between pb-2 border-b border-gray-700/50">
+                <span className={`text-xs font-bold px-2.5 py-1 rounded-full border ${grp.badgeColor}`}>
+                  {grp.title}
                 </span>
-                <span className={`text-2xl font-extrabold ${b.color}`}>{b.rate}</span>
               </div>
-              <p className={`text-sm font-semibold ${b.color}`}>{b.label}</p>
-              <p className="text-xs text-secondary leading-relaxed">{b.desc}</p>
+
+              <div className="space-y-2.5 flex-1">
+                {grp.rules.map(r => (
+                  <div key={r.key} className="p-2.5 rounded-lg bg-gray-900/40 border border-gray-700/30 flex items-start justify-between gap-2">
+                    <div>
+                      <span className="text-xs font-semibold text-primary block">{r.label}</span>
+                      <span className="text-[11px] text-secondary leading-tight block mt-0.5">{r.desc}</span>
+                    </div>
+                    <span className="text-sm font-extrabold text-green-400 shrink-0">{r.rate}</span>
+                  </div>
+                ))}
+              </div>
             </div>
           ))}
         </div>
-        <div className="p-3 rounded-lg bg-gray-800/50 border border-gray-700/50">
+
+        <div className="p-3 rounded-lg bg-gray-800/60 border border-gray-700/50">
           <div className="flex items-start gap-2">
-            <Info size={14} className="text-blue-400 mt-0.5 flex-shrink-0" />
-            <p className="text-xs text-secondary">
-              Hoa hồng Ambassador được tính trên <strong className="text-primary">giá bán thực tế</strong> của thiết bị tại thời điểm giao dịch. 
-              Mức AM-02 áp dụng cho thiết bị trong phân khúc 15M–45M. Liên hệ admin để biết thêm chi tiết điều kiện.
+            <Info size={15} className="text-blue-400 mt-0.5 flex-shrink-0" />
+            <p className="text-xs text-secondary leading-relaxed">
+              Hoa hồng được tính theo tỷ lệ phần trăm trên <strong className="text-primary">Điểm hoa hồng (Points)</strong> của từng sản phẩm trong đơn hàng. 
+              1 điểm hoa hồng quy đổi tương đương <strong className="text-primary">1.000đ</strong> tiền mặt (số nguyên VND).
             </p>
           </div>
         </div>
@@ -124,7 +132,7 @@ export default function RankView({ currentUser }) {
       {/* Rank History */}
       <div className="glass-panel p-5 space-y-4">
         <div className="flex items-center gap-2 text-sm font-semibold text-secondary uppercase tracking-wide">
-          <Clock size={16} /> Lịch sử thay đổi hạng
+          <Clock size={16} /> Lịch sử thay đổi cấp bậc
         </div>
 
         {histLoading ? (
@@ -136,27 +144,22 @@ export default function RankView({ currentUser }) {
         ) : history.length === 0 ? (
           <div className="text-center text-secondary py-6">
             <Clock size={36} className="mx-auto mb-3 opacity-30" />
-            <p className="text-sm">Chưa có lịch sử thay đổi hạng.</p>
+            <p className="text-sm">Chưa có lịch sử thay đổi cấp bậc.</p>
           </div>
         ) : (
           <div className="space-y-3">
             {history.map((h, idx) => (
               <div key={h.id || idx} className="flex items-start gap-3 p-3 rounded-lg bg-gray-800/40 border border-gray-700/30">
-                <div className="w-2 h-2 rounded-full mt-2 flex-shrink-0" style={{
-                  background: h.toTier === 'DIAMOND' ? 'var(--accent-diamond)'
-                    : h.toTier === 'GOLD' ? 'var(--accent-gold)'
-                    : h.toTier === 'SILVER' ? 'var(--accent-silver)'
-                    : '#6b7280'
-                }} />
+                <div className="w-2 h-2 rounded-full mt-2 flex-shrink-0 bg-purple-400" />
                 <div className="flex-1 min-w-0">
                   <div className="flex flex-wrap items-center gap-2 text-sm">
                     <span className="text-secondary text-xs">{new Date(h.createdAt).toLocaleString('vi-VN')}</span>
                   </div>
                   <p className="text-sm font-medium text-primary mt-1">
                     {h.fromTier ? (
-                      <><span className="text-secondary">{h.fromTier}</span> → <span className="text-diamond">{h.toTier}</span></>
+                      <><span className="text-secondary">{h.fromTier}</span> → <span className="text-purple-400 font-bold">{h.toTier}</span></>
                     ) : (
-                      <span className="text-diamond">Khởi tạo: {h.toTier}</span>
+                      <span className="text-purple-400 font-bold">Khởi tạo: {h.toTier}</span>
                     )}
                   </p>
                   {h.reason && <p className="text-xs text-secondary mt-0.5">{h.reason}</p>}
