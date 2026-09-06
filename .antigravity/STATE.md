@@ -1,6 +1,6 @@
 # WasyPro / Water King ? PROJECT STATE
 
-**Updated:** 2026-09-03T11:50 +07:00
+**Updated:** 2026-09-06T11:07 +07:00
 
 ---
 
@@ -13,7 +13,8 @@
 | Phase 1B | `8d08516` | Refactor CTV App.jsx ? 23 modular files | ? Done |
 | Phase 2A | `52febf2` | Foundation: rank fields, S-Points, RankBadge, SPointWidget | ? Done |
 | Phase 2B | `879a3e8` | Commercial Engine: Ambassador + Wholesale + Commission Rules | ? Done |
-| Phase 2C | ? | ?i?u ki?n duy tr? Ambassador, M?U THU?N 01/02/04 | ?? Not started |
+| Phase 2C | `6b97f61` | Commission Engine v3.6 (Point Engine + Network Tree + Rank Engine) | ? Done |
+| Phase 2D | `b610b8e` | Purchase Subject Validation (SELF/CUSTOMER) — backend source of truth | ? Done |
 
 ---
 
