@@ -193,7 +193,7 @@ export const Header: React.FC<HeaderProps> = ({
 
                     {/* CTV Portal — visible to all logged-in users */}
                     <a
-                      href="https://app.wasypro.com"
+                      href="/ctv"
                       target="_blank"
                       rel="noopener noreferrer"
                       onClick={() => setUserDropdownOpen(false)}
@@ -300,7 +300,7 @@ export const Header: React.FC<HeaderProps> = ({
                   </div>
                   {/* CTV Portal — all logged-in users */}
                   <a
-                    href="https://app.wasypro.com"
+                    href="/ctv"
                     target="_blank"
                     rel="noopener noreferrer"
                     onClick={() => setMobileMenuOpen(false)}
