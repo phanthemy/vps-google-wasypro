@@ -20,6 +20,8 @@ import { AdminOrders } from './components/admin/AdminOrders';
 import { AdminNews } from './components/admin/AdminNews';
 import AdminUsers from './components/admin/AdminUsers';
 import AdminPolicyConfig from './components/admin/AdminPolicyConfig';
+import AdminPeriods from './components/admin/AdminPeriods';
+import AdminPeriodDetail from './components/admin/AdminPeriodDetail';
 
 // CTV & Unified Auth Integrations
 import { CTVPortalContainer } from './components/ctv/CTVPortalContainer';
@@ -63,6 +65,7 @@ export const App: React.FC = () => {
   });
   const [adminActiveTab, setAdminActiveTab] = useState('overview');
   const [isMobileAdminSidebarOpen, setIsMobileAdminSidebarOpen] = useState(false);
+  const [selectedPeriodId, setSelectedPeriodId] = useState<string | null>(null);
 
   // Check URL path or hash on load
   useEffect(() => {
@@ -226,7 +229,7 @@ export const App: React.FC = () => {
 
         <AdminSidebar
           activeTab={adminActiveTab}
-          onSelectTab={(tab) => setAdminActiveTab(tab)}
+          onSelectTab={(tab) => { setAdminActiveTab(tab); setSelectedPeriodId(null); }}
           isMobileOpen={isMobileAdminSidebarOpen}
           onCloseMobile={() => setIsMobileAdminSidebarOpen(false)}
           onSwitchToClient={() => setIsAdminMode(false)}
@@ -251,6 +254,11 @@ export const App: React.FC = () => {
             {adminActiveTab === 'orders' && <AdminOrders />}
             {adminActiveTab === 'news' && <AdminNews />}
             {adminActiveTab === 'users' && <AdminUsers />}
+            {adminActiveTab === 'periods' && (
+              selectedPeriodId
+                ? <AdminPeriodDetail periodId={selectedPeriodId} onBack={() => setSelectedPeriodId(null)} />
+                : <AdminPeriods onSelectPeriod={(id) => setSelectedPeriodId(id)} />
+            )}
             {adminActiveTab === 'policy' && <AdminPolicyConfig />}
           </main>
         </div>

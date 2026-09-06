@@ -20,7 +20,8 @@ import {
   ShoppingCart,
   Truck,
   TrendingUp,
-  AlertCircle
+  AlertCircle,
+  FileText
 } from 'lucide-react';
 import './App.css';
 
@@ -47,6 +48,7 @@ import SystemLogsView from './views/SystemLogsView.jsx';
 import AboutView from './views/AboutView.jsx';
 import WholesaleOrdersView from './views/WholesaleOrdersView.jsx';
 import RankView from './views/RankView.jsx';
+import PolicyView from './views/PolicyView.jsx';
 
 function App() {
   const [currentUser, setCurrentUser] = useState(() => {
@@ -269,6 +271,13 @@ function App() {
                 <Wallet size={20} />
                 <span>Lịch sử Hoa Hồng</span>
               </div>
+              <div
+                className={`nav-item ${activeTab === 'policy' ? 'active' : ''}`}
+                onClick={() => { setActiveTab('policy'); setSidebarOpen(false); }}
+              >
+                <FileText size={20} />
+                <span>Chính Sách Hoa Hồng</span>
+              </div>
             </>
           )}
           {isAdmin && (
@@ -340,6 +349,7 @@ function App() {
               {activeTab === 'pricelist' && 'Danh Mục Sản Phẩm WATER KING'}
               {activeTab === 'statistics' && 'Thống Kê Bán Hàng CTV'}
               {activeTab === 'commissions' && 'Lịch Sử Dòng Tiền Hoa Hồng'}
+              {activeTab === 'policy' && 'Chính Sách Hoa Hồng'}
               {activeTab === 'about' && 'Thông Tin Hợp Tác WATER KING'}
               {activeTab === 'wholesale' && 'Quản Lý Đơn Hàng Sỉ'}
               {activeTab === 'rank' && 'Hạng & Ambassador'}
@@ -395,6 +405,7 @@ function App() {
           {activeTab === 'service-detail' && <ServiceDetailView service={serviceList.find(s => s.id === activeServiceId)} onBack={() => setActiveTab('pricelist')} />}
           {activeTab === 'statistics' && <StatisticsView currentUser={currentUser} userList={userList} />}
           {activeTab === 'commissions' && <CommissionHistoryView currentUser={currentUser} setActiveTab={setActiveTab} />}
+          {activeTab === 'policy' && <PolicyView />}
           {activeTab === 'internal-users' && isAdmin && <SystemUsersView />}
           {activeTab === 'audit-logs' && isAdminOrAccountant && <SystemLogsView currentUser={currentUser} />}
           {activeTab === 'wholesale' && <WholesaleOrdersView currentUser={currentUser} />}

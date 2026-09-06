@@ -530,6 +530,532 @@ app.put('/api/admin/policy/:key', authenticateToken, requireRole(['admin']), asy
 });
 
 
+
+// ═══════════════════════════════════════════════════════════════
+// 3B. PERIOD LIFECYCLE — Commission Period + Policy per Period
+// ═══════════════════════════════════════════════════════════════
+
+// 15 standard policy keys seeded into each period
+const PERIOD_POLICY_KEYS = [
+  { key: 'AMBASSADOR_SELF_BUY',              description: 'Đại Sứ — Tự mua' },
+  { key: 'AMBASSADOR_DIRECT_NO_ID',          description: 'Đại Sứ — Bán cho khách chưa có ID' },
+  { key: 'AMBASSADOR_DIRECT_WITH_ID',        description: 'Đại Sứ — Bán cho khách đã có ID' },
+  { key: 'AMBASSADOR_THRESHOLD',             description: 'Ngưỡng điểm tích lũy (Qualifying Points)' },
+  { key: 'MANAGER_SELF_BUY',                 description: 'Quản Lý — Tự mua' },
+  { key: 'MANAGER_DIRECT_NO_ID',             description: 'Quản Lý — Bán cho khách chưa có ID' },
+  { key: 'MANAGER_DIRECT_WITH_ID',           description: 'Quản Lý — Bán cho khách đã có ID' },
+  { key: 'MANAGER_F1_PURCHASE',              description: 'Quản Lý — F1 tự mua' },
+  { key: 'MANAGER_F2_PURCHASE',              description: 'Quản Lý — F2 tự mua' },
+  { key: 'MANAGER_F1_SELL_TO_CUSTOMER_NO_ID', description: 'Quản Lý — F1 bán khách chưa ID (OPEN)' },
+  { key: 'DIRECTOR_SELF_BUY',                description: 'Giám Đốc — Tự mua' },
+  { key: 'DIRECTOR_DIRECT_NO_ID',            description: 'Giám Đốc — Bán cho khách chưa có ID' },
+  { key: 'DIRECTOR_DIRECT_WITH_ID',          description: 'Giám Đốc — Bán cho khách đã có ID' },
+  { key: 'DIRECTOR_F1',                      description: 'Giám Đốc — F1 (OPEN)' },
+  { key: 'DIRECTOR_F2',                      description: 'Giám Đốc — F2 (OPEN)' },
+];
+
+const PERIOD_THRESHOLD_KEYS = new Set(['AMBASSADOR_THRESHOLD']);
+const PERIOD_READ_ONLY_KEYS = new Set(['POLICY_VERSION']);
+
+function parsePeriodPolicyVersion(versionStr) {
+  // Format: "09/2026-v3" => extract number 3
+  const m = versionStr && versionStr.match(/-v(\d+)$/);
+  return m ? parseInt(m[1], 10) : 1;
+}
+
+function nextPeriodPolicyVersion(periodName, currentVersion) {
+  const n = parsePeriodPolicyVersion(currentVersion);
+  return `${periodName}-v${n + 1}`;
+}
+
+async function getOpenPeriod() {
+  return prisma.commissionPeriod.findFirst({ where: { status: 'OPEN' }, orderBy: { createdAt: 'desc' } });
+}
+
+async function seedPeriodPolicies(tx, periodId, periodName, copyFromPeriodId) {
+  const initialVersion = `${periodName}-v1`;
+  let sourceMap = {};
+
+  if (copyFromPeriodId) {
+    const sourcePolicies = await tx.periodPolicyConfig.findMany({ where: { periodId: copyFromPeriodId } });
+    sourceMap = Object.fromEntries(sourcePolicies.map(p => [p.key, p.value]));
+  } else {
+    // Default: copy from SystemPolicyConfig if exists, else NOT_CONFIGURED
+    const sysPolicies = await tx.systemPolicyConfig.findMany();
+    sourceMap = Object.fromEntries(sysPolicies.map(p => [p.key, p.value]));
+  }
+
+  const rows = PERIOD_POLICY_KEYS.map(({ key, description }) => ({
+    id: require('crypto').randomBytes(12).toString('base64url'),
+    periodId,
+    key,
+    value: sourceMap[key] !== undefined ? sourceMap[key] : 'NOT_CONFIGURED',
+    description,
+    version: initialVersion,
+    updatedAt: new Date(),
+    effectiveFrom: new Date(),
+  }));
+
+  for (const row of rows) {
+    await tx.periodPolicyConfig.create({ data: row });
+  }
+  return initialVersion;
+}
+
+// ── GET /api/admin/periods ─────────────────────────────────────
+app.get('/api/admin/periods', authenticateToken, requireRole(['admin']), async (req, res) => {
+  try {
+    const periods = await prisma.commissionPeriod.findMany({
+      orderBy: { createdAt: 'desc' },
+      include: {
+        _count: { select: { orders: true, commissions: true } },
+        closeAudit: true,
+      }
+    });
+    const data = periods.map(p => ({
+      id: p.id,
+      periodName: p.periodName,
+      startAt: p.startAt,
+      endAt: p.endAt,
+      status: p.status,
+      createdAt: p.createdAt,
+      createdBy: p.createdBy,
+      closedAt: p.closedAt,
+      closedBy: p.closedBy,
+      totalOrders: p._count.orders,
+      totalCommissions: p._count.commissions,
+      closeAudit: p.closeAudit,
+    }));
+    res.json({ success: true, data });
+  } catch (err) {
+    console.error('[ADMIN PERIODS GET]', err.message);
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ── POST /api/admin/periods ────────────────────────────────────
+app.post('/api/admin/periods', authenticateToken, requireRole(['admin']), async (req, res) => {
+  try {
+    const { periodName, startAt, endAt, copyFromPeriodId } = req.body;
+    if (!periodName || !startAt || !endAt) {
+      return res.status(400).json({ success: false, message: 'Thiếu periodName, startAt hoặc endAt.' });
+    }
+
+    // Chỉ cho 1 OPEN period tại 1 thời điểm
+    const existing = await getOpenPeriod();
+    if (existing) {
+      return res.status(409).json({ success: false, error: 'OPEN_PERIOD_EXISTS', message: `Đã có kỳ ${existing.periodName} đang mở. Vui lòng chốt kỳ hiện tại trước khi tạo kỳ mới.` });
+    }
+
+    const period = await prisma.$transaction(async (tx) => {
+      const p = await tx.commissionPeriod.create({
+        data: {
+          periodName,
+          startAt: new Date(startAt),
+          endAt: new Date(endAt),
+          status: 'OPEN',
+          createdBy: req.user.id,
+        }
+      });
+      await seedPeriodPolicies(tx, p.id, periodName, copyFromPeriodId || null);
+      return p;
+    });
+
+    res.status(201).json({ success: true, data: period, message: `Đã tạo kỳ ${periodName}.` });
+  } catch (err) {
+    console.error('[ADMIN PERIODS POST]', err.message);
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ── GET /api/admin/periods/:periodId ──────────────────────────
+app.get('/api/admin/periods/:periodId', authenticateToken, requireRole(['admin']), async (req, res) => {
+  try {
+    const { periodId } = req.params;
+    const period = await prisma.commissionPeriod.findUnique({
+      where: { id: periodId },
+      include: {
+        policies: { orderBy: { key: 'asc' } },
+        closeAudit: true,
+        _count: { select: { orders: true, commissions: true } },
+      }
+    });
+    if (!period) return res.status(404).json({ success: false, message: 'Kỳ không tồn tại.' });
+
+    // Aggregate commission stats
+    const commAgg = await prisma.commission.aggregate({
+      where: { periodId },
+      _sum: { earnedPoints: true, earnedMoney: true },
+      _count: { id: true },
+    });
+
+    res.json({
+      success: true,
+      data: {
+        ...period,
+        totalOrders: period._count.orders,
+        totalCommissions: period._count.commissions,
+        totalEarnedPoints: commAgg._sum.earnedPoints || 0,
+        totalEarnedMoney: commAgg._sum.earnedMoney || 0,
+      }
+    });
+  } catch (err) {
+    console.error('[ADMIN PERIODS GET/:id]', err.message);
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ── POST /api/admin/periods/:periodId/close ────────────────────
+app.post('/api/admin/periods/:periodId/close', authenticateToken, requireRole(['admin']), async (req, res) => {
+  try {
+    const { periodId } = req.params;
+    const { confirmPhrase } = req.body;
+
+    const period = await prisma.commissionPeriod.findUnique({ where: { id: periodId } });
+    if (!period) return res.status(404).json({ success: false, message: 'Kỳ không tồn tại.' });
+    if (period.status !== 'OPEN') {
+      return res.status(409).json({ success: false, error: 'PERIOD_NOT_OPEN', message: 'Kỳ này không ở trạng thái OPEN.' });
+    }
+
+    const expectedPhrase = `CHỐT KỲ ${period.periodName}`;
+    if (!confirmPhrase || confirmPhrase.trim() !== expectedPhrase) {
+      return res.status(400).json({ success: false, error: 'CONFIRM_MISMATCH', message: `Cụm xác nhận không đúng. Vui lòng nhập: "${expectedPhrase}"` });
+    }
+
+    // Compute summary
+    const orderCount = await prisma.order.count({ where: { periodId } });
+    const commAgg = await prisma.commission.aggregate({
+      where: { periodId },
+      _sum: { earnedPoints: true, earnedMoney: true },
+      _count: { id: true },
+    });
+
+    const now = new Date();
+    await prisma.$transaction(async (tx) => {
+      await tx.commissionPeriod.update({
+        where: { id: periodId },
+        data: { status: 'CLOSED', closedAt: now, closedBy: req.user.id }
+      });
+      await tx.periodCloseAudit.create({
+        data: {
+          periodId,
+          closedBy: req.user.id,
+          closedAt: now,
+          oldStatus: 'OPEN',
+          newStatus: 'CLOSED',
+          totalOrders: orderCount,
+          totalCommissions: commAgg._count.id || 0,
+          totalEarnedPoints: commAgg._sum.earnedPoints || 0,
+          totalEarnedMoney: commAgg._sum.earnedMoney || 0,
+          metadata: JSON.stringify({ closedByRole: req.user.role }),
+        }
+      });
+    });
+
+    res.json({
+      success: true,
+      message: `Đã chốt kỳ ${period.periodName}.`,
+      data: {
+        periodId,
+        periodName: period.periodName,
+        status: 'CLOSED',
+        closedAt: now,
+        closedBy: req.user.id,
+        totalOrders: orderCount,
+        totalCommissions: commAgg._count.id || 0,
+        totalEarnedPoints: commAgg._sum.earnedPoints || 0,
+        totalEarnedMoney: commAgg._sum.earnedMoney || 0,
+      }
+    });
+  } catch (err) {
+    console.error('[ADMIN PERIODS CLOSE]', err.message);
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ── GET /api/admin/periods/:periodId/policy ───────────────────
+app.get('/api/admin/periods/:periodId/policy', authenticateToken, requireRole(['admin']), async (req, res) => {
+  try {
+    const { periodId } = req.params;
+    const period = await prisma.commissionPeriod.findUnique({ where: { id: periodId } });
+    if (!period) return res.status(404).json({ success: false, message: 'Kỳ không tồn tại.' });
+
+    const policies = await prisma.periodPolicyConfig.findMany({
+      where: { periodId },
+      orderBy: { key: 'asc' }
+    });
+
+    const data = policies.map(p => ({
+      ...p,
+      status: p.value === 'NOT_CONFIGURED' ? 'NOT_CONFIGURED' : 'ACTIVE',
+      readOnly: period.status === 'CLOSED',
+    }));
+
+    res.json({ success: true, data, periodStatus: period.status });
+  } catch (err) {
+    console.error('[ADMIN PERIOD POLICY GET]', err.message);
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ── GET /api/admin/periods/:periodId/policy/:key/history ──────
+app.get('/api/admin/periods/:periodId/policy/:key/history', authenticateToken, requireRole(['admin']), async (req, res) => {
+  try {
+    const { periodId, key } = req.params;
+    const logs = await prisma.periodPolicyAuditLog.findMany({
+      where: { periodId, key },
+      orderBy: { updatedAt: 'desc' },
+      take: 50,
+    });
+    res.json({ success: true, data: logs });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ── PUT /api/admin/periods/:periodId/policy/:key ──────────────
+app.put('/api/admin/periods/:periodId/policy/:key', authenticateToken, requireRole(['admin']), async (req, res) => {
+  try {
+    const { periodId, key } = req.params;
+    const { value, reason } = req.body;
+
+    if (PERIOD_READ_ONLY_KEYS.has(key)) {
+      return res.status(403).json({ success: false, error: 'KEY_NOT_EDITABLE', message: 'Không thể sửa key này trực tiếp.' });
+    }
+    if (!reason || !reason.trim()) {
+      return res.status(400).json({ success: false, error: 'REASON_REQUIRED', message: 'Vui lòng nhập lý do thay đổi.' });
+    }
+
+    const period = await prisma.commissionPeriod.findUnique({ where: { id: periodId } });
+    if (!period) return res.status(404).json({ success: false, message: 'Kỳ không tồn tại.' });
+    if (period.status === 'CLOSED') {
+      return res.status(403).json({ success: false, error: 'PERIOD_CLOSED', message: 'Kỳ đã chốt — không thể sửa policy.' });
+    }
+
+    const policy = await prisma.periodPolicyConfig.findUnique({ where: { periodId_key: { periodId, key } } });
+    if (!policy) return res.status(404).json({ success: false, message: 'Policy key không tồn tại trong kỳ này.' });
+
+    // Validate value
+    if (value !== 'NOT_CONFIGURED') {
+      if (PERIOD_THRESHOLD_KEYS.has(key)) {
+        const n = parseInt(value, 10);
+        if (isNaN(n) || n <= 0 || String(n) !== String(value).trim()) {
+          return res.status(400).json({ success: false, error: 'INVALID_POLICY_VALUE', message: 'AMBASSADOR_THRESHOLD phải là số nguyên dương.' });
+        }
+      } else {
+        const n = parseFloat(value);
+        if (isNaN(n) || n < 0 || n > 1) {
+          return res.status(400).json({ success: false, error: 'INVALID_POLICY_VALUE', message: 'Tỉ lệ phải từ 0.00 đến 1.00 hoặc "NOT_CONFIGURED".' });
+        }
+      }
+    }
+
+    const newVersion = nextPeriodPolicyVersion(period.periodName, policy.version);
+    const now = new Date();
+
+    const updated = await prisma.$transaction(async (tx) => {
+      const upd = await tx.periodPolicyConfig.update({
+        where: { periodId_key: { periodId, key } },
+        data: { value: String(value), version: newVersion, updatedBy: req.user.id, effectiveFrom: now, updatedAt: now }
+      });
+      await tx.periodPolicyAuditLog.create({
+        data: {
+          policyId: policy.id,
+          periodId,
+          key,
+          oldValue: policy.value,
+          newValue: String(value),
+          version: newVersion,
+          updatedBy: req.user.id,
+          reason: reason.trim(),
+          effectiveFrom: now,
+          updatedAt: now,
+        }
+      });
+      return upd;
+    });
+
+    res.json({ success: true, data: { ...updated, status: updated.value === 'NOT_CONFIGURED' ? 'NOT_CONFIGURED' : 'ACTIVE' } });
+  } catch (err) {
+    console.error('[ADMIN PERIOD POLICY PUT]', err.message);
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ── GET /api/admin/periods/:periodId/commissions ──────────────
+app.get('/api/admin/periods/:periodId/commissions', authenticateToken, requireRole(['admin']), async (req, res) => {
+  try {
+    const { periodId } = req.params;
+    const commissions = await prisma.commission.findMany({
+      where: { periodId },
+      include: {
+        receiver: { select: { userId: true, fullName: true, rank: true } },
+        order: { include: { customer: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    res.json({ success: true, data: commissions });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ─── CTV Policy Endpoints ──────────────────────────────────────
+
+// Map rank to relevant policy key prefixes
+function getPolicyKeysForRank(rank) {
+  const r = (rank || '').toUpperCase();
+  const keys = [];
+  if (r.includes('AMBASSADOR') || r === 'AMBASSADOR') {
+    keys.push('AMBASSADOR_SELF_BUY', 'AMBASSADOR_DIRECT_NO_ID', 'AMBASSADOR_DIRECT_WITH_ID', 'AMBASSADOR_THRESHOLD');
+  } else if (r.includes('SALES_MANAGER') || r === 'SALES_MANAGER') {
+    keys.push('MANAGER_SELF_BUY', 'MANAGER_DIRECT_NO_ID', 'MANAGER_DIRECT_WITH_ID',
+              'MANAGER_F1_PURCHASE', 'MANAGER_F2_PURCHASE', 'MANAGER_F1_SELL_TO_CUSTOMER_NO_ID');
+  } else if (r.includes('SALES_DIRECTOR') || r === 'SALES_DIRECTOR') {
+    keys.push('DIRECTOR_SELF_BUY', 'DIRECTOR_DIRECT_NO_ID', 'DIRECTOR_DIRECT_WITH_ID', 'DIRECTOR_F1', 'DIRECTOR_F2');
+  } else {
+    // Default: all keys visible
+    keys.push(...PERIOD_POLICY_KEYS.map(p => p.key));
+  }
+  return keys;
+}
+
+// GET /api/policy/current — CTV xem policy kỳ hiện tại
+app.get('/api/policy/current', authenticateToken, async (req, res) => {
+  try {
+    const openPeriod = await getOpenPeriod();
+    if (!openPeriod) {
+      return res.json({ success: true, noPeriod: true, message: 'Hiện chưa có kỳ hoa hồng nào đang mở.' });
+    }
+
+    const allPolicies = await prisma.periodPolicyConfig.findMany({
+      where: { periodId: openPeriod.id },
+      orderBy: { key: 'asc' }
+    });
+
+    // For CTV: filter by rank; for admin: show all
+    const userRank = req.user.role === 'ctv' ? (await prisma.user.findUnique({ where: { id: req.user.dbId }, select: { rank: true } }))?.rank : null;
+    const relevantKeys = userRank ? getPolicyKeysForRank(userRank) : PERIOD_POLICY_KEYS.map(p => p.key);
+
+    const policies = allPolicies
+      .filter(p => relevantKeys.includes(p.key))
+      .map(p => ({
+        key: p.key,
+        value: p.value,
+        description: p.description,
+        status: p.value === 'NOT_CONFIGURED' ? 'NOT_CONFIGURED' : 'ACTIVE',
+        version: p.version,
+        effectiveFrom: p.effectiveFrom,
+        updatedAt: p.updatedAt,
+      }));
+
+    res.json({
+      success: true,
+      data: {
+        period: {
+          id: openPeriod.id,
+          periodName: openPeriod.periodName,
+          startAt: openPeriod.startAt,
+          endAt: openPeriod.endAt,
+          status: openPeriod.status,
+        },
+        policies,
+        userRank,
+      }
+    });
+  } catch (err) {
+    console.error('[POLICY CURRENT]', err.message);
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// GET /api/policy/history — CTV xem lịch sử kỳ
+app.get('/api/policy/history', authenticateToken, async (req, res) => {
+  try {
+    const periods = await prisma.commissionPeriod.findMany({
+      orderBy: { createdAt: 'desc' },
+      include: {
+        closeAudit: true,
+        _count: { select: { orders: true, commissions: true } },
+      }
+    });
+
+    // For CTV: compute their own commission per period
+    const userId = req.user.id; // receiverId in DB
+    const commAgg = await prisma.commission.groupBy({
+      by: ['periodId'],
+      where: { receiverId: req.user.role === 'ctv' ? userId : undefined },
+      _sum: { earnedPoints: true, earnedMoney: true },
+      _count: { id: true },
+    });
+    const commMap = Object.fromEntries(commAgg.map(c => [c.periodId, c]));
+
+    const data = periods.map(p => ({
+      id: p.id,
+      periodName: p.periodName,
+      startAt: p.startAt,
+      endAt: p.endAt,
+      status: p.status,
+      createdAt: p.createdAt,
+      closedAt: p.closedAt,
+      totalOrders: p._count.orders,
+      myEarnedPoints: commMap[p.id]?._sum?.earnedPoints || 0,
+      myEarnedMoney: commMap[p.id]?._sum?.earnedMoney || 0,
+      myCommissions: commMap[p.id]?._count?.id || 0,
+    }));
+
+    res.json({ success: true, data });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// GET /api/policy/:periodId — xem policy của 1 kỳ cụ thể
+app.get('/api/policy/:periodId', authenticateToken, async (req, res) => {
+  try {
+    const { periodId } = req.params;
+    const period = await prisma.commissionPeriod.findUnique({ where: { id: periodId } });
+    if (!period) return res.status(404).json({ success: false, message: 'Kỳ không tồn tại.' });
+
+    const policies = await prisma.periodPolicyConfig.findMany({
+      where: { periodId },
+      orderBy: { key: 'asc' }
+    });
+
+    const userRank = req.user.role === 'ctv' ? (await prisma.user.findUnique({ where: { id: req.user.dbId }, select: { rank: true } }))?.rank : null;
+    const relevantKeys = (userRank && req.user.role === 'ctv') ? getPolicyKeysForRank(userRank) : PERIOD_POLICY_KEYS.map(p => p.key);
+
+    const data = policies
+      .filter(p => relevantKeys.includes(p.key))
+      .map(p => ({ ...p, status: p.value === 'NOT_CONFIGURED' ? 'NOT_CONFIGURED' : 'ACTIVE' }));
+
+    res.json({
+      success: true,
+      data,
+      period: { id: period.id, periodName: period.periodName, status: period.status, startAt: period.startAt, endAt: period.endAt },
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// GET /api/policy/:periodId/changes — policy change log for a period (CTV)
+app.get('/api/policy/:periodId/changes', authenticateToken, async (req, res) => {
+  try {
+    const { periodId } = req.params;
+    const logs = await prisma.periodPolicyAuditLog.findMany({
+      where: { periodId },
+      orderBy: { updatedAt: 'desc' },
+      take: 100,
+    });
+    res.json({ success: true, data: logs });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+
+
 // 3. DASHBOARD STATS
 app.get('/api/dashboard', authenticateToken, async (req, res) => {
   try {
@@ -1362,6 +1888,13 @@ app.post('/api/orders', authenticateToken, async (req, res) => {
       itemsData.push({ serviceId, productId, amount: itemAmount, qty, unitCommissionPts, lineCommissionPts });
     }
 
+    // Period Lifecycle: Assign order to current OPEN period (lenient — null if no OPEN period)
+    const openPeriodForOrder = await prisma.commissionPeriod.findFirst({
+      where: { status: 'OPEN' },
+      orderBy: { createdAt: 'desc' }
+    });
+    const orderPeriodId = openPeriodForOrder ? openPeriodForOrder.id : null;
+
     const order = await prisma.order.create({
       data: {
         customerId,
@@ -1371,6 +1904,7 @@ app.post('/api/orders', authenticateToken, async (req, res) => {
         isSelfBuy: isSelf,
         purchaseType,
         ordererUserId,
+        periodId: orderPeriodId, // Period Lifecycle
         items: {
           create: itemsData.map(i => ({
             serviceId: i.serviceId,
@@ -1396,7 +1930,8 @@ app.post('/api/orders', authenticateToken, async (req, res) => {
       success: true,
       data: order,
       settlement: settlementResult,
-      commissions: settlementResult?.createdCommissions || []
+      commissions: settlementResult?.createdCommissions || [],
+      periodId: orderPeriodId,
     });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
@@ -2062,6 +2597,7 @@ async function calculateAndCreateCommissions(tx, context) {
         earnedPoints,
         earnedMoney,
         metadata: metadata ? JSON.stringify(metadata) : null,
+        periodId: orderPeriodId || null, // Period Lifecycle: gắn commission với kỳ
       }
     });
     createdCommissions.push(comm);
@@ -2310,7 +2846,7 @@ async function executeOrderSettlement(orderId, options = {}) {
       data: {
         orderId,
         status: 'COMPLETED',
-        policyVersion: '1.0.0',
+        policyVersion: '1.0.0', // will be updated after policy load — kept for backward compat
       }
     });
 
@@ -2347,10 +2883,27 @@ async function executeOrderSettlement(orderId, options = {}) {
     let activated = false;
     let allocatedBusinessId = null;
 
-    // Load Policy Configs
-    const configs = await tx.systemPolicyConfig.findMany();
-    const policyMap = Object.fromEntries(configs.map(c => [c.key, c.value]));
-    const policyVersion = policyMap['POLICY_VERSION'] || '1.0.0';
+    // Load Policy Configs — Period-aware (fallback to SystemPolicyConfig for legacy data)
+    let configs, policyMap, policyVersion, policySetVersion;
+    const orderPeriodId = order.periodId || null;
+
+    if (orderPeriodId) {
+      // NEW: Load from PeriodPolicyConfig for this period
+      const periodConfigs = await tx.periodPolicyConfig.findMany({ where: { periodId: orderPeriodId } });
+      configs = periodConfigs;
+      policyMap = Object.fromEntries(periodConfigs.map(c => [c.key, c.value]));
+      // Get period version from any config (they share the same version within a period)
+      policySetVersion = periodConfigs.length > 0 ? periodConfigs[0].version : null;
+      policyVersion = policySetVersion || '1.0.0';
+    } else {
+      // LEGACY FALLBACK: Use SystemPolicyConfig (backward compat for old orders)
+      const sysConfigs = await tx.systemPolicyConfig.findMany();
+      configs = sysConfigs;
+      policyMap = Object.fromEntries(sysConfigs.map(c => [c.key, c.value]));
+      policyVersion = policyMap['POLICY_VERSION'] || '1.0.0';
+      policySetVersion = null;
+    }
+
     const threshold = parseInt(policyMap['AMBASSADOR_THRESHOLD'] || '5000', 10);
 
     // Track qualifyingMember state BEFORE points awarded (for SPLIT eligibility)

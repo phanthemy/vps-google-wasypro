@@ -1,6 +1,6 @@
-# WasyPro / Water King ? PROJECT STATE
+# WasyPro / Water King — PROJECT STATE
 
-**Updated:** 2026-09-06T11:56 +07:00
+**Updated:** 2026-09-06T12:30 +07:00
 
 ---
 
@@ -16,23 +16,23 @@
 | Phase 2C | `6b97f61` | Commission Engine v3.6 (Point Engine + Network Tree + Rank Engine) | ✅ Done |
 | Phase 2D | `b610b8e` | Purchase Subject Validation (SELF/CUSTOMER) — backend source of truth | ✅ Done |
 | Admin Policy Config | `8586b43` | GET/PUT /api/admin/policy + AdminPolicyConfig UI (SystemPolicyConfig) | ✅ Done |
+| Period Lifecycle | _TBD_ | CommissionPeriod + PeriodPolicyConfig + Admin UI + CTV PolicyView | 🔄 Done — awaiting deploy+test |
 
 ---
 
 ## Current HEAD
 
 - **Branch:** main
-- **Commit:** `8586b43`
-- **origin/main:** `8586b43` (in sync)
-- **Working tree:** CLEAN
+- **Commit:** `59f0a55` (origin/main before this phase)
+- **Working tree:** DIRTY — Period Lifecycle changes staged for commit
 
 ---
 
 ## Open Items (Phase 2C+)
 
-- OPEN-C: ?i?u ki?n duy tr? Ambassador rank
-- M?U THU?N 01: Tr??ng ph?ng kinh doanh (ch?a ch?t)
-- M?U THU?N 02: Gi?m ??c kinh doanh (ch?a ch?t)
-- M?U THU?N 04: S-Points redemption (ch?a ch?t)
-- Module Investment/Equity: Phase 2D (ch?a c? spec)
-- CommissionPriceRule ngo?i d?i 15-45M: Admin c?u h?nh sau
+- OPEN-C: Điều kiện duy trì Ambassador rank
+- MẪU THUẪN 01: Trưởng phòng kinh doanh (chưa chốt)
+- MẪU THUẪN 02: Giám đốc kinh doanh (chưa chốt)
+- MẪU THUẪN 04: S-Points redemption (chưa chốt)
+- Module Investment/Equity: (chưa có spec)
+- CommissionPriceRule ngoài dải 15-45M: Admin cấu hình sau
