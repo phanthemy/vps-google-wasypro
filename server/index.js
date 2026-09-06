@@ -550,8 +550,8 @@ const PERIOD_POLICY_KEYS = [
   { key: 'DIRECTOR_SELF_BUY',                description: 'Giám Đốc — Tự mua' },
   { key: 'DIRECTOR_DIRECT_NO_ID',            description: 'Giám Đốc — Bán cho khách chưa có ID' },
   { key: 'DIRECTOR_DIRECT_WITH_ID',          description: 'Giám Đốc — Bán cho khách đã có ID' },
-  { key: 'DIRECTOR_F1',                      description: 'Giám Đốc — F1 (OPEN)' },
-  { key: 'DIRECTOR_F2',                      description: 'Giám Đốc — F2 (OPEN)' },
+  { key: 'DIRECTOR_F1',                      description: 'Giám Đốc — F1 (D1)' },
+  { key: 'DIRECTOR_F2',                      description: 'Giám Đốc — F2 (D2)' },
 ];
 
 const PERIOD_THRESHOLD_KEYS = new Set(['AMBASSADOR_THRESHOLD']);

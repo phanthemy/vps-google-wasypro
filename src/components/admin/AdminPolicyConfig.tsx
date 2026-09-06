@@ -81,8 +81,8 @@ const KEY_LABELS: Record<string, string> = {
   DIRECTOR_SELF_BUY: 'Giám Đốc — Tự mua',
   DIRECTOR_DIRECT_NO_ID: 'Giám Đốc — Bán cho khách chưa có ID',
   DIRECTOR_DIRECT_WITH_ID: 'Giám Đốc — Bán cho khách đã có ID',
-  DIRECTOR_F1: 'Giám Đốc — F1 (OPEN)',
-  DIRECTOR_F2: 'Giám Đốc — F2 (OPEN)',
+  DIRECTOR_F1: 'Giám Đốc — F1 (D1)',
+  DIRECTOR_F2: 'Giám Đốc — F2 (D2)',
   POLICY_VERSION: 'Phiên bản Policy (tự động)',
 };
 
