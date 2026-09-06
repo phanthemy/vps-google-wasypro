@@ -1,283 +1,408 @@
 import React, { useState, useEffect } from 'react';
 import {
-  ShoppingCart,
-  Search,
-  AlertCircle,
-  Loader2,
-  Phone,
-  Mail,
-  MapPin,
-  Clock,
-  User,
-  Package,
-  MessageSquareText,
-  DollarSign
+  ShoppingCart, Search, AlertCircle, Loader2, Clock, User, Package, ChevronDown, ChevronUp, Filter, X
 } from 'lucide-react';
-import { api } from '../../services/api';
-import { Order } from '../../types/schema';
+
+// Real Prisma-compatible Order shape from GET /api/orders
+interface OrderItem {
+  id: string;
+  serviceId?: string | null;
+  productId?: string | null;
+  amount: number;
+  qty: number;
+  unitCommissionPts: number;
+  lineCommissionPts: number;
+  service?: { name: string } | null;
+  product?: { title: string; commissionPoints: number } | null;
+}
+
+interface RealOrder {
+  id: string;
+  totalAmount: number;
+  status: string;
+  createdAt: string;
+  purchaseType: string;
+  isSelfBuy: boolean;
+  ordererUserId?: string | null;
+  orderer?: { userId: string; fullName: string; phone: string; role: string } | null;
+  customer: {
+    fullName: string;
+    phone: string;
+    sourceCtvId: string;
+    sourceCtv?: { userId: string; fullName: string; phone: string; tier: string; rank?: string; businessId?: string } | null;
+  };
+  items: OrderItem[];
+  commissions: { type: string; receiverId: string; earnedMoney?: number | null; earnedPoints?: number | null; ruleKey?: string | null; status: string }[];
+  period?: { id: string; periodName: string; status: string } | null;
+}
+
+const STATUS_OPTS: { value: string; label: string; bg: string; text: string }[] = [
+  { value: 'all',       label: 'Tất Cả',       bg: 'bg-slate-100',   text: 'text-slate-700' },
+  { value: 'COMPLETED', label: 'Hoàn Thành',   bg: 'bg-emerald-100', text: 'text-emerald-700' },
+  { value: 'DEPOSIT',   label: 'Đặt Cọc',      bg: 'bg-amber-100',   text: 'text-amber-700' },
+  { value: 'CANCELLED', label: 'Đã Hủy',       bg: 'bg-rose-100',    text: 'text-rose-700' },
+];
+
+function getStatusStyle(status: string) {
+  return STATUS_OPTS.find(s => s.value === status) ?? { bg: 'bg-slate-100', text: 'text-slate-700', label: status };
+}
+
+function getItemName(item: OrderItem): string {
+  return item.product?.title || item.service?.name || 'Không xác định';
+}
+
+function totalCP(items: OrderItem[]): number {
+  return items.reduce((s, i) => s + (i.lineCommissionPts || 0), 0);
+}
 
 export const AdminOrders: React.FC = () => {
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
+  const [orders, setOrders] = useState<RealOrder[]>([]);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   // Filters
-  const [activeTabStatus, setActiveTabStatus] = useState<string>('all');
-  const [searchQuery, setSearchQuery] = useState<string>('');
-  const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [ctvFilter, setCtvFilter] = useState('');
+  const [purchaseFilter, setPurchaseFilter] = useState('all');
+
+  // Expanded row
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const fetchOrders = async () => {
     setLoading(true);
     setError(null);
     try {
-      const data = await api.getOrders();
-      setOrders(data);
+      const q = new URLSearchParams();
+      if (ctvFilter.trim()) q.set('ctvUserId', ctvFilter.trim());
+      const res = await fetch('/api/orders?' + q.toString());
+      if (!res.ok) throw new Error('Lỗi tải đơn hàng');
+      const body = await res.json();
+      setOrders(Array.isArray(body) ? body : (body?.data ?? []));
     } catch (err: unknown) {
-      if (err instanceof Error) {
-        setError(err.message);
-      } else {
-        setError('Không thể tải danh sách đơn hàng');
-      }
+      setError(err instanceof Error ? err.message : 'Không thể tải danh sách đơn hàng');
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    fetchOrders();
-  }, []);
+  useEffect(() => { fetchOrders(); }, []);
 
-  const handleStatusChange = async (id: string, newStatus: Order['status']) => {
-    setUpdatingId(id);
-    try {
-      const updated = await api.updateOrderStatus(id, newStatus);
-      setOrders(orders.map((o) => (o.id === updated.id ? { ...updated } : o)));
-    } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : 'Cập nhật thất bại');
-    } finally {
-      setUpdatingId(null);
-    }
-  };
+  const filteredOrders = orders.filter(order => {
+    if (statusFilter !== 'all' && order.status !== statusFilter) return false;
+    if (purchaseFilter === 'SELF' && order.purchaseType !== 'SELF_PURCHASE') return false;
+    if (purchaseFilter === 'CUSTOMER' && order.purchaseType !== 'CUSTOMER_PURCHASE') return false;
 
-  // Filter logic
-  const filteredOrders = orders.filter((order) => {
+    if (!searchQuery.trim()) return true;
     const q = searchQuery.toLowerCase();
-    const matchesSearch =
-      order.customerName.toLowerCase().includes(q) ||
-      order.phone.includes(q) ||
-      (order.email && order.email.toLowerCase().includes(q)) ||
-      order.productName.toLowerCase().includes(q);
-
-    const matchesStatus = activeTabStatus === 'all' ? true : order.status === activeTabStatus;
-    return matchesSearch && matchesStatus;
+    return (
+      order.customer?.fullName?.toLowerCase().includes(q) ||
+      order.customer?.phone?.includes(q) ||
+      order.customer?.sourceCtv?.fullName?.toLowerCase().includes(q) ||
+      order.orderer?.fullName?.toLowerCase().includes(q) ||
+      order.orderer?.phone?.includes(q) ||
+      order.id.toLowerCase().includes(q) ||
+      order.items.some(i => getItemName(i).toLowerCase().includes(q))
+    );
   });
 
-  const getStatusInfo = (status: string) => {
-    switch (status) {
-      case 'new': return { label: 'Mới', bg: 'bg-ocean-100', text: 'text-ocean-700' };
-      case 'confirmed': return { label: 'Đã xác nhận', bg: 'bg-amber-100', text: 'text-amber-700' };
-      case 'shipping': return { label: 'Đang giao', bg: 'bg-purple-100', text: 'text-purple-700' };
-      case 'completed': return { label: 'Hoàn thành', bg: 'bg-emerald-100', text: 'text-emerald-700' };
-      case 'cancelled': return { label: 'Đã hủy', bg: 'bg-rose-100', text: 'text-rose-700' };
-      default: return { label: status, bg: 'bg-slate-100', text: 'text-slate-700' };
-    }
-  };
+  const totalRevenue = filteredOrders.reduce((s, o) => s + (o.totalAmount || 0), 0);
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-300">
-      {/* Header Bar */}
+    <div className="space-y-5 animate-in fade-in duration-300">
+      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 rounded-3xl border border-slate-200 shadow-xs">
         <div>
           <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
             <ShoppingCart className="w-6 h-6 text-ocean-600" />
             Quản Lý Đơn Hàng ({filteredOrders.length})
           </h2>
-          <p className="text-xs text-slate-500">Danh sách đơn đặt hàng từ khách hàng</p>
+          <p className="text-xs text-slate-500 mt-0.5">
+            Đơn hàng từ CTV Portal — doanh thu:{' '}
+            <span className="font-bold text-emerald-600">
+              {new Intl.NumberFormat('vi-VN').format(totalRevenue)}đ
+            </span>
+          </p>
         </div>
-
-        {/* Quick status count badges */}
-        <div className="flex items-center gap-2 flex-wrap text-xs">
-          <span className="px-3 py-1.5 rounded-xl bg-ocean-50 text-ocean-700 font-bold border border-ocean-200">
-            {orders.filter((o) => o.status === 'new').length} Đơn mới
+        <div className="flex items-center gap-2 text-xs flex-wrap">
+          <span className="px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-700 font-bold border border-emerald-200">
+            {orders.filter(o => o.status === 'COMPLETED').length} Hoàn thành
           </span>
           <span className="px-3 py-1.5 rounded-xl bg-amber-50 text-amber-700 font-bold border border-amber-200">
-            {orders.filter((o) => o.status === 'confirmed').length} Đã xác nhận
-          </span>
-          <span className="px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-700 font-bold border border-emerald-200">
-            {orders.filter((o) => o.status === 'completed').length} Hoàn thành
+            {orders.filter(o => o.status === 'DEPOSIT').length} Đặt cọc
           </span>
         </div>
       </div>
 
-      {/* Filter Tabs & Search */}
-      <div className="space-y-4">
-        {/* Status Filter Tabs */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
-          {[
-            { id: 'all', label: 'Tất Cả Đơn', count: orders.length },
-            { id: 'new', label: 'Mới', count: orders.filter((o) => o.status === 'new').length },
-            { id: 'confirmed', label: 'Đã xác nhận', count: orders.filter((o) => o.status === 'confirmed').length },
-            { id: 'shipping', label: 'Đang giao', count: orders.filter((o) => o.status === 'shipping').length },
-            { id: 'completed', label: 'Hoàn thành', count: orders.filter((o) => o.status === 'completed').length },
-            { id: 'cancelled', label: 'Đã Hủy', count: orders.filter((o) => o.status === 'cancelled').length },
-          ].map((tab) => (
+      {/* Filters */}
+      <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs space-y-3">
+        {/* Status tabs */}
+        <div className="flex items-center gap-2 flex-wrap">
+          {STATUS_OPTS.map(s => (
             <button
-              key={tab.id}
-              onClick={() => setActiveTabStatus(tab.id)}
-              className={`px-4 py-2.5 rounded-2xl text-xs font-bold transition-all whitespace-nowrap flex items-center gap-2 ${
-                activeTabStatus === tab.id
-                  ? 'bg-slate-900 text-white shadow-md'
-                  : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
+              key={s.value}
+              onClick={() => setStatusFilter(s.value)}
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
+                statusFilter === s.value ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
               }`}
             >
-              <span>{tab.label}</span>
-              <span className={`px-2 py-0.5 rounded-full text-[10px] ${
-                activeTabStatus === tab.id ? 'bg-ocean-500 text-white' : 'bg-slate-100 text-slate-700'
+              {s.label}
+              <span className={`ml-1.5 px-1.5 py-0.5 rounded-full text-[10px] ${
+                statusFilter === s.value ? 'bg-ocean-500 text-white' : 'bg-white text-slate-600'
               }`}>
-                {tab.count}
+                {s.value === 'all' ? orders.length : orders.filter(o => o.status === s.value).length}
               </span>
             </button>
           ))}
+          <div className="ml-auto flex items-center gap-2">
+            <select
+              value={purchaseFilter}
+              onChange={e => setPurchaseFilter(e.target.value)}
+              className="text-xs font-semibold px-3 py-2 rounded-xl border border-slate-200 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-ocean-500"
+            >
+              <option value="all">Tất cả loại đơn</option>
+              <option value="SELF">Tự mua (SELF)</option>
+              <option value="CUSTOMER">Khách mua (CUSTOMER)</option>
+            </select>
+          </div>
         </div>
 
-        {/* Search */}
-        <div className="relative">
-          <Search className="w-5 h-5 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Tìm theo tên khách hàng, số điện thoại, sản phẩm..."
-            className="w-full pl-11 pr-4 py-3 bg-white border border-slate-200 rounded-2xl text-sm font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-ocean-500 transition-all shadow-xs"
-          />
+        {/* Search + CTV filter */}
+        <div className="flex gap-3 flex-wrap">
+          <div className="relative flex-1 min-w-[200px]">
+            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              placeholder="Tìm khách hàng, CTV, mã đơn, sản phẩm..."
+              className="w-full pl-9 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-ocean-500"
+            />
+          </div>
+          <div className="relative flex-1 min-w-[180px]">
+            <Filter className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input
+              type="text"
+              value={ctvFilter}
+              onChange={e => setCtvFilter(e.target.value)}
+              placeholder="Lọc theo CTV ID (e.g. S249)"
+              className="w-full pl-9 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-ocean-500"
+            />
+          </div>
+          <button
+            onClick={fetchOrders}
+            className="px-4 py-2.5 bg-ocean-500 hover:bg-ocean-600 text-white text-sm font-bold rounded-xl transition-colors"
+          >
+            Tải lại
+          </button>
+          {(searchQuery || ctvFilter || statusFilter !== 'all' || purchaseFilter !== 'all') && (
+            <button
+              onClick={() => { setSearchQuery(''); setCtvFilter(''); setStatusFilter('all'); setPurchaseFilter('all'); }}
+              className="px-3 py-2.5 text-xs text-slate-500 hover:text-rose-600 flex items-center gap-1 font-semibold"
+            >
+              <X className="w-3.5 h-3.5" /> Xóa bộ lọc
+            </button>
+          )}
         </div>
       </div>
 
-      {/* Content Area */}
+      {/* Content */}
       {loading ? (
-        <div className="bg-white p-12 rounded-3xl border border-slate-200 text-center min-h-[350px] flex flex-col items-center justify-center space-y-3">
+        <div className="bg-white p-12 rounded-3xl border border-slate-200 text-center flex flex-col items-center gap-3">
           <Loader2 className="w-9 h-9 text-ocean-600 animate-spin" />
           <p className="text-slate-500 font-medium text-sm">Đang tải danh sách đơn hàng...</p>
         </div>
       ) : error ? (
-        <div className="bg-white p-8 rounded-3xl border border-rose-200 text-center space-y-3">
+        <div className="bg-white p-8 rounded-3xl border border-rose-200 text-center space-y-2">
           <AlertCircle className="w-10 h-10 text-rose-500 mx-auto" />
           <p className="text-slate-700 font-bold text-sm">{error}</p>
+          <button onClick={fetchOrders} className="text-xs text-ocean-600 font-bold hover:underline">Thử lại</button>
         </div>
       ) : filteredOrders.length === 0 ? (
-        /* Empty State */
-        <div className="bg-white p-12 rounded-3xl border border-slate-200 text-center py-16 space-y-3">
+        <div className="bg-white p-12 rounded-3xl border border-slate-200 text-center space-y-3">
           <ShoppingCart className="w-12 h-12 text-slate-300 mx-auto" />
-          <h3 className="text-base font-bold text-slate-700">Không Có Đơn Hàng Phù Hợp</h3>
-          <p className="text-xs text-slate-500">Chưa có đơn hàng nào ở bộ lọc này.</p>
+          <h3 className="text-base font-bold text-slate-700">Không Có Đơn Hàng</h3>
+          <p className="text-xs text-slate-500">Chưa có đơn hàng nào phù hợp với bộ lọc.</p>
         </div>
       ) : (
-        /* Data Table */
         <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-xs">
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="bg-slate-50/80 border-b border-slate-200 text-slate-500 text-[11px] font-extrabold uppercase tracking-wider">
-                  <th className="py-4 px-5">Khách Hàng</th>
-                  <th className="py-4 px-5">SĐT / Email</th>
-                  <th className="py-4 px-5">Sản Phẩm</th>
-                  <th className="py-4 px-5">Tổng Tiền</th>
-                  <th className="py-4 px-5">Ngày Đặt</th>
-                  <th className="py-4 px-5 text-right">Trạng Thái</th>
+                <tr className="bg-slate-50 border-b border-slate-200 text-slate-500 text-[11px] font-extrabold uppercase tracking-wider">
+                  <th className="py-4 px-4">Mã Đơn / Ngày</th>
+                  <th className="py-4 px-4">CTV Tạo Đơn</th>
+                  <th className="py-4 px-4">Khách Hàng</th>
+                  <th className="py-4 px-4">Sản Phẩm / CP</th>
+                  <th className="py-4 px-4">Tổng Tiền</th>
+                  <th className="py-4 px-4">Kỳ HH</th>
+                  <th className="py-4 px-4 text-right">Trạng Thái</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-sm">
-                {filteredOrders.map((order) => {
-                  const statusInfo = getStatusInfo(order.status);
+                {filteredOrders.map(order => {
+                  const st = getStatusStyle(order.status);
+                  const isExpanded = expandedId === order.id;
+                  const ctv = order.orderer ?? order.customer?.sourceCtv;
+                  const cp = totalCP(order.items);
 
                   return (
-                    <tr key={order.id} className="hover:bg-slate-50/80 transition-colors">
-                      {/* Customer Name */}
-                      <td className="py-4 px-5">
-                        <div className="font-bold text-slate-900 flex items-center gap-1.5">
-                          <User className="w-4 h-4 text-ocean-600" />
-                          {order.customerName}
-                        </div>
-                        {order.address && (
-                          <div className="text-xs text-slate-400 flex items-center gap-1 mt-0.5 max-w-[200px] truncate" title={order.address}>
-                            <MapPin className="w-3.5 h-3.5" />
-                            {order.address}
+                    <React.Fragment key={order.id}>
+                      <tr
+                        className="hover:bg-slate-50/80 transition-colors cursor-pointer"
+                        onClick={() => setExpandedId(isExpanded ? null : order.id)}
+                      >
+                        {/* Order ID + Date */}
+                        <td className="py-3 px-4">
+                          <div className="font-bold text-slate-900 font-mono text-xs">{order.id.slice(0, 8).toUpperCase()}</div>
+                          <div className="text-[11px] text-slate-400 flex items-center gap-1 mt-0.5">
+                            <Clock className="w-3 h-3" />
+                            {new Date(order.createdAt).toLocaleDateString('vi-VN')}
                           </div>
-                        )}
-                      </td>
-
-                      {/* Phone & Email */}
-                      <td className="py-4 px-5">
-                        <div className="text-slate-800 font-medium flex items-center gap-1.5">
-                          <Phone className="w-3.5 h-3.5 text-slate-400" />
-                          {order.phone}
-                        </div>
-                        {order.email && (
-                          <div className="text-xs text-slate-500 flex items-center gap-1.5 mt-0.5">
-                            <Mail className="w-3.5 h-3.5 text-slate-400" />
-                            {order.email}
+                          <div className={`text-[10px] font-bold mt-1 px-2 py-0.5 rounded-full w-fit ${
+                            order.purchaseType === 'SELF_PURCHASE'
+                              ? 'bg-purple-50 text-purple-700'
+                              : 'bg-sky-50 text-sky-700'
+                          }`}>
+                            {order.purchaseType === 'SELF_PURCHASE' ? 'Tự mua' : 'Khách mua'}
                           </div>
-                        )}
-                      </td>
+                        </td>
 
-                      {/* Product Info */}
-                      <td className="py-4 px-5">
-                        <div className="flex items-start gap-1.5">
-                          <Package className="w-4 h-4 text-ocean-600 mt-0.5 shrink-0" />
-                          <div>
-                            <div className="font-bold text-slate-800 line-clamp-1">{order.productName}</div>
-                            <div className="text-xs text-slate-500 mt-0.5">
-                              SL: {order.quantity} x {new Intl.NumberFormat('vi-VN').format(order.unitPrice)}đ
-                            </div>
-                            {order.note && (
-                              <div className="text-xs text-amber-600 flex items-center gap-1 mt-1 bg-amber-50 px-2 py-0.5 rounded-md w-fit">
-                                <MessageSquareText className="w-3 h-3" />
-                                {order.note}
+                        {/* CTV Orderer */}
+                        <td className="py-3 px-4">
+                          {ctv ? (
+                            <>
+                              <div className="font-bold text-slate-800 flex items-center gap-1">
+                                <User className="w-3.5 h-3.5 text-ocean-500" />
+                                {ctv.fullName}
                               </div>
-                            )}
+                              <div className="text-[11px] text-slate-400 mt-0.5">
+                                {'userId' in ctv ? ctv.userId : ''} · {'phone' in ctv ? ctv.phone : ''}
+                              </div>
+                            </>
+                          ) : (
+                            <span className="text-slate-400 text-xs">—</span>
+                          )}
+                        </td>
+
+                        {/* Customer */}
+                        <td className="py-3 px-4">
+                          <div className="font-bold text-slate-800">{order.customer?.fullName || '—'}</div>
+                          <div className="text-[11px] text-slate-400 mt-0.5">{order.customer?.phone}</div>
+                        </td>
+
+                        {/* Items preview + CP */}
+                        <td className="py-3 px-4">
+                          <div className="flex items-start gap-1.5">
+                            <Package className="w-4 h-4 text-ocean-500 mt-0.5 shrink-0" />
+                            <div>
+                              <div className="font-semibold text-slate-700 line-clamp-1 text-xs">
+                                {order.items.length > 0 ? getItemName(order.items[0]) : '—'}
+                                {order.items.length > 1 && <span className="text-slate-400"> +{order.items.length - 1}</span>}
+                              </div>
+                              {cp > 0 ? (
+                                <div className="text-[11px] font-bold text-cyan-700 bg-cyan-50 px-1.5 py-0.5 rounded mt-0.5 w-fit">
+                                  CP: {cp}
+                                </div>
+                              ) : (
+                                <div className="text-[11px] text-amber-500 mt-0.5">⚠ CP=0</div>
+                              )}
+                            </div>
                           </div>
-                        </div>
-                      </td>
+                        </td>
 
-                      {/* Total Price */}
-                      <td className="py-4 px-5">
-                        <div className="font-bold text-rose-600 flex items-center gap-1">
-                          <DollarSign className="w-4 h-4" />
-                          {new Intl.NumberFormat('vi-VN').format(order.totalPrice)}đ
-                        </div>
-                      </td>
+                        {/* Total */}
+                        <td className="py-3 px-4">
+                          <div className="font-bold text-slate-900">
+                            {new Intl.NumberFormat('vi-VN').format(order.totalAmount)}đ
+                          </div>
+                        </td>
 
-                      {/* Created At */}
-                      <td className="py-4 px-5">
-                        <div className="flex items-center gap-1.5 text-slate-600 font-medium text-xs">
-                          <Clock className="w-3.5 h-3.5" />
-                          {new Date(order.createdAt).toLocaleDateString('vi-VN')}
-                        </div>
-                        <div className="text-[11px] text-slate-400 ml-5 mt-0.5">
-                          {new Date(order.createdAt).toLocaleTimeString('vi-VN')}
-                        </div>
-                      </td>
+                        {/* Period */}
+                        <td className="py-3 px-4">
+                          {order.period ? (
+                            <span className={`text-[11px] font-bold px-2 py-0.5 rounded-lg ${
+                              order.period.status === 'OPEN' ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'
+                            }`}>
+                              {order.period.periodName}
+                            </span>
+                          ) : (
+                            <span className="text-[11px] text-slate-400">—</span>
+                          )}
+                        </td>
 
-                      {/* Status & Actions */}
-                      <td className="py-4 px-5 text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          <select
-                            className={`text-xs font-bold px-3 py-1.5 rounded-xl border-0 outline-none cursor-pointer appearance-none text-center ${statusInfo.bg} ${statusInfo.text} pr-8 focus:ring-2 focus:ring-ocean-500`}
-                            value={order.status}
-                            onChange={(e) => handleStatusChange(order.id, e.target.value as Order['status'])}
-                            disabled={updatingId === order.id}
-                            style={{ backgroundImage: 'url("data:image/svg+xml,%3csvg xmlns=\'http://www.w3.org/2000/svg\' fill=\'none\' viewBox=\'0 0 20 20\'%3e%3cpath stroke=\'%236b7280\' stroke-linecap=\'round\' stroke-linejoin=\'round\' stroke-width=\'1.5\' d=\'M6 8l4 4 4-4\'/%3e%3c/svg%3e")', backgroundPosition: 'right 0.2rem center', backgroundRepeat: 'no-repeat', backgroundSize: '1.5em 1.5em' }}
-                          >
-                            <option value="new">Mới</option>
-                            <option value="confirmed">Đã xác nhận</option>
-                            <option value="shipping">Đang giao</option>
-                            <option value="completed">Hoàn thành</option>
-                            <option value="cancelled">Đã hủy</option>
-                          </select>
-                          {updatingId === order.id && <Loader2 className="w-4 h-4 text-ocean-600 animate-spin" />}
-                        </div>
-                      </td>
-                    </tr>
+                        {/* Status */}
+                        <td className="py-3 px-4 text-right">
+                          <div className="flex items-center justify-end gap-1">
+                            <span className={`px-3 py-1 text-xs font-bold rounded-xl ${st.bg} ${st.text}`}>
+                              {st.label}
+                            </span>
+                            {isExpanded ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
+                          </div>
+                        </td>
+                      </tr>
+
+                      {/* Expanded detail row */}
+                      {isExpanded && (
+                        <tr className="bg-slate-50/50">
+                          <td colSpan={7} className="py-4 px-6">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                              {/* Items detail */}
+                              <div>
+                                <div className="text-xs font-bold text-slate-600 uppercase mb-2">Sản Phẩm / Dịch Vụ</div>
+                                <div className="space-y-1.5">
+                                  {order.items.map((item, idx) => (
+                                    <div key={idx} className="flex items-center justify-between bg-white rounded-xl px-3 py-2 border border-slate-100">
+                                      <div>
+                                        <div className="text-sm font-semibold text-slate-800">{getItemName(item)}</div>
+                                        <div className="text-[11px] text-slate-400">x{item.qty} · CP/unit: {item.unitCommissionPts}</div>
+                                      </div>
+                                      <div className="text-right">
+                                        <div className="font-bold text-slate-700 text-sm">
+                                          {new Intl.NumberFormat('vi-VN').format(item.amount)}đ
+                                        </div>
+                                        <div className="text-[11px] font-bold text-cyan-600">CP: {item.lineCommissionPts}</div>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+
+                              {/* Commissions */}
+                              <div>
+                                <div className="text-xs font-bold text-slate-600 uppercase mb-2">
+                                  Hoa Hồng ({order.commissions.length} dòng)
+                                </div>
+                                {order.commissions.length === 0 ? (
+                                  <p className="text-xs text-slate-400">Chưa có hoa hồng.</p>
+                                ) : (
+                                  <div className="space-y-1.5">
+                                    {order.commissions.map((c, idx) => (
+                                      <div key={idx} className="flex items-center justify-between bg-white rounded-xl px-3 py-2 border border-slate-100">
+                                        <div>
+                                          <div className="text-xs font-bold text-slate-700">{c.ruleKey || c.type}</div>
+                                          <div className="text-[11px] text-slate-400">{c.receiverId}</div>
+                                        </div>
+                                        <div className="text-right">
+                                          {c.earnedMoney != null ? (
+                                            <div className="font-bold text-emerald-600 text-sm">
+                                              {new Intl.NumberFormat('vi-VN').format(c.earnedMoney)}đ
+                                            </div>
+                                          ) : (
+                                            <div className="text-xs text-amber-500 font-bold">⚠ Chưa tính</div>
+                                          )}
+                                          <div className="text-[11px] text-slate-400">{c.status}</div>
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </React.Fragment>
                   );
                 })}
               </tbody>

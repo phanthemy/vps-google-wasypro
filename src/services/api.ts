@@ -243,27 +243,22 @@ export const api = {
     return true;
   },
 
-  getOrders: async (params?: { status?: string; search?: string }): Promise<Order[]> => {
+  getOrders: async (params?: { status?: string; search?: string; ctvUserId?: string; ordererUserId?: string }): Promise<any[]> => {
     try {
       const q = new URLSearchParams();
       if (params?.status) q.set('status', params.status);
       if (params?.search) q.set('search', params.search);
+      if (params?.ctvUserId) q.set('ctvUserId', params.ctvUserId);
+      if (params?.ordererUserId) q.set('ordererUserId', params.ordererUserId);
       const res = await fetch('/api/orders?' + q.toString());
-      if (res.ok) { const data = await res.json(); if (data.length) return data; }
+      if (res.ok) {
+        const body = await res.json();
+        // Server returns { success: true, data: [...] }
+        const data = Array.isArray(body) ? body : (body?.data ?? []);
+        if (data.length > 0 || body?.success) return data;
+      }
     } catch(e) { console.warn('Orders API fallback', e); }
-    let results = [...mockOrders];
-    if (params?.status && params.status !== 'all') {
-      results = results.filter((o: Order) => o.status === params.status);
-    }
-    if (params?.search) {
-      const q = params.search.toLowerCase();
-      results = results.filter((o: Order) => 
-        o.customerName.toLowerCase().includes(q) || 
-        o.phone.includes(q) ||
-        o.productName.toLowerCase().includes(q)
-      );
-    }
-    return results;
+    return [];
   },
 
   updateOrderStatus: async (id: string, status: Order['status']): Promise<Order> => {

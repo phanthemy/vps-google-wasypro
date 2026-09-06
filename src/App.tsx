@@ -22,6 +22,7 @@ import AdminUsers from './components/admin/AdminUsers';
 import AdminPolicyConfig from './components/admin/AdminPolicyConfig';
 import AdminPeriods from './components/admin/AdminPeriods';
 import AdminPeriodDetail from './components/admin/AdminPeriodDetail';
+import AdminCTVManagement from './components/admin/AdminCTVManagement';
 
 // CTV & Unified Auth Integrations
 import { CTVPortalContainer } from './components/ctv/CTVPortalContainer';
@@ -270,6 +271,7 @@ export const App: React.FC = () => {
             {adminActiveTab === 'warranties' && <AdminWarranties />}
             {adminActiveTab === 'leads' && <AdminLeads />}
             {adminActiveTab === 'orders' && <AdminOrders />}
+            {adminActiveTab === 'ctv' && <AdminCTVManagement />}
             {adminActiveTab === 'news' && <AdminNews />}
             {adminActiveTab === 'users' && <AdminUsers />}
             {adminActiveTab === 'periods' && (

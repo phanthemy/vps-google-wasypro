@@ -1735,13 +1735,23 @@ app.get('/api/customers/:id/audit-log', authenticateToken, async (req, res) => {
 // GET ORDERS
 app.get('/api/orders', authenticateToken, async (req, res) => {
   try {
+    const { ctvUserId, ordererUserId } = req.query;
     let whereFilter = {};
+
     if (req.user.role === 'ctv') {
+      // CTV chỉ thấy orders liên quan đến CTV và downline
       const downline = await getDownlineUserIds(req.user.id);
       const allowedCtvIds = [req.user.id, ...Array.from(downline)];
       whereFilter = {
         customer: { sourceCtvId: { in: allowedCtvIds } }
       };
+    } else {
+      // Admin/accountant: có thể filter theo CTV hoặc orderer
+      if (ctvUserId) {
+        whereFilter = { customer: { sourceCtvId: ctvUserId } };
+      } else if (ordererUserId) {
+        whereFilter = { ordererUserId };
+      }
     }
 
     const orders = await prisma.order.findMany({
@@ -1749,12 +1759,19 @@ app.get('/api/orders', authenticateToken, async (req, res) => {
       orderBy: { createdAt: 'desc' },
       include: {
         customer: {
-          include: { sourceCtv: { select: { userId: true, fullName: true, phone: true, tier: true } } }
+          include: { sourceCtv: { select: { userId: true, fullName: true, phone: true, tier: true, rank: true, businessId: true } } }
         },
+        orderer: { select: { userId: true, fullName: true, phone: true, role: true } },
         items: {
-          include: { service: true }
+          include: {
+            service: true,
+            product: { select: { id: true, title: true, price: true, commissionPoints: true } }
+          }
         },
-        commissions: true
+        commissions: {
+          select: { type: true, receiverId: true, earnedMoney: true, earnedPoints: true, ruleKey: true, status: true }
+        },
+        period: { select: { id: true, periodName: true, status: true } }
       }
     });
 
@@ -2101,6 +2118,127 @@ app.get('/api/internal-users', authenticateToken, requireRole(['admin']), async 
       orderBy: { createdAt: 'desc' }
     });
     res.json({ success: true, data: users.map(sanitizeUser) });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// ─── ADMIN CTV MANAGEMENT ─────────────────────────────────────────────────────
+
+// GET /api/admin/ctv — CTV list with stats
+app.get('/api/admin/ctv', authenticateToken, requireRole(['admin', 'accountant']), async (req, res) => {
+  try {
+    const users = await prisma.user.findMany({
+      where: { role: 'ctv' },
+      orderBy: { createdAt: 'desc' },
+      include: {
+        parent: { select: { userId: true, fullName: true } },
+        customers: { select: { id: true } },
+        commissions: {
+          where: { status: { in: ['PENDING', 'PAID'] } },
+          select: { earnedMoney: true, earnedPoints: true, status: true, periodId: true }
+        }
+      }
+    });
+
+    const mapped = users.map(u => ({
+      id: u.id,
+      userId: u.userId,
+      fullName: u.fullName,
+      phone: u.phone,
+      tier: u.tier,
+      role: u.role,
+      rank: u.rank,
+      rankStatus: u.rankStatus,
+      sPoints: u.sPoints,
+      businessId: u.businessId,
+      isSystemParticipant: u.isSystemParticipant,
+      status: u.status,
+      createdAt: u.createdAt,
+      parentId: u.parentId,
+      parent: u.parent ? `${u.parent.fullName} (${u.parent.userId})` : 'Trực tiếp Công ty',
+      customerCount: u.customers.length,
+      commissionCount: u.commissions.length,
+      totalEarnedMoney: u.commissions.reduce((s, c) => s + (c.earnedMoney || 0), 0),
+      totalEarnedPoints: u.commissions.reduce((s, c) => s + (c.earnedPoints || 0), 0),
+      note: u.note,
+    }));
+
+    res.json({ success: true, data: mapped });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// GET /api/admin/ctv/:id — CTV detail: info + customers + orders + commissions
+app.get('/api/admin/ctv/:id', authenticateToken, requireRole(['admin', 'accountant']), async (req, res) => {
+  try {
+    const { id } = req.params; // userId (e.g. "S249") or internal cuid
+    const user = await prisma.user.findFirst({
+      where: { OR: [{ userId: id }, { id }] },
+      include: {
+        parent: { select: { userId: true, fullName: true, phone: true } },
+        children: { select: { userId: true, fullName: true, phone: true, rank: true, tier: true } }
+      }
+    });
+
+    if (!user) return res.status(404).json({ success: false, message: 'Không tìm thấy CTV.' });
+
+    // Customers directly registered by this CTV
+    const customers = await prisma.customer.findMany({
+      where: { sourceCtvId: user.userId },
+      orderBy: { registeredAt: 'desc' },
+      include: {
+        sponsorUser: { select: { userId: true, fullName: true } }
+      }
+    });
+
+    // Orders where this CTV was orderer OR customer belongs to this CTV
+    const orders = await prisma.order.findMany({
+      where: {
+        OR: [
+          { ordererUserId: user.id },
+          { customer: { sourceCtvId: user.userId } }
+        ]
+      },
+      orderBy: { createdAt: 'desc' },
+      include: {
+        customer: { select: { fullName: true, phone: true } },
+        orderer: { select: { userId: true, fullName: true } },
+        items: {
+          include: {
+            service: { select: { name: true } },
+            product: { select: { title: true, commissionPoints: true } }
+          }
+        },
+        period: { select: { periodName: true, status: true } }
+      }
+    });
+
+    // Commissions earned by this CTV
+    const commissions = await prisma.commission.findMany({
+      where: { receiverId: user.userId },
+      orderBy: { createdAt: 'desc' },
+      include: {
+        order: {
+          select: {
+            id: true, totalAmount: true, createdAt: true,
+            customer: { select: { fullName: true, phone: true } }
+          }
+        },
+        period: { select: { periodName: true, status: true } }
+      }
+    });
+
+    const ctvInfo = {
+      id: user.id, userId: user.userId, fullName: user.fullName, phone: user.phone,
+      tier: user.tier, rank: user.rank, rankStatus: user.rankStatus, sPoints: user.sPoints,
+      businessId: user.businessId, isSystemParticipant: user.isSystemParticipant,
+      status: user.status, createdAt: user.createdAt, note: user.note,
+      parentId: user.parentId, parent: user.parent, directDownline: user.children
+    };
+
+    res.json({ success: true, data: { ctv: ctvInfo, customers, orders, commissions } });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
