@@ -1,4 +1,4 @@
-# WasyPro / Water King — PROJECT STATE
+﻿# WasyPro / Water King â€” PROJECT STATE
 
 **Updated:** 2026-09-06T17:35 +07:00
 
@@ -17,17 +17,17 @@
 | Phase 2D | `b610b8e` | Purchase Subject Validation (SELF/CUSTOMER) | Done |
 | Admin Policy Config | `8586b43` | GET/PUT /api/admin/policy + AdminPolicyConfig UI | Done |
 | Period Lifecycle | `9b3555f` | CommissionPeriod + PeriodPolicyConfig + Admin UI + CTV PolicyView | Done |
-| Director F1/F2 Policy | `2b6da86` | DIRECTOR_F1=10% / DIRECTOR_F2=5% — Boss official decision | Done |
+| Director F1/F2 Policy | `2b6da86` | DIRECTOR_F1=10% / DIRECTOR_F2=5% â€” Boss official decision | Done |
 | UI Audit Fixes | `01658b0` | Modal z-index, RankView API-driven, internal-users query fix | Done |
 | Auth Login Redirect | `c4f7992` | role-based redirect: admin/accountant->Admin Portal, ctv->/ctv | Done |
-| F1/F2 Terminology | `fc1ac9f` | Standardize F1/F2 definition — label clarification, AGENTS.md updated | Done |
+| F1/F2 Terminology | `fc1ac9f` | Standardize F1/F2 definition â€” label clarification, AGENTS.md updated | Done |
 | Admin Policy UI Fix | `9baa16d` | Fix contrast, modal structure, Giam Doc PT label, Escape key | Done |
 | Admin Policy Unicode Fix | `ed65016` | Fix literal \u escape sequences in JSX text (PowerShell heredoc bug) | Done |
-| Admin Periods UI Fix | `3cb8212` | Fix AdminPeriods contrast — dark theme classes on light admin bg | Done |
-| Admin PeriodDetail UI Fix | `63cc34d` | Fix AdminPeriodDetail — same dark-theme class root cause, global replace | Done |
+| Admin Periods UI Fix | `3cb8212` | Fix AdminPeriods contrast â€” dark theme classes on light admin bg | Done |
+| Admin PeriodDetail UI Fix | `63cc34d` | Fix AdminPeriodDetail â€” same dark-theme class root cause, global replace | Done |
 | Product Master (CTV) | `b30d654` | CTV OrderModal dung Product wasypro.com; Admin nhap commissionPoints | Done |
 | Admin CTV Management + Orders Fix | `240031a` | AdminCTVManagement tab (list+detail), fix AdminOrders data layer, GET /api/admin/ctv routes | Done |
-| Participant Flow — Join System | `7ca5e38` | POST /api/auth/register (public), POST /api/users/me/join-system, login response full fields, JoinSystemBanner UI | Done |
+| Participant Flow â€” Join System | `7ca5e38` | POST /api/auth/register (public), POST /api/users/me/join-system, login response full fields, JoinSystemBanner UI | Done |
 
 ---
 
@@ -40,7 +40,7 @@
 
 ---
 
-## Business Baseline — Policy Source of Truth
+## Business Baseline â€” Policy Source of Truth
 
 | Rule | Rank | Rate |
 |---|---|---|
@@ -55,20 +55,20 @@
 | SELF_BUY | Director | 30% |
 | DIRECT_NO_ID | Director | 30% |
 | DIRECT_WITH_ID | Director | 10% |
-| DIRECTOR_F1 (Upstream F1/D1) | Director | 10% — Boss chot |
-| DIRECTOR_F2 (Upstream F2/D2) | Director | 5% — Boss chot |
+| DIRECTOR_F1 (Upstream F1/D1) | Director | 10% â€” Boss chot |
+| DIRECTOR_F2 (Upstream F2/D2) | Director | 5% â€” Boss chot |
 
 ---
 
-## F1/F2 — Dinh Nghia Chinh Thuc (Boss chot 2026-09-06)
+## F1/F2 â€” Dinh Nghia Chinh Thuc (Boss chot 2026-09-06)
 
 | Khai niem | Dinh nghia |
 |---|---|
 | F1 / D1 | Member tuyen truc tiep (depth 1) trong sponsor network, co Business ID |
 | F2 / D2 | Member tuyen cap 2 (depth 2) trong sponsor network, co Business ID |
-| F3+ | Tuyen sau hon — khong co upstream commission hien tai |
-| Direct NO ID | Khach hang truc tiep chua co Business ID — KHONG phai F1 |
-| Direct HAS ID | Khach hang truc tiep da co Business ID — KHONG phai F2 |
+| F3+ | Tuyen sau hon â€” khong co upstream commission hien tai |
+| Direct NO ID | Khach hang truc tiep chua co Business ID â€” KHONG phai F1 |
+| Direct HAS ID | Khach hang truc tiep da co Business ID â€” KHONG phai F2 |
 
 Commission formula: earnedPoints = basePoints x rate | earnedMoney = earnedPoints x 1000
 
@@ -82,6 +82,6 @@ Commission formula: earnedPoints = basePoints x rate | earnedMoney = earnedPoint
 - MAU THUAN 04: S-Points redemption (chua chot)
 - Module Investment/Equity: (chua co spec)
 - CommissionPriceRule ngoai dai 15-45M: Admin cau hinh sau
-- MANAGER_F1_SELL_TO_CUSTOMER_NO_ID: NOT_CONFIGURED — chua chot
-- Ambassador upstream D1/D2: chua co policy key — chua chot
-- Tech debt: Commission.type OVERRIDE_F1/OVERRIDE_F2 trong DB — can Boss quyet dinh co migrate khong
+- MANAGER_F1_SELL_TO_CUSTOMER_NO_ID: NOT_CONFIGURED â€” chua chot
+- Ambassador upstream D1/D2: chua co policy key â€” chua chot
+- Tech debt: Commission.type OVERRIDE_F1/OVERRIDE_F2 trong DB â€” can Boss quyet dinh co migrate khong
