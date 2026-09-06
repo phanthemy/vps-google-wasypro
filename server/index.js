@@ -1053,69 +1053,101 @@ app.get('/api/orders', authenticateToken, async (req, res) => {
   }
 });
 
-// CREATE ORDER
+// CREATE ORDER — Phase 2D: Purchase Subject Validation
 app.post('/api/orders', authenticateToken, async (req, res) => {
   try {
-    let { customerId, ctvBuyerId, items } = req.body;
+    // ─── PHASE 2D: PURCHASE SUBJECT VALIDATION ─────────────────────────────
+    // purchaseSubject from client is INTENT only. Backend validates and computes truth.
+    // Refs: PHASE 2D SPEC v1
+
+    let { customerId, purchaseSubject, items } = req.body;
 
     if (!items || !Array.isArray(items) || items.length === 0) {
       return res.status(400).json({ success: false, message: 'Đơn hàng phải có ít nhất một sản phẩm/dịch vụ.' });
     }
 
-    let customer;
-    if (ctvBuyerId) {
-      if (req.user.role === 'ctv' && ctvBuyerId !== req.user.id) {
-        return res.status(403).json({ success: false, message: 'Bạn chỉ có thể tạo đơn mua sỉ cho chính tài khoản của bạn.' });
-      }
-
-      const ctvUser = await prisma.user.findUnique({ where: { userId: ctvBuyerId } });
-      if (!ctvUser) return res.status(400).json({ success: false, message: 'CTV không tồn tại' });
-
-      customer = await prisma.customer.findFirst({ where: { phone: ctvUser.phone } });
-      if (!customer) {
-        customer = await prisma.customer.create({
-          data: {
-            fullName: ctvUser.fullName,
-            phone: ctvUser.phone,
-            sourceCtvId: ctvUser.userId,
-            expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
-          }
-        });
-      }
-      customerId = customer.id;
+    // Step 1: Validate purchaseSubject is declared
+    if (!purchaseSubject || !['SELF', 'CUSTOMER'].includes(purchaseSubject)) {
+      return res.status(400).json({ success: false, error: 'INVALID_PURCHASE_SUBJECT',
+        message: 'purchaseSubject phải là "SELF" hoặc "CUSTOMER".' });
     }
 
-    if (!customerId) return res.status(400).json({ success: false, message: 'Vui lòng chọn khách hàng hoặc CTV mua hàng' });
+    // Step 2: Orderer is strictly from JWT — never from client payload
+    const ordererUserId = req.user.dbId || req.user.id;
 
-    customer = await prisma.customer.findUnique({
-      where: { id: customerId },
-      include: { sourceCtv: { include: { parent: { include: { parent: true } } } } }
-    });
+    let customer;
 
-    if (!customer) return res.status(400).json({ success: false, message: 'Không tìm thấy thông tin khách hàng.' });
+    if (purchaseSubject === 'SELF') {
+      // ── SELF PURCHASE ────────────────────────────────────────────────────
+      // Customer MUST be the one linked to this orderer. No auto-create.
+      customer = await prisma.customer.findFirst({
+        where: { linkedUserId: ordererUserId }
+      });
+      if (!customer) {
+        return res.status(400).json({ success: false, error: 'SELF_PURCHASE_NOT_LINKED',
+          message: 'Không tìm thấy hồ sơ khách hàng liên kết với tài khoản của bạn. Vui lòng join-system trước.' });
+      }
+      // If client also sent customerId, it must match
+      if (customerId && customerId !== customer.id) {
+        return res.status(400).json({ success: false, error: 'SELF_PURCHASE_CUSTOMER_MISMATCH',
+          message: 'customerId không khớp với hồ sơ khách hàng của bạn.' });
+      }
+      customerId = customer.id;
 
-    if (req.user.role === 'ctv' && !ctvBuyerId) {
+    } else {
+      // ── CUSTOMER PURCHASE ────────────────────────────────────────────────
+      if (!customerId) {
+        return res.status(400).json({ success: false, error: 'CUSTOMER_ID_REQUIRED',
+          message: 'Vui lòng chọn khách hàng.' });
+      }
+      customer = await prisma.customer.findUnique({ where: { id: customerId } });
+      if (!customer) {
+        return res.status(404).json({ success: false, error: 'CUSTOMER_NOT_FOUND',
+          message: 'Không tìm thấy thông tin khách hàng.' });
+      }
+      if (!customer.sponsorUserId) {
+        return res.status(400).json({ success: false, error: 'CUSTOMER_NO_SPONSOR',
+          message: 'Khách hàng này chưa có sponsor. Vui lòng cập nhật thông tin trước khi tạo đơn.' });
+      }
+      // Cannot use CUSTOMER subject to buy for own linked customer — must use SELF
+      if (customer.linkedUserId && customer.linkedUserId === ordererUserId) {
+        return res.status(400).json({ success: false, error: 'SELF_PURCHASE_USE_SELF_SUBJECT',
+          message: 'Đây là tài khoản của bạn. Vui lòng chọn "Tự mua" thay vì "Khách hàng".' });
+      }
+    }
+
+    // Step 3: Server computes purchaseType — never trust client for this
+    const isSelf = !!(customer.linkedUserId && customer.linkedUserId === ordererUserId);
+    const purchaseType = isSelf ? 'SELF_PURCHASE' : 'CUSTOMER_PURCHASE';
+
+    // Step 4: Final cross-check — client intent must match server truth
+    const clientIntendedSelf = (purchaseSubject === 'SELF');
+    if (clientIntendedSelf !== isSelf) {
+      return res.status(400).json({ success: false, error: 'PURCHASE_SUBJECT_MISMATCH',
+        message: 'purchaseSubject không khớp với dữ liệu thực tế. Vui lòng làm mới trang và thử lại.' });
+    }
+
+    // CTV permission check (downline restriction for CUSTOMER purchases)
+    if (req.user.role === 'ctv' && !isSelf) {
       const downline = await getDownlineUserIds(req.user.id);
-      if (customer.sourceCtvId !== req.user.id && !downline.has(customer.sourceCtvId)) {
+      if (customer.sourceCtvId !== req.user.userId && !downline.has(customer.sourceCtvId)) {
         return res.status(403).json({ success: false, message: 'Bạn không có quyền tạo đơn cho khách hàng của CTV khác.' });
       }
     }
+    // ─── END PHASE 2D VALIDATION ──────────────────────────────────────────
 
+    // Build order items
     let totalAmount = 0;
     const itemsData = [];
-
-    // Phase 2C-4: Orderer is strictly from JWT authentication session
-    const ordererUserId = req.user.dbId || req.user.id;
 
     for (const item of items) {
       const hasService = !!item.serviceId;
       const hasProduct = !!item.productId;
 
-      // Invariant 1: Exactly 1 source (serviceId XOR productId)
       if ((hasService && hasProduct) || (!hasService && !hasProduct)) {
         return res.status(400).json({
           success: false,
-          message: 'Mỗi mục đơn hàng phải có chính xác một nguồn (serviceId HOẶC productId, không được có cả hai hoặc không có nguồn nào).'
+          message: 'Mỗi mục đơn hàng phải có chính xác một nguồn (serviceId HOẶC productId).'
         });
       }
 
@@ -1126,8 +1158,8 @@ app.post('/api/orders', authenticateToken, async (req, res) => {
       let productId = null;
 
       if (hasService) {
-        const svc = await prisma.service.findUnique({ where: { id: item.serviceId }, include: { category: true } });
-        if (!svc) return res.status(400).json({ success: false, message: `Dịch vụ/Sản phẩm ${item.serviceId} không tồn tại` });
+        const svc = await prisma.service.findUnique({ where: { id: item.serviceId } });
+        if (!svc) return res.status(400).json({ success: false, message: `Dịch vụ ${item.serviceId} không tồn tại` });
         serviceId = svc.id;
         itemAmount = Number(item.amount) || (svc.price * qty);
         unitCommissionPts = Math.round(Number(svc.commissionPoints || 0));
@@ -1142,19 +1174,8 @@ app.post('/api/orders', authenticateToken, async (req, res) => {
       totalAmount += itemAmount;
       const lineCommissionPts = unitCommissionPts * qty;
 
-      itemsData.push({
-        serviceId,
-        productId,
-        amount: itemAmount,
-        qty,
-        unitCommissionPts,
-        lineCommissionPts
-      });
+      itemsData.push({ serviceId, productId, amount: itemAmount, qty, unitCommissionPts, lineCommissionPts });
     }
-
-    // Phase 2C-4: SELF purchase is strictly determined by Customer.linkedUserId === ordererUserId (NOT phone!)
-    const isSelf = !!(customer.linkedUserId && customer.linkedUserId === ordererUserId);
-    const purchaseType = isSelf ? 'SELF_PURCHASE' : 'CUSTOMER_PURCHASE';
 
     const order = await prisma.order.create({
       data: {
