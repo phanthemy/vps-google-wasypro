@@ -26,13 +26,14 @@
 | Admin Periods UI Fix | `3cb8212` | Fix AdminPeriods contrast — dark theme classes on light admin bg | Done |
 | Admin PeriodDetail UI Fix | `63cc34d` | Fix AdminPeriodDetail — same dark-theme class root cause, global replace | Done |
 | Product Master (CTV) | `b30d654` | CTV OrderModal dung Product wasypro.com; Admin nhap commissionPoints | Done |
+| Admin CTV Management + Orders Fix | `240031a` | AdminCTVManagement tab (list+detail), fix AdminOrders data layer, GET /api/admin/ctv routes | Done |
 
 ---
 
 ## Current HEAD
 
 - **Branch:** main
-- **Commit:** `b30d654` (origin/main = deployed)
+- **Commit:** `240031a` (origin/main = deployed)
 - **Working tree:** CLEAN
 
 
