@@ -55,7 +55,7 @@ const KEY_LABELS: Record<string, string> = {
   MANAGER_DIRECT_WITH_ID: 'Quản Lý — Bán cho khách đã có ID',
   MANAGER_F1_PURCHASE: 'Quản Lý — F1 tự mua',
   MANAGER_F2_PURCHASE: 'Quản Lý — F2 tự mua',
-  MANAGER_F1_SELL_TO_CUSTOMER_NO_ID: 'Quản Lý — Khi F1 bán cho khách mới chưa ID (OPEN)',
+  MANAGER_F1_SELL_TO_CUSTOMER_NO_ID: 'Quản Lý — Khi F1 bán cho khách mới chưa ID (5%)',
   DIRECTOR_SELF_BUY: 'Giám Đốc — Tự mua',
   DIRECTOR_DIRECT_NO_ID: 'Giám Đốc — Bán cho khách chưa có ID',
   DIRECTOR_DIRECT_WITH_ID: 'Giám Đốc — Bán cho khách đã có ID',

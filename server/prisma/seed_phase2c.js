@@ -1,7 +1,7 @@
 const { PrismaClient } = require("@prisma/client");
 const prisma = new PrismaClient();
 
-const POLICY_VERSION = "1.0.0";
+const POLICY_VERSION = "1.3.0";
 
 const configs = [
   // Ambassador thresholds & rates (FINAL SPEC v3.6)
@@ -16,14 +16,14 @@ const configs = [
   { key: "MANAGER_DIRECT_WITH_ID",          value: "0.10",           desc: "Quan ly ban cho khach DA co ID (10% - SPEC v3.6)" },
   { key: "MANAGER_F1_PURCHASE",             value: "0.10",           desc: "F1 cua Manager tu mua - Manager huong 10%" },
   { key: "MANAGER_F2_PURCHASE",             value: "0.05",           desc: "F2 cua Manager tu mua - Manager huong 5%" },
-  { key: "MANAGER_F1_SELL_TO_CUSTOMER_NO_ID", value: "NOT_CONFIGURED", desc: "OPEN-F: F1 cua Manager ban cho khach chua ID. Cho Ban dieu hanh." },
+  { key: "MANAGER_F1_SELL_TO_CUSTOMER_NO_ID", value: "0.05",           desc: "Quan ly huong chenh lech khi F1 ban khach chua ID (5%)" },
 
   // Director rates (FINAL SPEC v3.6)
   { key: "DIRECTOR_SELF_BUY",               value: "0.30",           desc: "Giam doc tu mua hang (30%)" },
   { key: "DIRECTOR_DIRECT_NO_ID",           value: "0.30",           desc: "Giam doc ban cho khach CHUA co ID (30%)" },
   { key: "DIRECTOR_DIRECT_WITH_ID",         value: "0.10",           desc: "Giam doc ban cho khach DA co ID (10%)" },
-  { key: "DIRECTOR_F1",                     value: "NOT_CONFIGURED", desc: "OPEN-D: F1 cua Director. Cho Ban dieu hanh." },
-  { key: "DIRECTOR_F2",                     value: "NOT_CONFIGURED", desc: "OPEN-E: F2 cua Director. Cho Ban dieu hanh." },
+  { key: "DIRECTOR_F1",                     value: "0.10",           desc: "Giam doc upstream tu F1 (D1) (10% - Boss chot)" },
+  { key: "DIRECTOR_F2",                     value: "0.05",           desc: "Giam doc upstream tu F2 (D2) (5% - Boss chot)" },
 
   // System
   { key: "POLICY_VERSION",                  value: POLICY_VERSION,   desc: "Version policy hien tai - snapshot immutable tren Commission" },

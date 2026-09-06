@@ -27,6 +27,15 @@ _Cap nhat: 2026-09-06T22:32 +07:00_
 - CSRF whitelist: /api/users/me/join-system
 - New route: GET /api/periods/current
 
+
+### Policy Alignment & Red Badge Clearance (Fix hoàn tất)
+- **DIRECTOR_F1**: 0.10 (10% - Upstream F1/D1 Boss chốt)
+- **DIRECTOR_F2**: 0.05 (5% - Upstream F2/D2 Boss chốt)
+- **MANAGER_F1_SELL_TO_CUSTOMER_NO_ID**: 0.05 (5% - chênh lệch cấp bậc Quản Lý 25% - Đại Sứ 20% khi F1 bán khách chưa ID)
+- **POLICY_VERSION**: 1.3.0
+- **Trạng thái Admin Cấu Hình Hoa Hồng**: 16/16 ACTIVE, 0 NOT_CONFIGURED. Xóa toàn bộ badge cảnh báo đỏ trên tất cả các tab (Đại Sứ Kinh Doanh, Quản Lý, Giám Đốc, Hệ Thống).
+- **seed_phase2c.js**: Đồng bộ rate chuẩn, không revert NOT_CONFIGURED khi reset.
+
 ## Trang thai
 - wasypro PM2 (port 5005): running
 - happylife-backend PM2 (port 3011): running
