@@ -147,9 +147,8 @@ export const CTVPortalContainer: React.FC<CTVPortalContainerProps> = ({
   const primaryNavItems = [
     { id: 'dashboard', label: 'Dashboard', icon: BarChart3, visible: true },
     { id: 'orders', label: 'Đơn Hàng', icon: ShoppingCart, visible: true },
-    { id: 'wholesale', label: 'Đơn Hàng Sỉ', icon: Truck, visible: true },
     { id: 'customers', label: 'Khách Hàng', icon: Contact, visible: !isCustomer },
-    { id: 'rank', label: 'Cấp Bậc & S-Points', icon: TrendingUp, visible: true },
+    { id: 'rank', label: 'Cấp Bậc & Điểm Tích Lũy', icon: TrendingUp, visible: true },
     { id: 'commissions', label: 'Hoa Hồng', icon: Wallet, visible: !isCustomer },
   ];
 

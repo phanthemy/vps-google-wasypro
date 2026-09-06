@@ -8,7 +8,6 @@ export default function DashboardView({ refreshKey, currentUser, setActiveTab })
   const [data, setData] = useState({ totalDiamond: 0, totalGold: 0, totalSilver: 0, totalSales: 0 });
   const [personalStats, setPersonalStats] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [showTaxes, setShowTaxes] = useState(false);
 
   useEffect(() => {
     if (currentUser.role === 'admin') {
@@ -36,7 +35,6 @@ export default function DashboardView({ refreshKey, currentUser, setActiveTab })
   if (currentUser.role !== 'admin' && personalStats) {
     const gross = personalStats.totalCommission || 0;
     const sales = personalStats.totalSales || 0;
-    const net = showTaxes ? (gross * 0.9 - sales * 0.01) : gross;
 
     return (
       <div className="flex-col gap-6">
@@ -56,13 +54,6 @@ export default function DashboardView({ refreshKey, currentUser, setActiveTab })
           <h1 style={{ margin: '10px 0 0 0', fontSize: '2.5rem', color: 'var(--text-primary)' }}>
             {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(sales)}
           </h1>
-
-          <div className="mt-4">
-            <label className="flex items-center gap-2 text-sm font-bold text-muted cursor-pointer w-fit" style={{ userSelect: 'none' }}>
-              <input type="checkbox" checked={showTaxes} onChange={e => setShowTaxes(e.target.checked)} />
-              Áp dụng Thuế TNCN (10%) & Phí Nền Tảng (1%)
-            </label>
-          </div>
 
           {currentUser.role !== 'customer' && (
             <div className="mt-4 p-4 rounded-xl border border-dashed border-gray-600 bg-gray-900/30 text-center">
@@ -104,13 +95,9 @@ export default function DashboardView({ refreshKey, currentUser, setActiveTab })
             onClick={() => setActiveTab && setActiveTab('commissions')}
             className="hover-effect transition-transform transform hover:scale-[1.01]"
           >
-            <div className="text-diamond font-bold flex justify-between items-center" style={{ fontSize: '1.1rem' }}>
-              <span>Hoa hồng Gộp:</span>
+            <div className="text-diamond font-bold flex justify-between items-center" style={{ fontSize: '1.4rem' }}>
+              <span>Hoa Hồng Của Bạn:</span>
               <span>{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(gross)}</span>
-            </div>
-            <div className="text-green-500 font-bold flex justify-between items-center" style={{ fontSize: '1.4rem', marginTop: '0.5rem', paddingTop: '0.5rem', borderTop: '1px dashed rgba(255,255,255,0.2)' }}>
-              <span>THỰC NHẬN {showTaxes ? '(Đã Trừ Thuế/Phí)' : ''}:</span>
-              <span>{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(net)}</span>
             </div>
             <div className="text-muted text-xs text-center mt-3 border-t border-gray-800 pt-2">
               👉 Bấm vào đây để xem chi tiết sao kê hoa hồng
