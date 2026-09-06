@@ -1,6 +1,6 @@
 ﻿# WasyPro / Water King — PROJECT STATE
 
-**Updated:** 2026-09-06T13:25 +07:00
+**Updated:** 2026-09-06T13:42 +07:00
 
 ---
 
@@ -15,17 +15,18 @@
 | Phase 2B | `879a3e8` | Commercial Engine: Ambassador + Wholesale + Commission Rules | Done |
 | Phase 2C | `6b97f61` | Commission Engine v3.6 (Point Engine + Network Tree + Rank Engine) | Done |
 | Phase 2D | `b610b8e` | Purchase Subject Validation (SELF/CUSTOMER) | Done |
-| Admin Policy Config | `8586b43` | GET/PUT /api/admin/policy + AdminPolicyConfig UI (SystemPolicyConfig) | Done |
+| Admin Policy Config | `8586b43` | GET/PUT /api/admin/policy + AdminPolicyConfig UI | Done |
 | Period Lifecycle | `9b3555f` | CommissionPeriod + PeriodPolicyConfig + Admin UI + CTV PolicyView | Done |
 | Director F1/F2 Policy | `2b6da86` | DIRECTOR_F1=10% / DIRECTOR_F2=5% — Boss official decision | Done |
-| UI Audit Fixes | `01658b0` | Modal z-index fix, RankView API-driven, internal-users query fix | Done |
+| UI Audit Fixes | `01658b0` | Modal z-index, RankView API-driven, internal-users query fix | Done |
+| Auth Login Redirect | `c4f7992` | role-based redirect: admin/accountant->Admin Portal, ctv->/ctv | Done |
 
 ---
 
 ## Current HEAD
 
 - **Branch:** main
-- **Commit:** `01658b0` (origin/main = VPS)
+- **Commit:** `c4f7992` (origin/main = VPS)
 - **Working tree:** CLEAN
 
 ---
@@ -50,7 +51,7 @@
 
 ---
 
-## Open Items (Phase 2C+)
+## Open Items
 
 - OPEN-C: Dieu kien duy tri Ambassador rank
 - MAU THUAN 01: Truong phong kinh doanh (chua chot)
@@ -60,16 +61,3 @@
 - CommissionPriceRule ngoai dai 15-45M: Admin cau hinh sau
 - MANAGER_F1_SELL_TO_CUSTOMER_NO_ID: NOT_CONFIGURED — chua chot
 - Ambassador upstream D1/D2: chua co policy key — chua chot
-
----
-
-## UI Audit Findings (CLOSED in 01658b0)
-
-- CLOSED: Modal z-index conflict — sidebar(z:100) > modal(z:50) -> fixed to 200
-- CLOSED: App.jsx modal buttons not closing sidebar first -> fixed
-- CLOSED: RankView hard-coded RANK_BENEFITS missing Director F1/F2 -> API-driven
-- CLOSED: /api/internal-users returning customer roles -> fixed to admin/accountant only
-- INFO: 34 commission records with ruleKey=null (legacy engine, pre-Phase2C) — historical, kept
-- INFO: "Lich Su He Thong" tab actually shows CustomerAuditLog (label review needed — no action)
-- INFO: AboutView = brand story, no action needed
-- INFO: All DB data is post-2026, no legacy data from app.wasypro.com
