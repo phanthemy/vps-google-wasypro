@@ -58,7 +58,9 @@ export const App: React.FC = () => {
 
   // Admin Legacy State
   const [isAdminLoginOpen, setIsAdminLoginOpen] = useState(false);
-  const [isAdminMode, setIsAdminMode] = useState(false);
+  const [isAdminMode, setIsAdminMode] = useState<boolean>(() => {
+    return !!localStorage.getItem('wasy_admin_user');
+  });
   const [adminUser, setAdminUser] = useState<AdminUser | null>(() => {
     const saved = localStorage.getItem('wasy_admin_user');
     return saved ? JSON.parse(saved) : null;
@@ -151,8 +153,24 @@ export const App: React.FC = () => {
     setUser(loggedInUser);
     localStorage.setItem('crm_user', JSON.stringify(loggedInUser));
     showToast(`Xin chào, ${loggedInUser.fullName}! Đăng nhập thành công.`);
-    setActiveSection('ctv');
-    window.history.pushState(null, '', '/ctv');
+
+    if (loggedInUser.role === 'admin' || loggedInUser.role === 'accountant') {
+      // System staff → Admin Portal
+      const adminData: AdminUser = {
+        id: loggedInUser.id,
+        name: loggedInUser.fullName || 'System Administrator',
+        email: 'admin@wasypro.com',
+        role: 'superadmin',
+      };
+      setAdminUser(adminData);
+      localStorage.setItem('wasy_admin_user', JSON.stringify(adminData));
+      setIsAdminMode(true);
+      window.history.pushState(null, '', '/');
+    } else {
+      // CTV / partner → CTV Portal
+      setActiveSection('ctv');
+      window.history.pushState(null, '', '/ctv');
+    }
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
