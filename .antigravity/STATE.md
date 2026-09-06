@@ -1,6 +1,6 @@
 ﻿# WasyPro / Water King — PROJECT STATE
 
-**Updated:** 2026-09-06T13:42 +07:00
+**Updated:** 2026-09-06T14:01 +07:00
 
 ---
 
@@ -20,13 +20,14 @@
 | Director F1/F2 Policy | `2b6da86` | DIRECTOR_F1=10% / DIRECTOR_F2=5% — Boss official decision | Done |
 | UI Audit Fixes | `01658b0` | Modal z-index, RankView API-driven, internal-users query fix | Done |
 | Auth Login Redirect | `c4f7992` | role-based redirect: admin/accountant->Admin Portal, ctv->/ctv | Done |
+| F1/F2 Terminology | `fc1ac9f` | Standardize F1/F2 definition — label clarification, AGENTS.md updated | Done |
 
 ---
 
 ## Current HEAD
 
 - **Branch:** main
-- **Commit:** `c4f7992` (origin/main = VPS)
+- **Commit:** `fc1ac9f` (origin/main = VPS)
 - **Working tree:** CLEAN
 
 ---
@@ -41,13 +42,27 @@
 | SELF_BUY | Manager | 25% |
 | DIRECT_NO_ID | Manager | 25% |
 | DIRECT_WITH_ID | Manager | 10% |
-| F1_PURCHASE | Manager | 10% |
-| F2_PURCHASE | Manager | 5% |
+| F1_PURCHASE (Upstream F1) | Manager | 10% |
+| F2_PURCHASE (Upstream F2) | Manager | 5% |
 | SELF_BUY | Director | 30% |
 | DIRECT_NO_ID | Director | 30% |
 | DIRECT_WITH_ID | Director | 10% |
-| F1 / D1 | Director | 10% — Boss chot |
-| F2 / D2 | Director | 5% — Boss chot |
+| DIRECTOR_F1 (Upstream F1/D1) | Director | 10% — Boss chot |
+| DIRECTOR_F2 (Upstream F2/D2) | Director | 5% — Boss chot |
+
+---
+
+## F1/F2 — Dinh Nghia Chinh Thuc (Boss chot 2026-09-06)
+
+| Khai niem | Dinh nghia |
+|---|---|
+| F1 / D1 | Member tuyen truc tiep (depth 1) trong sponsor network, co Business ID |
+| F2 / D2 | Member tuyen cap 2 (depth 2) trong sponsor network, co Business ID |
+| F3+ | Tuyen sau hon — khong co upstream commission hien tai |
+| Direct NO ID | Khach hang truc tiep chua co Business ID — KHONG phai F1 |
+| Direct HAS ID | Khach hang truc tiep da co Business ID — KHONG phai F2 |
+
+Commission formula: earnedPoints = basePoints x rate | earnedMoney = earnedPoints x 1000
 
 ---
 
@@ -61,3 +76,4 @@
 - CommissionPriceRule ngoai dai 15-45M: Admin cau hinh sau
 - MANAGER_F1_SELL_TO_CUSTOMER_NO_ID: NOT_CONFIGURED — chua chot
 - Ambassador upstream D1/D2: chua co policy key — chua chot
+- Tech debt: Commission.type OVERRIDE_F1/OVERRIDE_F2 trong DB — can Boss quyet dinh co migrate khong
