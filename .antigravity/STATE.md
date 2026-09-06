@@ -22,13 +22,16 @@
 | Auth Login Redirect | `c4f7992` | role-based redirect: admin/accountant->Admin Portal, ctv->/ctv | Done |
 | F1/F2 Terminology | `fc1ac9f` | Standardize F1/F2 definition — label clarification, AGENTS.md updated | Done |
 | Admin Policy UI Fix | `9baa16d` | Fix contrast, modal structure, Giam Doc PT label, Escape key | Done |
+| Admin Policy Unicode Fix | `ed65016` | Fix literal \u escape sequences in JSX text (PowerShell heredoc bug) | Done |
+| Admin Periods UI Fix | `3cb8212` | Fix AdminPeriods contrast — dark theme classes on light admin bg | Done |
+| Admin PeriodDetail UI Fix | `63cc34d` | Fix AdminPeriodDetail — same dark-theme class root cause, global replace | Done |
 
 ---
 
 ## Current HEAD
 
 - **Branch:** main
-- **Commit:** `9baa16d` (origin/main = VPS building)
+- **Commit:** `63cc34d` (origin/main = VPS building)
 - **Working tree:** CLEAN
 
 
