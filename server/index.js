@@ -356,13 +356,14 @@ app.post('/api/auth/logout', (req, res) => {
 // refCode → parentId (sponsor). No business rights until "THAM GIA HỆ THỐNG".
 app.post('/api/auth/register', authLimiter, async (req, res) => {
   try {
-    let { fullName, phone, password, refCode } = req.body;
+    let { fullName, phone, password, refCode, joinSystem } = req.body;
     if (!fullName || !fullName.trim()) return res.status(400).json({ success: false, message: 'Vui lòng nhập họ tên.' });
     if (!phone || !phone.trim()) return res.status(400).json({ success: false, message: 'Vui lòng nhập số điện thoại.' });
 
     phone = phone.trim();
     fullName = fullName.trim();
     const rawPwd = (password && password.trim()) ? password.trim() : '123456';
+    const willJoinSystem = !!joinSystem; // true if user chose CTV at registration
 
     // Check duplicate phone
     const existing = await prisma.user.findUnique({ where: { phone } });
@@ -386,6 +387,7 @@ app.post('/api/auth/register', authLimiter, async (req, res) => {
     }
 
     const hashedPassword = await bcrypt.hash(rawPwd, 10);
+    const now = new Date();
     const newUser = await prisma.user.create({
       data: {
         userId: generatedId,
@@ -396,7 +398,8 @@ app.post('/api/auth/register', authLimiter, async (req, res) => {
         role: 'ctv',
         parentId,
         mustChangePassword: false,
-        isSystemParticipant: false,
+        isSystemParticipant: willJoinSystem,
+        participantAt: willJoinSystem ? now : null,
         qualifyingPoints: 0,
         sPoints: 0,
       }
@@ -415,6 +418,8 @@ app.post('/api/auth/register', authLimiter, async (req, res) => {
       }
     } catch (_) { /* non-critical — link can be done later */ }
 
+    console.log(`[REGISTER] ${generatedId} ${fullName} (${phone}) joinSystem=${willJoinSystem}`);
+
     res.status(201).json({
       success: true,
       message: 'Đăng ký tài khoản thành công! Vui lòng đăng nhập.',
@@ -422,12 +427,13 @@ app.post('/api/auth/register', authLimiter, async (req, res) => {
         id: newUser.userId,
         fullName: newUser.fullName,
         phone: newUser.phone,
-        isSystemParticipant: false,
+        isSystemParticipant: newUser.isSystemParticipant,
+        participantAt: newUser.participantAt,
         businessId: null,
         rank: null,
       }
     });
-  } catch (err) {
+  } catch (err: any) {
     console.error('[REGISTER]', err.message);
     res.status(500).json({ success: false, message: 'Lỗi máy chủ. Vui lòng thử lại.' });
   }

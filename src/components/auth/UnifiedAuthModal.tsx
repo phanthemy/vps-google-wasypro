@@ -83,34 +83,22 @@ export const UnifiedAuthModal: React.FC<UnifiedAuthModalProps> = ({
     setLoading(true);
 
     try {
-      let res;
-      if (regRole === 'ctv') {
-        res = await fetch('/api/users', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            fullName: regFullName.trim(),
-            phone: regPhone.trim(),
-            tier: 'SILVER',
-            parentId: regRefCode.trim() || undefined,
-            password: '123456',
-          }),
-          credentials: 'include',
-        }).then(r => r.json());
-      } else {
-        res = await fetch('/api/customers', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            fullName: regFullName.trim(),
-            phone: regPhone.trim(),
-            sourceCtvId: regRefCode.trim() || undefined,
-          }),
-          credentials: 'include',
-        }).then(r => r.json());
-      }
+      // Both CTV and customer paths use the same public register route.
+      // joinSystem=true if user explicitly chooses CTV mode → isSystemParticipant=true immediately.
+      const res = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fullName: regFullName.trim(),
+          phone: regPhone.trim(),
+          password: '123456',
+          refCode: regRefCode.trim() || undefined,
+          joinSystem: regRole === 'ctv',  // CTV → tham gia hệ thống ngay khi đăng ký
+        }),
+        credentials: 'include',
+      }).then(r => r.json());
 
-      if (res && (res.success || res.id)) {
+      if (res && res.success) {
         setSuccessMsg('🎉 Đăng ký thành công! Mật khẩu mặc định là: 123456. Vui lòng đăng nhập.');
         setTab('login');
         setLoginPhone(regPhone.trim());
