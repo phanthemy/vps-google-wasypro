@@ -8,8 +8,15 @@ export default function DashboardView({ refreshKey, currentUser, setActiveTab })
   const [data, setData] = useState({ totalDiamond: 0, totalGold: 0, totalSilver: 0, totalSales: 0 });
   const [personalStats, setPersonalStats] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [currentPeriod, setCurrentPeriod] = useState(null);
 
   useEffect(() => {
+    // Fetch current commission period for all roles
+    fetch('/api/periods/current', { credentials: 'include' })
+      .then(r => r.json())
+      .then(res => { if (res.success) setCurrentPeriod(res.data); })
+      .catch(() => {});
+
     if (currentUser.role === 'admin') {
       fetch('/api/dashboard')
         .then(r => r.json())
@@ -78,11 +85,25 @@ export default function DashboardView({ refreshKey, currentUser, setActiveTab })
             <h3 className="text-secondary uppercase text-xs tracking-wider font-bold" style={{ margin: 0 }}>
               Doanh Số Hệ Thống Của Bạn
             </h3>
-            {/* Display Business ID prominently */}
-            <div className="flex items-center gap-2 bg-purple-500/10 border border-purple-500/30 px-3 py-1 rounded-lg w-fit">
-              <ShieldCheck size={16} className="text-purple-400" />
-              <span className="text-xs text-secondary">Mã Đối Tác (Business ID):</span>
-              <span className="text-xs font-mono font-bold text-purple-300">{personalStats.businessId || currentUser?.businessId || 'Chưa cấp'}</span>
+            <div className="flex items-center gap-2 flex-wrap">
+              {/* Current commission period */}
+              {currentPeriod ? (
+                <div className="flex items-center gap-2 bg-green-500/10 border border-green-500/30 px-3 py-1 rounded-lg">
+                  <span className="w-2 h-2 rounded-full bg-green-400 inline-block animate-pulse" />
+                  <span className="text-xs text-secondary">Kỳ HH:</span>
+                  <span className="text-xs font-bold text-green-400">{currentPeriod.periodName}</span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2 bg-gray-500/10 border border-gray-500/30 px-3 py-1 rounded-lg">
+                  <span className="text-xs text-muted">Chưa có kỳ hoa hồng</span>
+                </div>
+              )}
+              {/* Business ID */}
+              <div className="flex items-center gap-2 bg-purple-500/10 border border-purple-500/30 px-3 py-1 rounded-lg">
+                <ShieldCheck size={16} className="text-purple-400" />
+                <span className="text-xs text-secondary">Business ID:</span>
+                <span className="text-xs font-mono font-bold text-purple-300">{personalStats.businessId || currentUser?.businessId || 'Chưa cấp'}</span>
+              </div>
             </div>
           </div>
 

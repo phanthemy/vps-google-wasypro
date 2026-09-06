@@ -124,8 +124,8 @@ export default function OrdersView({ currentUser }) {
                  <tr>
                    <th style={{ padding: '12px', textAlign: 'left' }}>Mã Đơn / Ngày Tạo</th>
                    <th style={{ padding: '12px', textAlign: 'left' }}>Khách Hàng</th>
-                   <th style={{ padding: '12px', textAlign: 'left' }}>Dịch Vụ / Doanh Thu</th>
-                   <th style={{ padding: '12px', textAlign: 'left' }}>CTV Lợi Nhuận</th>
+                   <th style={{ padding: '12px', textAlign: 'left' }}>Sản Phẩm / Doanh Thu</th>
+                   <th style={{ padding: '12px', textAlign: 'center' }}>CP</th>
                    <th style={{ padding: '12px', textAlign: 'center' }}>Thao tác</th>
                  </tr>
                </thead>
@@ -177,12 +177,17 @@ export default function OrdersView({ currentUser }) {
                              </div>
                           </div>
                        </td>
-                       <td style={{ padding: '12px' }}>
-                          <div className="badge" style={{ background: 'rgba(234, 179, 8, 0.1)', color: '#ca8a04', border: '1px solid rgba(202, 138, 4, 0.3)', padding: '6px 12px', display: 'inline-block' }}>
-                             {order.customer?.sourceCtv?.fullName || 'Khách Tự Do'}
-                          </div>
-                          {order.customer?.sourceCtv && <div className="text-xs text-muted mt-2 ml-1">SĐT: {order.customer.sourceCtv.phone}</div>}
-                       </td>
+                       <td style={{ padding: '12px', textAlign: 'center' }}>
+                           {/* CP = qualifying points earned from commissions on this order */}
+                           {(() => {
+                             const cp = order.commissions
+                               ? order.commissions.reduce((s, c) => s + (c.earnedPoints || 0), 0)
+                               : (order.totalCommissionPoints || order.qualifyingPoints || null);
+                             return cp != null && cp > 0
+                               ? <span className="font-bold text-diamond">+{cp.toLocaleString('vi-VN')} CP</span>
+                               : <span className="text-muted text-xs">-</span>;
+                           })()}
+                        </td>
                        <td style={{ padding: '12px', textAlign: 'center' }}>
                           <button 
                              className="btn-icon hover-scale" 

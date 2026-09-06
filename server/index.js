@@ -800,6 +800,28 @@ app.get('/api/admin/periods', authenticateToken, requireRole(['admin']), async (
   }
 });
 
+// ── GET /api/periods/current ─ CTV xem kỳ hoa hồng hiện tại ──
+app.get('/api/periods/current', authenticateToken, async (req, res) => {
+  try {
+    const period = await getOpenPeriod();
+    if (!period) {
+      return res.json({ success: true, data: null, message: 'Chưa có kỳ hoa hồng nào đang mở.' });
+    }
+    res.json({
+      success: true,
+      data: {
+        id: period.id,
+        periodName: period.periodName,
+        startAt: period.startAt,
+        endAt: period.endAt,
+        status: period.status,
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
 // ── POST /api/admin/periods ────────────────────────────────────
 app.post('/api/admin/periods', authenticateToken, requireRole(['admin']), async (req, res) => {
   try {
