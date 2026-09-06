@@ -546,7 +546,7 @@ const PERIOD_POLICY_KEYS = [
   { key: 'MANAGER_DIRECT_WITH_ID',           description: 'Quản Lý — Bán cho khách đã có ID' },
   { key: 'MANAGER_F1_PURCHASE',              description: 'Quản Lý — F1 tự mua' },
   { key: 'MANAGER_F2_PURCHASE',              description: 'Quản Lý — F2 tự mua' },
-  { key: 'MANAGER_F1_SELL_TO_CUSTOMER_NO_ID', description: 'Quản Lý — F1 bán khách chưa ID (OPEN)' },
+  { key: 'MANAGER_F1_SELL_TO_CUSTOMER_NO_ID', description: 'Quản Lý — Khi F1 bán cho khách mới chưa ID (OPEN)' },
   { key: 'DIRECTOR_SELF_BUY',                description: 'Giám Đốc — Tự mua' },
   { key: 'DIRECTOR_DIRECT_NO_ID',            description: 'Giám Đốc — Bán cho khách chưa có ID' },
   { key: 'DIRECTOR_DIRECT_WITH_ID',          description: 'Giám Đốc — Bán cho khách đã có ID' },

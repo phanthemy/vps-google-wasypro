@@ -77,12 +77,12 @@ const KEY_LABELS: Record<string, string> = {
   MANAGER_DIRECT_WITH_ID: 'Quản Lý — Bán cho khách đã có ID',
   MANAGER_F1_PURCHASE: 'Quản Lý — F1 tự mua',
   MANAGER_F2_PURCHASE: 'Quản Lý — F2 tự mua',
-  MANAGER_F1_SELL_TO_CUSTOMER_NO_ID: 'Quản Lý — F1 bán khách chưa ID (OPEN)',
+  MANAGER_F1_SELL_TO_CUSTOMER_NO_ID: 'Quản Lý — Khi F1 bán cho khách mới chưa ID (OPEN)',
   DIRECTOR_SELF_BUY: 'Giám Đốc — Tự mua',
   DIRECTOR_DIRECT_NO_ID: 'Giám Đốc — Bán cho khách chưa có ID',
   DIRECTOR_DIRECT_WITH_ID: 'Giám Đốc — Bán cho khách đã có ID',
-  DIRECTOR_F1: 'Giám Đốc — F1 (D1)',
-  DIRECTOR_F2: 'Giám Đốc — F2 (D2)',
+  DIRECTOR_F1: 'Giám Đốc — Upstream từ F1 (D1)',
+  DIRECTOR_F2: 'Giám Đốc — Upstream từ F2 (D2)',
   POLICY_VERSION: 'Phiên bản Policy (tự động)',
 };
 

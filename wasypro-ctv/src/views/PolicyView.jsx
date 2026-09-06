@@ -12,12 +12,12 @@ const POLICY_LABELS = {
   MANAGER_DIRECT_WITH_ID:              'Bán cho khách đã có ID (Quản Lý)',
   MANAGER_F1_PURCHASE:                 'F1 tự mua (Quản Lý)',
   MANAGER_F2_PURCHASE:                 'F2 tự mua (Quản Lý)',
-  MANAGER_F1_SELL_TO_CUSTOMER_NO_ID:   'F1 bán khách chưa ID (Quản Lý)',
+  MANAGER_F1_SELL_TO_CUSTOMER_NO_ID:   'Khi F1 bán cho khách mới chưa ID (Quản Lý)',
   DIRECTOR_SELF_BUY:                   'Tự mua (Giám Đốc)',
   DIRECTOR_DIRECT_NO_ID:               'Bán cho khách chưa có ID (Giám Đốc)',
   DIRECTOR_DIRECT_WITH_ID:             'Bán cho khách đã có ID (Giám Đốc)',
-  DIRECTOR_F1:                         'F1 (Giám Đốc)',
-  DIRECTOR_F2:                         'F2 (Giám Đốc)',
+  DIRECTOR_F1:                         'Upstream từ F1 (Giám Đốc)',
+  DIRECTOR_F2:                         'Upstream từ F2 (Giám Đốc)',
 };
 
 const THRESHOLD_KEYS = new Set(['AMBASSADOR_THRESHOLD']);
