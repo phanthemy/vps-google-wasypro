@@ -426,7 +426,7 @@ export const CTVPortalContainer: React.FC<CTVPortalContainerProps> = ({
           )}
 
           {activeTab === 'settings' && isAdmin && (
-            <SettingsView />
+            <SettingsView currentUser={currentUser} />
           )}
 
           {activeTab === 'internal-users' && isAdmin && (
