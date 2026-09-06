@@ -73,7 +73,7 @@ export default function OrderModal({ currentUser, customerList, userList, servic
 
     try {
       let payload = {
-         items: finalCart.map(c => ({ serviceId: c.serviceId, amount: Number(c.amount), qty: Number(c.qty) }))
+         items: finalCart.map(c => ({ productId: c.serviceId, amount: Number(c.amount), qty: Number(c.qty) }))
       };
       if (customerId.startsWith('CTV_')) {
           payload.ctvBuyerId = customerId.replace('CTV_', '');

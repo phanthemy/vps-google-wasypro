@@ -7,10 +7,9 @@ const vnd = (n) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency:
 export default function CommissionHistoryView({ currentUser, setActiveTab }) {
   const [commissions, setCommissions] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [showTaxes, setShowTaxes] = useState(false);
 
   useEffect(() => {
-    fetch(`/api/commissions?userId=${currentUser.id}`)
+    fetch(`/api/commissions?userId=${currentUser.id}`, { credentials: 'include' })
       .then(r => r.json())
       .then(res => {
         if (res.success) {
@@ -35,12 +34,6 @@ export default function CommissionHistoryView({ currentUser, setActiveTab }) {
         <p className="text-sm text-secondary">
           Minh bạch toàn bộ dòng tiền hoa hồng theo cơ chế chuẩn Phase 2C
         </p>
-        <div className="flex justify-center mt-4">
-          <label className="flex items-center gap-2 text-sm font-bold text-muted cursor-pointer">
-            <input type="checkbox" checked={showTaxes} onChange={e => setShowTaxes(e.target.checked)} />
-            Áp dụng Thuế & Phí (11%)
-          </label>
-        </div>
       </div>
 
       <div className="card glass-panel p-4">
@@ -55,20 +48,13 @@ export default function CommissionHistoryView({ currentUser, setActiveTab }) {
                 <th className="py-3 px-3 font-semibold text-right">Điểm Nhận</th>
                 <th className="py-3 px-3 font-semibold">Khách Hàng</th>
                 <th className="py-3 px-3 font-semibold">Mã Đơn</th>
-                <th className="py-3 px-3 font-semibold text-right">Hoa Hồng Thực Nhận</th>
-                {showTaxes && (
-                  <>
-                    <th className="py-3 px-3 font-semibold text-right text-red-400">Thuế TNCN (10%)</th>
-                    <th className="py-3 px-3 font-semibold text-right text-amber-400">Phí Nền Tảng (1%)</th>
-                    <th className="py-3 px-3 font-semibold text-right text-emerald-400">Thực Nhận Sau Thuế</th>
-                  </>
-                )}
+                <th className="py-3 px-3 font-semibold text-right">Hoa Hồng</th>
               </tr>
             </thead>
             <tbody>
               {groupedCommissions.length === 0 ? (
                 <tr>
-                  <td colSpan={showTaxes ? 11 : 8} className="py-8 text-center text-secondary">
+                  <td colSpan={8} className="py-8 text-center text-secondary">
                     Chưa có phát sinh hoa hồng nào.
                   </td>
                 </tr>
@@ -128,19 +114,6 @@ export default function CommissionHistoryView({ currentUser, setActiveTab }) {
                           {vnd(moneyAmount)}
                         </span>
                       </td>
-                      {showTaxes && (
-                        <>
-                          <td className="py-3.5 px-3 text-right text-red-400 font-medium">
-                            -{vnd(moneyAmount * 0.1)}
-                          </td>
-                          <td className="py-3.5 px-3 text-right text-amber-400 font-medium">
-                            {c.type === 'DIRECT' ? '-' + vnd((c.order?.totalAmount || 0) * 0.01) : '-'}
-                          </td>
-                          <td className="py-3.5 px-3 text-right text-emerald-400 font-bold text-base">
-                            +{vnd((moneyAmount * 0.9) - (c.type === 'DIRECT' ? (c.order?.totalAmount || 0) * 0.01 : 0))}
-                          </td>
-                        </>
-                      )}
                     </tr>
                   );
                 })

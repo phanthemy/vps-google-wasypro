@@ -123,7 +123,7 @@ export const CTVPortalContainer: React.FC<CTVPortalContainerProps> = ({
         }
       }
     }).catch(()=>{});
-    fetch('/api/services', { credentials: 'include' }).then(r=>r.json()).then(res => res.success && setServiceList(res.data)).catch(()=>{});
+    fetch('/api/products', { credentials: 'include' }).then(r=>r.json()).then(res => res.success && setServiceList(res.data)).catch(()=>{});
   }, [refreshKey, currentUser]);
 
   const referralLink = typeof window !== 'undefined' 
@@ -147,6 +147,7 @@ export const CTVPortalContainer: React.FC<CTVPortalContainerProps> = ({
   const primaryNavItems = [
     { id: 'dashboard', label: 'Dashboard', icon: BarChart3, visible: true },
     { id: 'orders', label: 'Đơn Hàng', icon: ShoppingCart, visible: true },
+    { id: 'wholesale', label: 'Đơn Hàng Sỉ', icon: Truck, visible: !isCustomer },
     { id: 'customers', label: 'Khách Hàng', icon: Contact, visible: !isCustomer },
     { id: 'rank', label: 'Cấp Bậc & Điểm Tích Lũy', icon: TrendingUp, visible: true },
     { id: 'commissions', label: 'Hoa Hồng', icon: Wallet, visible: !isCustomer },
@@ -158,6 +159,7 @@ export const CTVPortalContainer: React.FC<CTVPortalContainerProps> = ({
     { id: 'pricelist', label: 'Bảng Giá Sản Phẩm', icon: BookOpen, visible: true, group: 'ctv' },
     { id: 'statistics', label: 'Thống Kê Bán Hàng', icon: PieChartIcon, visible: !isCustomer, group: 'ctv' },
     { id: 'about', label: 'Chính sách WATER KING', icon: Info, visible: true, group: 'ctv' },
+    { id: 'account', label: 'Thông Tin Tài Khoản', icon: UserCog, visible: true, group: 'ctv' },
     { id: 'users', label: 'Quản Lý CTV Toàn HT', icon: Users, visible: isAdminOrAccountant, group: 'admin' },
     { id: 'settings', label: 'Cấu Hình Cơ Chế', icon: Settings, visible: false, group: 'admin' },
     { id: 'internal-users', label: 'Quản Lý Nhân Sự', icon: UserCog, visible: isAdmin, group: 'admin' },
@@ -439,6 +441,10 @@ export const CTVPortalContainer: React.FC<CTVPortalContainerProps> = ({
 
           {activeTab === 'about' && (
             <AboutView />
+          )}
+
+          {activeTab === 'account' && (
+            <SettingsView currentUser={currentUser} />
           )}
         </div>
       </div>

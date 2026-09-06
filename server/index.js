@@ -67,7 +67,8 @@ const csrfProtection = (req, res, next) => {
     req.path === '/api/auth/login' ||
     req.path === '/api/auth/logout' ||
     req.path === '/api/auth/register' ||
-    req.path === '/api/orders/website'   // Public order form — accepts guest + logged-in users
+    req.path === '/api/orders/website' ||   // Public order form — accepts guest + logged-in users
+    req.path === '/api/users/me/join-system' // CTV portal — same-origin cookie POST
   ) {
     return next();
   }

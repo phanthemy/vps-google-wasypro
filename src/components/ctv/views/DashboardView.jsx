@@ -35,9 +35,44 @@ export default function DashboardView({ refreshKey, currentUser, setActiveTab })
   if (currentUser.role !== 'admin' && personalStats) {
     const gross = personalStats.totalCommission || 0;
     const sales = personalStats.totalSales || 0;
+    const isParticipant = personalStats.isSystemParticipant || currentUser.isSystemParticipant;
 
     return (
       <div className="flex-col gap-6">
+        {/* THAM GIA HE THONG banner — only for non-participants */}
+        {!isParticipant && (
+          <div className="glass-panel" style={{ padding: '1.5rem', border: '2px solid var(--accent-diamond)', background: 'rgba(0,240,255,0.04)' }}>
+            <div className="text-center">
+              <div className="text-diamond font-extrabold text-lg mb-1">🚀 Tham Gia Hệ Thống CTV</div>
+              <div className="text-secondary text-sm mb-4">
+                Tham gia hệ thống để tích lũy Qualifying Points, nhận hoa hồng và thăng cấp.
+                <br />Tích đủ 5.000 QP → nhận Business ID + lên Đại Sứ tự động.
+              </div>
+              <button
+                onClick={async () => {
+                  try {
+                    const res = await fetch('/api/users/me/join-system', {
+                      method: 'POST',
+                      credentials: 'include',
+                      headers: { 'Content-Type': 'application/json' }
+                    }).then(r => r.json());
+                    if (res.success) {
+                      alert('✅ Đã tham gia hệ thống! Bạn bắt đầu tích lũy Qualifying Points từ bây giờ.');
+                      window.location.reload();
+                    } else {
+                      alert('❌ ' + (res.message || 'Lỗi không xác định'));
+                    }
+                  } catch { alert('❌ Lỗi kết nối máy chủ'); }
+                }}
+                className="btn hover-scale"
+                style={{ background: 'var(--accent-diamond)', color: '#0f172a', fontWeight: 'extrabold', padding: '12px 32px', borderRadius: '10px', border: 'none', fontSize: '1rem', cursor: 'pointer' }}
+              >
+                ✨ THAM GIA HỆ THỐNG
+              </button>
+            </div>
+          </div>
+        )}
+
         <div className="glass-panel" style={{ padding: '2rem' }}>
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
             <h3 className="text-secondary uppercase text-xs tracking-wider font-bold" style={{ margin: 0 }}>
