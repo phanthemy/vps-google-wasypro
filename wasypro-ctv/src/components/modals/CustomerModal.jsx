@@ -54,7 +54,7 @@ export default function CustomerModal({ userList, onClose, onSuccess, currentUse
         </form>
       </div>
       <style>{`
-        .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 50; display: flex; align-items: center; justify-content: center; }
+        .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 200; display: flex; align-items: center; justify-content: center; }
         .input-field { padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border-subtle); background: var(--bg-primary); width: 100%; outline: none; }
         .input-field:focus { border-color: var(--accent-blue); }
       `}</style>

@@ -2097,7 +2097,7 @@ app.get('/api/statistics', authenticateToken, async (req, res) => {
 app.get('/api/internal-users', authenticateToken, requireRole(['admin']), async (req, res) => {
   try {
     const users = await prisma.user.findMany({
-      where: { role: { not: 'ctv' } },
+      where: { role: { in: ['admin', 'accountant'] } },
       orderBy: { createdAt: 'desc' }
     });
     res.json({ success: true, data: users.map(sanitizeUser) });

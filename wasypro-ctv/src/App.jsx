@@ -362,10 +362,10 @@ function App() {
                 <span className="md:hidden flex items-center gap-1"><Download size={16}/> App</span>
               </button>
             )}
-            <button className="btn btn-primary flex items-center gap-2" onClick={() => setCustomerModalOpen(true)}>
+            <button className="btn btn-primary flex items-center gap-2" onClick={() => { setSidebarOpen(false); setCustomerModalOpen(true); }}>
                <Plus size={16}/> <span className="hide-text-mobile">Pre-check Khách</span>
             </button>
-            <button className="btn btn-action flex items-center gap-2" onClick={() => setOrderModalOpen(true)}>
+            <button className="btn btn-action flex items-center gap-2" onClick={() => { setSidebarOpen(false); setOrderModalOpen(true); }}>
                <Wallet size={16}/> <span className="hide-text-mobile">Tạo Đơn Hàng</span>
             </button>
             <button className="btn-icon btn-secondary">
