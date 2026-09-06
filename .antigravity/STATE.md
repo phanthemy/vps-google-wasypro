@@ -1,28 +1,29 @@
 # WasyPro / Water King ? PROJECT STATE
 
-**Updated:** 2026-09-06T11:07 +07:00
+**Updated:** 2026-09-06T11:56 +07:00
 
 ---
 
 ## Phase Milestones
 
-| Phase | Commit | M? t? | Tr?ng th?i |
+| Phase | Commit | Mô tả | Trạng thái |
 |:------|:-------|:------|:----------:|
-| Phase 1A | `4b22e33` | Production release CTV portal | ? Done |
-| Repository Hygiene | `fdcd0d9` | Untrack dev.db, isolate backups | ? Done |
-| Phase 1B | `8d08516` | Refactor CTV App.jsx ? 23 modular files | ? Done |
-| Phase 2A | `52febf2` | Foundation: rank fields, S-Points, RankBadge, SPointWidget | ? Done |
-| Phase 2B | `879a3e8` | Commercial Engine: Ambassador + Wholesale + Commission Rules | ? Done |
-| Phase 2C | `6b97f61` | Commission Engine v3.6 (Point Engine + Network Tree + Rank Engine) | ? Done |
-| Phase 2D | `b610b8e` | Purchase Subject Validation (SELF/CUSTOMER) — backend source of truth | ? Done |
+| Phase 1A | `4b22e33` | Production release CTV portal | ✅ Done |
+| Repository Hygiene | `fdcd0d9` | Untrack dev.db, isolate backups | ✅ Done |
+| Phase 1B | `8d08516` | Refactor CTV App.jsx → 23 modular files | ✅ Done |
+| Phase 2A | `52febf2` | Foundation: rank fields, S-Points, RankBadge, SPointWidget | ✅ Done |
+| Phase 2B | `879a3e8` | Commercial Engine: Ambassador + Wholesale + Commission Rules | ✅ Done |
+| Phase 2C | `6b97f61` | Commission Engine v3.6 (Point Engine + Network Tree + Rank Engine) | ✅ Done |
+| Phase 2D | `b610b8e` | Purchase Subject Validation (SELF/CUSTOMER) — backend source of truth | ✅ Done |
+| Admin Policy Config | `8586b43` | GET/PUT /api/admin/policy + AdminPolicyConfig UI (SystemPolicyConfig) | ✅ Done |
 
 ---
 
 ## Current HEAD
 
 - **Branch:** main
-- **Commit:** `879a3e8`
-- **origin/main:** `879a3e8` (in sync)
+- **Commit:** `8586b43`
+- **origin/main:** `8586b43` (in sync)
 - **Working tree:** CLEAN
 
 ---
