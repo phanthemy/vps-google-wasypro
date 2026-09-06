@@ -24,6 +24,7 @@ export interface Product {
   isNew: boolean;
   stock: number;
   promotion?: string;
+  commissionPoints?: number;
 }
 
 export interface Category {

@@ -66,7 +66,8 @@ function App() {
   // Data for forms
   const [userList, setUserList] = useState([]);
   const [customerList, setCustomerList] = useState([]);
-  const [serviceList, setServiceList] = useState([]);
+  const [serviceList, setServiceList] = useState([]); // Legacy — cho PriceListView admin
+  const [productList, setProductList] = useState([]); // Product Master từ wasypro.com
 
   const [refreshKey, setRefreshKey] = useState(0);
 
@@ -136,6 +137,10 @@ function App() {
       }
     });
     fetch('/api/services').then(r=>r.json()).then(res => res.success && setServiceList(res.data));
+    // Product Master từ wasypro.com — nguồn sản phẩm duy nhất cho OrderModal
+    fetch('/api/products').then(r=>r.json()).then(data => {
+      if (Array.isArray(data)) setProductList(data);
+    });
   }, [refreshKey, currentUser]);
 
   const handleLogout = async () => {
@@ -432,7 +437,7 @@ function App() {
            currentUser={currentUser}
            customerList={customerList}
            userList={userList}
-           serviceList={serviceList}
+           productList={productList}
            onClose={() => setOrderModalOpen(false)}
            onSuccess={() => {
               setOrderModalOpen(false);

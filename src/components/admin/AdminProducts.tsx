@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import ImageUpload from './ImageUpload';
 import {
   Package,
@@ -60,7 +60,9 @@ export const AdminProducts: React.FC = () => {
     isHot: false,
     isNew: true,
     stock: 50,
+    commissionPoints: 0,
   });
+
 
   const fetchData = async () => {
     setLoading(true);
@@ -111,6 +113,7 @@ export const AdminProducts: React.FC = () => {
       isHot: true,
       isNew: true,
       stock: 30,
+      commissionPoints: 0,
     });
     setModalError(null);
     setIsFormModalOpen(true);
@@ -134,10 +137,12 @@ export const AdminProducts: React.FC = () => {
       isHot: product.isHot,
       isNew: product.isNew,
       stock: product.stock,
+      commissionPoints: product.commissionPoints || 0,
     });
     setModalError(null);
     setIsFormModalOpen(true);
   };
+
 
   const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -285,6 +290,7 @@ export const AdminProducts: React.FC = () => {
                   <th className="py-4 px-5">Sản Phẩm</th>
                   <th className="py-4 px-5">Danh Mục</th>
                   <th className="py-4 px-5">Giá Bán</th>
+                  <th className="py-4 px-5">Điểm HH (CP)</th>
                   <th className="py-4 px-5">Thông Số Kiềm / Hydro</th>
                   <th className="py-4 px-5">Tồn Kho</th>
                   <th className="py-4 px-5 text-right">Thao Tác</th>
@@ -348,6 +354,21 @@ export const AdminProducts: React.FC = () => {
                       
                           {p.promotion && <div className="text-[11px] text-orange-600 font-bold mt-1">🎁 {p.promotion}</div>}
                         </td>
+
+                      {/* Commission Points */}
+                      <td className="py-4 px-5">
+                        {p.commissionPoints > 0 ? (
+                          <div className="flex flex-col gap-0.5">
+                            <span className="font-extrabold text-emerald-600 text-sm">
+                              {(p.commissionPoints).toLocaleString('vi-VN')} CP
+                            </span>
+                          </div>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-50 border border-amber-200 text-amber-700 text-xs font-bold">
+                            ⚠ Chưa cấu hình
+                          </span>
+                        )}
+                      </td>
 
                       {/* Specs (pH, ORP, Hydrogen) */}
                       <td className="py-4 px-5 text-xs font-medium text-slate-600">
@@ -510,6 +531,51 @@ export const AdminProducts: React.FC = () => {
                       onChange={(e) => setFormData({ ...formData, stock: Number(e.target.value) })}
                       className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-ocean-500"
                     />
+                  </div>
+                </div>
+
+                {/* Commission Points — độc lập với giá */}
+                <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200">
+                  <div className="flex items-center gap-2 mb-3">
+                    <span className="text-emerald-700 font-extrabold text-xs uppercase tracking-wider">💰 Điểm Hoa Hồng (Commission Points)</span>
+                    <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-bold">ĐỘC LẬP VỚI GIÁ BÁN</span>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-start">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
+                        Điểm Hoa Hồng (CP) *
+                      </label>
+                      <div className="relative">
+                        <input
+                          type="number"
+                          min="0"
+                          step="1"
+                          value={formData.commissionPoints ?? 0}
+                          onChange={(e) => setFormData({ ...formData, commissionPoints: Math.max(0, Math.round(Number(e.target.value))) })}
+                          placeholder="VD: 1800"
+                          className="w-full px-4 py-2.5 bg-white border-2 border-emerald-300 rounded-xl text-sm font-bold text-emerald-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                        />
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-emerald-600">CP</span>
+                      </div>
+                      {(formData.commissionPoints ?? 0) === 0 && (
+                        <p className="mt-1.5 text-xs text-amber-600 font-bold flex items-center gap-1">
+                          ⚠ Chưa cấu hình — CTV sẽ không nhận hoa hồng từ sản phẩm này
+                        </p>
+                      )}
+                    </div>
+                    <div className="text-xs text-slate-600 space-y-1 pt-1">
+                      <p className="font-semibold text-slate-700">Ví dụ tính hoa hồng:</p>
+                      {formData.commissionPoints > 0 ? (
+                        <>
+                          <p>Director SELF: <strong className="text-emerald-700">{Math.round(formData.commissionPoints * 0.3).toLocaleString('vi-VN')} CP</strong> (30%)</p>
+                          <p>Manager SELF: <strong className="text-emerald-700">{Math.round(formData.commissionPoints * 0.25).toLocaleString('vi-VN')} CP</strong> (25%)</p>
+                          <p>F1 Upstream: <strong className="text-sky-700">{Math.round(formData.commissionPoints * 0.1).toLocaleString('vi-VN')} CP</strong> (10%)</p>
+                          <p className="text-slate-500">1 CP = 1.000 ₫</p>
+                        </>
+                      ) : (
+                        <p className="text-amber-600">Nhập số CP để xem preview tính hoa hồng</p>
+                      )}
+                    </div>
                   </div>
                 </div>
 

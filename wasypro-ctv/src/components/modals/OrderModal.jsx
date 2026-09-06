@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { X } from 'lucide-react';
-import SearchableServiceSelect from '../common/SearchableServiceSelect.jsx';
+import SearchableProductSelect from '../common/SearchableProductSelect.jsx';
 
-export default function OrderModal({ currentUser, customerList, userList, serviceList, onClose, onSuccess }) {
+export default function OrderModal({ currentUser, customerList, userList, productList, onClose, onSuccess }) {
   const [customerId, setCustomerId] = useState('');
   const [cart, setCart] = useState([]);
   
@@ -11,38 +11,38 @@ export default function OrderModal({ currentUser, customerList, userList, servic
   const filteredCustomers = isCtv ? customerList.filter(c => c.sourceCtvId === currentUser.id || (c.sourceCtv && c.sourceCtv.userId === currentUser.id)) : customerList;
   const filteredUsers = isCtv ? userList.filter(u => u.id === currentUser.id) : userList;
   
-  const [currentServiceId, setCurrentServiceId] = useState('');
+  const [currentProductId, setCurrentProductId] = useState('');
   const [currentQty, setCurrentQty] = useState(1);
   const [currentAmount, setCurrentAmount] = useState('');
   
   const [error, setError] = useState('');
 
-  const handleServiceChange = (svId) => {
-     const svc = serviceList.find(s => s.id === svId);
-     setCurrentServiceId(svId);
-     setCurrentAmount(svc ? svc.price * currentQty : '');
+  const handleProductChange = (pId) => {
+     const prod = productList.find(p => p.id === pId);
+     setCurrentProductId(pId);
+     setCurrentAmount(prod ? prod.price * currentQty : '');
   };
 
   const handleQtyChange = (e) => {
      const newQty = Math.max(1, parseInt(e.target.value, 10)) || 1;
      setCurrentQty(newQty);
-     const svc = serviceList.find(s => s.id === currentServiceId);
-     if (svc) {
-        setCurrentAmount(svc.price * newQty);
+     const prod = productList.find(p => p.id === currentProductId);
+     if (prod) {
+        setCurrentAmount(prod.price * newQty);
      }
   };
 
   const addToCart = () => {
-     if(!currentServiceId || !currentAmount) {
+     if(!currentProductId || !currentAmount) {
          setError('Vui lòng chọn sản phẩm và nhập số tiền!');
          return;
      }
-     const svc = serviceList.find(s => s.id === currentServiceId);
-     const newCart = [...cart, { serviceId: currentServiceId, qty: currentQty, amount: Number(currentAmount), name: svc?.name || 'Sản phẩm' }];
+     const prod = productList.find(p => p.id === currentProductId);
+     const newCart = [...cart, { productId: currentProductId, qty: currentQty, amount: Number(currentAmount), name: prod?.title || 'Sản phẩm', cp: prod?.commissionPoints || 0 }];
      setCart(newCart);
      
      // Reset form
-     setCurrentServiceId('');
+     setCurrentProductId('');
      setCurrentQty(1);
      setCurrentAmount('');
      setError('');
@@ -59,11 +59,11 @@ export default function OrderModal({ currentUser, customerList, userList, servic
     setError('');
     
     let finalCart = [...cart];
-    if (currentServiceId && currentAmount) {
-       const svc = serviceList.find(s => s.id === currentServiceId);
-       finalCart.push({ serviceId: currentServiceId, qty: currentQty, amount: Number(currentAmount), name: svc?.name || 'Sản phẩm' });
+    if (currentProductId && currentAmount) {
+       const prod = productList.find(p => p.id === currentProductId);
+       finalCart.push({ productId: currentProductId, qty: currentQty, amount: Number(currentAmount), name: prod?.title || 'Sản phẩm', cp: prod?.commissionPoints || 0 });
        setCart(finalCart);
-       setCurrentServiceId('');
+       setCurrentProductId('');
        setCurrentQty(1);
        setCurrentAmount('');
     }
@@ -73,7 +73,7 @@ export default function OrderModal({ currentUser, customerList, userList, servic
 
     try {
       let payload = {
-         items: finalCart.map(c => ({ serviceId: c.serviceId, amount: Number(c.amount), qty: Number(c.qty) }))
+         items: finalCart.map(c => ({ productId: c.productId, amount: Number(c.amount), qty: Number(c.qty) }))
       };
       if (customerId.startsWith('CTV_')) {
           payload.ctvBuyerId = customerId.replace('CTV_', '');
@@ -118,10 +118,10 @@ export default function OrderModal({ currentUser, customerList, userList, servic
              <div className="flex-col gap-3">
                 <div className="flex-col gap-1">
                    <label className="text-xs font-semibold text-muted uppercase tracking-wider" style={{ fontSize: '10px' }}>Sản phẩm / Dịch vụ</label>
-                   <SearchableServiceSelect 
-                      serviceList={serviceList}
-                      value={currentServiceId}
-                      onChange={handleServiceChange}
+                   <SearchableProductSelect 
+                      productList={productList}
+                      value={currentProductId}
+                      onChange={handleProductChange}
                    />
                 </div>
                 <div className="flex gap-4 items-end">
