@@ -1,6 +1,6 @@
-﻿# WasyPro / Water King — PROJECT STATE
+# WasyPro / Water King — PROJECT STATE
 
-**Updated:** 2026-09-06T14:01 +07:00
+**Updated:** 2026-09-06T14:29 +07:00
 
 ---
 
@@ -21,14 +21,16 @@
 | UI Audit Fixes | `01658b0` | Modal z-index, RankView API-driven, internal-users query fix | Done |
 | Auth Login Redirect | `c4f7992` | role-based redirect: admin/accountant->Admin Portal, ctv->/ctv | Done |
 | F1/F2 Terminology | `fc1ac9f` | Standardize F1/F2 definition — label clarification, AGENTS.md updated | Done |
+| Admin Policy UI Fix | `9baa16d` | Fix contrast, modal structure, Giam Doc PT label, Escape key | Done |
 
 ---
 
 ## Current HEAD
 
 - **Branch:** main
-- **Commit:** `fc1ac9f` (origin/main = VPS)
+- **Commit:** `9baa16d` (origin/main = VPS building)
 - **Working tree:** CLEAN
+
 
 ---
 
