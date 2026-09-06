@@ -169,98 +169,17 @@ export const Header: React.FC<HeaderProps> = ({
             })}
           </nav>
 
-          {/* Right Area: Account & System Group */}
+          {/* Right Area: Account Only */}
           <div className="hidden sm:flex items-center gap-3 text-primary flex-shrink-0">
-            {/* 1. Nút KINH DOANH (CTV / Đại sứ) */}
-            <button
-              onClick={() => handleNavClick('ctv')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider transition-all duration-200 ${
-                activeSection === 'ctv'
-                  ? 'bg-primary text-white shadow-md shadow-primary/25 scale-[1.02]'
-                  : 'bg-gradient-to-r from-accent/25 via-primary/10 to-primary/20 text-primary-dark hover:bg-primary hover:text-white border border-primary/25 hover:scale-[1.02]'
-              }`}
-              title="Khu vực Kinh Doanh dành cho Đại Sứ & CTV"
-            >
-              <Award className="w-3.5 h-3.5 text-amber-500" />
-              <span>🏆 Kinh Doanh</span>
-            </button>
-
-            {/* 2. Nút HỆ THỐNG (Hiện cho Anonymous và Admin, ẩn cho CTV thường) */}
-            {(!user || isAdmin) && (
-              <div className="relative" ref={systemDropdownRef}>
-                <button
-                  onClick={() => {
-                    if (!user) {
-                      onOpenAdmin();
-                    } else if (isAdmin) {
-                      setSystemDropdownOpen(!systemDropdownOpen);
-                    }
-                  }}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider transition-all duration-200 ${
-                    systemDropdownOpen
-                      ? 'bg-slate-900 text-white shadow-md'
-                      : 'bg-slate-100 text-slate-800 hover:bg-slate-200 border border-slate-300'
-                  }`}
-                  title="Khu vực Quản trị Hệ thống & Cấu hình"
-                >
-                  <ShieldCheck className="w-3.5 h-3.5 text-primary" />
-                  <span>🛡️ Hệ Thống</span>
-                  {isAdmin && <ChevronDown className="w-3 h-3 text-gray-500" />}
-                </button>
-
-                {systemDropdownOpen && (
-                  <div className="absolute right-0 mt-2 w-64 bg-white rounded-2xl shadow-2xl border border-gray-100 py-2 z-50 animate-fadeIn">
-                    <div className="px-4 py-2 border-b border-gray-100 bg-slate-50/70">
-                      <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Quản Trị Hệ Thống</p>
-                      <p className="text-xs font-bold text-slate-800 mt-0.5">System Administration</p>
-                    </div>
-
-                    <button
-                      onClick={() => { onOpenAdmin(); setSystemDropdownOpen(false); }}
-                      className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-semibold text-gray-700 hover:bg-primary/5 hover:text-primary transition-colors text-left"
-                    >
-                      <ShieldCheck className="w-4 h-4 text-primary" />
-                      <span>Quản Trị Website (CMS)</span>
-                    </button>
-
-                    <button
-                      onClick={() => { handleNavClick('ctv'); setSystemDropdownOpen(false); }}
-                      className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-semibold text-gray-700 hover:bg-primary/5 hover:text-primary transition-colors text-left"
-                    >
-                      <Users className="w-4 h-4 text-blue-600" />
-                      <span>Quản Lý Toàn Bộ CTV</span>
-                    </button>
-
-                    <button
-                      onClick={() => { handleNavClick('ctv'); setSystemDropdownOpen(false); }}
-                      className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-semibold text-gray-700 hover:bg-primary/5 hover:text-primary transition-colors text-left"
-                    >
-                      <Sliders className="w-4 h-4 text-emerald-600" />
-                      <span>Cấu Hình Cơ Chế Hoa Hồng</span>
-                    </button>
-
-                    <button
-                      onClick={() => { handleNavClick('ctv'); setSystemDropdownOpen(false); }}
-                      className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-semibold text-gray-700 hover:bg-primary/5 hover:text-primary transition-colors text-left"
-                    >
-                      <History className="w-4 h-4 text-amber-600" />
-                      <span>Nhật Ký Hệ Thống (Audit Logs)</span>
-                    </button>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* 3. User Badge & Profile Menu / Login Button */}
+            {/* User Profile Menu (logged in) or Login Button */}
             {user ? (
               <div className="relative" ref={dropdownRef}>
                 <button
                   onClick={() => setUserDropdownOpen(!userDropdownOpen)}
                   className="flex items-center gap-2 py-1.5 px-3 rounded-full bg-primary/10 border border-primary/25 text-primary text-xs font-bold hover:bg-primary/15 transition-all"
                 >
-                  <Award className="w-4 h-4 text-primary" />
-                  <span>{user.tier || 'CTV'} {user.id}</span>
-                  <span className="max-w-[110px] truncate text-gray-700">{user.fullName}</span>
+                  <User className="w-4 h-4 text-primary" />
+                  <span className="max-w-[120px] truncate text-gray-700">{user.fullName}</span>
                   <ChevronDown className="w-3 h-3 text-gray-400" />
                 </button>
 
@@ -269,18 +188,8 @@ export const Header: React.FC<HeaderProps> = ({
                     <div className="px-4 py-2 border-b border-gray-100 bg-gray-50/60">
                       <p className="text-[10px] text-gray-500 font-medium uppercase">Tài khoản:</p>
                       <p className="text-sm font-bold text-gray-900 truncate">{user.fullName}</p>
-                      <span className="inline-block mt-1 text-[10px] uppercase font-extrabold px-2 py-0.5 rounded bg-primary/10 text-primary">
-                        {user.role} • {user.tier || 'SILVER'}
-                      </span>
+                      <p className="text-[10px] text-gray-500 font-mono mt-0.5">{user.phone}</p>
                     </div>
-
-                    <button
-                      onClick={() => handleNavClick('ctv')}
-                      className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-semibold text-gray-700 hover:bg-primary/5 hover:text-primary transition-colors text-left"
-                    >
-                      <LayoutDashboard className="w-4 h-4 text-primary" />
-                      <span>Vào Dashboard CTV</span>
-                    </button>
 
                     {isAdmin && (
                       <button
@@ -305,13 +214,20 @@ export const Header: React.FC<HeaderProps> = ({
                 )}
               </div>
             ) : (
-              <button
-                onClick={() => onOpenAuth('login')}
-                className="flex items-center gap-1.5 text-xs font-bold uppercase hover:text-primary-dark transition-colors px-3 py-1.5 rounded-full border border-primary/25 hover:border-primary hover:bg-primary/5"
-              >
-                <User className="w-3.5 h-3.5" />
-                <span>ĐĂNG NHẬP / ĐĂNG KÝ</span>
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => onOpenAuth('login')}
+                  className="text-xs font-bold uppercase hover:text-primary-dark transition-colors px-3 py-1.5 rounded-full border border-primary/25 hover:border-primary hover:bg-primary/5"
+                >
+                  Đăng Nhập
+                </button>
+                <button
+                  onClick={() => onOpenAuth('register')}
+                  className="text-xs font-bold uppercase text-white bg-primary hover:bg-primary-dark transition-colors px-3 py-1.5 rounded-full"
+                >
+                  Đăng Ký
+                </button>
+              </div>
             )}
 
             <button className="hover:text-primary-dark transition-colors p-1 text-gray-600">
@@ -361,56 +277,23 @@ export const Header: React.FC<HeaderProps> = ({
               </button>
             ))}
 
-            {/* Quick CTV & System Links */}
-            <div className="pt-3 border-t border-gray-100 space-y-2">
-              <button
-                onClick={() => handleNavClick('ctv')}
-                className={`w-full flex items-center justify-between px-4 py-2.5 rounded-lg text-left text-sm font-bold uppercase transition-all ${
-                  activeSection === 'ctv'
-                    ? 'bg-primary text-white'
-                    : 'bg-primary/10 text-primary'
-                }`}
-              >
-                <div className="flex items-center gap-2">
-                  <Award className="w-4 h-4 text-amber-500" />
-                  <span>🏆 Kinh Doanh (Đại Sứ & CTV)</span>
-                </div>
-                <ChevronRight className="w-4 h-4" />
-              </button>
 
-              {(!user || isAdmin) && (
-                <button
-                  onClick={() => { onOpenAdmin(); setMobileMenuOpen(false); }}
-                  className="w-full flex items-center justify-between px-4 py-2.5 rounded-lg text-left text-sm font-bold uppercase bg-slate-100 text-slate-800 hover:bg-slate-200"
-                >
-                  <div className="flex items-center gap-2">
-                    <ShieldCheck className="w-4 h-4 text-primary" />
-                    <span>🛡️ Quản Trị Hệ Thống (Website CMS)</span>
-                  </div>
-                  <ChevronRight className="w-4 h-4 text-gray-400" />
-                </button>
-              )}
-            </div>
-
-            {/* User Profile Card / Auth Button */}
+            {/* User Profile / Auth Button */}
             <div className="pt-3 border-t border-gray-100">
               {user ? (
                 <div className="p-3 rounded-xl bg-gray-50 border border-gray-200 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-xs font-bold text-gray-900">{user.fullName}</p>
-                      <p className="text-[10px] text-gray-500 font-mono">ID: {user.id}</p>
-                    </div>
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-primary text-white uppercase">
-                      {user.tier || 'CTV'}
-                    </span>
+                  <div>
+                    <p className="text-xs font-bold text-gray-900">{user.fullName}</p>
+                    <p className="text-[10px] text-gray-500 font-mono">{user.phone}</p>
                   </div>
-                  <button
-                    onClick={() => handleNavClick('ctv')}
-                    className="w-full py-2.5 rounded-lg bg-primary text-white text-xs font-bold uppercase shadow-sm"
-                  >
-                    Vào Dashboard CTV
-                  </button>
+                  {isAdmin && (
+                    <button
+                      onClick={() => { onOpenAdmin(); setMobileMenuOpen(false); }}
+                      className="w-full py-2.5 rounded-lg bg-slate-100 text-slate-800 text-xs font-bold uppercase"
+                    >
+                      Quản Trị Website
+                    </button>
+                  )}
                   <button
                     onClick={() => { onLogout(); setMobileMenuOpen(false); }}
                     className="w-full py-2 rounded-lg bg-red-50 text-red-600 text-xs font-bold uppercase"
@@ -419,16 +302,20 @@ export const Header: React.FC<HeaderProps> = ({
                   </button>
                 </div>
               ) : (
-                <button
-                  onClick={() => {
-                    onOpenAuth('login');
-                    setMobileMenuOpen(false);
-                  }}
-                  className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-primary bg-primary/10 border border-primary/20 text-xs uppercase"
-                >
-                  <User className="w-4 h-4" />
-                  <span>ĐĂNG NHẬP / ĐĂNG KÝ ĐẠI SỨ</span>
-                </button>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => { onOpenAuth('login'); setMobileMenuOpen(false); }}
+                    className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-primary bg-primary/10 border border-primary/20 text-xs uppercase"
+                  >
+                    Đăng Nhập
+                  </button>
+                  <button
+                    onClick={() => { onOpenAuth('register'); setMobileMenuOpen(false); }}
+                    className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-white bg-primary text-xs uppercase"
+                  >
+                    Đăng Ký
+                  </button>
+                </div>
               )}
             </div>
           </div>
