@@ -433,7 +433,7 @@ app.post('/api/auth/register', authLimiter, async (req, res) => {
         rank: null,
       }
     });
-  } catch (err: any) {
+  } catch (err) {
     console.error('[REGISTER]', err.message);
     res.status(500).json({ success: false, message: 'Lỗi máy chủ. Vui lòng thử lại.' });
   }
