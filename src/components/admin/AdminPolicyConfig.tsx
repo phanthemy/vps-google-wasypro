@@ -25,43 +25,43 @@ interface AuditEntry {
 const GROUPS: { id: string; label: string; keys: string[] }[] = [
   {
     id: 'AMBASSADOR',
-    label: '\u0110\u1ea1i S\u1ee9 Kinh Doanh',
+    label: 'Đại Sứ Kinh Doanh',
     keys: ['AMBASSADOR_SELF_BUY','AMBASSADOR_DIRECT_NO_ID','AMBASSADOR_DIRECT_WITH_ID','AMBASSADOR_THRESHOLD'],
   },
   {
     id: 'MANAGER',
-    label: 'Qu\u1ea3n L\xfd',
+    label: 'Quản Lý',
     keys: ['MANAGER_SELF_BUY','MANAGER_DIRECT_NO_ID','MANAGER_DIRECT_WITH_ID','MANAGER_F1_PURCHASE','MANAGER_F2_PURCHASE','MANAGER_F1_SELL_TO_CUSTOMER_NO_ID'],
   },
   {
     id: 'DIRECTOR',
-    label: 'Gi\xe1m \u0110\u1ed1c',
+    label: 'Giám Đốc',
     keys: ['DIRECTOR_SELF_BUY','DIRECTOR_DIRECT_NO_ID','DIRECTOR_DIRECT_WITH_ID','DIRECTOR_F1','DIRECTOR_F2'],
   },
   {
     id: 'META',
-    label: 'H\u1ec7 Th\u1ed1ng',
+    label: 'Hệ Thống',
     keys: ['POLICY_VERSION'],
   },
 ];
 
 const KEY_LABELS: Record<string, string> = {
-  AMBASSADOR_SELF_BUY: '\u0110\u1ea1i S\u1ee9 \u2014 T\u1ef1 mua',
-  AMBASSADOR_DIRECT_NO_ID: '\u0110\u1ea1i S\u1ee9 \u2014 B\xe1n cho kh\xe1ch ch\u01b0a c\xf3 ID',
-  AMBASSADOR_DIRECT_WITH_ID: '\u0110\u1ea1i S\u1ee9 \u2014 B\xe1n cho kh\xe1ch \u0111\xe3 c\xf3 ID',
-  AMBASSADOR_THRESHOLD: 'Ng\u01b0\u1ee1ng \u0111i\u1ec3m t\xedch l\u0169y (Qualifying Points)',
-  MANAGER_SELF_BUY: 'Qu\u1ea3n L\xfd \u2014 T\u1ef1 mua',
-  MANAGER_DIRECT_NO_ID: 'Qu\u1ea3n L\xfd \u2014 B\xe1n cho kh\xe1ch ch\u01b0a c\xf3 ID',
-  MANAGER_DIRECT_WITH_ID: 'Qu\u1ea3n L\xfd \u2014 B\xe1n cho kh\xe1ch \u0111\xe3 c\xf3 ID',
-  MANAGER_F1_PURCHASE: 'Qu\u1ea3n L\xfd \u2014 F1 t\u1ef1 mua',
-  MANAGER_F2_PURCHASE: 'Qu\u1ea3n L\xfd \u2014 F2 t\u1ef1 mua',
-  MANAGER_F1_SELL_TO_CUSTOMER_NO_ID: 'Qu\u1ea3n L\xfd \u2014 Khi F1 b\xe1n cho kh\xe1ch m\u1edbi ch\u01b0a ID (OPEN)',
-  DIRECTOR_SELF_BUY: 'Gi\xe1m \u0110\u1ed1c \u2014 T\u1ef1 mua',
-  DIRECTOR_DIRECT_NO_ID: 'Gi\xe1m \u0110\u1ed1c \u2014 B\xe1n cho kh\xe1ch ch\u01b0a c\xf3 ID',
-  DIRECTOR_DIRECT_WITH_ID: 'Gi\xe1m \u0110\u1ed1c \u2014 B\xe1n cho kh\xe1ch \u0111\xe3 c\xf3 ID',
-  DIRECTOR_F1: 'Gi\xe1m \u0110\u1ed1c \u2014 Upstream t\u1eeb F1 (D1)',
-  DIRECTOR_F2: 'Gi\xe1m \u0110\u1ed1c \u2014 Upstream t\u1eeb F2 (D2)',
-  POLICY_VERSION: 'Phi\xean b\u1ea3n Policy (t\u1ef1 \u0111\u1ed9ng)',
+  AMBASSADOR_SELF_BUY: 'Đại Sứ — Tự mua',
+  AMBASSADOR_DIRECT_NO_ID: 'Đại Sứ — Bán cho khách chưa có ID',
+  AMBASSADOR_DIRECT_WITH_ID: 'Đại Sứ — Bán cho khách đã có ID',
+  AMBASSADOR_THRESHOLD: 'Ngưỡng điểm tích lũy (Qualifying Points)',
+  MANAGER_SELF_BUY: 'Quản Lý — Tự mua',
+  MANAGER_DIRECT_NO_ID: 'Quản Lý — Bán cho khách chưa có ID',
+  MANAGER_DIRECT_WITH_ID: 'Quản Lý — Bán cho khách đã có ID',
+  MANAGER_F1_PURCHASE: 'Quản Lý — F1 tự mua',
+  MANAGER_F2_PURCHASE: 'Quản Lý — F2 tự mua',
+  MANAGER_F1_SELL_TO_CUSTOMER_NO_ID: 'Quản Lý — Khi F1 bán cho khách mới chưa ID (OPEN)',
+  DIRECTOR_SELF_BUY: 'Giám Đốc — Tự mua',
+  DIRECTOR_DIRECT_NO_ID: 'Giám Đốc — Bán cho khách chưa có ID',
+  DIRECTOR_DIRECT_WITH_ID: 'Giám Đốc — Bán cho khách đã có ID',
+  DIRECTOR_F1: 'Giám Đốc — Upstream từ F1 (D1)',
+  DIRECTOR_F2: 'Giám Đốc — Upstream từ F2 (D2)',
+  POLICY_VERSION: 'Phiên bản Policy (tự động)',
 };
 
 const READ_ONLY_KEYS = new Set(['POLICY_VERSION']);
@@ -69,7 +69,7 @@ const THRESHOLD_KEYS = new Set(['AMBASSADOR_THRESHOLD']);
 
 // Helpers
 function formatValue(key: string, raw: string): string {
-  if (raw === 'NOT_CONFIGURED') return 'Ch\u01b0a c\u1ea5u h\xecnh';
+  if (raw === 'NOT_CONFIGURED') return 'Chưa cấu hình';
   if (THRESHOLD_KEYS.has(key)) return `${raw} CP`;
   const n = parseFloat(raw);
   return isNaN(n) ? raw : `${(n * 100).toFixed(0)}%`;
@@ -128,15 +128,15 @@ function EditModal({ entry, onClose, onSaved }: { entry: PolicyEntry; onClose: (
         body: JSON.stringify({ value: getApiValue(), reason: reason.trim() }),
       });
       const data = await res.json();
-      if (!data.success) { setError(data.message || 'L\u1ed7i kh\xf4ng x\xe1c \u0111\u1ecbnh.'); setConfirmed(false); }
+      if (!data.success) { setError(data.message || 'Lỗi không xác định.'); setConfirmed(false); }
       else { onSaved(); onClose(); }
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'L\u1ed7i k\u1ebft n\u1ed1i.');
+      setError(e instanceof Error ? e.message : 'Lỗi kết nối.');
       setConfirmed(false);
     } finally { setSaving(false); }
   }
 
-  const previewValue = useNotConfigured ? 'Ch\u01b0a c\u1ea5u h\xecnh' : formatValue(entry.key, getApiValue());
+  const previewValue = useNotConfigured ? 'Chưa cấu hình' : formatValue(entry.key, getApiValue());
 
   return (
     <div
@@ -153,12 +153,12 @@ function EditModal({ entry, onClose, onSaved }: { entry: PolicyEntry; onClose: (
         <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 flex-shrink-0">
           <h3 className="font-bold text-slate-900 text-base flex items-center gap-2">
             <Edit3 size={16} className="text-sky-600" />
-            S\u1eeda Policy
+            Sửa Policy
           </h3>
           <button
             onClick={onClose} disabled={saving}
             className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
-            title="D\xf3ng (Esc)"
+            title="Dóng (Esc)"
           >
             <X size={18} />
           </button>
@@ -171,14 +171,14 @@ function EditModal({ entry, onClose, onSaved }: { entry: PolicyEntry; onClose: (
             <div className="text-sm font-semibold text-slate-800">{KEY_LABELS[entry.key] || entry.key}</div>
           </div>
           <div className="flex flex-col gap-1">
-            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Gi\xe1 tr\u1ecb hi\u1ec7n t\u1ea1i</span>
+            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Giá trị hiện tại</span>
             <span className={`text-sm font-bold ${entry.status === 'NOT_CONFIGURED' ? 'text-red-500' : 'text-emerald-600'}`}>
               {formatValue(entry.key, entry.value)}
             </span>
           </div>
           <div className="flex flex-col gap-2">
             <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
-              {isThreshold ? 'Ng\u01b0\u1ee1ng m\u1edbi (\u0111i\u1ec3m nguy\xean d\u01b0\u01a1ng)' : 'T\u1ec9 l\u1ec7 m\u1edbi (0\u2013100%)'}
+              {isThreshold ? 'Ngưỡng mới (điểm nguyên dương)' : 'Tỉ lệ mới (0–100%)'}
             </span>
             <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
               <input
@@ -186,7 +186,7 @@ function EditModal({ entry, onClose, onSaved }: { entry: PolicyEntry; onClose: (
                 onChange={e => setUseNotConfigured(e.target.checked)}
                 className="w-4 h-4 accent-red-500 cursor-pointer"
               />
-              <span className="text-red-500 text-xs font-medium">\u0110\u1eb7t NOT_CONFIGURED (t\u1eaft commission)</span>
+              <span className="text-red-500 text-xs font-medium">Đặt NOT_CONFIGURED (tắt commission)</span>
             </label>
             {!useNotConfigured && (
               <input
@@ -198,7 +198,7 @@ function EditModal({ entry, onClose, onSaved }: { entry: PolicyEntry; onClose: (
               />
             )}
             {!useNotConfigured && !isThreshold && (
-              <span className="text-xs text-slate-400">Nh\u1eadp s\u1ed1 % (VD: 20 = 20%)</span>
+              <span className="text-xs text-slate-400">Nhập số % (VD: 20 = 20%)</span>
             )}
           </div>
           {!useNotConfigured && inputVal && (
@@ -209,11 +209,11 @@ function EditModal({ entry, onClose, onSaved }: { entry: PolicyEntry; onClose: (
           )}
           <div className="flex flex-col gap-1">
             <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
-              L\xfd do thay \u0111\u1ed5i <span className="text-red-500">*</span>
+              Lý do thay đổi <span className="text-red-500">*</span>
             </label>
             <textarea
               className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent resize-none placeholder-slate-400"
-              rows={3} placeholder="Nh\u1eadp l\xfd do c\u1ee5 th\u1ec3..."
+              rows={3} placeholder="Nhập lý do cụ thể..."
               value={reason} onChange={e => setReason(e.target.value)}
             />
           </div>
@@ -226,11 +226,11 @@ function EditModal({ entry, onClose, onSaved }: { entry: PolicyEntry; onClose: (
             <div className="flex items-start gap-2 text-amber-700 text-xs bg-amber-50 border border-amber-200 rounded-lg p-3">
               <AlertTriangle size={14} className="shrink-0 mt-0.5" />
               <span>
-                X\xe1c nh\u1eadn thay \u0111\u1ed5i t\u1eeb{' '}
+                Xác nhận thay đổi từ{' '}
                 <strong>{formatValue(entry.key, entry.value)}</strong>
-                {' \u2192 '}
+                {' → '}
                 <strong>{previewValue}</strong>?
-                {' '}H\xe0nh \u0111\u1ed9ng n\xe0y s\u1ebd \u0111\u01b0\u1ee3c ghi v\xe0o audit log.
+                {' '}Hành động này sẽ được ghi vào audit log.
               </span>
             </div>
           )}
@@ -244,13 +244,13 @@ function EditModal({ entry, onClose, onSaved }: { entry: PolicyEntry; onClose: (
                 onClick={onClose} disabled={saving}
                 className="flex-1 px-4 py-2 rounded-xl border border-slate-300 text-slate-700 text-sm font-semibold hover:bg-slate-100 transition-colors disabled:opacity-50"
               >
-                H\u1ee7y
+                Hủy
               </button>
               <button
                 className="flex-1 px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-700 text-white text-sm font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 disabled={!isValid() || saving} onClick={() => setConfirmed(true)}
               >
-                Xem l\u1ea1i &amp; X\xe1c nh\u1eadn
+                Xem lại &amp; Xác nhận
               </button>
             </>
           ) : (
@@ -259,13 +259,13 @@ function EditModal({ entry, onClose, onSaved }: { entry: PolicyEntry; onClose: (
                 onClick={() => setConfirmed(false)} disabled={saving}
                 className="flex-1 px-4 py-2 rounded-xl border border-slate-300 text-slate-700 text-sm font-semibold hover:bg-slate-100 transition-colors disabled:opacity-50"
               >
-                Quay l\u1ea1i
+                Quay lại
               </button>
               <button
                 className="flex-1 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 disabled={saving} onClick={handleSave}
               >
-                {saving ? '\u0110ang l\u01b0u...' : 'X\xe1c nh\u1eadn L\u01b0u'}
+                {saving ? 'Đang lưu...' : 'Xác nhận Lưu'}
               </button>
             </>
           )}
@@ -308,12 +308,12 @@ function HistoryModal({ policyKey, onClose }: { policyKey: string; onClose: () =
         <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 flex-shrink-0">
           <h3 className="font-bold text-slate-900 text-base flex items-center gap-2">
             <Clock size={16} className="text-sky-600" />
-            L\u1ecbch s\u1eed thay \u0111\u1ed5i
+            Lịch sử thay đổi
           </h3>
           <button
             onClick={onClose}
             className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
-            title="D\xf3ng (Esc)"
+            title="Dóng (Esc)"
           >
             <X size={18} />
           </button>
@@ -326,10 +326,10 @@ function HistoryModal({ policyKey, onClose }: { policyKey: string; onClose: () =
         <div className="flex-1 overflow-y-auto px-5 py-4 min-h-0">
           {loading ? (
             <div className="flex items-center justify-center py-12 text-slate-400 text-sm gap-2">
-              <RefreshCw size={16} className="animate-spin" /> \u0110ang t\u1ea3i...
+              <RefreshCw size={16} className="animate-spin" /> Đang tải...
             </div>
           ) : logs.length === 0 ? (
-            <div className="text-center py-12 text-slate-400 text-sm">Ch\u01b0a c\xf3 l\u1ecbch s\u1eed thay \u0111\u1ed5i.</div>
+            <div className="text-center py-12 text-slate-400 text-sm">Chưa có lịch sử thay đổi.</div>
           ) : (
             <div className="flex flex-col gap-3">
               {logs.map((l, i) => (
@@ -339,14 +339,14 @@ function HistoryModal({ policyKey, onClose }: { policyKey: string; onClose: () =
                     <span className="text-xs font-mono font-semibold text-sky-600 bg-sky-50 px-2 py-0.5 rounded-full border border-sky-200">v{l.version}</span>
                   </div>
                   <div className="flex items-center gap-2 text-sm">
-                    <span className="font-semibold text-red-500">{l.oldValue ?? '\u2014'}</span>
-                    <span className="text-slate-400">\u2192</span>
+                    <span className="font-semibold text-red-500">{l.oldValue ?? '—'}</span>
+                    <span className="text-slate-400">→</span>
                     <span className="font-semibold text-emerald-600">{l.newValue}</span>
                   </div>
                   {l.reason && (
-                    <div className="text-xs text-slate-600 bg-white border border-slate-200 rounded-lg px-3 py-2">\uD83D\uDCDD {l.reason}</div>
+                    <div className="text-xs text-slate-600 bg-white border border-slate-200 rounded-lg px-3 py-2">📝 {l.reason}</div>
                   )}
-                  {l.updatedBy && <div className="text-xs text-slate-400">b\u1edfi {l.updatedBy}</div>}
+                  {l.updatedBy && <div className="text-xs text-slate-400">bởi {l.updatedBy}</div>}
                 </div>
               ))}
             </div>
@@ -359,7 +359,7 @@ function HistoryModal({ policyKey, onClose }: { policyKey: string; onClose: () =
             onClick={onClose}
             className="w-full px-4 py-2 rounded-xl border border-slate-300 text-slate-700 text-sm font-semibold hover:bg-slate-100 transition-colors"
           >
-            \u0110\xf3ng
+            Đóng
           </button>
         </div>
       </div>
@@ -385,11 +385,11 @@ function PolicyRow({ entry, onEdit, onHistory }: { entry: PolicyEntry; onEdit: (
       <td className="py-3 px-4 text-center">
         {isNotConfigured ? (
           <span className="inline-flex items-center gap-1 text-xs bg-red-50 text-red-600 border border-red-200 px-2.5 py-1 rounded-full font-medium">
-            <AlertTriangle size={10} /> Ch\u01b0a c\u1ea5u h\xecnh
+            <AlertTriangle size={10} /> Chưa cấu hình
           </span>
         ) : (
           <span className="inline-flex items-center gap-1 text-xs bg-emerald-50 text-emerald-700 border border-emerald-200 px-2.5 py-1 rounded-full font-medium">
-            <CheckCircle size={10} /> \u0110ang d\xf9ng
+            <CheckCircle size={10} /> Đang dùng
           </span>
         )}
       </td>
@@ -401,13 +401,13 @@ function PolicyRow({ entry, onEdit, onHistory }: { entry: PolicyEntry; onEdit: (
       <td className="py-3 px-4 text-center">
         <div className="flex items-center justify-center gap-2">
           {isReadOnly
-            ? <span className="text-xs text-slate-400 italic">Ch\u1ec9 \u0111\u1ecdc</span>
+            ? <span className="text-xs text-slate-400 italic">Chỉ đọc</span>
             : (
               <button
                 onClick={() => onEdit(entry)}
                 className="text-xs flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-200 transition-colors font-medium"
               >
-                <Edit3 size={12} /> S\u1eeda
+                <Edit3 size={12} /> Sửa
               </button>
             )
           }
@@ -415,7 +415,7 @@ function PolicyRow({ entry, onEdit, onHistory }: { entry: PolicyEntry; onEdit: (
             onClick={() => onHistory(entry.key)}
             className="text-xs flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-200 transition-colors font-medium"
           >
-            <Clock size={12} /> L\u1ecbch s\u1eed
+            <Clock size={12} /> Lịch sử
           </button>
         </div>
       </td>
@@ -451,23 +451,23 @@ export default function AdminPolicyConfig() {
         <div>
           <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
             <Settings2 size={20} className="text-sky-600" />
-            C\u1ea5u H\xecnh Hoa H\u1ed3ng
+            Cấu Hình Hoa Hồng
           </h2>
-          <p className="text-sm text-slate-500 mt-1">Qu\u1ea3n l\xfd t\u1ec9 l\u1ec7 commission ch\xednh th\u1ee9c. M\u1ecdi thay \u0111\u1ed5i \u0111\u01b0\u1ee3c ghi audit log \u0111\u1ea7y \u0111\u1ee7.</p>
+          <p className="text-sm text-slate-500 mt-1">Quản lý tỉ lệ commission chính thức. Mọi thay đổi được ghi audit log đầy đủ.</p>
         </div>
         <button
           onClick={loadPolicies} disabled={loading}
           className="flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-200 bg-white text-slate-600 text-sm font-medium hover:bg-slate-50 transition-colors disabled:opacity-50"
         >
           <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
-          {loading ? '\u0110ang t\u1ea3i...' : 'L\xe0m m\u1edbi'}
+          {loading ? 'Đang tải...' : 'Làm mới'}
         </button>
       </div>
 
       {notConfiguredCount > 0 && (
         <div className="flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-amber-700 text-sm">
           <AlertTriangle size={16} className="shrink-0 text-amber-500" />
-          <span><strong>{notConfiguredCount} key</strong> \u0111ang NOT_CONFIGURED \u2014 commission cho c\xe1c rule n\xe0y s\u1ebd kh\xf4ng \u0111\u01b0\u1ee3c t\u1ea1o cho \u0111\u1ebfn khi Boss x\xe1c nh\u1eadn t\u1ec9 l\u1ec7.</span>
+          <span><strong>{notConfiguredCount} key</strong> đang NOT_CONFIGURED — commission cho các rule này sẽ không được tạo cho đến khi Boss xác nhận tỉ lệ.</span>
         </div>
       )}
 
@@ -492,23 +492,23 @@ export default function AdminPolicyConfig() {
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-x-auto">
         {loading ? (
           <div className="p-12 text-center text-slate-400 flex items-center justify-center gap-2">
-            <RefreshCw size={16} className="animate-spin" /> \u0110ang t\u1ea3i c\u1ea5u h\xecnh...
+            <RefreshCw size={16} className="animate-spin" /> Đang tải cấu hình...
           </div>
         ) : (
           <table className="w-full">
             <thead>
               <tr className="border-b border-slate-200 text-xs text-slate-500 uppercase tracking-wide">
                 <th className="py-3 px-4 text-left font-semibold">Policy Key</th>
-                <th className="py-3 px-4 text-center font-semibold">Gi\xe1 tr\u1ecb</th>
-                <th className="py-3 px-4 text-center font-semibold">Tr\u1ea1ng th\xe1i</th>
+                <th className="py-3 px-4 text-center font-semibold">Giá trị</th>
+                <th className="py-3 px-4 text-center font-semibold">Trạng thái</th>
                 <th className="py-3 px-4 text-center font-semibold">Version</th>
-                <th className="py-3 px-4 text-center font-semibold">C\u1eadp nh\u1eadt b\u1edfi</th>
-                <th className="py-3 px-4 text-center font-semibold">Thao t\xe1c</th>
+                <th className="py-3 px-4 text-center font-semibold">Cập nhật bởi</th>
+                <th className="py-3 px-4 text-center font-semibold">Thao tác</th>
               </tr>
             </thead>
             <tbody>
               {groupPolicies.length === 0
-                ? <tr><td colSpan={6} className="py-12 text-center text-slate-400 text-sm">Kh\xf4ng c\xf3 d\u1eef li\u1ec7u.</td></tr>
+                ? <tr><td colSpan={6} className="py-12 text-center text-slate-400 text-sm">Không có dữ liệu.</td></tr>
                 : groupPolicies.map(entry => <PolicyRow key={entry.key} entry={entry} onEdit={setEditEntry} onHistory={setHistoryKey} />)
               }
             </tbody>
@@ -517,8 +517,8 @@ export default function AdminPolicyConfig() {
       </div>
 
       <div className="text-xs text-slate-500 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3">
-        \u26a0 Thay \u0111\u1ed5i policy ch\u1ec9 \u1ea3nh h\u01b0\u1edfng c\xe1c commission ph\xe1t sinh <strong>sau</strong> th\u1eddi \u0111i\u1ec3m thay \u0111\u1ed5i.
-        Commission l\u1ecbch s\u1eed gi\u1eef nguy\xean snapshot t\u1ea1i th\u1eddi \u0111i\u1ec3m ph\xe1t sinh (ruleKey, rateSnapshot, policyVersion).
+        ⚠ Thay đổi policy chỉ ảnh hưởng các commission phát sinh <strong>sau</strong> thời điểm thay đổi.
+        Commission lịch sử giữ nguyên snapshot tại thời điểm phát sinh (ruleKey, rateSnapshot, policyVersion).
       </div>
 
       {editEntry && (
