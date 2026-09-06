@@ -49,6 +49,7 @@ import AboutView from './views/AboutView.jsx';
 import WholesaleOrdersView from './views/WholesaleOrdersView.jsx';
 import RankView from './views/RankView.jsx';
 import PolicyView from './views/PolicyView.jsx';
+import JoinSystemBanner from './components/JoinSystemBanner.jsx';
 
 function App() {
   const [currentUser, setCurrentUser] = useState(() => {
@@ -159,6 +160,31 @@ function App() {
       setActiveTab('dashboard');
     }} />
   }
+
+  // Refresh currentUser from server (after join-system or points update)
+  const refreshCurrentUser = async () => {
+    try {
+      const res = await fetch('/api/auth/me').then(r => r.json());
+      if (res.success) {
+        const updated = { ...currentUser, ...res.data };
+        localStorage.setItem('crm_user', JSON.stringify(updated));
+        setCurrentUser(updated);
+      }
+    } catch (_) {}
+  };
+
+  // THAM GIA HỆ THỐNG action
+  const handleJoinSystem = async () => {
+    try {
+      const res = await fetch('/api/users/me/join-system', { method: 'POST' }).then(r => r.json());
+      if (res.success) {
+        await refreshCurrentUser();
+      }
+      return res;
+    } catch (err) {
+      return { success: false, message: 'Lỗi kết nối.' };
+    }
+  };
 
   const isAdmin = currentUser?.role === 'admin' || currentUser?.id === 'ADMIN';
   const isAccountant = currentUser?.role === 'accountant' || currentUser?.id === 'ACCOUNTANT';
@@ -396,7 +422,11 @@ function App() {
         </header>
 
         <div className="page-content animate-fade-in">
-          {activeTab === 'dashboard' && <DashboardView refreshKey={refreshKey} currentUser={currentUser} setActiveTab={setActiveTab} />}
+          {/* ─── THAM GIA HỆ THỐNG Banner ───────────────────────────── */}
+          {!currentUser.isSystemParticipant && activeTab === 'dashboard' && (
+            <JoinSystemBanner onJoin={handleJoinSystem} qualifyingPoints={currentUser.qualifyingPoints ?? 0} />
+          )}
+          {activeTab === 'dashboard' && <DashboardView refreshKey={refreshKey} currentUser={currentUser} setActiveTab={setActiveTab} onJoin={handleJoinSystem} />}
           {activeTab === 'network' && <NetworkView refreshKey={refreshKey} currentUser={currentUser} />}
           {activeTab === 'users' && isAdminOrAccountant && <UsersView 
              refreshKey={refreshKey} 
@@ -414,7 +444,7 @@ function App() {
           {activeTab === 'internal-users' && isAdmin && <SystemUsersView />}
           {activeTab === 'audit-logs' && isAdminOrAccountant && <SystemLogsView currentUser={currentUser} />}
           {activeTab === 'wholesale' && <WholesaleOrdersView currentUser={currentUser} />}
-          {activeTab === 'rank' && <RankView currentUser={currentUser} />}
+          {activeTab === 'rank' && <RankView currentUser={currentUser} onJoin={handleJoinSystem} onRefresh={refreshCurrentUser} />}
           {activeTab === 'about' && <AboutView />}
         </div>
       </main>

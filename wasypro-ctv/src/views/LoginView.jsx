@@ -39,23 +39,14 @@ export default function LoginView({ onLogin }) {
     setError(''); setSuccess('');
     setLoading(true);
     try {
-      let res;
-      if (regRole === 'ctv') {
-        res = await fetch('/api/users', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ fullName, phone, tier: 'SILVER', parentId: refCode, password: '123456' })
-        }).then(r => r.json());
-      } else {
-        res = await fetch('/api/customers', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ fullName, phone, sourceCtvId: refCode })
-        }).then(r => r.json());
-      }
+      const res = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fullName, phone, password: '123456', refCode })
+      }).then(r => r.json());
 
       if (res.success) {
-        setSuccess('Đăng ký thành công! Mật khẩu mặc định của bạn là: 123456');
+        setSuccess('Đăng ký thành công! Mật khẩu mặc định: 123456. Vui lòng đăng nhập.');
         setIsRegister(false);
         setPassword('123456');
       } else {

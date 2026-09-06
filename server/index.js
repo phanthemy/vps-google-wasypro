@@ -299,7 +299,14 @@ app.post('/api/auth/login', authLimiter, async (req, res) => {
         fullName: user.fullName,
         tier: user.tier,
         phone: user.phone,
-        mustChangePassword: user.mustChangePassword
+        mustChangePassword: user.mustChangePassword,
+        isSystemParticipant: user.isSystemParticipant,
+        participantAt: user.participantAt,
+        qualifyingPoints: user.qualifyingPoints ?? 0,
+        sPoints: user.sPoints ?? 0,
+        businessId: user.businessId ?? null,
+        rank: user.rank ?? null,
+        rankStatus: user.rankStatus ?? null,
       }
     });
   } catch (error) {
@@ -308,19 +315,32 @@ app.post('/api/auth/login', authLimiter, async (req, res) => {
   }
 });
 
-// AUTH ME (Session Status)
+// AUTH ME (Session Status) — returns fresh data from DB
 app.get('/api/auth/me', authenticateToken, async (req, res) => {
-  res.json({
-    success: true,
-    data: {
-      id: req.user.id,
-      role: req.user.role,
-      fullName: req.user.fullName,
-      tier: req.user.tier,
-      phone: req.user.phone,
-      mustChangePassword: req.user.mustChangePassword
-    }
-  });
+  try {
+    const user = await prisma.user.findUnique({ where: { userId: req.user.userId } });
+    if (!user) return res.status(404).json({ success: false, message: 'Người dùng không tồn tại.' });
+    res.json({
+      success: true,
+      data: {
+        id: user.userId,
+        role: user.role,
+        fullName: user.fullName,
+        tier: user.tier,
+        phone: user.phone,
+        mustChangePassword: user.mustChangePassword,
+        isSystemParticipant: user.isSystemParticipant,
+        participantAt: user.participantAt,
+        qualifyingPoints: user.qualifyingPoints ?? 0,
+        sPoints: user.sPoints ?? 0,
+        businessId: user.businessId ?? null,
+        rank: user.rank ?? null,
+        rankStatus: user.rankStatus ?? null,
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Lỗi máy chủ.' });
+  }
 });
 
 // LOGOUT (Clear Cookies)
@@ -328,6 +348,141 @@ app.post('/api/auth/logout', (req, res) => {
   res.clearCookie('auth_token', { path: '/' });
   res.clearCookie('csrf_token', { path: '/' });
   res.json({ success: true, message: 'Đã đăng xuất thành công.' });
+});
+
+// ─── SELF REGISTRATION (public — no auth required) ───────────────────────────
+// POST /api/auth/register
+// Creates a User account (role=ctv, isSystemParticipant=false by default).
+// refCode → parentId (sponsor). No business rights until "THAM GIA HỆ THỐNG".
+app.post('/api/auth/register', authLimiter, async (req, res) => {
+  try {
+    let { fullName, phone, password, refCode } = req.body;
+    if (!fullName || !fullName.trim()) return res.status(400).json({ success: false, message: 'Vui lòng nhập họ tên.' });
+    if (!phone || !phone.trim()) return res.status(400).json({ success: false, message: 'Vui lòng nhập số điện thoại.' });
+
+    phone = phone.trim();
+    fullName = fullName.trim();
+    const rawPwd = (password && password.trim()) ? password.trim() : '123456';
+
+    // Check duplicate phone
+    const existing = await prisma.user.findUnique({ where: { phone } });
+    if (existing) {
+      return res.status(400).json({ success: false, message: 'Số điện thoại này đã được đăng ký. Vui lòng đăng nhập.' });
+    }
+
+    // Resolve sponsor from refCode
+    let parentId = null;
+    if (refCode && refCode.trim()) {
+      const sponsor = await prisma.user.findUnique({ where: { userId: refCode.trim() } });
+      if (sponsor) parentId = sponsor.userId;
+    }
+
+    // Generate userId: prefix U + 3 digits
+    let generatedId = '', isUnique = false;
+    while (!isUnique) {
+      generatedId = 'U' + Math.floor(100 + Math.random() * 900);
+      const check = await prisma.user.findUnique({ where: { userId: generatedId } });
+      if (!check) isUnique = true;
+    }
+
+    const hashedPassword = await bcrypt.hash(rawPwd, 10);
+    const newUser = await prisma.user.create({
+      data: {
+        userId: generatedId,
+        fullName,
+        phone,
+        password: hashedPassword,
+        tier: 'SILVER',
+        role: 'ctv',
+        parentId,
+        mustChangePassword: false,
+        isSystemParticipant: false,
+        qualifyingPoints: 0,
+        sPoints: 0,
+      }
+    });
+
+    // Auto-link existing Customer record if phone matches
+    try {
+      const existingCustomer = await prisma.customer.findFirst({
+        where: { phone, linkedUserId: null }
+      });
+      if (existingCustomer) {
+        await prisma.customer.update({
+          where: { id: existingCustomer.id },
+          data: { linkedUserId: newUser.id }
+        });
+      }
+    } catch (_) { /* non-critical — link can be done later */ }
+
+    res.status(201).json({
+      success: true,
+      message: 'Đăng ký tài khoản thành công! Vui lòng đăng nhập.',
+      data: {
+        id: newUser.userId,
+        fullName: newUser.fullName,
+        phone: newUser.phone,
+        isSystemParticipant: false,
+        businessId: null,
+        rank: null,
+      }
+    });
+  } catch (err) {
+    console.error('[REGISTER]', err.message);
+    res.status(500).json({ success: false, message: 'Lỗi máy chủ. Vui lòng thử lại.' });
+  }
+});
+
+// ─── THAM GIA HỆ THỐNG (authenticated user self-opts-in) ─────────────────────
+// POST /api/users/me/join-system
+// Sets isSystemParticipant=true, records participantAt.
+// Idempotent: calling twice is safe — second call returns 200 with no change.
+app.post('/api/users/me/join-system', authenticateToken, async (req, res) => {
+  try {
+    const user = await prisma.user.findUnique({ where: { userId: req.user.userId } });
+    if (!user) return res.status(404).json({ success: false, message: 'Người dùng không tồn tại.' });
+
+    // Idempotent guard
+    if (user.isSystemParticipant) {
+      return res.json({
+        success: true,
+        alreadyJoined: true,
+        message: 'Bạn đã tham gia hệ thống từ trước.',
+        data: {
+          isSystemParticipant: true,
+          participantAt: user.participantAt,
+          qualifyingPoints: user.qualifyingPoints ?? 0,
+        }
+      });
+    }
+
+    const now = new Date();
+    const updated = await prisma.user.update({
+      where: { userId: user.userId },
+      data: {
+        isSystemParticipant: true,
+        participantAt: now,
+      }
+    });
+
+    console.log(`[JOIN-SYSTEM] ${user.userId} (${user.fullName}) joined at ${now.toISOString()}`);
+
+    res.json({
+      success: true,
+      alreadyJoined: false,
+      message: 'Đã tham gia hệ thống thành công! Các điểm tích lũy từ đơn hàng tiếp theo sẽ được tính vào mốc 5.000 CP.',
+      data: {
+        isSystemParticipant: true,
+        participantAt: updated.participantAt,
+        qualifyingPoints: updated.qualifyingPoints ?? 0,
+        businessId: updated.businessId ?? null,
+        rank: updated.rank ?? null,
+      }
+    });
+  } catch (err) {
+    console.error('[JOIN-SYSTEM]', err.message);
+    res.status(500).json({ success: false, message: 'Lỗi máy chủ. Vui lòng thử lại.' });
+  }
 });
 
 // 2. CONFIG COMMISSION MATRIX
