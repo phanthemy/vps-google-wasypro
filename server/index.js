@@ -3938,6 +3938,179 @@ app.put('/api/services/:id/product-type', authenticateToken, requireRole(['admin
 });
 
 
+// ============================================================
+// PHASE 3 — WEBSITE ORDER UNIFIED FLOW
+// wasypro.com orders link to User identity when logged in
+// ============================================================
+
+/**
+ * POST /api/orders/website
+ * Public (guest) OR authenticated (user).
+ * - Guest: saves customerName + customerPhone (text), no userId
+ * - Auth: saves userId, sponsorUserId from user.parentId, commissionPoints from Product
+ * - If user.isSystemParticipant → increments qualifyingPoints + checks 5000 CP threshold
+ */
+app.post('/api/orders/website', async (req, res) => {
+  try {
+    const { customerName, customerPhone, address, message, type, productId, productTitle, productPrice, qty, refCode } = req.body;
+    if (!customerPhone) return res.status(400).json({ success: false, message: 'Vui lòng nhập số điện thoại.' });
+
+    // Try to identify authenticated user from JWT cookie (optional — not required)
+    let authedUser = null;
+    try {
+      const token = req.cookies?.token;
+      if (token) {
+        const jwt = require('jsonwebtoken');
+        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key-here');
+        authedUser = await prisma.user.findUnique({ where: { userId: decoded.userId } });
+      }
+    } catch (_) { /* guest order */ }
+
+    // Resolve product and commission points
+    let cpSnapshot = 0;
+    let resolvedProductTitle = productTitle || null;
+    if (productId) {
+      const prod = await prisma.product.findUnique({ where: { id: productId } });
+      if (prod) {
+        cpSnapshot = prod.commissionPoints || 0;
+        resolvedProductTitle = resolvedProductTitle || prod.title;
+      }
+    }
+
+    // Resolve sponsor
+    let sponsorUserId = null;
+    if (authedUser) {
+      sponsorUserId = authedUser.parentId || null; // parent in sponsor tree
+    } else if (refCode) {
+      const sponsor = await prisma.user.findUnique({ where: { userId: refCode.trim() } });
+      if (sponsor) sponsorUserId = sponsor.userId;
+    }
+
+    const totalAmount = (productPrice || 0) * (qty || 1);
+
+    const websiteOrder = await prisma.websiteOrder.create({
+      data: {
+        customerName: customerName || (authedUser?.fullName) || 'Khách',
+        customerPhone: customerPhone.trim(),
+        address: address || '',
+        message: message || '',
+        type: type || 'ORDER',
+        productId: productId || null,
+        productTitle: resolvedProductTitle,
+        productPrice: productPrice || 0,
+        qty: qty || 1,
+        totalAmount,
+        userId: authedUser ? authedUser.userId : null,
+        sponsorUserId,
+        commissionPoints: cpSnapshot,
+        qualifyingPointsAwarded: false,
+      }
+    });
+
+    // Award qualifying points if user is a system participant
+    if (authedUser && authedUser.isSystemParticipant && cpSnapshot > 0) {
+      await prisma.$transaction(async (tx) => {
+        const updated = await tx.user.update({
+          where: { id: authedUser.id },
+          data: { qualifyingPoints: { increment: Math.round(cpSnapshot * (qty || 1)) } }
+        });
+        await tx.websiteOrder.update({
+          where: { id: websiteOrder.id },
+          data: { qualifyingPointsAwarded: true }
+        });
+
+        // Check 5000 CP threshold → Ambassador auto-activation
+        const THRESHOLD = 5000;
+        if (updated.qualifyingPoints >= THRESHOLD && !updated.businessId) {
+          // Allocate Business ID from sequence
+          const seq = await tx.businessIdSequence.update({
+            where: { id: 1 },
+            data: { nextVal: { increment: 1 } }
+          });
+          const bizId = 'WK-' + String(seq.nextVal - 1).padStart(5, '0');
+          const now2 = new Date();
+          await tx.user.update({
+            where: { id: authedUser.id },
+            data: {
+              businessId: bizId,
+              rank: 'AMBASSADOR',
+              rankStatus: 'ACTIVE',
+              rankAchievedAt: now2,
+              rankActivationMethod: 'AUTO_WEBSITE',
+            }
+          });
+          await tx.rankHistory.create({
+            data: {
+              userId: authedUser.id,
+              fromRank: authedUser.rank || null,
+              toRank: 'AMBASSADOR',
+              reason: 'Reached 5000 qualifying points via wasypro.com orders',
+              activatedBy: 'SYSTEM',
+              activationMethod: 'AUTO_WEBSITE',
+              businessId: bizId,
+            }
+          });
+          console.log(`[AMBASSADOR AUTO] ${authedUser.userId} → ${bizId} via website order`);
+        }
+      });
+    }
+
+    console.log(`[WEBSITE ORDER] ${websiteOrder.customerName} (${websiteOrder.customerPhone}) userId=${authedUser?.userId || 'guest'} product=${resolvedProductTitle} total=${totalAmount}`);
+    res.status(201).json({ success: true, order: { id: websiteOrder.id, status: websiteOrder.status } });
+  } catch (err) {
+    console.error('[WEBSITE ORDER]', err.message);
+    res.status(500).json({ success: false, message: 'Lỗi máy chủ. Vui lòng thử lại.' });
+  }
+});
+
+/**
+ * GET /api/orders/my
+ * Authenticated — returns logged-in user's WebsiteOrders + CTV Orders
+ */
+app.get('/api/orders/my', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const user = await prisma.user.findUnique({ where: { userId } });
+    if (!user) return res.status(404).json({ success: false, message: 'User not found.' });
+
+    // Website orders placed by this user
+    const websiteOrders = await prisma.websiteOrder.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    // CTV orders placed by this user (via Customer.linkedUserId)
+    const customer = await prisma.customer.findFirst({ where: { linkedUserId: user.id } });
+    const ctvOrders = customer ? await prisma.order.findMany({
+      where: { customerId: customer.id },
+      include: { items: { include: { product: true } } },
+      orderBy: { createdAt: 'desc' },
+    }) : [];
+
+    res.json({
+      success: true,
+      data: {
+        websiteOrders,
+        ctvOrders,
+        user: {
+          userId: user.userId,
+          fullName: user.fullName,
+          isSystemParticipant: user.isSystemParticipant,
+          participantAt: user.participantAt,
+          qualifyingPoints: user.qualifyingPoints,
+          sPoints: user.sPoints,
+          businessId: user.businessId,
+          rank: user.rank,
+          rankStatus: user.rankStatus,
+        }
+      }
+    });
+  } catch (err) {
+    console.error('[MY ORDERS]', err.message);
+    res.status(500).json({ success: false, message: 'Lỗi máy chủ.' });
+  }
+});
+
 // Export app with attached helper functions for testing and backwards compatibility
 app.executeOrderSettlement = executeOrderSettlement;
 app.calculateAndCreateCommissions = calculateAndCreateCommissions;

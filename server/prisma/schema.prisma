@@ -277,6 +277,11 @@ model WebsiteOrder {
   qty           Int      @default(1)
   totalAmount   Float    @default(0)
   status        String   @default("NEW") // NEW, CONFIRMED, SHIPPING, COMPLETED, CANCELLED
+  // Identity link — null for guest orders, set when logged-in user places order
+  userId        String?  // FK to User.userId (denormalized for SQLite simplicity)
+  sponsorUserId String?  // FK to User.userId (refCode at time of order, for commission)
+  commissionPoints Float @default(0) // snapshot of product.commissionPoints at order time
+  qualifyingPointsAwarded Boolean @default(false) // true once QP credited to user
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 }

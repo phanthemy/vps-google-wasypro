@@ -7,6 +7,14 @@ export interface UserSession {
   tier?: string;
   phone: string;
   mustChangePassword?: boolean;
+  // Participant / CTV system fields
+  isSystemParticipant?: boolean;
+  participantAt?: string | null;
+  qualifyingPoints?: number;
+  sPoints?: number;
+  businessId?: string | null;
+  rank?: string | null;
+  rankStatus?: string | null;
 }
 
 export function useUnifiedAuth() {
