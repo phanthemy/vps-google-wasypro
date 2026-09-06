@@ -184,12 +184,24 @@ export const Header: React.FC<HeaderProps> = ({
                 </button>
 
                 {userDropdownOpen && (
-                  <div className="absolute right-0 mt-2 w-56 bg-white rounded-2xl shadow-2xl border border-gray-100 py-2 z-50 animate-fadeIn">
+                  <div className="absolute right-0 mt-2 w-60 bg-white rounded-2xl shadow-2xl border border-gray-100 py-2 z-50 animate-fadeIn">
                     <div className="px-4 py-2 border-b border-gray-100 bg-gray-50/60">
                       <p className="text-[10px] text-gray-500 font-medium uppercase">Tài khoản:</p>
                       <p className="text-sm font-bold text-gray-900 truncate">{user.fullName}</p>
                       <p className="text-[10px] text-gray-500 font-mono mt-0.5">{user.phone}</p>
                     </div>
+
+                    {/* CTV Portal — visible to all logged-in users */}
+                    <a
+                      href="https://app.wasypro.com"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={() => setUserDropdownOpen(false)}
+                      className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-semibold text-primary hover:bg-primary/5 transition-colors text-left"
+                    >
+                      <LayoutDashboard className="w-4 h-4 text-primary" />
+                      <span>Quản lý tài khoản CTV</span>
+                    </a>
 
                     {isAdmin && (
                       <button
@@ -286,6 +298,17 @@ export const Header: React.FC<HeaderProps> = ({
                     <p className="text-xs font-bold text-gray-900">{user.fullName}</p>
                     <p className="text-[10px] text-gray-500 font-mono">{user.phone}</p>
                   </div>
+                  {/* CTV Portal — all logged-in users */}
+                  <a
+                    href="https://app.wasypro.com"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="w-full py-2.5 rounded-lg bg-primary/10 text-primary text-xs font-bold uppercase flex items-center justify-center gap-2"
+                  >
+                    <LayoutDashboard className="w-3.5 h-3.5" />
+                    Quản lý tài khoản CTV
+                  </a>
                   {isAdmin && (
                     <button
                       onClick={() => { onOpenAdmin(); setMobileMenuOpen(false); }}
