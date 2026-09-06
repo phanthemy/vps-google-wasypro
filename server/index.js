@@ -63,7 +63,12 @@ const csrfProtection = (req, res, next) => {
   }
 
   // Public unauthenticated routes are exempt
-  if (req.path === '/api/auth/login' || req.path === '/api/auth/logout') {
+  if (
+    req.path === '/api/auth/login' ||
+    req.path === '/api/auth/logout' ||
+    req.path === '/api/auth/register' ||
+    req.path === '/api/orders/website'   // Public order form — accepts guest + logged-in users
+  ) {
     return next();
   }
 
