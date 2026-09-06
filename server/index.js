@@ -331,11 +331,17 @@ app.post('/api/auth/logout', (req, res) => {
 });
 
 // 2. CONFIG COMMISSION MATRIX
+// @deprecated — Legacy config.json routes (CTV Portal legacy only).
+// Commission Engine v3.6 does NOT read config.json — it reads SystemPolicyConfig (DB).
+// Use /api/admin/policy for authoritative policy management.
 app.get('/api/config', authenticateToken, (req, res) => {
+  res.set('X-Deprecated', 'true; use /api/admin/policy');
   res.json({ success: true, data: getCommissionRates() });
 });
 
+// @deprecated — writes to config.json which Commission Engine v3.6 does NOT read.
 app.post('/api/config', authenticateToken, requireRole(['admin']), (req, res) => {
+  res.set('X-Deprecated', 'true; use PUT /api/admin/policy/:key');
   try {
     const newRates = req.body;
     fs.writeFileSync(CONFIG_FILE, JSON.stringify(newRates, null, 2));
@@ -344,6 +350,185 @@ app.post('/api/config', authenticateToken, requireRole(['admin']), (req, res) =>
     res.status(500).json({ success: false, error: error.message });
   }
 });
+
+// ── ADMIN POLICY CONFIGURATION (SystemPolicyConfig) ────────────────────────
+
+// GET /api/admin/policy — list all 16 policy keys
+app.get('/api/admin/policy', authenticateToken, requireRole(['admin']), async (req, res) => {
+  try {
+    const configs = await prisma.systemPolicyConfig.findMany({ orderBy: { key: 'asc' } });
+    res.json({ success: true, data: configs.map(c => ({
+      key: c.key,
+      value: c.value,
+      description: c.description,
+      version: c.version,
+      updatedBy: c.updatedBy,
+      updatedAt: c.updatedAt,
+      status: c.value === 'NOT_CONFIGURED' ? 'NOT_CONFIGURED' : 'ACTIVE'
+    })) });
+  } catch (err) {
+    console.error('[ADMIN POLICY GET]', err.message);
+    res.status(500).json({ success: false, message: 'Không thể tải cấu hình policy.' });
+  }
+});
+
+// GET /api/admin/policy/:key/history — audit log for a specific key
+app.get('/api/admin/policy/:key/history', authenticateToken, requireRole(['admin']), async (req, res) => {
+  try {
+    const { key } = req.params;
+    const policy = await prisma.systemPolicyConfig.findUnique({ where: { key } });
+    if (!policy) {
+      return res.status(404).json({ success: false, message: 'Policy key không tồn tại.' });
+    }
+    const logs = await prisma.systemPolicyAuditLog.findMany({
+      where: { key },
+      orderBy: { createdAt: 'desc' },
+      take: 50
+    });
+    res.json({ success: true, key, data: logs.map(l => ({
+      oldValue: l.oldValue,
+      newValue: l.newValue,
+      version: l.version,
+      updatedBy: l.updatedBy,
+      reason: l.reason,
+      createdAt: l.createdAt
+    })) });
+  } catch (err) {
+    console.error('[ADMIN POLICY HISTORY]', err.message);
+    res.status(500).json({ success: false, message: 'Không thể tải lịch sử policy.' });
+  }
+});
+
+// PUT /api/admin/policy/:key — update a policy key (admin only, atomic, audited)
+app.put('/api/admin/policy/:key', authenticateToken, requireRole(['admin']), async (req, res) => {
+  try {
+    const { key } = req.params;
+    const { value, reason } = req.body;
+
+    // 1. POLICY_VERSION: system-managed only
+    if (key === 'POLICY_VERSION') {
+      return res.status(403).json({
+        success: false,
+        error: 'KEY_NOT_EDITABLE',
+        message: 'POLICY_VERSION được quản lý tự động bởi hệ thống. Không thể sửa trực tiếp.'
+      });
+    }
+
+    // 2. Reason bắt buộc
+    if (!reason || String(reason).trim().length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'REASON_REQUIRED',
+        message: 'Vui lòng nhập lý do thay đổi policy.'
+      });
+    }
+
+    // 3. Value bắt buộc
+    if (value === undefined || value === null || String(value).trim() === '') {
+      return res.status(400).json({
+        success: false,
+        error: 'VALUE_REQUIRED',
+        message: 'Vui lòng nhập giá trị mới.'
+      });
+    }
+
+    // 4. Validate value theo loại key
+    const strVal = String(value).trim();
+    let validatedValue;
+
+    if (key === 'AMBASSADOR_THRESHOLD') {
+      const intVal = parseInt(strVal, 10);
+      if (isNaN(intVal) || intVal <= 0 || String(intVal) !== strVal) {
+        return res.status(400).json({
+          success: false,
+          error: 'INVALID_POLICY_VALUE',
+          message: 'AMBASSADOR_THRESHOLD phải là số nguyên dương (VD: 5000).'
+        });
+      }
+      validatedValue = String(intVal);
+    } else if (strVal === 'NOT_CONFIGURED') {
+      validatedValue = 'NOT_CONFIGURED';
+    } else {
+      const floatVal = parseFloat(strVal);
+      if (isNaN(floatVal) || floatVal < 0 || floatVal > 1) {
+        return res.status(400).json({
+          success: false,
+          error: 'INVALID_POLICY_VALUE',
+          message: 'Tỉ lệ commission phải từ 0.00 đến 1.00 (VD: 0.20 = 20%), hoặc "NOT_CONFIGURED".'
+        });
+      }
+      validatedValue = String(floatVal);
+    }
+
+    // 5. Kiểm tra key tồn tại
+    const existing = await prisma.systemPolicyConfig.findUnique({ where: { key } });
+    if (!existing) {
+      return res.status(404).json({ success: false, message: 'Policy key không tồn tại.' });
+    }
+
+    // 6. Load POLICY_VERSION để bump minor
+    const versionRecord = await prisma.systemPolicyConfig.findUnique({ where: { key: 'POLICY_VERSION' } });
+    const currentVersion = versionRecord ? versionRecord.value : '1.0.0';
+    const parts = currentVersion.split('.').map(Number);
+    parts[1] = (parts[1] || 0) + 1;
+    const newVersion = parts.join('.');
+    const updatedBy = req.user.id;
+
+    // 7. Atomic transaction: update policy + audit + version bump
+    const updated = await prisma.$transaction(async (tx) => {
+      const updatedPolicy = await tx.systemPolicyConfig.update({
+        where: { key },
+        data: { value: validatedValue, updatedBy, version: newVersion }
+      });
+      await tx.systemPolicyAuditLog.create({
+        data: {
+          policyId: existing.id,
+          key,
+          oldValue: existing.value,
+          newValue: validatedValue,
+          version: newVersion,
+          updatedBy,
+          reason: String(reason).trim()
+        }
+      });
+      if (versionRecord) {
+        await tx.systemPolicyConfig.update({
+          where: { key: 'POLICY_VERSION' },
+          data: { value: newVersion, updatedBy }
+        });
+        await tx.systemPolicyAuditLog.create({
+          data: {
+            policyId: versionRecord.id,
+            key: 'POLICY_VERSION',
+            oldValue: currentVersion,
+            newValue: newVersion,
+            version: newVersion,
+            updatedBy,
+            reason: `Auto-bump from ${key} change by ${updatedBy}`
+          }
+        });
+      }
+      return updatedPolicy;
+    }, { isolationLevel: 'Serializable' });
+
+    console.log(`[ADMIN POLICY] ${updatedBy} updated ${key}: ${existing.value} → ${validatedValue} (v${newVersion})`);
+    res.json({
+      success: true,
+      data: {
+        key: updated.key,
+        oldValue: existing.value,
+        newValue: updated.value,
+        version: newVersion,
+        updatedBy,
+        updatedAt: updated.updatedAt
+      }
+    });
+  } catch (err) {
+    console.error('[ADMIN POLICY PUT]', err.message);
+    res.status(500).json({ success: false, message: 'Không thể cập nhật policy. Vui lòng thử lại.' });
+  }
+});
+
 
 // 3. DASHBOARD STATS
 app.get('/api/dashboard', authenticateToken, async (req, res) => {
