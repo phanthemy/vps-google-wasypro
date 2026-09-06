@@ -27,13 +27,14 @@
 | Admin PeriodDetail UI Fix | `63cc34d` | Fix AdminPeriodDetail — same dark-theme class root cause, global replace | Done |
 | Product Master (CTV) | `b30d654` | CTV OrderModal dung Product wasypro.com; Admin nhap commissionPoints | Done |
 | Admin CTV Management + Orders Fix | `240031a` | AdminCTVManagement tab (list+detail), fix AdminOrders data layer, GET /api/admin/ctv routes | Done |
+| Participant Flow — Join System | `7ca5e38` | POST /api/auth/register (public), POST /api/users/me/join-system, login response full fields, JoinSystemBanner UI | Done |
 
 ---
 
 ## Current HEAD
 
 - **Branch:** main
-- **Commit:** `240031a` (origin/main = deployed)
+- **Commit:** `7ca5e38` (origin/main = deployed)
 - **Working tree:** CLEAN
 
 
