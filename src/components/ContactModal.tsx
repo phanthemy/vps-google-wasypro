@@ -58,10 +58,11 @@ export const ContactModal: React.FC<ContactModalProps> = ({
         qty: formData.qty,
       };
 
-      const res = await fetch('/api/website-orders', {
+      const res = await fetch('/api/orders/website', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
+        credentials: 'include',
       });
       
       if (!res.ok) throw new Error('Gửi thất bại, vui lòng thử lại.');
