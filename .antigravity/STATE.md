@@ -1,6 +1,6 @@
 # WasyPro / Water King — PROJECT STATE
 
-**Updated:** 2026-09-06T14:29 +07:00
+**Updated:** 2026-09-06T17:35 +07:00
 
 ---
 
@@ -25,13 +25,14 @@
 | Admin Policy Unicode Fix | `ed65016` | Fix literal \u escape sequences in JSX text (PowerShell heredoc bug) | Done |
 | Admin Periods UI Fix | `3cb8212` | Fix AdminPeriods contrast — dark theme classes on light admin bg | Done |
 | Admin PeriodDetail UI Fix | `63cc34d` | Fix AdminPeriodDetail — same dark-theme class root cause, global replace | Done |
+| Product Master (CTV) | `b30d654` | CTV OrderModal dung Product wasypro.com; Admin nhap commissionPoints | Done |
 
 ---
 
 ## Current HEAD
 
 - **Branch:** main
-- **Commit:** `63cc34d` (origin/main = VPS building)
+- **Commit:** `b30d654` (origin/main = deployed)
 - **Working tree:** CLEAN
 
 
