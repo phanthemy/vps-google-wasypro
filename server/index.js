@@ -1416,8 +1416,8 @@ app.get('/api/users/members', authenticateToken, requireRole(['admin', 'accounta
   try {
     const members = await prisma.user.findMany({
       where: {
-        role: { notIn: ['admin', 'accountant'] },
-        isSystemParticipant: false,
+        role: 'ctv',           // chỉ lấy user tự đăng ký portal
+        isSystemParticipant: false, // chưa tham gia CTV
       },
       orderBy: { createdAt: 'desc' },
       include: {
