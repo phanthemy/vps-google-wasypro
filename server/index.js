@@ -1348,7 +1348,8 @@ app.get('/api/users', authenticateToken, async (req, res) => {
       };
     }
 
-    let userFilter = { role: 'ctv' };
+    // CTV list: ONLY isSystemParticipant=true (đã tham gia hệ thống CTV)
+    let userFilter = { role: 'ctv', isSystemParticipant: true };
     if (req.user.role === 'ctv') {
       const downlineIds = await getDownlineUserIds(req.user.id);
       userFilter.userId = { in: [req.user.id, ...Array.from(downlineIds)] };
@@ -1405,6 +1406,73 @@ app.get('/api/users', authenticateToken, async (req, res) => {
     });
 
     res.json({ success: true, data: mappedUsers });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// MEMBERS LIST — Tài khoản thành viên thường (chưa tham gia CTV)
+app.get('/api/users/members', authenticateToken, requireRole(['admin', 'accountant']), async (req, res) => {
+  try {
+    const members = await prisma.user.findMany({
+      where: {
+        role: { notIn: ['admin', 'accountant'] },
+        isSystemParticipant: false,
+      },
+      orderBy: { createdAt: 'desc' },
+      include: {
+        parent: { select: { fullName: true, userId: true } },
+        _count: { select: { orders: true } },
+      }
+    });
+
+    res.json({
+      success: true,
+      data: members.map(u => ({
+        id: u.id,
+        userId: u.userId,
+        fullName: u.fullName,
+        phone: u.phone,
+        role: u.role,
+        isSystemParticipant: false,
+        createdAt: u.createdAt,
+        parentId: u.parentId || null,
+        parent: u.parent ? `${u.parent.fullName} (${u.parent.userId})` : 'Trực tiếp Công ty',
+        orderCount: u._count.orders,
+      }))
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// PROMOTE TO CTV — Admin nâng tài khoản thành viên lên CTV
+app.post('/api/admin/users/:userId/promote-to-ctv', authenticateToken, requireRole(['admin']), async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const user = await prisma.user.findUnique({ where: { userId } });
+    if (!user) return res.status(404).json({ success: false, message: 'Không tìm thấy tài khoản.' });
+    if (user.isSystemParticipant) return res.status(400).json({ success: false, message: 'Tài khoản này đã là CTV.' });
+
+    const now = new Date();
+    const updated = await prisma.user.update({
+      where: { userId },
+      data: {
+        isSystemParticipant: true,
+        participantAt: now,
+      }
+    });
+
+    res.json({
+      success: true,
+      message: `Đã nâng ${updated.fullName} lên CTV.`,
+      data: {
+        userId: updated.userId,
+        fullName: updated.fullName,
+        isSystemParticipant: true,
+        participantAt: now,
+      }
+    });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }

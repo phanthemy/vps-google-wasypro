@@ -1,5 +1,5 @@
 import React from 'react';
-import { LayoutDashboard, Package, ShieldCheck, PhoneCall, Newspaper, X, Waves, ExternalLink, ShoppingCart, Users, Settings2, Calendar, UserCheck } from 'lucide-react';
+import { LayoutDashboard, Package, ShieldCheck, PhoneCall, Newspaper, X, Waves, ExternalLink, ShoppingCart, Users, Settings2, Calendar, UserCheck, UserCircle2 } from 'lucide-react';
 
 interface AdminSidebarProps {
   activeTab: string;
@@ -16,6 +16,7 @@ export const NAV_ITEMS = [
   { id: 'leads', label: 'Đơn Tư Vấn', icon: PhoneCall, badge: 'Mới' },
   { id: 'orders', label: 'Đơn Hàng', icon: ShoppingCart, badge: 'Mới' },
   { id: 'ctv', label: 'Quản Lý CTV', icon: UserCheck, badge: null },
+  { id: 'members', label: 'Tài Khoản Thành Viên', icon: UserCircle2, badge: null },
   { id: 'news', label: 'Bài Viết', icon: Newspaper, badge: null },
   { id: 'users', label: 'Tài Khoản Admin', icon: Users, badge: null },
   { id: 'periods', label: 'Kỳ Hoa Hồng', icon: Calendar, badge: null },
