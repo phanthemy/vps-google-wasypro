@@ -1,212 +1,398 @@
-﻿import React, { useState, useEffect } from 'react';
-import { Star, Award, Clock, TrendingUp, Info, Loader, RefreshCw } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Star, Award, Clock, TrendingUp, Info, Loader, RefreshCw, CheckCircle2, Shield, Crown } from 'lucide-react';
 import AmbassadorProgressCard from '../components/common/AmbassadorProgressCard.jsx';
 import RankBadge from '../components/common/RankBadge.jsx';
 
-// Map policy keys to display metadata
-// Keys match SystemPolicyConfig / PeriodPolicyConfig in DB
-const RANK_GROUPS = [
-  {
-    role: 'AMBASSADOR',
-    title: '\u0110\u1EA1i s\u1EE9 (Ambassador)',
-    badgeColor: 'text-purple-400 bg-purple-500/10 border-purple-500/30',
-    keys: [
-      { key: 'AMBASSADOR_SELF_BUY',       label: 'T\u1EF1 ti\xEAu d\xF9ng',              desc: '\u0110i\u1EC3m hoa h\u1ED3ng khi t\u1EF1 mua thi\u1EBFt b\u1ECB' },
-      { key: 'AMBASSADOR_DIRECT_NO_ID',   label: 'B\xE1n tr\u1EF1c ti\u1EBFp (Kh\xE1ch m\u1EDB\u0069)', desc: 'Khi b\xE1n cho kh\xE1ch h\xE0ng ch\u01B0a c\xF3 ID th\xE0nh vi\xEAn' },
-      { key: 'AMBASSADOR_DIRECT_WITH_ID', label: 'B\xE1n tr\u1EF1c ti\u1EBFp (Th\xE0nh vi\xEAn)', desc: 'Khi b\xE1n cho kh\xE1ch h\xE0ng \u0111\xE3 c\xF3 ID th\xE0nh vi\xEAn' },
-    ],
-  },
-  {
-    role: 'MANAGER',
-    title: 'Qu\u1EA3n l\xFD (Manager)',
-    badgeColor: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/30',
-    keys: [
-      { key: 'MANAGER_SELF_BUY',          label: 'T\u1EF1 ti\xEAu d\xF9ng',              desc: '\u0110i\u1EC3m hoa h\u1ED3ng khi t\u1EF1 mua thi\u1EBFt b\u1ECB' },
-      { key: 'MANAGER_DIRECT_NO_ID',      label: 'B\xE1n tr\u1EF1c ti\u1EBFp (Kh\xE1ch m\u1EDB\u0069)', desc: 'Khi b\xE1n cho kh\xE1ch h\xE0ng ch\u01B0a c\xF3 ID th\xE0nh vi\xEAn' },
-      { key: 'MANAGER_DIRECT_WITH_ID',    label: 'B\xE1n tr\u1EF1c ti\u1EBFp (Th\xE0nh vi\xEAn)', desc: 'Khi b\xE1n cho kh\xE1ch h\xE0ng \u0111\xE3 c\xF3 ID th\xE0nh vi\xEAn' },
-      { key: 'MANAGER_F1_PURCHASE',       label: '\u0110\u1ED3ng h\xE0nh F1 (D1)',         desc: '\u0110i\u1EC3m hoa h\u1ED3ng t\u1EEB \u0111\u01A1n h\xE0ng c\u1EE7a F1 tr\u1EF1c ti\u1EBFp' },
-      { key: 'MANAGER_F2_PURCHASE',       label: '\u0110\u1ED3ng h\xE0nh F2 (D2)',         desc: '\u0110i\u1EC3m hoa h\u1ED3ng t\u1EEB \u0111\u01A1n h\xE0ng c\u1EE7a F2 tr\u1EF1c thu\u1ED9c' },
-    ],
-  },
-  {
-    role: 'DIRECTOR',
-    title: 'Gi\xE1m \u0111\u1ED1c (Director)',
-    badgeColor: 'text-rose-400 bg-rose-500/10 border-rose-500/30',
-    keys: [
-      { key: 'DIRECTOR_SELF_BUY',         label: 'T\u1EF1 ti\xEAu d\xF9ng',              desc: '\u0110i\u1EC3m hoa h\u1ED3ng khi t\u1EF1 mua thi\u1EBFt b\u1ECB' },
-      { key: 'DIRECTOR_DIRECT_NO_ID',     label: 'B\xE1n tr\u1EF1c ti\u1EBFp (Kh\xE1ch m\u1EDB\u0069)', desc: 'Khi b\xE1n cho kh\xE1ch h\xE0ng ch\u01B0a c\xF3 ID th\xE0nh vi\xEAn' },
-      { key: 'DIRECTOR_DIRECT_WITH_ID',   label: 'B\xE1n tr\u1EF1c ti\u1EBFp (Th\xE0nh vi\xEAn)', desc: 'Khi b\xE1n cho kh\xE1ch h\xE0ng \u0111\xE3 c\xF3 ID th\xE0nh vi\xEAn' },
-      { key: 'DIRECTOR_F1',               label: '\u0110\u1ED3ng h\xE0nh F1 (D1)',         desc: '\u0110i\u1EC3m hoa h\u1ED3ng t\u1EEB \u0111\u01A1n h\xE0ng c\u1EE7a F1 tr\u1EF1c ti\u1EBFp' },
-      { key: 'DIRECTOR_F2',               label: '\u0110\u1ED3ng h\xE0nh F2 (D2)',         desc: '\u0110i\u1EC3m hoa h\u1ED3ng t\u1EEB \u0111\u01A1n h\xE0ng c\u1EE7a F2 tr\u1EF1c thu\u1ED9c' },
-    ],
-  },
-];
-
-function fmtRate(value, key) {
-  if (!value || value === 'NOT_CONFIGURED') return null;
-  if (key === 'AMBASSADOR_THRESHOLD') return value + ' CP';
-  const n = parseFloat(value);
-  return isNaN(n) ? value : (n * 100).toFixed(0) + '%';
-}
-
 export default function RankView({ currentUser }) {
+  // Live Policy State
+  const [policyMap, setPolicyMap] = useState({});
+  const [policyVersion, setPolicyVersion] = useState('1.0.0');
+  const [policyLoading, setPolicyLoading] = useState(true);
+  const [policyError, setPolicyError] = useState(null);
+
+  // History State
   const [history, setHistory] = useState([]);
   const [histLoading, setHistLoading] = useState(true);
   const [histError, setHistError] = useState(null);
-  const [policyMap, setPolicyMap] = useState({});
-  const [policyLoading, setPolicyLoading] = useState(true);
+
+  // Load Active Policies from Server (Synced with Admin Configuration)
+  const loadPolicy = useCallback(() => {
+    setPolicyLoading(true);
+    setPolicyError(null);
+    fetch('/api/policy/active', { credentials: 'include' })
+      .then(res => {
+        if (!res.ok) throw new Error('Không thể tải chính sách hoa hồng từ hệ thống');
+        return res.json();
+      })
+      .then(res => {
+        if (res.success && res.policyMap) {
+          setPolicyMap(res.policyMap);
+          setPolicyVersion(res.version || '1.0.0');
+        } else {
+          throw new Error(res.message || 'Lỗi dữ liệu chính sách');
+        }
+      })
+      .catch(err => setPolicyError(err.message))
+      .finally(() => setPolicyLoading(false));
+  }, []);
 
   useEffect(() => {
+    loadPolicy();
+  }, [loadPolicy]);
+
+  // Load Rank History for User
+  useEffect(() => {
     if (!currentUser?.id) return;
-    fetch('/api/rank/history/' + currentUser.id, { credentials: 'include' })
-      .then(res => { if (!res.ok) throw new Error('L\u1ED7i t\u1EA3i l\u1ECBch s\u1EED c\u1EA5p b\u1EADc'); return res.json(); })
-      .then(res => { if (res.success) setHistory(res.data || []); else throw new Error(res.message); })
+    setHistLoading(true);
+    fetch(`/api/rank/history/${currentUser.id}`, { credentials: 'include' })
+      .then(res => {
+        if (!res.ok) throw new Error('Lỗi tải lịch sử cấp bậc');
+        return res.json();
+      })
+      .then(res => {
+        if (res.success) setHistory(res.data || []);
+        else throw new Error(res.message);
+      })
       .catch(err => setHistError(err.message))
       .finally(() => setHistLoading(false));
   }, [currentUser]);
 
-  const loadPolicy = () => {
-    setPolicyLoading(true);
-    fetch('/api/policy/current', { credentials: 'include' })
-      .then(r => r.json())
-      .then(res => {
-        if (res.success && res.data?.policies) {
-          const map = {};
-          res.data.policies.forEach(p => { map[p.key] = p.value; });
-          setPolicyMap(map);
-        }
-      })
-      .catch(() => {})
-      .finally(() => setPolicyLoading(false));
+  // Format Helper
+  const fmtRate = (key, fallback = '0%') => {
+    const val = policyMap[key];
+    if (!val || val === 'NOT_CONFIGURED') return fallback;
+    const n = parseFloat(val);
+    return isNaN(n) ? val : `${Math.round(n * 100)}%`;
   };
 
-  useEffect(() => { loadPolicy(); }, []);
+  // Structured Rank Groups mapped to Database Policy Keys
+  const rankGroups = [
+    {
+      role: 'AMBASSADOR',
+      title: 'Đại sứ (Ambassador)',
+      subtitle: 'Tích lũy tối thiểu 5.000 CP từ đơn hàng cá nhân',
+      icon: <Star className="w-5 h-5 text-purple-600" />,
+      headerBg: 'bg-purple-50 border-purple-200 text-purple-900',
+      badgeBg: 'bg-purple-600 text-white',
+      borderClass: 'border-purple-200/80',
+      rules: [
+        {
+          key: 'AMBASSADOR_SELF_BUY',
+          label: 'Tự tiêu dùng',
+          desc: 'Hoa hồng khi tự mua sản phẩm / thiết bị',
+          rate: fmtRate('AMBASSADOR_SELF_BUY', '20%')
+        },
+        {
+          key: 'AMBASSADOR_DIRECT_NO_ID',
+          label: 'Bán trực tiếp (Khách mới)',
+          desc: 'Bán cho khách hàng tiêu dùng chưa có tài khoản',
+          rate: fmtRate('AMBASSADOR_DIRECT_NO_ID', '20%')
+        },
+        {
+          key: 'AMBASSADOR_DIRECT_WITH_ID',
+          label: 'Bán trực tiếp (Thành viên)',
+          desc: 'Bán cho khách hàng hoặc thành viên đã có ID',
+          rate: fmtRate('AMBASSADOR_DIRECT_WITH_ID', '10%')
+        }
+      ]
+    },
+    {
+      role: 'MANAGER',
+      title: 'Quản lý (Manager)',
+      subtitle: 'Có đủ 5 thành viên F1 trực tiếp đạt chuẩn Đại Sứ',
+      icon: <Shield className="w-5 h-5 text-emerald-600" />,
+      headerBg: 'bg-emerald-50 border-emerald-200 text-emerald-900',
+      badgeBg: 'bg-emerald-600 text-white',
+      borderClass: 'border-emerald-200/80',
+      rules: [
+        {
+          key: 'MANAGER_SELF_BUY',
+          label: 'Tự tiêu dùng',
+          desc: 'Hoa hồng khi tự mua sản phẩm / thiết bị',
+          rate: fmtRate('MANAGER_SELF_BUY', '25%')
+        },
+        {
+          key: 'MANAGER_DIRECT_NO_ID',
+          label: 'Bán trực tiếp (Khách mới)',
+          desc: 'Bán cho khách hàng tiêu dùng chưa có tài khoản',
+          rate: fmtRate('MANAGER_DIRECT_NO_ID', '25%')
+        },
+        {
+          key: 'MANAGER_DIRECT_WITH_ID',
+          label: 'Bán trực tiếp (Thành viên)',
+          desc: 'Bán cho khách hàng hoặc thành viên đã có ID',
+          rate: fmtRate('MANAGER_DIRECT_WITH_ID', '10%')
+        },
+        {
+          key: 'MANAGER_F1_PURCHASE',
+          label: 'Đồng hành F1 (D1)',
+          desc: 'Hoa hồng từ đơn hàng do F1 trực tiếp tự mua',
+          rate: fmtRate('MANAGER_F1_PURCHASE', '10%')
+        },
+        {
+          key: 'MANAGER_F2_PURCHASE',
+          label: 'Đồng hành F2 (D2)',
+          desc: 'Hoa hồng từ đơn hàng do F2 trực thuộc tự mua',
+          rate: fmtRate('MANAGER_F2_PURCHASE', '5%')
+        },
+        {
+          key: 'MANAGER_F1_SELL_TO_CUSTOMER_NO_ID',
+          label: 'F1 bán cho khách mới',
+          desc: 'Hỗ trợ F1 phát triển thị trường khách hàng mới',
+          rate: fmtRate('MANAGER_F1_SELL_TO_CUSTOMER_NO_ID', '5%')
+        }
+      ]
+    },
+    {
+      role: 'DIRECTOR',
+      title: 'Giám đốc (Director)',
+      subtitle: 'Có đủ 5 thành viên F1 trực tiếp đạt chuẩn Quản Lý',
+      icon: <Crown className="w-5 h-5 text-rose-600" />,
+      headerBg: 'bg-rose-50 border-rose-200 text-rose-900',
+      badgeBg: 'bg-rose-600 text-white',
+      borderClass: 'border-rose-200/80',
+      rules: [
+        {
+          key: 'DIRECTOR_SELF_BUY',
+          label: 'Tự tiêu dùng',
+          desc: 'Hoa hồng tối đa khi tự mua sản phẩm / thiết bị',
+          rate: fmtRate('DIRECTOR_SELF_BUY', '30%')
+        },
+        {
+          key: 'DIRECTOR_DIRECT_NO_ID',
+          label: 'Bán trực tiếp (Khách mới)',
+          desc: 'Bán cho khách hàng tiêu dùng chưa có tài khoản',
+          rate: fmtRate('DIRECTOR_DIRECT_NO_ID', '30%')
+        },
+        {
+          key: 'DIRECTOR_DIRECT_WITH_ID',
+          label: 'Bán trực tiếp (Thành viên)',
+          desc: 'Bán cho khách hàng hoặc thành viên đã có ID',
+          rate: fmtRate('DIRECTOR_DIRECT_WITH_ID', '10%')
+        },
+        {
+          key: 'DIRECTOR_F1',
+          label: 'Đồng hành tuyến F1 (D1)',
+          desc: 'Hoa hồng đồng hành từ toàn bộ đơn hàng F1',
+          rate: fmtRate('DIRECTOR_F1', '10%')
+        },
+        {
+          key: 'DIRECTOR_F2',
+          label: 'Đồng hành tuyến F2 (D2)',
+          desc: 'Hoa hồng đồng hành từ toàn bộ đơn hàng F2',
+          rate: fmtRate('DIRECTOR_F2', '5%')
+        }
+      ]
+    }
+  ];
 
   return (
-    <div className="space-y-6">
-      <div className="glass-panel p-5">
-        <h2 className="text-xl font-bold text-primary flex items-center gap-2 mb-1">
-          <Star size={22} className="text-yellow-400" /> C\u1EA5p B\u1EADc &amp; C\u01A1 Ch\u1EBF Hoa H\u1ED3ng
+    <div className="space-y-6 font-sans">
+      {/* Top Banner */}
+      <div className="glass-panel p-5 rounded-2xl bg-white border border-gray-100 shadow-sm">
+        <h2 className="text-xl font-extrabold text-slate-900 flex items-center gap-2 mb-1">
+          <Star size={22} className="text-amber-500 fill-amber-400" /> Cấp Bậc & Cơ Chế Hoa Hồng
         </h2>
-        <p className="text-sm text-secondary">
-          Quy\u1EC1n l\u1EE3i hoa h\u1ED3ng v\xE0 ti\u1EBFn tr\xECnh ph\xE1t tri\u1EC3n ch\u1EE9c danh theo ch\xEDnh s\xE1ch ch\xEDnh th\u1EE9c WasyPro
+        <p className="text-xs text-slate-600">
+          Quyền lợi hoa hồng và tiến trình phát triển chức danh chính thức theo chuẩn Phase 2C
         </p>
       </div>
 
-      <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))' }}>
-        <div className="glass-panel p-5 space-y-3">
-          <div className="flex items-center gap-2 text-sm font-semibold text-secondary uppercase tracking-wide">
-            <Award size={16} /> C\u1EA5p b\u1EADc hi\u1EC7n t\u1EA1i
+      {/* Current Rank + Progress */}
+      <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))' }}>
+        {/* Current User Rank Card */}
+        <div className="glass-panel p-5 rounded-2xl bg-white border border-gray-100 shadow-sm flex flex-col justify-between">
+          <div className="flex items-center gap-2 text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">
+            <Award size={16} className="text-primary" /> Cấp bậc hiện tại
           </div>
           <div className="flex items-center gap-4">
-            <RankBadge tier={currentUser?.tier} rank={currentUser?.rank} isSystemParticipant={currentUser?.isSystemParticipant} size="lg" />
+            <RankBadge 
+              tier={currentUser?.tier} 
+              rank={currentUser?.rank} 
+              isSystemParticipant={currentUser?.isSystemParticipant} 
+              size="lg" 
+            />
             <div>
-              <p className="font-bold text-primary text-lg">{currentUser?.fullName}</p>
-              <p className="text-xs text-secondary">M\xE3 \u0111\u1ED1i t\xE1c: <strong className="text-primary font-mono">{currentUser?.businessId || currentUser?.id}</strong></p>
-              {currentUser?.rank && (
-                <p className="text-xs text-purple-400 mt-1 font-medium">Ch\u1EE9c danh \u0111\u1ED1i t\xE1c ch\xEDnh th\u1EE9c</p>
-              )}
+              <p className="font-extrabold text-slate-900 text-lg">{currentUser?.fullName}</p>
+              <p className="text-xs text-slate-600 mt-0.5">
+                Mã đối tác:{' '}
+                {currentUser?.businessId ? (
+                  <strong className="text-slate-900 font-mono font-bold bg-amber-100 text-amber-900 px-2 py-0.5 rounded shadow-xs">
+                    {currentUser.businessId}
+                  </strong>
+                ) : (
+                  <strong className="text-amber-600 italic font-semibold">Chưa cấp (Cần 5.000 CP)</strong>
+                )}
+              </p>
+              {currentUser?.rank ? (
+                <p className="text-xs text-purple-700 mt-1 font-semibold flex items-center gap-1">
+                  <CheckCircle2 size={13} className="text-purple-600" /> Chức danh đối tác chính thức
+                </p>
+              ) : currentUser?.isSystemParticipant ? (
+                <p className="text-xs text-blue-700 mt-1 font-semibold flex items-center gap-1">
+                  <span className="w-2 h-2 rounded-full bg-blue-500 inline-block animate-pulse"></span> Đang phấn đấu đạt chuẩn Đại Sứ (5.000 CP)
+                </p>
+              ) : null}
             </div>
           </div>
+          <div className="mt-4 pt-3 border-t border-slate-100 text-[11px] text-slate-500 flex justify-between">
+            <span>ID: <strong className="font-mono text-slate-800">{currentUser?.id || currentUser?.userId}</strong></span>
+            <span>Trạng thái: <strong className="text-emerald-600">{currentUser?.isSystemParticipant ? 'Đã kích hoạt CTV' : 'Khách hàng'}</strong></span>
+          </div>
         </div>
-        <AmbassadorProgressCard userId={currentUser?.id} />
+
+        {/* Dynamic Progression Card */}
+        <AmbassadorProgressCard userId={currentUser?.id || currentUser?.userId} />
       </div>
 
-      <div className="glass-panel p-5 space-y-5">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2 text-sm font-semibold text-secondary uppercase tracking-wide">
-            <TrendingUp size={16} /> B\u1EA3ng C\u01A1 Ch\u1EBF Hoa H\u1ED3ng Theo C\u1EA5p B\u1EADc
+      {/* Dynamic Phase 2C Commission Benefits Table (Live Sync from Admin) */}
+      <div className="glass-panel p-5 sm:p-6 rounded-2xl bg-white border border-gray-100 shadow-sm space-y-5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-gray-100">
+          <div>
+            <div className="flex items-center gap-2 text-sm font-extrabold text-slate-900 uppercase tracking-wide">
+              <TrendingUp size={18} className="text-emerald-600" />
+              <span>Bảng Cơ Chế Hoa Hồng Theo Cấp Bậc (Phase 2C)</span>
+            </div>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Cơ chế được đồng bộ tự động trực tiếp từ chính sách hệ thống quản trị
+            </p>
           </div>
-          <button
-            onClick={loadPolicy}
-            disabled={policyLoading}
-            className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-muted hover:text-white transition-colors"
-            title="T\u1EA3i l\u1EA1i ch\xEDnh s\xE1ch"
-          >
-            <RefreshCw size={14} className={policyLoading ? 'animate-spin' : ''} />
-          </button>
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-slate-100 text-slate-700 border border-slate-200">
+              Chính sách: v{policyVersion}
+            </span>
+            <button
+              onClick={loadPolicy}
+              disabled={policyLoading}
+              className="flex items-center gap-1.5 px-3 py-1 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-all border border-slate-200 shadow-2xs"
+              title="Tải lại bảng tỷ lệ mới nhất từ hệ thống"
+            >
+              <RefreshCw size={13} className={policyLoading ? 'animate-spin text-primary' : 'text-slate-600'} />
+              <span>Làm mới</span>
+            </button>
+          </div>
         </div>
 
-        {policyLoading ? (
-          <div className="flex items-center justify-center gap-2 text-secondary py-8">
-            <Loader size={18} className="animate-spin" /> \u0110ang t\u1EA3i ch\xEDnh s\xE1ch...
+        {policyLoading && Object.keys(policyMap).length === 0 ? (
+          <div className="flex items-center justify-center gap-2 text-slate-500 py-12">
+            <Loader size={20} className="animate-spin text-primary" />
+            <span className="text-sm font-medium">Đang tải tỷ lệ hoa hồng mới nhất từ hệ thống...</span>
+          </div>
+        ) : policyError ? (
+          <div className="p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs text-center font-medium">
+            ⚠️ {policyError} — Vui lòng bấm "Làm mới" để thử lại.
           </div>
         ) : (
-          <div className="grid gap-5" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))' }}>
-            {RANK_GROUPS.map(grp => {
-              const visibleRules = grp.keys
-                .map(({ key, label, desc }) => ({ key, label, desc, rate: fmtRate(policyMap[key], key) }))
-                .filter(r => r.rate !== null);
-              return (
-                <div key={grp.role} className="p-4 rounded-xl border border-gray-700/60 bg-gray-800/40 space-y-3 flex flex-col justify-between">
-                  <div className="flex items-center justify-between pb-2 border-b border-gray-700/50">
-                    <span className={`text-xs font-bold px-2.5 py-1 rounded-full border ${grp.badgeColor}`}>
-                      {grp.title}
-                    </span>
+          /* High-Contrast 3-Column Layout with Crisp Typography */
+          <div className="grid gap-5" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))' }}>
+            {rankGroups.map(grp => (
+              <div
+                key={grp.role}
+                className={`rounded-2xl border ${grp.borderClass} bg-white shadow-sm hover:shadow-md transition-all flex flex-col justify-between overflow-hidden`}
+              >
+                {/* Card Header */}
+                <div className={`p-4 border-b ${grp.headerBg} flex items-center justify-between`}>
+                  <div className="flex items-center gap-2.5">
+                    <div className="p-2 rounded-xl bg-white shadow-xs border border-white/60">
+                      {grp.icon}
+                    </div>
+                    <div>
+                      <h3 className="text-base font-black tracking-tight">{grp.title}</h3>
+                      <p className="text-[11px] opacity-80 mt-0.5 leading-tight">{grp.subtitle}</p>
+                    </div>
                   </div>
-                  <div className="space-y-2.5 flex-1">
-                    {visibleRules.length === 0 ? (
-                      <p className="text-xs text-secondary italic text-center py-2">Ch\u01B0a c\xF3 ch\xEDnh s\xE1ch</p>
-                    ) : visibleRules.map(r => (
-                      <div key={r.key} className="p-2.5 rounded-lg bg-gray-900/40 border border-gray-700/30 flex items-start justify-between gap-2">
-                        <div>
-                          <span className="text-xs font-semibold text-primary block">{r.label}</span>
-                          <span className="text-[11px] text-secondary leading-tight block mt-0.5">{r.desc}</span>
-                        </div>
-                        <span className="text-sm font-extrabold text-green-400 shrink-0">{r.rate}</span>
-                      </div>
-                    ))}
-                  </div>
+                  <span className={`text-[10px] font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider ${grp.badgeBg} shadow-xs`}>
+                    {grp.role}
+                  </span>
                 </div>
-              );
-            })}
+
+                {/* Card Rules List - High contrast dark text on crisp background */}
+                <div className="p-4 space-y-2.5 flex-1 bg-white">
+                  {grp.rules.map(r => (
+                    <div
+                      key={r.key}
+                      className="p-3 rounded-xl bg-slate-50 border border-slate-200/80 hover:bg-slate-100/80 transition-colors flex items-center justify-between gap-3"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <span className="text-xs font-extrabold text-slate-900 block truncate">
+                          {r.label}
+                        </span>
+                        <span className="text-[11px] text-slate-500 leading-tight block mt-0.5">
+                          {r.desc}
+                        </span>
+                      </div>
+                      <div className="shrink-0">
+                        <span className="inline-flex items-center text-sm font-black text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200 shadow-2xs">
+                          {r.rate}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
           </div>
         )}
 
-        <div className="p-3 rounded-lg bg-gray-800/60 border border-gray-700/50">
-          <div className="flex items-start gap-2">
-            <Info size={15} className="text-blue-400 mt-0.5 flex-shrink-0" />
-            <p className="text-xs text-secondary leading-relaxed">
-              Hoa h\u1ED3ng \u0111\u01B0\u1EE3c t\xEDnh theo t\u1EF7 l\u1EC7 ph\u1EA7n tr\u0103m tr\xEAn <strong className="text-primary">\u0110i\u1EC3m hoa h\u1ED3ng (Points)</strong> c\u1EE7a t\u1EEB\u0067 s\u1EA3n ph\u1EA9m trong \u0111\u01A1n h\xE0ng.{' '}
-              1 \u0111i\u1EC3m hoa h\u1ED3ng quy \u0111\u1ED5i t\u01B0\u01A1ng \u0111\u01B0\u01A1ng <strong className="text-primary">1.000\u0111</strong> ti\u1EC1n m\u1EB7t (s\u1ED1 nguy\xEAn VND).
-            </p>
+        {/* Bottom Explanatory Notice */}
+        <div className="p-4 rounded-xl bg-blue-50/70 border border-blue-200/80 text-blue-950">
+          <div className="flex items-start gap-2.5">
+            <Info size={16} className="text-blue-600 mt-0.5 shrink-0" />
+            <div className="text-xs leading-relaxed space-y-1">
+              <p>
+                <strong>Nguyên tắc tính hoa hồng:</strong> Hoa hồng được tính trực tiếp theo tỷ lệ phần trăm trên <strong className="text-blue-700">Điểm hoa hồng (Points / CP)</strong> của từng sản phẩm trong đơn hàng.
+              </p>
+              <p className="text-blue-800">
+                1 điểm hoa hồng quy đổi tương đương <strong className="text-slate-900">1.000đ</strong> tiền mặt VND. Khi Ban Quản Trị thay đổi chính sách trong hệ thống, các đơn hàng mới phát sinh sau thời điểm thay đổi sẽ tự động áp dụng biểu tỷ lệ mới nhất.
+              </p>
+            </div>
           </div>
         </div>
       </div>
 
-      <div className="glass-panel p-5 space-y-4">
-        <div className="flex items-center gap-2 text-sm font-semibold text-secondary uppercase tracking-wide">
-          <Clock size={16} /> L\u1ECBch s\u1EED thay \u0111\u1ED5i c\u1EA5p b\u1EADc
+      {/* Rank History */}
+      <div className="glass-panel p-5 rounded-2xl bg-white border border-gray-100 shadow-sm space-y-4">
+        <div className="flex items-center gap-2 text-xs font-bold text-slate-500 uppercase tracking-wider">
+          <Clock size={16} className="text-primary" /> Lịch sử thay đổi cấp bậc
         </div>
+
         {histLoading ? (
-          <div className="flex items-center justify-center gap-2 text-secondary py-6">
-            <Loader size={18} className="animate-spin" /> \u0110ang t\u1EA3i l\u1ECBch s\u1EED...
+          <div className="flex items-center justify-center gap-2 text-slate-500 py-6">
+            <Loader size={18} className="animate-spin text-primary" />
+            <span className="text-sm">Đang tải lịch sử...</span>
           </div>
         ) : histError ? (
-          <div className="text-red-400 text-sm text-center py-4">\u26A0\uFE0F {histError}</div>
+          <div className="text-red-500 text-xs text-center py-4 font-medium">⚠️ {histError}</div>
         ) : history.length === 0 ? (
-          <div className="text-center text-secondary py-6">
-            <Clock size={36} className="mx-auto mb-3 opacity-30" />
-            <p className="text-sm">Ch\u01B0a c\xF3 l\u1ECBch s\u1EED thay \u0111\u1ED5i c\u1EA5p b\u1EADc.</p>
+          <div className="text-center text-slate-400 py-6">
+            <Clock size={32} className="mx-auto mb-2 opacity-30 text-slate-400" />
+            <p className="text-xs">Chưa có lịch sử thay đổi cấp bậc nào được ghi nhận.</p>
           </div>
         ) : (
-          <div className="space-y-3">
+          <div className="space-y-2.5">
             {history.map((h, idx) => (
-              <div key={h.id || idx} className="flex items-start gap-3 p-3 rounded-lg bg-gray-800/40 border border-gray-700/30">
-                <div className="w-2 h-2 rounded-full mt-2 flex-shrink-0 bg-purple-400" />
-                <div className="flex-1 min-w-0">
-                  <div className="flex flex-wrap items-center gap-2 text-sm">
-                    <span className="text-secondary text-xs">{new Date(h.createdAt).toLocaleString('vi-VN')}</span>
-                  </div>
-                  <p className="text-sm font-medium text-primary mt-1">
+              <div key={h.id || idx} className="p-3.5 rounded-xl bg-slate-50 border border-slate-200/80 flex items-center justify-between">
+                <div>
+                  <span className="text-xs text-slate-400 font-mono">
+                    {new Date(h.createdAt).toLocaleString('vi-VN')}
+                  </span>
+                  <p className="text-sm font-bold text-slate-900 mt-0.5">
                     {h.fromTier ? (
-                      <><span className="text-secondary">{h.fromTier}</span> \u2192 <span className="text-purple-400 font-bold">{h.toTier}</span></>
+                      <>
+                        <span className="text-slate-500">{h.fromTier}</span> →{' '}
+                        <span className="text-purple-700 font-black">{h.toTier}</span>
+                      </>
                     ) : (
-                      <span className="text-purple-400 font-bold">Kh\u1EDF\u0069 t\u1EA1o: {h.toTier}</span>
+                      <span className="text-purple-700 font-black">Khởi tạo: {h.toTier}</span>
                     )}
                   </p>
-                  {h.reason && <p className="text-xs text-secondary mt-0.5">{h.reason}</p>}
+                  {h.reason && <p className="text-xs text-slate-500 mt-0.5">{h.reason}</p>}
                 </div>
+                {h.adminUser && (
+                  <span className="text-[11px] text-slate-500 bg-white px-2 py-1 rounded border border-slate-200">
+                    Bởi: {h.adminUser.fullName || h.adminUser.userId}
+                  </span>
+                )}
               </div>
             ))}
           </div>

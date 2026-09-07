@@ -523,6 +523,29 @@ app.post('/api/config', authenticateToken, requireRole(['admin']), (req, res) =>
 
 // ── ADMIN POLICY CONFIGURATION (SystemPolicyConfig) ────────────────────────
 
+// GET /api/policy/active — active policy for CTV and members
+app.get('/api/policy/active', authenticateToken, async (req, res) => {
+  try {
+    const configs = await prisma.systemPolicyConfig.findMany({ orderBy: { key: 'asc' } });
+    const policyMap = Object.fromEntries(configs.map(c => [c.key, c.value]));
+    const version = policyMap['POLICY_VERSION'] || '1.0.0';
+    res.json({
+      success: true,
+      data: configs.map(c => ({
+        key: c.key,
+        value: c.value,
+        description: c.description,
+        version: c.version,
+        updatedAt: c.updatedAt
+      })),
+      policyMap,
+      version
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Không thể tải cấu hình chính sách.' });
+  }
+});
+
 // GET /api/admin/policy — list all 16 policy keys
 app.get('/api/admin/policy', authenticateToken, requireRole(['admin']), async (req, res) => {
   try {
