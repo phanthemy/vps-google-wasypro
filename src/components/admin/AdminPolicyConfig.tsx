@@ -70,6 +70,7 @@ const THRESHOLD_KEYS = new Set(['AMBASSADOR_THRESHOLD']);
 // Helpers
 function formatValue(key: string, raw: string): string {
   if (raw === 'NOT_CONFIGURED') return 'Chưa cấu hình';
+  if (key === 'POLICY_VERSION') return `v${raw}`;
   if (THRESHOLD_KEYS.has(key)) return `${raw} CP`;
   const n = parseFloat(raw);
   return isNaN(n) ? raw : `${(n * 100).toFixed(0)}%`;
