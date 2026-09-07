@@ -17,7 +17,7 @@ model User {
   password  String   @default("123456")
   cccd      String?
   bankInfo  String?
-  tier      String   @default("SILVER") // DIAMOND, GOLD, SILVER
+  tier      String   @default("NONE") // DIAMOND, GOLD, SILVER
   role      String   @default("ctv") // admin, accountant, ctv
   parentId  String?
   status    String   @default("ACTIVE") // ACTIVE, INACTIVE

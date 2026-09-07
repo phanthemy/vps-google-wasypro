@@ -2698,6 +2698,22 @@ app.put('/api/services/:id', authenticateToken, requireRole(['admin', 'accountan
 
 app.delete('/api/services/:id', authenticateToken, requireRole(['admin']), async (req, res) => {
   try {
+    // Orphan guard: check if service has order items before deleting
+    const orderItemCount = await prisma.orderItem.count({ where: { serviceId: req.params.id } });
+    if (orderItemCount > 0) {
+      return res.status(400).json({
+        success: false,
+        message: `Không thể xóa dịch vụ: đang có ${orderItemCount} đơn hàng liên quan. Hãy hủy đơn hàng trước.`
+      });
+    }
+    // Check wholesale items
+    const wholesaleCount = await prisma.wholesaleOrderItem.count({ where: { serviceId: req.params.id } });
+    if (wholesaleCount > 0) {
+      return res.status(400).json({
+        success: false,
+        message: `Không thể xóa dịch vụ: đang có ${wholesaleCount} đơn sỉ liên quan.`
+      });
+    }
     const s = await prisma.service.delete({ where: { id: req.params.id } });
     res.json({ success: true, data: s });
   } catch (error) {
@@ -2854,6 +2870,14 @@ app.put('/api/products/:id', authenticateToken, requireRole(['admin']), async (r
 
 app.delete('/api/products/:id', authenticateToken, requireRole(['admin']), async (req, res) => {
   try {
+    // Orphan guard: check if product has order items before deleting
+    const orderItemCount = await prisma.orderItem.count({ where: { productId: req.params.id } });
+    if (orderItemCount > 0) {
+      return res.status(400).json({
+        success: false,
+        message: `Không thể xóa sản phẩm: đang có ${orderItemCount} đơn hàng liên quan. Hãy hủy đơn hàng trước.`
+      });
+    }
     await prisma.product.delete({ where: { id: req.params.id } });
     res.json({ success: true, message: 'Deleted product' });
   } catch (e) {
@@ -4493,13 +4517,14 @@ app.post('/api/orders/website', async (req, res) => {
           });
           await tx.rankHistory.create({
             data: {
-              userId: authedUser.id,
+              userId: authedUser.userId,
               fromRank: authedUser.rank || null,
               toRank: 'AMBASSADOR',
-              reason: 'Reached 5000 qualifying points via wasypro.com orders',
-              activatedBy: 'SYSTEM',
-              activationMethod: 'AUTO_WEBSITE',
-              businessId: bizId,
+              fromStatus: authedUser.rankStatus || 'NOT_QUALIFIED',
+              toStatus: 'ACTIVE_RANK',
+              reason: 'AUTO_5000_CP_WEBSITE',
+              triggeredBy: 'SYSTEM',
+              metadata: JSON.stringify({ businessId: bizId, method: 'AUTO_WEBSITE', cpThreshold: 5000, qualifyingPoints: updated.qualifyingPoints }),
             }
           });
           console.log(`[AMBASSADOR AUTO] ${authedUser.userId} → ${bizId} via website order`);
