@@ -2960,7 +2960,7 @@ async function calculateAndCreateCommissions(tx, context) {
         earnedPoints,
         earnedMoney,
         metadata: metadata ? JSON.stringify(metadata) : null,
-        periodId: orderPeriodId || null, // Period Lifecycle: gắn commission với kỳ
+        periodId: order.periodId || null, // Period Lifecycle: gắn commission với kỳ
       }
     });
     createdCommissions.push(comm);
@@ -3104,69 +3104,83 @@ async function calculateAndCreateCommissions(tx, context) {
   }
 
   // -------------------------------------------------------------
-  // 3. UPSTREAM COMMISSION (Depth-1 & Depth-2)
+  // 3. UPSTREAM COMMISSION (Depth-1 & Depth-2 via parentId chain)
   // -------------------------------------------------------------
-  // Chỉ xét sponsor chain của Customer Member / Qualifying Member.
-  // Depth-1 và Depth-2 ONLY. Không skip sponsor chưa có businessId.
-  // Rate NOT_CONFIGURED -> không tạo Commission record.
+  // F1 = direct parent của member trong sponsor tree (parentId)
+  // F2 = parent của parent
+  // Rules (boss đã chốt):
+  //   Ambassador: không nhận F1/F2 upstream (không có policy key)
+  //   Manager: F1 = MANAGER_F1_PURCHASE (10%), F2 = MANAGER_F2_PURCHASE (5%)
+  //   Director: F1 = DIRECTOR_F1 (10%), F2 = DIRECTOR_F2 (5%)
+  // Áp dụng cho MỌI trường hợp (tự mua hoặc bán cho khách)
+  // KHÔNG skip sponsor chưa có businessId
+
   const memberForUpstream = isSelf ? orderer : qualifyingMember;
 
-  if (memberForUpstream) {
-    // Traverse Upstream:
-    // Depth-1
-    let d1User = null;
-    if (memberForUpstream.parentId) {
-      d1User = await tx.user.findUnique({ where: { userId: memberForUpstream.parentId } });
-    } else if (customer && customer.sponsorUserId) {
-      d1User = directSponsor || (await tx.user.findUnique({ where: { id: customer.sponsorUserId } }));
-    }
+  if (memberForUpstream && memberForUpstream.parentId) {
+    // --- Depth-1: parent trực tiếp của member ---
+    const d1User = await tx.user.findUnique({ where: { userId: memberForUpstream.parentId } });
 
     if (d1User) {
       const d1Rank = d1User.rank || (d1User.role === 'ctv' ? 'AMBASSADOR' : null);
       const d1Prefix = normalizeRankPrefix(d1Rank);
+
       if (d1Prefix) {
-        const d1RuleKey = d1Prefix === 'DIRECTOR' ? 'DIRECTOR_F1' : (isSelf ? (d1Prefix + '_F1_PURCHASE') : (d1Prefix + '_F1_SELL_TO_CUSTOMER_NO_ID'));
-        const d1Rate = getPolicyRate(d1RuleKey);
-        if (d1Rate) {
-          await createCommissionRecord({
-            receiver: d1User,
-            role: 'UPSTREAM_D1',
-            ruleKey: d1RuleKey,
-            rateSnapshot: d1Rate,
-            basePoints: orderTotalCP,
-            type: 'OVERRIDE_F1',
-            metadata: { depth: 1, buyerUserId: memberForUpstream.userId },
-          });
-        }
-      }
+        // Rule key cố định theo rank — không phụ thuộc isSelf
+        let d1RuleKey = null;
+        if (d1Prefix === 'DIRECTOR') d1RuleKey = 'DIRECTOR_F1';
+        else if (d1Prefix === 'MANAGER') d1RuleKey = 'MANAGER_F1_PURCHASE';
+        // Ambassador không có F1 upstream trong spec → skip
 
-      // Depth-2: parent of Depth-1. Do NOT skip even if d1User has no businessId!
-      let d2User = null;
-      if (d1User.parentId) {
-        d2User = await tx.user.findUnique({ where: { userId: d1User.parentId } });
-      }
-
-      if (d2User) {
-        const d2Rank = d2User.rank || (d2User.role === 'ctv' ? 'AMBASSADOR' : null);
-        const d2Prefix = normalizeRankPrefix(d2Rank);
-        if (d2Prefix) {
-          const d2RuleKey = d2Prefix === 'DIRECTOR' ? 'DIRECTOR_F2' : (isSelf ? (d2Prefix + '_F2_PURCHASE') : (d2Prefix + '_F2'));
-          const d2Rate = getPolicyRate(d2RuleKey);
-          if (d2Rate) {
+        if (d1RuleKey) {
+          const d1Rate = getPolicyRate(d1RuleKey);
+          if (d1Rate) {
             await createCommissionRecord({
-              receiver: d2User,
-              role: 'UPSTREAM_D2',
-              ruleKey: d2RuleKey,
-              rateSnapshot: d2Rate,
+              receiver: d1User,
+              role: 'UPSTREAM_D1',
+              ruleKey: d1RuleKey,
+              rateSnapshot: d1Rate,
               basePoints: orderTotalCP,
-              type: 'OVERRIDE_F2',
-              metadata: { depth: 2, buyerUserId: memberForUpstream.userId },
+              type: 'OVERRIDE_F1',
+              metadata: { depth: 1, buyerUserId: memberForUpstream.userId },
             });
           }
         }
       }
 
-      // Depth-3+ is NEVER processed: "Depth-1 và Depth-2 בלבד. F3 không commission."
+      // --- Depth-2: parent của D1 ---
+      if (d1User.parentId) {
+        const d2User = await tx.user.findUnique({ where: { userId: d1User.parentId } });
+
+        if (d2User) {
+          const d2Rank = d2User.rank || (d2User.role === 'ctv' ? 'AMBASSADOR' : null);
+          const d2Prefix = normalizeRankPrefix(d2Rank);
+
+          if (d2Prefix) {
+            let d2RuleKey = null;
+            if (d2Prefix === 'DIRECTOR') d2RuleKey = 'DIRECTOR_F2';
+            else if (d2Prefix === 'MANAGER') d2RuleKey = 'MANAGER_F2_PURCHASE';
+            // Ambassador không có F2 upstream → skip
+
+            if (d2RuleKey) {
+              const d2Rate = getPolicyRate(d2RuleKey);
+              if (d2Rate) {
+                await createCommissionRecord({
+                  receiver: d2User,
+                  role: 'UPSTREAM_D2',
+                  ruleKey: d2RuleKey,
+                  rateSnapshot: d2Rate,
+                  basePoints: orderTotalCP,
+                  type: 'OVERRIDE_F2',
+                  metadata: { depth: 2, buyerUserId: memberForUpstream.userId },
+                });
+              }
+            }
+          }
+        }
+      }
+
+      // Depth-3+ không có commission theo spec
     }
   }
 
