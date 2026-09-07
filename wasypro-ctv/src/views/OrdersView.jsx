@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { ShoppingCart, Trash2 } from 'lucide-react';
+import { ShoppingCart, Trash2, Package, RefreshCw } from 'lucide-react';
 
 export default function OrdersView({ currentUser }) {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   
   const [timeFilter, setTimeFilter] = useState('all');
   const [period, setPeriod] = useState(new Date().toISOString().slice(0, 7));
@@ -11,14 +12,72 @@ export default function OrdersView({ currentUser }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [orderType, setOrderType] = useState('all');
 
-  const loadOrders = () => {
+  const isAdmin = currentUser?.role === 'admin' || currentUser?.role === 'accountant';
+  const isParticipant = currentUser?.isSystemParticipant;
+
+  const loadOrders = async () => {
     setLoading(true);
-    fetch(`/api/orders?userId=${currentUser?.id}`)
-      .then(r => r.json())
-      .then(res => {
-         if (res.success) setOrders(res.data);
-      })
-      .finally(() => setLoading(false));
+    setError(null);
+    try {
+      if (isAdmin) {
+        // Admin: use /api/orders for full CTV order management
+        const res = await fetch('/api/orders').then(r => r.json());
+        if (res.success) {
+          setOrders(res.data.map(o => ({ ...o, _source: 'ctv' })));
+        }
+      } else {
+        // Regular user (CTV, Khách Hàng): use /api/orders/my for combined view
+        const res = await fetch('/api/orders/my').then(r => r.json());
+        if (res.success) {
+          const combined = [];
+          
+          // Normalize website orders
+          if (res.data.websiteOrders) {
+            res.data.websiteOrders.forEach(wo => {
+              combined.push({
+                id: wo.id,
+                createdAt: wo.createdAt,
+                totalAmount: wo.totalAmount || 0,
+                status: wo.status,
+                _source: 'website',
+                customer: {
+                  fullName: wo.customerName,
+                  phone: wo.customerPhone,
+                },
+                items: [{
+                  product: { title: wo.productTitle },
+                  qty: wo.qty || 1,
+                  amount: wo.totalAmount || 0,
+                }],
+                commissions: [],
+                totalCommissionPoints: wo.commissionPoints || 0,
+              });
+            });
+          }
+          
+          // Normalize CTV orders
+          if (res.data.ctvOrders) {
+            res.data.ctvOrders.forEach(co => {
+              combined.push({
+                ...co,
+                _source: 'ctv',
+              });
+            });
+          }
+          
+          // Sort by date descending
+          combined.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+          setOrders(combined);
+        } else {
+          setError(res.message || 'Không thể tải đơn hàng');
+        }
+      }
+    } catch (e) {
+      console.error('Load orders error:', e);
+      setError('Lỗi kết nối máy chủ');
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -26,7 +85,7 @@ export default function OrdersView({ currentUser }) {
   }, []);
 
   const handleDelete = async (id) => {
-    if (!window.confirm('CẢNH BÁO MẠNH: Xóa đơn hàng sẽ tự động XÓA TOÀN BỘ hoa hồng liên quan đã sinh ra từ đơn hàng này!\n\nBạn có chắc chắn muốn xóa?')) return;
+    if (!window.confirm('CẢNH BÁO: Xóa đơn hàng sẽ tự động XÓA TOÀN BỘ hoa hồng liên quan!\n\nBạn có chắc chắn muốn xóa?')) return;
     try {
       const res = await fetch(`/api/orders/${id}`, { method: 'DELETE' }).then(r => r.json());
       if (res.success) {
@@ -40,13 +99,34 @@ export default function OrdersView({ currentUser }) {
     }
   };
 
-  if (loading) return <div className="p-4 text-center">Đang tải danh sách đơn hàng...</div>;
+  if (loading) return (
+    <div className="p-8 text-center">
+      <div className="animate-spin inline-block w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full mb-3"></div>
+      <p className="text-muted font-medium">Đang tải danh sách đơn hàng...</p>
+    </div>
+  );
+
+  if (error) return (
+    <div className="p-8 text-center">
+      <p className="text-red-500 font-medium mb-3">⚠️ {error}</p>
+      <button onClick={loadOrders} className="btn-primary flex items-center gap-2 mx-auto" style={{ padding: '8px 16px' }}>
+        <RefreshCw size={16} /> Thử lại
+      </button>
+    </div>
+  );
 
   const filteredOrders = orders.filter(o => {
       // Order type filter
-      const isSelfBuy = o.customer?.phone === o.customer?.sourceCtv?.phone;
-      if (orderType === 'self' && !isSelfBuy) return false;
-      if (orderType === 'customer' && isSelfBuy) return false;
+      if (orderType === 'website' && o._source !== 'website') return false;
+      if (orderType === 'ctv' && o._source !== 'ctv') return false;
+      if (orderType === 'self') {
+        const isSelfBuy = o.customer?.phone === o.customer?.sourceCtv?.phone;
+        if (!isSelfBuy) return false;
+      }
+      if (orderType === 'customer') {
+        const isSelfBuy = o.customer?.phone === o.customer?.sourceCtv?.phone;
+        if (isSelfBuy) return false;
+      }
 
       // Date filter
       if (timeFilter === 'month') {
@@ -57,16 +137,15 @@ export default function OrdersView({ currentUser }) {
           if (orderDate !== exactDate) return false;
       }
 
-      // Search query (CTV name/phone, Customer name/phone)
+      // Search query
       if (searchQuery) {
           const q = searchQuery.toLowerCase().trim();
-          const ctvName = o.customer?.sourceCtv?.fullName?.toLowerCase() || '';
-          const ctvPhone = o.customer?.sourceCtv?.phone?.toLowerCase() || '';
           const cusName = o.customer?.fullName?.toLowerCase() || '';
           const cusPhone = o.customer?.phone?.toLowerCase() || '';
           const orderIdStr = o.id.toLowerCase();
+          const productNames = o.items?.map(i => (i.product?.title || i.service?.name || '').toLowerCase()).join(' ') || '';
           
-          if (!ctvName.includes(q) && !ctvPhone.includes(q) && !cusName.includes(q) && !cusPhone.includes(q) && !orderIdStr.includes(q)) {
+          if (!cusName.includes(q) && !cusPhone.includes(q) && !orderIdStr.includes(q) && !productNames.includes(q)) {
               return false;
           }
       }
@@ -74,132 +153,141 @@ export default function OrdersView({ currentUser }) {
   });
 
   const totalOrders = filteredOrders.length;
-  const totalRevenue = filteredOrders.reduce((acc, o) => acc + o.totalAmount, 0);
+  const totalRevenue = filteredOrders.reduce((acc, o) => acc + (o.totalAmount || 0), 0);
   const totalItemsSold = filteredOrders.reduce((acc, o) => acc + (o.items?.reduce((sum, item) => sum + (item.qty || 1), 0) || 0), 0);
+
+  const statusLabel = (status) => {
+    const map = {
+      'NEW': { text: 'Mới', color: '#3b82f6', bg: '#eff6ff' },
+      'CONFIRMED': { text: 'Đã xác nhận', color: '#f59e0b', bg: '#fffbeb' },
+      'SHIPPING': { text: 'Đang giao', color: '#8b5cf6', bg: '#f5f3ff' },
+      'COMPLETED': { text: 'Hoàn thành', color: '#10b981', bg: '#ecfdf5' },
+      'CANCELLED': { text: 'Đã hủy', color: '#ef4444', bg: '#fef2f2' },
+      'PENDING': { text: 'Chờ xử lý', color: '#f59e0b', bg: '#fffbeb' },
+    };
+    const s = map[status] || { text: status || 'N/A', color: '#6b7280', bg: '#f9fafb' };
+    return <span style={{ color: s.color, background: s.bg, padding: '2px 8px', borderRadius: '12px', fontSize: '0.75rem', fontWeight: 700, border: `1px solid ${s.color}30` }}>{s.text}</span>;
+  };
+
+  const sourceLabel = (source) => {
+    if (source === 'website') return <span style={{ color: '#059669', background: '#d1fae5', padding: '1px 6px', borderRadius: '8px', fontSize: '0.65rem', fontWeight: 700 }}>Website</span>;
+    return <span style={{ color: '#7c3aed', background: '#ede9fe', padding: '1px 6px', borderRadius: '8px', fontSize: '0.65rem', fontWeight: 700 }}>CTV</span>;
+  };
 
   return (
     <div className="flex-col gap-6 fade-in">
        <div className="card glass-panel flex-col gap-4">
           <div className="flex-col gap-4 mb-2">
              <div className="flex justify-between items-center">
-                <h2 className="text-xl font-bold text-primary flex items-center gap-2"><ShoppingCart className="text-blue-500"/> Quản lý Đơn Hàng</h2>
+                <h2 className="text-xl font-bold text-primary flex items-center gap-2"><ShoppingCart className="text-blue-500"/> Đơn Hàng Của Tôi</h2>
+                <button onClick={loadOrders} className="btn-icon hover-scale" title="Làm mới" style={{ padding: '8px', borderRadius: '50%' }}>
+                  <RefreshCw size={18} />
+                </button>
              </div>
              
              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-2 mt-2">
-                 <div className="card bg-blue-50 text-blue-800 p-4 rounded-xl flex-col items-center justify-center text-center shadow-sm border border-blue-100">
+                 <div className="card p-4 rounded-xl flex-col items-center justify-center text-center shadow-sm" style={{ background: '#eff6ff', color: '#1e40af', border: '1px solid #bfdbfe' }}>
                      <div className="text-sm font-bold opacity-80 uppercase tracking-wider mb-1">Số Đơn Hàng</div>
                      <div className="text-3xl font-black">{totalOrders}</div>
                  </div>
-                 <div className="card bg-green-50 text-green-800 p-4 rounded-xl flex-col items-center justify-center text-center shadow-sm border border-green-100">
-                     <div className="text-sm font-bold opacity-80 uppercase tracking-wider mb-1">Tổng Doanh Thu</div>
+                 <div className="card p-4 rounded-xl flex-col items-center justify-center text-center shadow-sm" style={{ background: '#ecfdf5', color: '#065f46', border: '1px solid #a7f3d0' }}>
+                     <div className="text-sm font-bold opacity-80 uppercase tracking-wider mb-1">Tổng Giá Trị</div>
                      <div className="text-2xl font-black">{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(totalRevenue)}</div>
                  </div>
-                 <div className="card bg-purple-50 text-purple-800 p-4 rounded-xl flex-col items-center justify-center text-center shadow-sm border border-purple-100">
-                     <div className="text-sm font-bold opacity-80 uppercase tracking-wider mb-1">Mặt Hàng Bán Ra</div>
+                 <div className="card p-4 rounded-xl flex-col items-center justify-center text-center shadow-sm" style={{ background: '#f5f3ff', color: '#5b21b6', border: '1px solid #c4b5fd' }}>
+                     <div className="text-sm font-bold opacity-80 uppercase tracking-wider mb-1">Sản Phẩm Đã Mua</div>
                      <div className="text-3xl font-black">{totalItemsSold}</div>
                  </div>
              </div>
-             <div className="flex gap-4 items-center flex-wrap bg-secondary p-3 rounded-lg" style={{ border: '1px solid var(--border-subtle)' }}>
-                 <select className="input-field" value={orderType} onChange={e => setOrderType(e.target.value)} style={{ padding: '6px', maxWidth: '180px' }}>
-                    <option value="all">Tất cả loại đơn</option>
-                    <option value="self">Đại lý tự nhập hàng</option>
-                    <option value="customer">Khách hàng mua</option>
+
+             <div className="flex gap-4 items-center flex-wrap p-3 rounded-lg" style={{ background: '#f8fafc', border: '1px solid #e2e8f0' }}>
+                 <select className="input-field" value={orderType} onChange={e => setOrderType(e.target.value)} style={{ padding: '6px 10px', maxWidth: '180px', borderRadius: '8px', border: '1px solid #cbd5e1' }}>
+                    <option value="all">Tất cả đơn hàng</option>
+                    <option value="website">Đặt qua Website</option>
+                    <option value="ctv">Đơn CTV</option>
                  </select>
                  
-                 <select className="input-field" value={timeFilter} onChange={e => setTimeFilter(e.target.value)} style={{ padding: '6px', maxWidth: '150px' }}>
+                 <select className="input-field" value={timeFilter} onChange={e => setTimeFilter(e.target.value)} style={{ padding: '6px 10px', maxWidth: '150px', borderRadius: '8px', border: '1px solid #cbd5e1' }}>
                     <option value="all">Toàn thời gian</option>
                     <option value="month">Theo tháng</option>
                     <option value="date">Theo ngày</option>
                  </select>
-                 {timeFilter === 'month' && <input type="month" className="input-field" value={period} onChange={e => setPeriod(e.target.value)} style={{ padding: '6px' }} />}
-                 {timeFilter === 'date' && <input type="date" className="input-field" value={exactDate} onChange={e => setExactDate(e.target.value)} style={{ padding: '6px' }} />}
+                 {timeFilter === 'month' && <input type="month" className="input-field" value={period} onChange={e => setPeriod(e.target.value)} style={{ padding: '6px', borderRadius: '8px', border: '1px solid #cbd5e1' }} />}
+                 {timeFilter === 'date' && <input type="date" className="input-field" value={exactDate} onChange={e => setExactDate(e.target.value)} style={{ padding: '6px', borderRadius: '8px', border: '1px solid #cbd5e1' }} />}
                  
-                 <input type="text" className="input-field flex-1" placeholder="🔎 Tìm Tên, SĐT CTV, Khách Hàng, Mã Đơn..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} style={{ padding: '6px', minWidth: '250px' }} />
+                 <input type="text" className="input-field flex-1" placeholder="🔎 Tìm Tên, SĐT, Mã Đơn, Sản phẩm..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} style={{ padding: '6px 10px', minWidth: '200px', borderRadius: '8px', border: '1px solid #cbd5e1' }} />
              </div>
           </div>
           
-          <div className="table-container fade-in bg-secondary rounded-xl p-1" style={{ border: '1px solid var(--border-subtle)' }}>
-             <table className="data-table" style={{ width: '100%', minWidth: '700px' }}>
-               <thead>
-                 <tr>
-                   <th style={{ padding: '12px', textAlign: 'left' }}>Mã Đơn / Ngày Tạo</th>
-                   <th style={{ padding: '12px', textAlign: 'left' }}>Khách Hàng</th>
-                   <th style={{ padding: '12px', textAlign: 'left' }}>Dịch Vụ / Doanh Thu</th>
-                   <th style={{ padding: '12px', textAlign: 'left' }}>CTV Lợi Nhuận</th>
-                   <th style={{ padding: '12px', textAlign: 'center' }}>Thao tác</th>
-                 </tr>
-               </thead>
-               <tbody>
-                 {filteredOrders.length === 0 ? (
-                    <tr><td colSpan="5" className="text-center p-8 text-muted font-medium">Chưa có đơn hàng nào phù hợp với bộ lọc</td></tr>
-                 ) : filteredOrders.map(order => (
-                    <tr key={order.id} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
-                       <td style={{ padding: '12px' }}>
-                          <div className="font-bold text-primary" style={{ fontFamily: 'monospace' }}>{order.id.slice(0, 8).toUpperCase()}</div>
-                          <div className="text-xs text-muted mt-1">{new Date(order.createdAt).toLocaleString('vi-VN')}</div>
-                       </td>
-                       <td style={{ padding: '12px' }}>
-                          <div className="font-bold" style={{ color: 'var(--accent-diamond)' }}>{order.customer?.fullName}</div>
-                          <div className="text-xs text-muted mt-1">SĐT: {order.customer?.phone}</div>
-                       </td>
-                       <td style={{ padding: '12px' }}>
-                          <div className="flex-col gap-2">
-                             {order.items?.length > 2 ? (
-                                 <details className="text-sm cursor-pointer outline-none">
-                                    <summary className="text-blue-600 font-bold mb-2 hover:underline">Xem {order.items.length} mặt hàng...</summary>
-                                    <div className="pl-2 border-l-2 border-blue-200 ml-1 mt-2">
-                                        {order.items.map((item, idx) => {
-                                           const svc = item.service;
-                                           const itemName = item.product?.title || svc?.name || 'Sản phẩm';
-                                           return (
-                                           <div key={idx} className="text-sm border-b border-subtle pb-1 mb-1 last:border-0 last:pb-0 last:mb-0">
-                                              - <span className="font-medium text-secondary">{itemName}</span>
-                                              <span className="font-bold text-muted ml-2 px-1 rounded bg-gray-100 dark:bg-gray-800" style={{ fontSize: '0.8rem' }}>x{item.qty || 1}</span> <br/>
-                                              <span className="text-green-500 font-bold ml-2">{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(item.amount)}</span>
-                                           </div>
-                                           );
-                                        })}
-                                    </div>
-                                 </details>
-                              ) : (
-                                  order.items?.map((item, idx) => {
-                                     const svc = item.service;
-                                     const itemName = item.product?.title || svc?.name || 'Sản phẩm';
-                                     return (
-                                     <div key={idx} className="text-sm border-b border-subtle pb-1 mb-1 last:border-0 last:pb-0 last:mb-0">
-                                        - <span className="font-medium text-secondary">{itemName}</span>
-                                        <span className="font-bold text-muted ml-2 px-1 rounded bg-gray-100 dark:bg-gray-800" style={{ fontSize: '0.8rem' }}>x{item.qty || 1}</span> <br/>
-                                        <span className="text-green-500 font-bold ml-2">{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(item.amount)}</span>
-                                     </div>
-                                     );
-                                  })
-                              )}
-                             <div className="font-bold text-primary mt-2 pt-1 border-t border-subtle border-dashed">
-                               Tổng: <span className="text-blue-500">{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(order.totalAmount)}</span>
-                             </div>
+          {filteredOrders.length === 0 ? (
+            <div className="text-center p-12" style={{ background: '#f8fafc', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+              <Package size={48} className="mx-auto mb-3" style={{ color: '#94a3b8' }} />
+              <p className="text-lg font-bold" style={{ color: '#475569' }}>Chưa có đơn hàng nào</p>
+              <p className="text-sm mt-1" style={{ color: '#94a3b8' }}>Đơn hàng bạn đặt trên website hoặc qua CTV sẽ hiển thị tại đây</p>
+            </div>
+          ) : (
+            <div className="flex-col gap-3">
+              {filteredOrders.map(order => (
+                <div key={order.id} className="rounded-xl p-4 hover-scale" style={{ background: '#ffffff', border: '1px solid #e2e8f0', transition: 'all 0.2s' }}>
+                  <div className="flex justify-between items-start mb-3">
+                    <div>
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="font-bold" style={{ fontFamily: 'monospace', color: '#1e40af', fontSize: '0.9rem' }}>#{order.id.slice(0, 8).toUpperCase()}</span>
+                        {sourceLabel(order._source)}
+                        {order.status && statusLabel(order.status)}
+                      </div>
+                      <div className="text-xs" style={{ color: '#64748b' }}>{new Date(order.createdAt).toLocaleString('vi-VN')}</div>
+                    </div>
+                    {isAdmin && (
+                      <button 
+                         className="btn-icon hover-scale" 
+                         style={{ color: '#ef4444', background: 'rgba(239, 68, 68, 0.1)', borderRadius: '50%', padding: '8px' }}
+                         onClick={() => handleDelete(order.id)}
+                         title="Xóa Đơn Hàng"
+                      >
+                         <Trash2 size={16} />
+                      </button>
+                    )}
+                  </div>
+                  
+                  <div className="flex-col gap-2">
+                    {order.items?.map((item, idx) => {
+                      const itemName = item.product?.title || item.service?.name || 'Sản phẩm';
+                      return (
+                        <div key={idx} className="flex justify-between items-center py-1" style={{ borderBottom: idx < order.items.length - 1 ? '1px dashed #e2e8f0' : 'none' }}>
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium" style={{ color: '#1e293b' }}>{itemName}</span>
+                            <span style={{ color: '#64748b', background: '#f1f5f9', padding: '1px 6px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 600 }}>x{item.qty || 1}</span>
                           </div>
-                       </td>
-                       <td style={{ padding: '12px' }}>
-                          <div className="badge" style={{ background: 'rgba(234, 179, 8, 0.1)', color: '#ca8a04', border: '1px solid rgba(202, 138, 4, 0.3)', padding: '6px 12px', display: 'inline-block' }}>
-                             {order.customer?.sourceCtv?.fullName || 'Khách Tự Do'}
-                          </div>
-                          {order.customer?.sourceCtv && <div className="text-xs text-muted mt-2 ml-1">SĐT: {order.customer.sourceCtv.phone}</div>}
-                       </td>
-                       <td style={{ padding: '12px', textAlign: 'center' }}>
-                          <button 
-                             className="btn-icon hover-scale" 
-                             style={{ color: '#ef4444', background: 'rgba(239, 68, 68, 0.1)', borderRadius: '50%', padding: '8px', margin: '0 auto' }}
-                             onClick={() => handleDelete(order.id)}
-                             title="Xóa Đơn Hàng & Thu hồi Hoa Hồng"
-                          >
-                             <Trash2 size={18} />
-                          </button>
-                       </td>
-                    </tr>
-                 ))}
-               </tbody>
-             </table>
-          </div>
+                          <span className="font-bold" style={{ color: '#059669' }}>{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(item.amount || 0)}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  
+                  <div className="flex justify-between items-center mt-3 pt-2" style={{ borderTop: '1px solid #e2e8f0' }}>
+                    <div className="text-sm" style={{ color: '#64748b' }}>
+                      {order.customer?.fullName && <span className="font-medium">{order.customer.fullName}</span>}
+                      {order.customer?.phone && <span className="ml-2">• {order.customer.phone}</span>}
+                    </div>
+                    <div className="flex items-center gap-3">
+                      {(() => {
+                        const cp = order.commissions
+                          ? order.commissions.reduce((s, c) => s + (c.earnedPoints || 0), 0)
+                          : (order.totalCommissionPoints || order.qualifyingPoints || 0);
+                        return cp > 0
+                          ? <span className="font-bold" style={{ color: '#d97706', fontSize: '0.85rem' }}>+{cp.toLocaleString('vi-VN')} CP</span>
+                          : null;
+                      })()}
+                      <span className="font-black text-lg" style={{ color: '#1e40af' }}>
+                        {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(order.totalAmount || 0)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
        </div>
     </div>
   )

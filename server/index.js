@@ -4398,11 +4398,39 @@ app.get('/api/orders/my', authenticateToken, async (req, res) => {
     const user = await prisma.user.findUnique({ where: { userId } });
     if (!user) return res.status(404).json({ success: false, message: 'User not found.' });
 
-    // Website orders placed by this user
-    const websiteOrders = await prisma.websiteOrder.findMany({
+    // Website orders: search by userId OR by phone (for guest orders placed before login)
+    const userPhone = user.phone || user.username || '';
+    const websiteOrdersById = await prisma.websiteOrder.findMany({
       where: { userId },
       orderBy: { createdAt: 'desc' },
     });
+    
+    // Also find orders placed as guest with same phone
+    const websiteOrdersByPhone = userPhone ? await prisma.websiteOrder.findMany({
+      where: { 
+        customerPhone: userPhone,
+        userId: null,  // only guest orders not already linked
+      },
+      orderBy: { createdAt: 'desc' },
+    }) : [];
+    
+    // Merge and deduplicate
+    const seenIds = new Set(websiteOrdersById.map(o => o.id));
+    const websiteOrders = [...websiteOrdersById];
+    for (const wo of websiteOrdersByPhone) {
+      if (!seenIds.has(wo.id)) {
+        websiteOrders.push(wo);
+        seenIds.add(wo.id);
+        // Auto-link this guest order to the user for future queries
+        await prisma.websiteOrder.update({
+          where: { id: wo.id },
+          data: { userId: userId }
+        }).catch(() => {}); // non-critical
+      }
+    }
+    
+    // Sort combined by date
+    websiteOrders.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
     // CTV orders placed by this user (via Customer.linkedUserId)
     const customer = await prisma.customer.findFirst({ where: { linkedUserId: user.id } });
