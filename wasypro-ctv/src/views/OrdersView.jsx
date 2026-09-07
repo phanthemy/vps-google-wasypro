@@ -19,7 +19,7 @@ export default function OrdersView({ currentUser }) {
     setLoading(true);
     setError(null);
     try {
-      if (isAdmin) {
+      if (false && isAdmin) {
         // Admin: use /api/orders for full CTV order management
         const res = await fetch('/api/orders').then(r => r.json());
         if (res.success) {

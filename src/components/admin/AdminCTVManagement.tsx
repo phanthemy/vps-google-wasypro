@@ -59,7 +59,9 @@ function RankBadge({ rank }: { rank?: string | null }) {
   if (!rank) return <span className="text-xs text-slate-400">—</span>;
   const map: Record<string, { label: string; cls: string }> = {
     AMBASSADOR: { label: 'Đại Sứ', cls: 'bg-amber-100 text-amber-700' },
+    MANAGER: { label: 'Quản Lý', cls: 'bg-blue-100 text-blue-700' },
     SALES_MANAGER: { label: 'Quản Lý', cls: 'bg-blue-100 text-blue-700' },
+    DIRECTOR: { label: 'Giám Đốc', cls: 'bg-purple-100 text-purple-700' },
     SALES_DIRECTOR: { label: 'Giám Đốc', cls: 'bg-purple-100 text-purple-700' },
   };
   const r = map[rank] ?? { label: rank, cls: 'bg-slate-100 text-slate-600' };
@@ -206,8 +208,15 @@ export const AdminCTVManagement: React.FC = () => {
                   { icon: Hash, label: 'User ID', value: detail.ctv.userId },
                   { icon: Hash, label: 'Business ID', value: detail.ctv.businessId || '—' },
                   { icon: Star, label: 'S-Points', value: String(detail.ctv.sPoints) },
-                  { icon: User, label: 'Cấp bậc', value: detail.ctv.tier },
-                  { icon: Award, label: 'Rank status', value: detail.ctv.rankStatus || '—' },
+                  { icon: User, label: 'Cấp bậc', value: (() => {
+                    const r = (detail.ctv.rank || '').toUpperCase();
+                    if (r === 'DIRECTOR' || r === 'SALES_DIRECTOR') return 'Giám Đốc';
+                    if (r === 'MANAGER' || r === 'SALES_MANAGER') return 'Quản Lý';
+                    if (r === 'AMBASSADOR') return 'Đại Sứ';
+                    if (detail.ctv.isSystemParticipant) return 'Thành Viên';
+                    return 'Khách Hàng';
+                  })() },
+                  { icon: Award, label: 'Trạng thái', value: detail.ctv.rankStatus === 'ACTIVE' ? 'Hoạt động' : detail.ctv.rankStatus || '—' },
                   { icon: User, label: 'Sponsor', value: detail.ctv.parent ? `${detail.ctv.parent.fullName} (${detail.ctv.parent.userId})` : 'Trực tiếp Công ty' },
                   { icon: Calendar, label: 'Tham gia', value: new Date(detail.ctv.createdAt).toLocaleDateString('vi-VN') },
                 ].map(({ icon: Icon, label, value }) => (
@@ -480,8 +489,10 @@ export const AdminCTVManagement: React.FC = () => {
         >
           <option value="all">Tất cả cấp bậc</option>
           <option value="AMBASSADOR">Đại Sứ</option>
-          <option value="SALES_MANAGER">Quản Lý</option>
-          <option value="SALES_DIRECTOR">Giám Đốc</option>
+          <option value="MANAGER">Quản Lý</option>
+          <option value="DIRECTOR">Giám Đốc</option>
+          <option value="SALES_MANAGER">Quản Lý (Legacy)</option>
+          <option value="SALES_DIRECTOR">Giám Đốc (Legacy)</option>
         </select>
         {(search || rankFilter !== 'all') && (
           <button onClick={() => { setSearch(''); setRankFilter('all'); }} className="px-3 text-xs text-slate-500 hover:text-rose-600 flex items-center gap-1 font-semibold">

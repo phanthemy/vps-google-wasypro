@@ -103,6 +103,8 @@ export const CTVPortalContainer: React.FC<CTVPortalContainerProps> = ({
     if (r === 'DIRECTOR' || r === 'SALES_DIRECTOR') return '👑 Giám Đốc';
     if (r === 'MANAGER' || r === 'SALES_MANAGER') return '🛡️ Quản Lý';
     if (r === 'AMBASSADOR') return '⭐ Đại Sứ';
+    if (isAdmin) return '🔑 Quản Trị Viên';
+    if (isAccountant) return '📊 Kế Toán';
     return isParticipant ? 'Thành Viên' : 'Khách Hàng';
   })();
 
@@ -111,6 +113,7 @@ export const CTVPortalContainer: React.FC<CTVPortalContainerProps> = ({
     if (r === 'DIRECTOR' || r === 'SALES_DIRECTOR') return 'bg-red-500/25 text-red-200 border border-red-400/40';
     if (r === 'MANAGER' || r === 'SALES_MANAGER') return 'bg-emerald-500/25 text-emerald-200 border border-emerald-400/40';
     if (r === 'AMBASSADOR') return 'bg-purple-500/25 text-purple-200 border border-purple-400/40';
+    if (isAdmin || isAccountant) return 'bg-yellow-500/25 text-yellow-200 border border-yellow-400/40';
     if (isParticipant) return 'bg-blue-500/25 text-blue-200 border border-blue-400/40';
     return 'bg-white/20 text-white border border-white/30';
   })();

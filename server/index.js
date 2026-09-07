@@ -4269,6 +4269,51 @@ app.put('/api/services/:id/product-type', authenticateToken, requireRole(['admin
 // ============================================================
 
 /**
+/**
+ * GET /api/admin/website-orders
+ * Admin/Accountant — returns all website orders
+ */
+app.get('/api/admin/website-orders', authenticateToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin' && req.user.role !== 'accountant') {
+      return res.status(403).json({ success: false, message: 'Chỉ admin/kế toán mới có quyền xem.' });
+    }
+    const orders = await prisma.websiteOrder.findMany({
+      orderBy: { createdAt: 'desc' },
+    });
+    res.json({ success: true, data: orders });
+  } catch (err) {
+    console.error('[ADMIN WEBSITE ORDERS]', err.message);
+    res.status(500).json({ success: false, message: 'Lỗi máy chủ.' });
+  }
+});
+
+/**
+ * PUT /api/admin/website-orders/:id/status
+ * Admin — update website order status
+ */
+app.put('/api/admin/website-orders/:id/status', authenticateToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin' && req.user.role !== 'accountant') {
+      return res.status(403).json({ success: false, message: 'Không có quyền.' });
+    }
+    const { status } = req.body;
+    const validStatuses = ['NEW', 'CONFIRMED', 'SHIPPING', 'COMPLETED', 'CANCELLED'];
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({ success: false, message: 'Trạng thái không hợp lệ.' });
+    }
+    const updated = await prisma.websiteOrder.update({
+      where: { id: req.params.id },
+      data: { status },
+    });
+    res.json({ success: true, data: updated });
+  } catch (err) {
+    console.error('[UPDATE WEBSITE ORDER]', err.message);
+    res.status(500).json({ success: false, message: 'Lỗi máy chủ.' });
+  }
+});
+
+/**
  * POST /api/orders/website
  * Public (guest) OR authenticated (user).
  * - Guest: saves customerName + customerPhone (text), no userId
@@ -4398,47 +4443,67 @@ app.get('/api/orders/my', authenticateToken, async (req, res) => {
     const user = await prisma.user.findUnique({ where: { userId } });
     if (!user) return res.status(404).json({ success: false, message: 'User not found.' });
 
-    // Website orders: search by userId OR by phone (for guest orders placed before login)
-    const userPhone = user.phone || user.username || '';
-    const websiteOrdersById = await prisma.websiteOrder.findMany({
-      where: { userId },
-      orderBy: { createdAt: 'desc' },
-    });
+    // Admin/Accountant: return ALL orders in the system
+    const isAdminRole = user.role === 'admin' || user.role === 'accountant';
     
-    // Also find orders placed as guest with same phone
-    const websiteOrdersByPhone = userPhone ? await prisma.websiteOrder.findMany({
-      where: { 
-        customerPhone: userPhone,
-        userId: null,  // only guest orders not already linked
-      },
-      orderBy: { createdAt: 'desc' },
-    }) : [];
+    let websiteOrders, ctvOrders;
     
-    // Merge and deduplicate
-    const seenIds = new Set(websiteOrdersById.map(o => o.id));
-    const websiteOrders = [...websiteOrdersById];
-    for (const wo of websiteOrdersByPhone) {
-      if (!seenIds.has(wo.id)) {
-        websiteOrders.push(wo);
-        seenIds.add(wo.id);
-        // Auto-link this guest order to the user for future queries
-        await prisma.websiteOrder.update({
-          where: { id: wo.id },
-          data: { userId: userId }
-        }).catch(() => {}); // non-critical
+    if (isAdminRole) {
+      // Admin sees everything
+      websiteOrders = await prisma.websiteOrder.findMany({
+        orderBy: { createdAt: 'desc' },
+      });
+      ctvOrders = await prisma.order.findMany({
+        include: {
+          items: { include: { product: true } },
+          customer: true,
+          orderer: { select: { userId: true, fullName: true, phone: true } },
+        },
+        orderBy: { createdAt: 'desc' },
+      });
+    } else {
+      // Regular user: search by userId OR by phone (for guest orders placed before login)
+      const userPhone = user.phone || user.username || '';
+      const websiteOrdersById = await prisma.websiteOrder.findMany({
+        where: { userId },
+        orderBy: { createdAt: 'desc' },
+      });
+      
+      // Also find orders placed as guest with same phone
+      const websiteOrdersByPhone = userPhone ? await prisma.websiteOrder.findMany({
+        where: { 
+          customerPhone: userPhone,
+          userId: null,  // only guest orders not already linked
+        },
+        orderBy: { createdAt: 'desc' },
+      }) : [];
+      
+      // Merge and deduplicate
+      const seenIds = new Set(websiteOrdersById.map(o => o.id));
+      websiteOrders = [...websiteOrdersById];
+      for (const wo of websiteOrdersByPhone) {
+        if (!seenIds.has(wo.id)) {
+          websiteOrders.push(wo);
+          seenIds.add(wo.id);
+          // Auto-link this guest order to the user for future queries
+          await prisma.websiteOrder.update({
+            where: { id: wo.id },
+            data: { userId: userId }
+          }).catch(() => {}); // non-critical
+        }
       }
-    }
-    
-    // Sort combined by date
-    websiteOrders.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+      
+      // Sort combined by date
+      websiteOrders.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
-    // CTV orders placed by this user (via Customer.linkedUserId)
-    const customer = await prisma.customer.findFirst({ where: { linkedUserId: user.id } });
-    const ctvOrders = customer ? await prisma.order.findMany({
-      where: { customerId: customer.id },
-      include: { items: { include: { product: true } } },
-      orderBy: { createdAt: 'desc' },
-    }) : [];
+      // CTV orders placed by this user (via Customer.linkedUserId)
+      const customer = await prisma.customer.findFirst({ where: { linkedUserId: user.id } });
+      ctvOrders = customer ? await prisma.order.findMany({
+        where: { customerId: customer.id },
+        include: { items: { include: { product: true } } },
+        orderBy: { createdAt: 'desc' },
+      }) : [];
+    }
 
     res.json({
       success: true,
