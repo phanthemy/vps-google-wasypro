@@ -133,12 +133,12 @@ export const AdminOverview: React.FC<AdminOverviewProps> = ({ onNavigateTab }) =
       tab: 'warranties',
     },
     {
-      title: 'Doanh Thu Ứng Dụng',
+      title: 'Doanh Thu Đơn Hàng',
       value: new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(stats.revenue),
-      unit: 'ước tính',
+      unit: 'từ đơn hoàn thành',
       icon: TrendingUp,
       gradient: 'from-purple-600 to-indigo-600',
-      tab: 'overview',
+      tab: 'orders',
     },
   ];
 

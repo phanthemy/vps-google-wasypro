@@ -205,19 +205,32 @@ export const api = {
 
   getAdminStats: async (): Promise<{ totalProducts: number; newLeads: number; activeWarranties: number; revenue: number }> => {
     try {
-      const [prods, orders] = await Promise.all([fetch('/api/products'), fetch('/api/orders')]);
-      if (prods.ok && orders.ok) {
-        const pData = await prods.json();
-        const oData = await orders.json();
-        return { totalProducts: pData.length, newLeads: 0, activeWarranties: 0, revenue: oData.reduce((s: number, o: any) => s + (o.totalAmount || 0), 0) };
-      }
-    } catch(e) {}
-    const totalProducts = mockProducts.length;
-    const newLeads = mockLeads.filter(l => l.status === 'new').length;
-    const activeWarranties = mockWarranties.filter(w => w.status === 'active').length;
-    const revenue = 1500000000; 
+      const [prods, orders, leads, warranties] = await Promise.all([
+        fetch('/api/products', { credentials: 'include' }),
+        fetch('/api/orders', { credentials: 'include' }),
+        fetch('/api/leads', { credentials: 'include' }),
+        fetch('/api/warranties', { credentials: 'include' }),
+      ]);
+      const pData = prods.ok ? await prods.json() : { data: [] };
+      const oData = orders.ok ? await orders.json() : { data: [] };
+      const lData = leads.ok ? await leads.json() : { data: [] };
+      const wData = warranties.ok ? await warranties.json() : { data: [] };
 
-    return { totalProducts, newLeads, activeWarranties, revenue };
+      const productList: any[] = Array.isArray(pData) ? pData : (pData.data || []);
+      const orderList: any[] = Array.isArray(oData) ? oData : (oData.data || []);
+      const leadList: any[] = Array.isArray(lData) ? lData : (lData.data || []);
+      const warrantyList: any[] = Array.isArray(wData) ? wData : (wData.data || []);
+
+      const revenue = orderList
+        .filter((o: any) => o.status === 'COMPLETED')
+        .reduce((s: number, o: any) => s + (o.totalAmount || 0), 0);
+      const newLeads = leadList.filter((l: any) => l.status === 'new').length;
+      const activeWarranties = warrantyList.filter((w: any) => w.status === 'active').length;
+
+      return { totalProducts: productList.length, newLeads, activeWarranties, revenue };
+    } catch(e) {
+      return { totalProducts: 0, newLeads: 0, activeWarranties: 0, revenue: 0 };
+    }
   },
 
   createArticle: async (articleInput: ArticleInput): Promise<Article> => {
