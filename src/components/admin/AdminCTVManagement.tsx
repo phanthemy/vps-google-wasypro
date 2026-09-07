@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   Users, Search, ChevronRight, ChevronLeft, User, Package, Wallet,
-  AlertCircle, Loader2, X, Award, Star, Calendar, Phone, Hash
+  AlertCircle, Loader2, X, Award, Star, Calendar, Phone, Hash, KeyRound
 } from 'lucide-react';
 
 interface CtvUser {
@@ -84,6 +84,7 @@ export const AdminCTVManagement: React.FC = () => {
   const [detail, setDetail] = useState<CtvDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailTab, setDetailTab] = useState<'orders' | 'customers' | 'commissions' | 'network'>('orders');
+  const [resetPwLoading, setResetPwLoading] = useState(false);
 
   const fetchList = async () => {
     setLoading(true);
@@ -234,6 +235,38 @@ export const AdminCTVManagement: React.FC = () => {
                   <span className="font-bold">Ghi chú:</span> {detail.ctv.note}
                 </div>
               )}
+
+              {/* Admin Actions */}
+              <div className="mt-4 flex flex-wrap gap-2">
+                <button
+                  onClick={async () => {
+                    if (!window.confirm(`Reset mật khẩu của "${detail.ctv.fullName}"?\n\nHệ thống sẽ tạo mật khẩu tạm thời. Ghi lại mật khẩu để báo cho khách.`)) return;
+                    setResetPwLoading(true);
+                    try {
+                      const res = await fetch(`/api/admin/users/${detail.ctv.userId}/reset-password`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        credentials: 'include',
+                      });
+                      const data = await res.json();
+                      if (data.success) {
+                        alert(`✅ Đã reset mật khẩu "${detail.ctv.fullName}"\n\nMật khẩu tạm: ${data.tempPassword}\n\nBáo cho khách đổi mật khẩu sau khi đăng nhập.`);
+                      } else {
+                        alert('Lỗi: ' + (data.message || 'Không thể reset mật khẩu'));
+                      }
+                    } catch {
+                      alert('Lỗi kết nối máy chủ');
+                    } finally {
+                      setResetPwLoading(false);
+                    }
+                  }}
+                  disabled={resetPwLoading}
+                  className="flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-sm font-bold hover:bg-amber-100 transition-all disabled:opacity-50"
+                >
+                  <KeyRound className="w-4 h-4" />
+                  {resetPwLoading ? 'Đang reset...' : 'Reset Mật Khẩu'}
+                </button>
+              </div>
             </div>
 
             {/* Tabs */}
