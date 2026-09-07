@@ -557,12 +557,9 @@ export const AdminCTVManagement: React.FC = () => {
                         <div className="text-[11px] text-amber-600 font-bold mt-0.5">MÃ ĐT: {u.businessId}</div>
                       )}
                     </td>
-                    <td className="py-4 px-5">
-                      <div className="flex flex-col gap-1">
-                        <RankBadge rank={u.rank} />
-                        <span className="text-[11px] text-slate-400">{u.tier}</span>
-                      </div>
-                    </td>
+                     <td className="py-4 px-5">
+                       <RankBadge rank={u.rank} />
+                     </td>
                     <td className="py-4 px-5">
                       <div className="font-bold text-slate-700">{u.sPoints}</div>
                     </td>
