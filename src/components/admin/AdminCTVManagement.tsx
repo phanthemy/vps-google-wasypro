@@ -245,7 +245,10 @@ export const AdminCTVManagement: React.FC = () => {
                     try {
                       const res = await fetch(`/api/admin/users/${detail.ctv.userId}/reset-password`, {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
+                        headers: {
+                          'Content-Type': 'application/json',
+                          'X-CSRF-Token': (document.cookie.match(/(?:^|;\s*)csrf_token=([^;]*)/) || [])[1] || '',
+                        },
                         credentials: 'include',
                       });
                       const data = await res.json();

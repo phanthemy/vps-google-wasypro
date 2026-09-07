@@ -1,6 +1,11 @@
 ﻿import React, { useState, useEffect, useCallback } from "react";
 import { Users, Search, KeyRound, ArrowUpCircle, RefreshCw, Phone, Calendar, ShoppingCart, Loader2, AlertCircle } from "lucide-react";
 
+function getCsrfToken(): string {
+  const m = document.cookie.match(/(?:^|;\s*)csrf_token=([^;]*)/);
+  return m ? decodeURIComponent(m[1]) : '';
+}
+
 interface Member {
   id: string;
   userId: string;
@@ -37,7 +42,7 @@ const AdminMembersView: React.FC = () => {
     if (!window.confirm(`Nang "${m.fullName}" (${m.phone}) len CTV?\n\nHo se xuat hien trong danh sach Quan Ly CTV va bat dau tich luy qualifying points.`)) return;
     setActionLoading(m.userId + "_promote");
     try {
-      const res = await fetch(`/api/admin/users/${m.userId}/promote-to-ctv`, { method: "POST", credentials: "include", headers: { "Content-Type": "application/json" } });
+      const res = await fetch(`/api/admin/users/${m.userId}/promote-to-ctv`, { method: "POST", credentials: "include", headers: { "Content-Type": "application/json", "X-CSRF-Token": getCsrfToken() } });
       const data = await res.json();
       if (data.success) { setMembers(prev => prev.filter(x => x.userId !== m.userId)); alert(`Da nang "${m.fullName}" len CTV thanh cong!`); }
       else alert("Loi: " + (data.message || "Khong the nang cap"));
@@ -49,7 +54,7 @@ const AdminMembersView: React.FC = () => {
     if (!window.confirm(`Reset mat khau cua "${m.fullName}"?\n\nHe thong se tao mat khau tam thoi.`)) return;
     setActionLoading(m.userId + "_reset");
     try {
-      const res = await fetch(`/api/admin/users/${m.userId}/reset-password`, { method: "POST", credentials: "include", headers: { "Content-Type": "application/json" } });
+      const res = await fetch(`/api/admin/users/${m.userId}/reset-password`, { method: "POST", credentials: "include", headers: { "Content-Type": "application/json", "X-CSRF-Token": getCsrfToken() } });
       const data = await res.json();
       if (data.success) alert(`Da reset mat khau "${m.fullName}"\n\nMat khau tam: ${data.tempPassword}\n\nBao cho khach doi mat khau sau khi dang nhap.`);
       else alert("Loi: " + (data.message || "Khong the reset"));
@@ -70,7 +75,7 @@ const AdminMembersView: React.FC = () => {
           </div>
           <div>
             <h2 className="text-xl font-black text-slate-900">Tai Khoan Thanh Vien ({filtered.length})</h2>
-            <p className="text-sm text-slate-500">Khach da dang ky — chua tham gia he thong CTV</p>
+            <p className="text-sm text-slate-500">Khach da dang ky â€” chua tham gia he thong CTV</p>
           </div>
         </div>
         <button onClick={fetchMembers} disabled={loading} className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-100 text-slate-700 text-sm font-bold hover:bg-slate-200 transition-all disabled:opacity-50">
@@ -143,3 +148,4 @@ const AdminMembersView: React.FC = () => {
 };
 
 export default AdminMembersView;
+
