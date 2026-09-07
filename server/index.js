@@ -1422,7 +1422,7 @@ app.get('/api/users/members', authenticateToken, requireRole(['admin', 'accounta
       orderBy: { createdAt: 'desc' },
       include: {
         parent: { select: { fullName: true, userId: true } },
-        _count: { select: { orders: true } },
+        _count: { select: { createdOrders: true } },
       }
     });
 
@@ -1438,7 +1438,7 @@ app.get('/api/users/members', authenticateToken, requireRole(['admin', 'accounta
         createdAt: u.createdAt,
         parentId: u.parentId || null,
         parent: u.parent ? `${u.parent.fullName} (${u.parent.userId})` : 'Trực tiếp Công ty',
-        orderCount: u._count.orders,
+        orderCount: u._count.createdOrders,
       }))
     });
   } catch (error) {
