@@ -1,0 +1,4457 @@
+require('dotenv').config();
+const express = require('express');
+const cors = require('cors');
+const cookieParser = require('cookie-parser');
+const { PrismaClient } = require('@prisma/client');
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
+const rateLimit = require('express-rate-limit');
+const crypto = require('crypto');
+const fs = require('fs');
+const path = require('path');
+
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+  console.error('FATAL ERROR: JWT_SECRET environment variable is not defined!');
+  process.exit(1);
+}
+const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '24h';
+
+const prisma = new PrismaClient();
+const app = express();
+const PORT = process.env.PORT || 3011;
+
+// ENVIRONMENT-BASED CORS CONFIGURATION (Strict Production Whitelist vs Dev)
+const productionOrigins = [
+  'https://wasypro.com',
+  'https://www.wasypro.com',
+  'https://app.wasypro.com'
+];
+
+const developmentOrigins = [
+  ...productionOrigins,
+  'http://localhost:5173',
+  'http://localhost:3000',
+  'http://localhost:3011'
+];
+
+const allowedOrigins = process.env.NODE_ENV === 'production' ? productionOrigins : developmentOrigins;
+
+app.use(cors({
+  origin: function (origin, callback) {
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      callback(new Error('Origin blocked by CORS policy: ' + origin));
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token']
+}));
+
+app.use(cookieParser());
+app.use(express.json({ limit: '20mb' }));
+app.use(express.urlencoded({ limit: '20mb', extended: true }));
+
+// CSRF PROTECTION MIDDLEWARE for Cookie-Authenticated Mutating Requests
+const csrfProtection = (req, res, next) => {
+  const mutatingMethods = ['POST', 'PUT', 'DELETE', 'PATCH'];
+  if (!mutatingMethods.includes(req.method)) {
+    return next();
+  }
+
+  // Public unauthenticated routes are exempt
+  if (
+    req.path === '/api/auth/login' ||
+    req.path === '/api/auth/logout' ||
+    req.path === '/api/auth/register' ||
+    req.path === '/api/orders/website' ||   // Public order form — accepts guest + logged-in users
+    req.path === '/api/users/me/join-system' // CTV portal — same-origin cookie POST
+  ) {
+    return next();
+  }
+
+  // If request is authenticated via Cookie, verify Double-Submit CSRF Token
+  const cookieAuth = req.cookies && req.cookies.auth_token;
+  if (cookieAuth) {
+    const clientCsrfToken = req.headers['x-csrf-token'];
+    const cookieCsrfToken = req.cookies && req.cookies.csrf_token;
+
+    if (!clientCsrfToken || !cookieCsrfToken || clientCsrfToken !== cookieCsrfToken) {
+      console.warn(`[CSRF VIOLATION] Blocked ${req.method} ${req.originalUrl} from origin ${req.headers.origin || 'unknown'}`);
+      return res.status(403).json({
+        success: false,
+        code: 'CSRF_VALIDATION_FAILED',
+        message: 'Yêu cầu bị từ chối do thiếu hoặc không khớp mã CSRF Token.'
+      });
+    }
+  }
+
+  next();
+};
+
+app.use(csrfProtection);
+
+// Serve static uploads ONLY (backups and code are strictly non-public)
+const uploadsDir = path.join(__dirname, '../public/uploads');
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+}
+app.use('/uploads', express.static(uploadsDir));
+
+// Rate limiters
+const authLimiter = rateLimit({
+  windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS || '900000', 10), // 15 mins
+  max: parseInt(process.env.RATE_LIMIT_MAX || '10', 10), // 10 attempts
+  message: { success: false, message: 'Bạn đã thử đăng nhập quá nhiều lần. Vui lòng thử lại sau 15 phút.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const passwordLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  message: { success: false, message: 'Bạn đã thử đổi mật khẩu quá nhiều lần. Vui lòng thử lại sau 15 phút.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// Config file management
+const CONFIG_FILE = path.join(__dirname, 'config.json');
+const DEFAULT_RATES = {
+  'SILVER': { 'referral': 0.20, '1': 0.25, '5': 0.30, '10': 0.35, '20': 0.40 },
+  'GOLD': { 'referral': 0.25, '1': 0.30, '5': 0.35, '10': 0.40, '20': 0.40 },
+  'DIAMOND': { 'referral': 0.30, '1': 0.35, '5': 0.40, '10': 0.40, '20': 0.40 },
+};
+
+if (!fs.existsSync(CONFIG_FILE)) {
+  fs.writeFileSync(CONFIG_FILE, JSON.stringify(DEFAULT_RATES, null, 2));
+}
+
+function getCommissionRates() {
+  try {
+    return JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf-8'));
+  } catch (e) {
+    return DEFAULT_RATES;
+  }
+}
+
+// Helper: Sanitize user object (never leak password)
+function sanitizeUser(user) {
+  if (!user) return null;
+  const { password, ...safeUser } = user;
+  return safeUser;
+}
+
+// Helper: Find all downline userIds recursively
+async function getDownlineUserIds(rootUserId) {
+  const downline = new Set();
+  const queue = [rootUserId];
+  while (queue.length > 0) {
+    const current = queue.shift();
+    const children = await prisma.user.findMany({
+      where: { parentId: current },
+      select: { userId: true }
+    });
+    for (const child of children) {
+      if (!downline.has(child.userId)) {
+        downline.add(child.userId);
+        queue.push(child.userId);
+      }
+    }
+  }
+  return downline;
+}
+
+// ================= AUTHENTICATION & RBAC MIDDLEWARES =================
+
+const authenticateToken = async (req, res, next) => {
+  const authHeader = req.headers['authorization'];
+  const cookieToken = req.cookies && req.cookies.auth_token;
+  const token = cookieToken || (authHeader && authHeader.startsWith('Bearer ') ? authHeader.substring(7) : null);
+
+  if (!token) {
+    return res.status(401).json({ success: false, message: 'Yêu cầu đăng nhập để truy cập tài nguyên này.' });
+  }
+
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    
+    // Per-request DB query: verifies account existence, lock status, and real-time DB role
+    const user = await prisma.user.findUnique({ where: { userId: decoded.userId } });
+
+    if (!user) {
+      return res.status(401).json({ success: false, message: 'Tài khoản không tồn tại trên hệ thống.' });
+    }
+
+    // Real-Time Account Lock Check (immediate invalidation)
+    if (user.status === 'INACTIVE') {
+      return res.status(403).json({ success: false, message: 'Tài khoản của bạn đã bị khóa. Vui lòng liên hệ quản trị viên.' });
+    }
+
+    req.user = {
+      id: user.userId,
+      userId: user.userId,
+      dbId: user.id,
+      role: user.role, // Always read fresh from DB, never trust stale token payload
+      fullName: user.fullName,
+      phone: user.phone,
+      tier: user.tier,
+      parentId: user.parentId,
+      mustChangePassword: user.mustChangePassword
+    };
+
+    // STRICT ENFORCEMENT OF MANDATORY PASSWORD CHANGE
+    // When mustChangePassword is true, block ALL business endpoints!
+    if (user.mustChangePassword) {
+      const allowedEndpoints = [
+        { method: 'PUT', pattern: new RegExp(`^/api/users/${user.userId}/password$`) },
+        { method: 'GET', pattern: /^\/api\/auth\/me$/ },
+        { method: 'POST', pattern: /^\/api\/auth\/logout$/ }
+      ];
+
+      const isAllowed = allowedEndpoints.some(e => e.method === req.method && e.pattern.test(req.path));
+      if (!isAllowed) {
+        return res.status(403).json({
+          success: false,
+          code: 'PASSWORD_CHANGE_REQUIRED',
+          message: 'Tài khoản đang ở trạng thái bắt buộc đổi mật khẩu. Vui lòng đổi mật khẩu trước khi sử dụng hệ thống.'
+        });
+      }
+    }
+
+    next();
+  } catch (err) {
+    if (err.name === 'TokenExpiredError') {
+      return res.status(401).json({ success: false, message: 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.', code: 'TOKEN_EXPIRED' });
+    }
+    return res.status(401).json({ success: false, message: 'Mã xác thực không hợp lệ.', code: 'INVALID_TOKEN' });
+  }
+};
+
+const requireRole = (allowedRoles) => {
+  return (req, res, next) => {
+    if (!req.user || !allowedRoles.includes(req.user.role)) {
+      console.warn(`[SECURITY VIOLATION] User ${req.user ? req.user.id : 'ANON'} with DB role '${req.user ? req.user.role : 'none'}' attempted unauthorized access to ${req.method} ${req.originalUrl}`);
+      return res.status(403).json({ success: false, message: 'Bạn không có quyền thực hiện hành động này.' });
+    }
+    next();
+  };
+};
+
+// ================= API ROUTES =================
+
+// 1. AUTHENTICATION LOGIN (HttpOnly Cookie + CSRF Double-Submit Token)
+app.post('/api/auth/login', authLimiter, async (req, res) => {
+  try {
+    const { phone, password } = req.body;
+    if (!phone || !password) {
+      return res.status(400).json({ success: false, message: 'Vui lòng cung cấp số điện thoại và mật khẩu.' });
+    }
+
+    const trimmedPhone = phone.trim();
+    const user = await prisma.user.findUnique({ where: { phone: trimmedPhone } });
+
+    if (!user) {
+      return res.status(401).json({ success: false, message: 'Số điện thoại hoặc mật khẩu không chính xác.' });
+    }
+
+    if (user.status === 'INACTIVE') {
+      return res.status(403).json({ success: false, message: 'Tài khoản đã bị tạm khóa.' });
+    }
+
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      return res.status(401).json({ success: false, message: 'Số điện thoại hoặc mật khẩu không chính xác.' });
+    }
+
+    const tokenPayload = {
+      userId: user.userId,
+      role: user.role,
+      fullName: user.fullName,
+      tier: user.tier
+    };
+
+    const token = jwt.sign(tokenPayload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
+    const csrfToken = crypto.randomBytes(32).toString('hex');
+    const isProd = process.env.NODE_ENV === 'production';
+
+    // Set HttpOnly, Secure, SameSite Cookie for Auth Token
+    res.cookie('auth_token', token, {
+      httpOnly: true,
+      secure: isProd,
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 24 * 60 * 60 * 1000
+    });
+
+    // Set non-HttpOnly Cookie for CSRF Token (read by frontend client)
+    res.cookie('csrf_token', csrfToken, {
+      httpOnly: false,
+      secure: isProd,
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 24 * 60 * 60 * 1000
+    });
+
+    // Return user information without exposing token string in body
+    res.json({
+      success: true,
+      requirePasswordChange: user.mustChangePassword,
+      data: {
+        id: user.userId,
+        role: user.role,
+        fullName: user.fullName,
+        tier: user.tier,
+        phone: user.phone,
+        mustChangePassword: user.mustChangePassword,
+        isSystemParticipant: user.isSystemParticipant,
+        participantAt: user.participantAt,
+        qualifyingPoints: user.qualifyingPoints ?? 0,
+        sPoints: user.sPoints ?? 0,
+        businessId: user.businessId ?? null,
+        rank: user.rank ?? null,
+        rankStatus: user.rankStatus ?? null,
+      }
+    });
+  } catch (error) {
+    console.error('Login error:', error);
+    res.status(500).json({ success: false, message: 'Lỗi máy chủ trong quá trình xử lý đăng nhập.' });
+  }
+});
+
+// AUTH ME (Session Status) — returns fresh data from DB
+app.get('/api/auth/me', authenticateToken, async (req, res) => {
+  try {
+    const lookupId = req.user.userId || req.user.id;
+    const user = await prisma.user.findFirst({ where: { OR: [{ userId: lookupId }, { id: lookupId }] } });
+    if (!user) return res.status(404).json({ success: false, message: 'Người dùng không tồn tại.' });
+    res.json({
+      success: true,
+      data: {
+        id: user.userId,
+        role: user.role,
+        fullName: user.fullName,
+        tier: user.tier,
+        phone: user.phone,
+        mustChangePassword: user.mustChangePassword,
+        isSystemParticipant: user.isSystemParticipant,
+        participantAt: user.participantAt,
+        qualifyingPoints: user.qualifyingPoints ?? 0,
+        sPoints: user.sPoints ?? 0,
+        businessId: user.businessId ?? null,
+        rank: user.rank ?? null,
+        rankStatus: user.rankStatus ?? null,
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Lỗi máy chủ.' });
+  }
+});
+
+// LOGOUT (Clear Cookies)
+app.post('/api/auth/logout', (req, res) => {
+  res.clearCookie('auth_token', { path: '/' });
+  res.clearCookie('csrf_token', { path: '/' });
+  res.json({ success: true, message: 'Đã đăng xuất thành công.' });
+});
+
+// ─── SELF REGISTRATION (public — no auth required) ───────────────────────────
+// POST /api/auth/register
+// Creates a User account (role=ctv, isSystemParticipant=false by default).
+// refCode → parentId (sponsor). No business rights until "THAM GIA HỆ THỐNG".
+app.post('/api/auth/register', authLimiter, async (req, res) => {
+  try {
+    let { fullName, phone, password, refCode, joinSystem } = req.body;
+    if (!fullName || !fullName.trim()) return res.status(400).json({ success: false, message: 'Vui lòng nhập họ tên.' });
+    if (!phone || !phone.trim()) return res.status(400).json({ success: false, message: 'Vui lòng nhập số điện thoại.' });
+
+    phone = phone.trim();
+    fullName = fullName.trim();
+    const rawPwd = (password && password.trim()) ? password.trim() : '123456';
+    const willJoinSystem = !!joinSystem; // true if user chose CTV at registration
+
+    // Check duplicate phone
+    const existing = await prisma.user.findUnique({ where: { phone } });
+    if (existing) {
+      return res.status(400).json({ success: false, message: 'Số điện thoại này đã được đăng ký. Vui lòng đăng nhập.' });
+    }
+
+    // Resolve sponsor from refCode
+    let parentId = null;
+    if (refCode && refCode.trim()) {
+      const sponsor = await prisma.user.findUnique({ where: { userId: refCode.trim() } });
+      if (sponsor) parentId = sponsor.userId;
+    }
+
+    // Generate userId: prefix U + 3 digits
+    let generatedId = '', isUnique = false;
+    while (!isUnique) {
+      generatedId = 'U' + Math.floor(100 + Math.random() * 900);
+      const check = await prisma.user.findUnique({ where: { userId: generatedId } });
+      if (!check) isUnique = true;
+    }
+
+    const hashedPassword = await bcrypt.hash(rawPwd, 10);
+    const now = new Date();
+    const newUser = await prisma.user.create({
+      data: {
+        userId: generatedId,
+        fullName,
+        phone,
+        password: hashedPassword,
+        tier: 'SILVER',
+        role: 'ctv',
+        parentId,
+        mustChangePassword: false,
+        isSystemParticipant: willJoinSystem,
+        participantAt: willJoinSystem ? now : null,
+        qualifyingPoints: 0,
+        sPoints: 0,
+      }
+    });
+
+    // Auto-link existing Customer record if phone matches
+    try {
+      const existingCustomer = await prisma.customer.findFirst({
+        where: { phone, linkedUserId: null }
+      });
+      if (existingCustomer) {
+        await prisma.customer.update({
+          where: { id: existingCustomer.id },
+          data: { linkedUserId: newUser.id }
+        });
+      }
+    } catch (_) { /* non-critical — link can be done later */ }
+
+    console.log(`[REGISTER] ${generatedId} ${fullName} (${phone}) joinSystem=${willJoinSystem}`);
+
+    res.status(201).json({
+      success: true,
+      message: 'Đăng ký tài khoản thành công! Vui lòng đăng nhập.',
+      data: {
+        id: newUser.userId,
+        fullName: newUser.fullName,
+        phone: newUser.phone,
+        isSystemParticipant: newUser.isSystemParticipant,
+        participantAt: newUser.participantAt,
+        businessId: null,
+        rank: null,
+      }
+    });
+  } catch (err) {
+    console.error('[REGISTER]', err.message);
+    res.status(500).json({ success: false, message: 'Lỗi máy chủ. Vui lòng thử lại.' });
+  }
+});
+
+// ─── THAM GIA HỆ THỐNG (authenticated user self-opts-in) ─────────────────────
+// POST /api/users/me/join-system
+// Sets isSystemParticipant=true, records participantAt.
+// Idempotent: calling twice is safe — second call returns 200 with no change.
+app.post('/api/users/me/join-system', authenticateToken, async (req, res) => {
+  try {
+    const lookupId = req.user.userId || req.user.id;
+    const user = await prisma.user.findFirst({ where: { OR: [{ userId: lookupId }, { id: lookupId }] } });
+    if (!user) return res.status(404).json({ success: false, message: 'Người dùng không tồn tại.' });
+
+    // Idempotent guard
+    if (user.isSystemParticipant) {
+      return res.json({
+        success: true,
+        alreadyJoined: true,
+        message: 'Bạn đã tham gia hệ thống từ trước.',
+        data: {
+          isSystemParticipant: true,
+          participantAt: user.participantAt,
+          qualifyingPoints: user.qualifyingPoints ?? 0,
+        }
+      });
+    }
+
+    const now = new Date();
+    const updated = await prisma.user.update({
+      where: { userId: user.userId },
+      data: {
+        isSystemParticipant: true,
+        participantAt: now,
+      }
+    });
+
+    console.log(`[JOIN-SYSTEM] ${user.userId} (${user.fullName}) joined at ${now.toISOString()}`);
+
+    res.json({
+      success: true,
+      alreadyJoined: false,
+      message: 'Đã tham gia hệ thống thành công! Các điểm tích lũy từ đơn hàng tiếp theo sẽ được tính vào mốc 5.000 CP.',
+      data: {
+        isSystemParticipant: true,
+        participantAt: updated.participantAt,
+        qualifyingPoints: updated.qualifyingPoints ?? 0,
+        businessId: updated.businessId ?? null,
+        rank: updated.rank ?? null,
+      }
+    });
+  } catch (err) {
+    console.error('[JOIN-SYSTEM]', err.message);
+    res.status(500).json({ success: false, message: 'Lỗi máy chủ. Vui lòng thử lại.' });
+  }
+});
+
+// 2. CONFIG COMMISSION MATRIX
+// @deprecated — Legacy config.json routes (CTV Portal legacy only).
+// Commission Engine v3.6 does NOT read config.json — it reads SystemPolicyConfig (DB).
+// Use /api/admin/policy for authoritative policy management.
+app.get('/api/config', authenticateToken, (req, res) => {
+  res.set('X-Deprecated', 'true; use /api/admin/policy');
+  res.json({ success: true, data: getCommissionRates() });
+});
+
+// @deprecated — writes to config.json which Commission Engine v3.6 does NOT read.
+app.post('/api/config', authenticateToken, requireRole(['admin']), (req, res) => {
+  res.set('X-Deprecated', 'true; use PUT /api/admin/policy/:key');
+  try {
+    const newRates = req.body;
+    fs.writeFileSync(CONFIG_FILE, JSON.stringify(newRates, null, 2));
+    res.json({ success: true, data: newRates });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// ── ADMIN POLICY CONFIGURATION (SystemPolicyConfig) ────────────────────────
+
+// GET /api/policy/active — active policy for CTV and members
+app.get('/api/policy/active', authenticateToken, async (req, res) => {
+  try {
+    const configs = await prisma.systemPolicyConfig.findMany({ orderBy: { key: 'asc' } });
+    const policyMap = Object.fromEntries(configs.map(c => [c.key, c.value]));
+    const version = policyMap['POLICY_VERSION'] || '1.0.0';
+    res.json({
+      success: true,
+      data: configs.map(c => ({
+        key: c.key,
+        value: c.value,
+        description: c.description,
+        version: c.version,
+        updatedAt: c.updatedAt
+      })),
+      policyMap,
+      version
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Không thể tải cấu hình chính sách.' });
+  }
+});
+
+// GET /api/admin/policy — list all 16 policy keys
+app.get('/api/admin/policy', authenticateToken, requireRole(['admin']), async (req, res) => {
+  try {
+    const configs = await prisma.systemPolicyConfig.findMany({ orderBy: { key: 'asc' } });
+    res.json({ success: true, data: configs.map(c => ({
+      key: c.key,
+      value: c.value,
+      description: c.description,
+      version: c.version,
+      updatedBy: c.updatedBy,
+      updatedAt: c.updatedAt,
+      status: c.value === 'NOT_CONFIGURED' ? 'NOT_CONFIGURED' : 'ACTIVE'
+    })) });
+  } catch (err) {
+    console.error('[ADMIN POLICY GET]', err.message);
+    res.status(500).json({ success: false, message: 'Không thể tải cấu hình policy.' });
+  }
+});
+
+// GET /api/admin/policy/:key/history — audit log for a specific key
+app.get('/api/admin/policy/:key/history', authenticateToken, requireRole(['admin']), async (req, res) => {
+  try {
+    const { key } = req.params;
+    const policy = await prisma.systemPolicyConfig.findUnique({ where: { key } });
+    if (!policy) {
+      return res.status(404).json({ success: false, message: 'Policy key không tồn tại.' });
+    }
+    const logs = await prisma.systemPolicyAuditLog.findMany({
+      where: { key },
+      orderBy: { createdAt: 'desc' },
+      take: 50
+    });
+    res.json({ success: true, key, data: logs.map(l => ({
+      oldValue: l.oldValue,
+      newValue: l.newValue,
+      version: l.version,
+      updatedBy: l.updatedBy,
+      reason: l.reason,
+      createdAt: l.createdAt
+    })) });
+  } catch (err) {
+    console.error('[ADMIN POLICY HISTORY]', err.message);
+    res.status(500).json({ success: false, message: 'Không thể tải lịch sử policy.' });
+  }
+});
+
+// PUT /api/admin/policy/:key — update a policy key (admin only, atomic, audited)
+app.put('/api/admin/policy/:key', authenticateToken, requireRole(['admin']), async (req, res) => {
+  try {
+    const { key } = req.params;
+    const { value, reason } = req.body;
+
+    // 1. POLICY_VERSION: system-managed only
+    if (key === 'POLICY_VERSION') {
+      return res.status(403).json({
+        success: false,
+        error: 'KEY_NOT_EDITABLE',
+        message: 'POLICY_VERSION được quản lý tự động bởi hệ thống. Không thể sửa trực tiếp.'
+      });
+    }
+
+    // 2. Reason bắt buộc
+    if (!reason || String(reason).trim().length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'REASON_REQUIRED',
+        message: 'Vui lòng nhập lý do thay đổi policy.'
+      });
+    }
+
+    // 3. Value bắt buộc
+    if (value === undefined || value === null || String(value).trim() === '') {
+      return res.status(400).json({
+        success: false,
+        error: 'VALUE_REQUIRED',
+        message: 'Vui lòng nhập giá trị mới.'
+      });
+    }
+
+    // 4. Validate value theo loại key
+    const strVal = String(value).trim();
+    let validatedValue;
+
+    if (key === 'AMBASSADOR_THRESHOLD') {
+      const intVal = parseInt(strVal, 10);
+      if (isNaN(intVal) || intVal <= 0 || String(intVal) !== strVal) {
+        return res.status(400).json({
+          success: false,
+          error: 'INVALID_POLICY_VALUE',
+          message: 'AMBASSADOR_THRESHOLD phải là số nguyên dương (VD: 5000).'
+        });
+      }
+      validatedValue = String(intVal);
+    } else if (strVal === 'NOT_CONFIGURED') {
+      validatedValue = 'NOT_CONFIGURED';
+    } else {
+      const floatVal = parseFloat(strVal);
+      if (isNaN(floatVal) || floatVal < 0 || floatVal > 1) {
+        return res.status(400).json({
+          success: false,
+          error: 'INVALID_POLICY_VALUE',
+          message: 'Tỉ lệ commission phải từ 0.00 đến 1.00 (VD: 0.20 = 20%), hoặc "NOT_CONFIGURED".'
+        });
+      }
+      validatedValue = String(floatVal);
+    }
+
+    // 5. Kiểm tra key tồn tại
+    const existing = await prisma.systemPolicyConfig.findUnique({ where: { key } });
+    if (!existing) {
+      return res.status(404).json({ success: false, message: 'Policy key không tồn tại.' });
+    }
+
+    // 6. Load POLICY_VERSION để bump minor
+    const versionRecord = await prisma.systemPolicyConfig.findUnique({ where: { key: 'POLICY_VERSION' } });
+    const currentVersion = versionRecord ? versionRecord.value : '1.0.0';
+    const parts = currentVersion.split('.').map(Number);
+    parts[1] = (parts[1] || 0) + 1;
+    const newVersion = parts.join('.');
+    const updatedBy = req.user.id;
+
+    // 7. Atomic transaction: update policy + audit + version bump
+    const updated = await prisma.$transaction(async (tx) => {
+      const updatedPolicy = await tx.systemPolicyConfig.update({
+        where: { key },
+        data: { value: validatedValue, updatedBy, version: newVersion }
+      });
+      await tx.systemPolicyAuditLog.create({
+        data: {
+          policyId: existing.id,
+          key,
+          oldValue: existing.value,
+          newValue: validatedValue,
+          version: newVersion,
+          updatedBy,
+          reason: String(reason).trim()
+        }
+      });
+      if (versionRecord) {
+        await tx.systemPolicyConfig.update({
+          where: { key: 'POLICY_VERSION' },
+          data: { value: newVersion, updatedBy }
+        });
+        await tx.systemPolicyAuditLog.create({
+          data: {
+            policyId: versionRecord.id,
+            key: 'POLICY_VERSION',
+            oldValue: currentVersion,
+            newValue: newVersion,
+            version: newVersion,
+            updatedBy,
+            reason: `Auto-bump from ${key} change by ${updatedBy}`
+          }
+        });
+      }
+      return updatedPolicy;
+    }, { isolationLevel: 'Serializable' });
+
+    console.log(`[ADMIN POLICY] ${updatedBy} updated ${key}: ${existing.value} → ${validatedValue} (v${newVersion})`);
+    res.json({
+      success: true,
+      data: {
+        key: updated.key,
+        oldValue: existing.value,
+        newValue: updated.value,
+        version: newVersion,
+        updatedBy,
+        updatedAt: updated.updatedAt
+      }
+    });
+  } catch (err) {
+    console.error('[ADMIN POLICY PUT]', err.message);
+    res.status(500).json({ success: false, message: 'Không thể cập nhật policy. Vui lòng thử lại.' });
+  }
+});
+
+
+
+// ═══════════════════════════════════════════════════════════════
+// 3B. PERIOD LIFECYCLE — Commission Period + Policy per Period
+// ═══════════════════════════════════════════════════════════════
+
+// 15 standard policy keys seeded into each period
+const PERIOD_POLICY_KEYS = [
+  { key: 'AMBASSADOR_SELF_BUY',              description: 'Đại Sứ — Tự mua' },
+  { key: 'AMBASSADOR_DIRECT_NO_ID',          description: 'Đại Sứ — Bán cho khách chưa có ID' },
+  { key: 'AMBASSADOR_DIRECT_WITH_ID',        description: 'Đại Sứ — Bán cho khách đã có ID' },
+  { key: 'AMBASSADOR_THRESHOLD',             description: 'Ngưỡng điểm tích lũy (Qualifying Points)' },
+  { key: 'MANAGER_SELF_BUY',                 description: 'Quản Lý — Tự mua' },
+  { key: 'MANAGER_DIRECT_NO_ID',             description: 'Quản Lý — Bán cho khách chưa có ID' },
+  { key: 'MANAGER_DIRECT_WITH_ID',           description: 'Quản Lý — Bán cho khách đã có ID' },
+  { key: 'MANAGER_F1_PURCHASE',              description: 'Quản Lý — F1 tự mua' },
+  { key: 'MANAGER_F2_PURCHASE',              description: 'Quản Lý — F2 tự mua' },
+  { key: 'MANAGER_F1_SELL_TO_CUSTOMER_NO_ID', description: 'Quản Lý — Khi F1 bán cho khách mới chưa ID (5%)' },
+  { key: 'DIRECTOR_SELF_BUY',                description: 'Giám Đốc — Tự mua' },
+  { key: 'DIRECTOR_DIRECT_NO_ID',            description: 'Giám Đốc — Bán cho khách chưa có ID' },
+  { key: 'DIRECTOR_DIRECT_WITH_ID',          description: 'Giám Đốc — Bán cho khách đã có ID' },
+  { key: 'DIRECTOR_F1',                      description: 'Giám Đốc — F1 (D1)' },
+  { key: 'DIRECTOR_F2',                      description: 'Giám Đốc — F2 (D2)' },
+];
+
+const PERIOD_THRESHOLD_KEYS = new Set(['AMBASSADOR_THRESHOLD']);
+const PERIOD_READ_ONLY_KEYS = new Set(['POLICY_VERSION']);
+
+function parsePeriodPolicyVersion(versionStr) {
+  // Format: "09/2026-v3" => extract number 3
+  const m = versionStr && versionStr.match(/-v(\d+)$/);
+  return m ? parseInt(m[1], 10) : 1;
+}
+
+function nextPeriodPolicyVersion(periodName, currentVersion) {
+  const n = parsePeriodPolicyVersion(currentVersion);
+  return `${periodName}-v${n + 1}`;
+}
+
+async function getOpenPeriod() {
+  return prisma.commissionPeriod.findFirst({ where: { status: 'OPEN' }, orderBy: { createdAt: 'desc' } });
+}
+
+async function seedPeriodPolicies(tx, periodId, periodName, copyFromPeriodId) {
+  const initialVersion = `${periodName}-v1`;
+  let sourceMap = {};
+
+  if (copyFromPeriodId) {
+    const sourcePolicies = await tx.periodPolicyConfig.findMany({ where: { periodId: copyFromPeriodId } });
+    sourceMap = Object.fromEntries(sourcePolicies.map(p => [p.key, p.value]));
+  } else {
+    // Default: copy from SystemPolicyConfig if exists, else NOT_CONFIGURED
+    const sysPolicies = await tx.systemPolicyConfig.findMany();
+    sourceMap = Object.fromEntries(sysPolicies.map(p => [p.key, p.value]));
+  }
+
+  const rows = PERIOD_POLICY_KEYS.map(({ key, description }) => ({
+    id: require('crypto').randomBytes(12).toString('base64url'),
+    periodId,
+    key,
+    value: sourceMap[key] !== undefined ? sourceMap[key] : 'NOT_CONFIGURED',
+    description,
+    version: initialVersion,
+    updatedAt: new Date(),
+    effectiveFrom: new Date(),
+  }));
+
+  for (const row of rows) {
+    await tx.periodPolicyConfig.create({ data: row });
+  }
+  return initialVersion;
+}
+
+// ── GET /api/admin/periods ─────────────────────────────────────
+app.get('/api/admin/periods', authenticateToken, requireRole(['admin']), async (req, res) => {
+  try {
+    const periods = await prisma.commissionPeriod.findMany({
+      orderBy: { createdAt: 'desc' },
+      include: {
+        _count: { select: { orders: true, commissions: true } },
+        closeAudit: true,
+      }
+    });
+    const data = periods.map(p => ({
+      id: p.id,
+      periodName: p.periodName,
+      startAt: p.startAt,
+      endAt: p.endAt,
+      status: p.status,
+      createdAt: p.createdAt,
+      createdBy: p.createdBy,
+      closedAt: p.closedAt,
+      closedBy: p.closedBy,
+      totalOrders: p._count.orders,
+      totalCommissions: p._count.commissions,
+      closeAudit: p.closeAudit,
+    }));
+    res.json({ success: true, data });
+  } catch (err) {
+    console.error('[ADMIN PERIODS GET]', err.message);
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ── GET /api/periods/current ─ CTV xem kỳ hoa hồng hiện tại ──
+app.get('/api/periods/current', authenticateToken, async (req, res) => {
+  try {
+    const period = await getOpenPeriod();
+    if (!period) {
+      return res.json({ success: true, data: null, message: 'Chưa có kỳ hoa hồng nào đang mở.' });
+    }
+    res.json({
+      success: true,
+      data: {
+        id: period.id,
+        periodName: period.periodName,
+        startAt: period.startAt,
+        endAt: period.endAt,
+        status: period.status,
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ── POST /api/admin/periods ────────────────────────────────────
+app.post('/api/admin/periods', authenticateToken, requireRole(['admin']), async (req, res) => {
+  try {
+    const { periodName, startAt, endAt, copyFromPeriodId } = req.body;
+    if (!periodName || !startAt || !endAt) {
+      return res.status(400).json({ success: false, message: 'Thiếu periodName, startAt hoặc endAt.' });
+    }
+
+    // Chỉ cho 1 OPEN period tại 1 thời điểm
+    const existing = await getOpenPeriod();
+    if (existing) {
+      return res.status(409).json({ success: false, error: 'OPEN_PERIOD_EXISTS', message: `Đã có kỳ ${existing.periodName} đang mở. Vui lòng chốt kỳ hiện tại trước khi tạo kỳ mới.` });
+    }
+
+    const period = await prisma.$transaction(async (tx) => {
+      const p = await tx.commissionPeriod.create({
+        data: {
+          periodName,
+          startAt: new Date(startAt),
+          endAt: new Date(endAt),
+          status: 'OPEN',
+          createdBy: req.user.id,
+        }
+      });
+      await seedPeriodPolicies(tx, p.id, periodName, copyFromPeriodId || null);
+      return p;
+    });
+
+    res.status(201).json({ success: true, data: period, message: `Đã tạo kỳ ${periodName}.` });
+  } catch (err) {
+    console.error('[ADMIN PERIODS POST]', err.message);
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ── GET /api/admin/periods/:periodId ──────────────────────────
+app.get('/api/admin/periods/:periodId', authenticateToken, requireRole(['admin']), async (req, res) => {
+  try {
+    const { periodId } = req.params;
+    const period = await prisma.commissionPeriod.findUnique({
+      where: { id: periodId },
+      include: {
+        policies: { orderBy: { key: 'asc' } },
+        closeAudit: true,
+        _count: { select: { orders: true, commissions: true } },
+      }
+    });
+    if (!period) return res.status(404).json({ success: false, message: 'Kỳ không tồn tại.' });
+
+    // Aggregate commission stats
+    const commAgg = await prisma.commission.aggregate({
+      where: { periodId },
+      _sum: { earnedPoints: true, earnedMoney: true },
+      _count: { id: true },
+    });
+
+    res.json({
+      success: true,
+      data: {
+        ...period,
+        totalOrders: period._count.orders,
+        totalCommissions: period._count.commissions,
+        totalEarnedPoints: commAgg._sum.earnedPoints || 0,
+        totalEarnedMoney: commAgg._sum.earnedMoney || 0,
+      }
+    });
+  } catch (err) {
+    console.error('[ADMIN PERIODS GET/:id]', err.message);
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ── POST /api/admin/periods/:periodId/close ────────────────────
+app.post('/api/admin/periods/:periodId/close', authenticateToken, requireRole(['admin']), async (req, res) => {
+  try {
+    const { periodId } = req.params;
+    const { confirmPhrase } = req.body;
+
+    const period = await prisma.commissionPeriod.findUnique({ where: { id: periodId } });
+    if (!period) return res.status(404).json({ success: false, message: 'Kỳ không tồn tại.' });
+    if (period.status !== 'OPEN') {
+      return res.status(409).json({ success: false, error: 'PERIOD_NOT_OPEN', message: 'Kỳ này không ở trạng thái OPEN.' });
+    }
+
+    const expectedPhrase = `CHỐT KỲ ${period.periodName}`;
+    if (!confirmPhrase || confirmPhrase.trim() !== expectedPhrase) {
+      return res.status(400).json({ success: false, error: 'CONFIRM_MISMATCH', message: `Cụm xác nhận không đúng. Vui lòng nhập: "${expectedPhrase}"` });
+    }
+
+    // Compute summary
+    const orderCount = await prisma.order.count({ where: { periodId } });
+    const commAgg = await prisma.commission.aggregate({
+      where: { periodId },
+      _sum: { earnedPoints: true, earnedMoney: true },
+      _count: { id: true },
+    });
+
+    const now = new Date();
+    await prisma.$transaction(async (tx) => {
+      await tx.commissionPeriod.update({
+        where: { id: periodId },
+        data: { status: 'CLOSED', closedAt: now, closedBy: req.user.id }
+      });
+      await tx.periodCloseAudit.create({
+        data: {
+          periodId,
+          closedBy: req.user.id,
+          closedAt: now,
+          oldStatus: 'OPEN',
+          newStatus: 'CLOSED',
+          totalOrders: orderCount,
+          totalCommissions: commAgg._count.id || 0,
+          totalEarnedPoints: commAgg._sum.earnedPoints || 0,
+          totalEarnedMoney: commAgg._sum.earnedMoney || 0,
+          metadata: JSON.stringify({ closedByRole: req.user.role }),
+        }
+      });
+    });
+
+    res.json({
+      success: true,
+      message: `Đã chốt kỳ ${period.periodName}.`,
+      data: {
+        periodId,
+        periodName: period.periodName,
+        status: 'CLOSED',
+        closedAt: now,
+        closedBy: req.user.id,
+        totalOrders: orderCount,
+        totalCommissions: commAgg._count.id || 0,
+        totalEarnedPoints: commAgg._sum.earnedPoints || 0,
+        totalEarnedMoney: commAgg._sum.earnedMoney || 0,
+      }
+    });
+  } catch (err) {
+    console.error('[ADMIN PERIODS CLOSE]', err.message);
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ── GET /api/admin/periods/:periodId/policy ───────────────────
+app.get('/api/admin/periods/:periodId/policy', authenticateToken, requireRole(['admin']), async (req, res) => {
+  try {
+    const { periodId } = req.params;
+    const period = await prisma.commissionPeriod.findUnique({ where: { id: periodId } });
+    if (!period) return res.status(404).json({ success: false, message: 'Kỳ không tồn tại.' });
+
+    const policies = await prisma.periodPolicyConfig.findMany({
+      where: { periodId },
+      orderBy: { key: 'asc' }
+    });
+
+    const data = policies.map(p => ({
+      ...p,
+      status: p.value === 'NOT_CONFIGURED' ? 'NOT_CONFIGURED' : 'ACTIVE',
+      readOnly: period.status === 'CLOSED',
+    }));
+
+    res.json({ success: true, data, periodStatus: period.status });
+  } catch (err) {
+    console.error('[ADMIN PERIOD POLICY GET]', err.message);
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ── GET /api/admin/periods/:periodId/policy/:key/history ──────
+app.get('/api/admin/periods/:periodId/policy/:key/history', authenticateToken, requireRole(['admin']), async (req, res) => {
+  try {
+    const { periodId, key } = req.params;
+    const logs = await prisma.periodPolicyAuditLog.findMany({
+      where: { periodId, key },
+      orderBy: { updatedAt: 'desc' },
+      take: 50,
+    });
+    res.json({ success: true, data: logs });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ── PUT /api/admin/periods/:periodId/policy/:key ──────────────
+app.put('/api/admin/periods/:periodId/policy/:key', authenticateToken, requireRole(['admin']), async (req, res) => {
+  try {
+    const { periodId, key } = req.params;
+    const { value, reason } = req.body;
+
+    if (PERIOD_READ_ONLY_KEYS.has(key)) {
+      return res.status(403).json({ success: false, error: 'KEY_NOT_EDITABLE', message: 'Không thể sửa key này trực tiếp.' });
+    }
+    if (!reason || !reason.trim()) {
+      return res.status(400).json({ success: false, error: 'REASON_REQUIRED', message: 'Vui lòng nhập lý do thay đổi.' });
+    }
+
+    const period = await prisma.commissionPeriod.findUnique({ where: { id: periodId } });
+    if (!period) return res.status(404).json({ success: false, message: 'Kỳ không tồn tại.' });
+    if (period.status === 'CLOSED') {
+      return res.status(403).json({ success: false, error: 'PERIOD_CLOSED', message: 'Kỳ đã chốt — không thể sửa policy.' });
+    }
+
+    const policy = await prisma.periodPolicyConfig.findUnique({ where: { periodId_key: { periodId, key } } });
+    if (!policy) return res.status(404).json({ success: false, message: 'Policy key không tồn tại trong kỳ này.' });
+
+    // Validate value
+    if (value !== 'NOT_CONFIGURED') {
+      if (PERIOD_THRESHOLD_KEYS.has(key)) {
+        const n = parseInt(value, 10);
+        if (isNaN(n) || n <= 0 || String(n) !== String(value).trim()) {
+          return res.status(400).json({ success: false, error: 'INVALID_POLICY_VALUE', message: 'AMBASSADOR_THRESHOLD phải là số nguyên dương.' });
+        }
+      } else {
+        const n = parseFloat(value);
+        if (isNaN(n) || n < 0 || n > 1) {
+          return res.status(400).json({ success: false, error: 'INVALID_POLICY_VALUE', message: 'Tỉ lệ phải từ 0.00 đến 1.00 hoặc "NOT_CONFIGURED".' });
+        }
+      }
+    }
+
+    const newVersion = nextPeriodPolicyVersion(period.periodName, policy.version);
+    const now = new Date();
+
+    const updated = await prisma.$transaction(async (tx) => {
+      const upd = await tx.periodPolicyConfig.update({
+        where: { periodId_key: { periodId, key } },
+        data: { value: String(value), version: newVersion, updatedBy: req.user.id, effectiveFrom: now, updatedAt: now }
+      });
+      await tx.periodPolicyAuditLog.create({
+        data: {
+          policyId: policy.id,
+          periodId,
+          key,
+          oldValue: policy.value,
+          newValue: String(value),
+          version: newVersion,
+          updatedBy: req.user.id,
+          reason: reason.trim(),
+          effectiveFrom: now,
+          updatedAt: now,
+        }
+      });
+      return upd;
+    });
+
+    res.json({ success: true, data: { ...updated, status: updated.value === 'NOT_CONFIGURED' ? 'NOT_CONFIGURED' : 'ACTIVE' } });
+  } catch (err) {
+    console.error('[ADMIN PERIOD POLICY PUT]', err.message);
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ── GET /api/admin/periods/:periodId/commissions ──────────────
+app.get('/api/admin/periods/:periodId/commissions', authenticateToken, requireRole(['admin']), async (req, res) => {
+  try {
+    const { periodId } = req.params;
+    const commissions = await prisma.commission.findMany({
+      where: { periodId },
+      include: {
+        receiver: { select: { userId: true, fullName: true, rank: true } },
+        order: { include: { customer: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    res.json({ success: true, data: commissions });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ─── CTV Policy Endpoints ──────────────────────────────────────
+
+// Map rank to relevant policy key prefixes
+function getPolicyKeysForRank(rank) {
+  const r = (rank || '').toUpperCase();
+  const keys = [];
+  if (r.includes('AMBASSADOR') || r === 'AMBASSADOR') {
+    keys.push('AMBASSADOR_SELF_BUY', 'AMBASSADOR_DIRECT_NO_ID', 'AMBASSADOR_DIRECT_WITH_ID', 'AMBASSADOR_THRESHOLD');
+  } else if (r.includes('SALES_MANAGER') || r === 'SALES_MANAGER') {
+    keys.push('MANAGER_SELF_BUY', 'MANAGER_DIRECT_NO_ID', 'MANAGER_DIRECT_WITH_ID',
+              'MANAGER_F1_PURCHASE', 'MANAGER_F2_PURCHASE', 'MANAGER_F1_SELL_TO_CUSTOMER_NO_ID');
+  } else if (r.includes('SALES_DIRECTOR') || r === 'SALES_DIRECTOR') {
+    keys.push('DIRECTOR_SELF_BUY', 'DIRECTOR_DIRECT_NO_ID', 'DIRECTOR_DIRECT_WITH_ID', 'DIRECTOR_F1', 'DIRECTOR_F2');
+  } else {
+    // Default: all keys visible
+    keys.push(...PERIOD_POLICY_KEYS.map(p => p.key));
+  }
+  return keys;
+}
+
+// GET /api/policy/current — CTV xem policy kỳ hiện tại
+app.get('/api/policy/current', authenticateToken, async (req, res) => {
+  try {
+    const openPeriod = await getOpenPeriod();
+    if (!openPeriod) {
+      return res.json({ success: true, noPeriod: true, message: 'Hiện chưa có kỳ hoa hồng nào đang mở.' });
+    }
+
+    const allPolicies = await prisma.periodPolicyConfig.findMany({
+      where: { periodId: openPeriod.id },
+      orderBy: { key: 'asc' }
+    });
+
+    // For CTV: filter by rank; for admin: show all
+    const userRank = req.user.role === 'ctv' ? (await prisma.user.findUnique({ where: { id: req.user.dbId }, select: { rank: true } }))?.rank : null;
+    const relevantKeys = userRank ? getPolicyKeysForRank(userRank) : PERIOD_POLICY_KEYS.map(p => p.key);
+
+    const policies = allPolicies
+      .filter(p => relevantKeys.includes(p.key))
+      .map(p => ({
+        key: p.key,
+        value: p.value,
+        description: p.description,
+        status: p.value === 'NOT_CONFIGURED' ? 'NOT_CONFIGURED' : 'ACTIVE',
+        version: p.version,
+        effectiveFrom: p.effectiveFrom,
+        updatedAt: p.updatedAt,
+      }));
+
+    res.json({
+      success: true,
+      data: {
+        period: {
+          id: openPeriod.id,
+          periodName: openPeriod.periodName,
+          startAt: openPeriod.startAt,
+          endAt: openPeriod.endAt,
+          status: openPeriod.status,
+        },
+        policies,
+        userRank,
+      }
+    });
+  } catch (err) {
+    console.error('[POLICY CURRENT]', err.message);
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// GET /api/policy/history — CTV xem lịch sử kỳ
+app.get('/api/policy/history', authenticateToken, async (req, res) => {
+  try {
+    const periods = await prisma.commissionPeriod.findMany({
+      orderBy: { createdAt: 'desc' },
+      include: {
+        closeAudit: true,
+        _count: { select: { orders: true, commissions: true } },
+      }
+    });
+
+    // For CTV: compute their own commission per period
+    const userId = req.user.id; // receiverId in DB
+    const commAgg = await prisma.commission.groupBy({
+      by: ['periodId'],
+      where: { receiverId: req.user.role === 'ctv' ? userId : undefined },
+      _sum: { earnedPoints: true, earnedMoney: true },
+      _count: { id: true },
+    });
+    const commMap = Object.fromEntries(commAgg.map(c => [c.periodId, c]));
+
+    const data = periods.map(p => ({
+      id: p.id,
+      periodName: p.periodName,
+      startAt: p.startAt,
+      endAt: p.endAt,
+      status: p.status,
+      createdAt: p.createdAt,
+      closedAt: p.closedAt,
+      totalOrders: p._count.orders,
+      myEarnedPoints: commMap[p.id]?._sum?.earnedPoints || 0,
+      myEarnedMoney: commMap[p.id]?._sum?.earnedMoney || 0,
+      myCommissions: commMap[p.id]?._count?.id || 0,
+    }));
+
+    res.json({ success: true, data });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// GET /api/policy/:periodId — xem policy của 1 kỳ cụ thể
+app.get('/api/policy/:periodId', authenticateToken, async (req, res) => {
+  try {
+    const { periodId } = req.params;
+    const period = await prisma.commissionPeriod.findUnique({ where: { id: periodId } });
+    if (!period) return res.status(404).json({ success: false, message: 'Kỳ không tồn tại.' });
+
+    const policies = await prisma.periodPolicyConfig.findMany({
+      where: { periodId },
+      orderBy: { key: 'asc' }
+    });
+
+    const userRank = req.user.role === 'ctv' ? (await prisma.user.findUnique({ where: { id: req.user.dbId }, select: { rank: true } }))?.rank : null;
+    const relevantKeys = (userRank && req.user.role === 'ctv') ? getPolicyKeysForRank(userRank) : PERIOD_POLICY_KEYS.map(p => p.key);
+
+    const data = policies
+      .filter(p => relevantKeys.includes(p.key))
+      .map(p => ({ ...p, status: p.value === 'NOT_CONFIGURED' ? 'NOT_CONFIGURED' : 'ACTIVE' }));
+
+    res.json({
+      success: true,
+      data,
+      period: { id: period.id, periodName: period.periodName, status: period.status, startAt: period.startAt, endAt: period.endAt },
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// GET /api/policy/:periodId/changes — policy change log for a period (CTV)
+app.get('/api/policy/:periodId/changes', authenticateToken, async (req, res) => {
+  try {
+    const { periodId } = req.params;
+    const logs = await prisma.periodPolicyAuditLog.findMany({
+      where: { periodId },
+      orderBy: { updatedAt: 'desc' },
+      take: 100,
+    });
+    res.json({ success: true, data: logs });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+
+
+// 3. DASHBOARD STATS
+app.get('/api/dashboard', authenticateToken, async (req, res) => {
+  try {
+    const isGlobal = req.user.role === 'admin' || req.user.role === 'accountant';
+
+    if (isGlobal) {
+      const totalDiamond = await prisma.user.count({ where: { tier: 'DIAMOND', role: 'ctv' } });
+      const totalGold = await prisma.user.count({ where: { tier: 'GOLD', role: 'ctv' } });
+      const totalSilver = await prisma.user.count({ where: { tier: 'SILVER', role: 'ctv' } });
+      const totalSalesAgg = await prisma.order.aggregate({
+        _sum: { totalAmount: true },
+        where: { status: 'COMPLETED' }
+      });
+      return res.json({
+        success: true,
+        data: {
+          totalDiamond,
+          totalGold,
+          totalSilver,
+          totalSales: totalSalesAgg._sum.totalAmount || 0
+        }
+      });
+    }
+
+    // CTV Scope
+    const downlineIds = await getDownlineUserIds(req.user.id);
+    const networkUserIds = [req.user.id, ...Array.from(downlineIds)];
+
+    const personalCustomers = await prisma.customer.findMany({
+      where: { sourceCtvId: req.user.id },
+      include: { orders: { where: { status: 'COMPLETED' }, select: { totalAmount: true } } }
+    });
+
+    const personalSales = personalCustomers.reduce((acc, c) => acc + c.orders.reduce((s, o) => s + o.totalAmount, 0), 0);
+
+    const networkCustomers = await prisma.customer.findMany({
+      where: { sourceCtvId: { in: networkUserIds } },
+      include: { orders: { where: { status: 'COMPLETED' }, select: { totalAmount: true } } }
+    });
+    const networkSales = networkCustomers.reduce((acc, c) => acc + c.orders.reduce((s, o) => s + o.totalAmount, 0), 0);
+
+    const totalCommissions = await prisma.commission.aggregate({
+      _sum: { amount: true },
+      where: { receiverId: req.user.id, status: { in: ['PENDING', 'PAID'] } }
+    });
+
+    res.json({
+      success: true,
+      data: {
+        tier: req.user.tier,
+        personalSales,
+        networkSales,
+        directCustomersCount: personalCustomers.length,
+        totalCommission: totalCommissions._sum.amount || 0
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// 4. USERS MANAGEMENT (CTVs)
+app.get('/api/users', authenticateToken, async (req, res) => {
+  try {
+    const { timeFilter, period } = req.query;
+    let orderDateFilter = undefined;
+
+    if (timeFilter === 'month' && period) {
+      const [y, m] = period.split('-');
+      orderDateFilter = {
+        createdAt: {
+          gte: new Date(y, m - 1, 1),
+          lt: new Date(y, m, 1)
+        }
+      };
+    }
+
+    let userFilter = { role: 'ctv' };
+    if (req.user.role === 'ctv') {
+      const downlineIds = await getDownlineUserIds(req.user.id);
+      userFilter.userId = { in: [req.user.id, ...Array.from(downlineIds)] };
+    }
+
+    const users = await prisma.user.findMany({
+      where: userFilter,
+      include: {
+        parent: { select: { fullName: true, userId: true } },
+        customers: {
+          include: {
+            orders: {
+              where: orderDateFilter ? Object.assign({ status: 'COMPLETED' }, orderDateFilter) : { status: 'COMPLETED' },
+              select: { totalAmount: true }
+            }
+          }
+        },
+        commissions: {
+          where: orderDateFilter ? { createdAt: orderDateFilter.createdAt, status: { in: ['PENDING', 'PAID'] } } : { status: { in: ['PENDING', 'PAID'] } },
+          include: {
+            order: {
+              include: { customer: true, items: { include: { service: true } } }
+            }
+          }
+        }
+      }
+    });
+
+    const mappedUsers = users.map(u => {
+      const totalSales = u.customers.reduce((acc, c) => acc + c.orders.reduce((sum, o) => sum + o.totalAmount, 0), 0);
+      const totalCommission = u.commissions.reduce((acc, c) => acc + c.amount, 0);
+      return {
+        id: u.userId,
+        userId: u.userId,
+        name: u.fullName,
+        fullName: u.fullName,
+        phone: u.phone,
+        tier: u.tier,
+        role: u.role,
+        rank: u.rank,
+        rankStatus: u.rankStatus,
+        businessId: u.businessId,
+        isSystemParticipant: !!u.isSystemParticipant,
+        participantAt: u.participantAt,
+        qualifyingPoints: u.qualifyingPoints || 0,
+        sPoints: u.sPoints || 0,
+        note: u.note,
+        parentId: u.parentId || '',
+        parent: u.parent ? `${u.parent.fullName} (${u.parent.userId})` : 'Trực tiếp Công ty',
+        totalSales,
+        totalCommission,
+        commissions: u.commissions
+      };
+    });
+
+    res.json({ success: true, data: mappedUsers });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// CREATE CTV
+app.post('/api/users', authenticateToken, requireRole(['admin', 'accountant']), async (req, res) => {
+  try {
+    let { fullName, phone, tier, parentId, password } = req.body;
+
+    if (!fullName || !phone) {
+      return res.status(400).json({ success: false, message: 'Vui lòng nhập đầy đủ Họ tên và Số điện thoại' });
+    }
+
+    phone = phone.trim();
+    tier = (tier || 'SILVER').toUpperCase();
+
+    let validParentId = null;
+    if (parentId && typeof parentId === 'string' && parentId.trim()) {
+      const parentUser = await prisma.user.findUnique({ where: { userId: parentId.trim() } });
+      if (parentUser) validParentId = parentUser.userId;
+    }
+
+    const existing = await prisma.user.findUnique({ where: { phone } });
+    if (existing) {
+      if (existing.role === 'ctv') {
+        return res.status(400).json({ success: false, message: `Số điện thoại này đã là CTV (Mã CTV: ${existing.userId}).` });
+      }
+
+      let targetUserId = existing.userId;
+      if (targetUserId.startsWith('C') || targetUserId.startsWith('U')) {
+        let isUnique = false;
+        let genId = '';
+        const prefix = tier.charAt(0);
+        while (!isUnique) {
+          genId = prefix + Math.floor(100 + Math.random() * 900);
+          const check = await prisma.user.findUnique({ where: { userId: genId } });
+          if (!check) isUnique = true;
+        }
+        targetUserId = genId;
+      }
+
+      const updateData = {
+        userId: targetUserId,
+        fullName: fullName || existing.fullName,
+        role: 'ctv',
+        tier,
+        parentId: validParentId,
+        mustChangePassword: true
+      };
+      if (password && password.trim()) {
+        updateData.password = await bcrypt.hash(password.trim(), 10);
+      }
+
+      const updated = await prisma.user.update({
+        where: { id: existing.id },
+        data: updateData
+      });
+
+      return res.json({ success: true, data: sanitizeUser(updated), message: 'Đã nâng cấp tài khoản thành CTV thành công!' });
+    }
+
+    let generatedId = '';
+    let isUnique = false;
+    const prefix = tier.charAt(0);
+    while (!isUnique) {
+      generatedId = prefix + Math.floor(100 + Math.random() * 900);
+      const check = await prisma.user.findUnique({ where: { userId: generatedId } });
+      if (!check) isUnique = true;
+    }
+
+    const rawPwd = password && password.trim() ? password.trim() : '123456';
+    const hashedPassword = await bcrypt.hash(rawPwd, 10);
+
+    const newUser = await prisma.user.create({
+      data: {
+        userId: generatedId,
+        fullName,
+        phone,
+        password: hashedPassword,
+        role: 'ctv',
+        tier,
+        parentId: validParentId,
+        mustChangePassword: true
+      }
+    });
+
+    res.json({ success: true, data: sanitizeUser(newUser) });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Lỗi hệ thống: ' + error.message });
+  }
+});
+
+// UPDATE CTV (Admin only)
+app.put('/api/users/:id', authenticateToken, requireRole(['admin']), async (req, res) => {
+  try {
+    const { id } = req.params;
+    let { fullName, phone, tier, parentId, password } = req.body;
+
+    if (parentId === id) {
+      return res.status(400).json({ success: false, message: 'Không thể tự đặt mình làm tuyến trên.' });
+    }
+
+    let validParentId = null;
+    if (parentId && typeof parentId === 'string' && parentId.trim()) {
+      const parentUser = await prisma.user.findUnique({ where: { userId: parentId.trim() } });
+      if (parentUser) validParentId = parentUser.userId;
+    }
+
+    if (phone) {
+      phone = phone.trim();
+      const existing = await prisma.user.findUnique({ where: { phone } });
+      if (existing && existing.userId !== id) {
+        return res.status(400).json({ success: false, message: 'Số điện thoại này đã được sử dụng.' });
+      }
+    }
+
+    const updateData = {
+      fullName,
+      phone,
+      tier: (tier || 'SILVER').toUpperCase(),
+      parentId: validParentId
+    };
+
+    if (password && password.trim()) {
+      updateData.password = await bcrypt.hash(password.trim(), 10);
+      updateData.mustChangePassword = true;
+    }
+
+    const updatedUser = await prisma.user.update({
+      where: { userId: id },
+      data: updateData
+    });
+
+    res.json({ success: true, data: sanitizeUser(updatedUser) });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Lỗi hệ thống: ' + error.message });
+  }
+});
+
+// CHANGE OWN PASSWORD (Self Only with Strict Validation)
+app.put('/api/users/:id/password', passwordLimiter, authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { oldPassword, newPassword } = req.body;
+
+    // Security Rule: Users can ONLY change their OWN password!
+    if (req.user.id !== id) {
+      return res.status(403).json({ success: false, message: 'Bạn chỉ có quyền đổi mật khẩu của chính tài khoản mình.' });
+    }
+
+    // Strict Password Policy (Minimum 8 chars, uppercase, lowercase, number, special char)
+    const strongPasswordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^a-zA-Z\d\s]).{8,}$/;
+    if (!newPassword || !strongPasswordRegex.test(newPassword)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Mật khẩu mới phải có ít nhất 8 ký tự, bao gồm chữ hoa, chữ thường, chữ số và ký tự đặc biệt.'
+      });
+    }
+
+    const targetUser = await prisma.user.findUnique({ where: { userId: id } });
+    if (!targetUser) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy tài khoản người dùng.' });
+    }
+
+    if (!oldPassword) {
+      return res.status(400).json({ success: false, message: 'Vui lòng cung cấp mật khẩu cũ hoặc mật khẩu tạm thời.' });
+    }
+
+    const isMatch = await bcrypt.compare(oldPassword, targetUser.password);
+    if (!isMatch) {
+      return res.status(400).json({ success: false, message: 'Mật khẩu cũ không chính xác.' });
+    }
+
+    const hashed = await bcrypt.hash(newPassword, 10);
+    await prisma.user.update({
+      where: { userId: id },
+      data: { password: hashed, mustChangePassword: false }
+    });
+
+    res.json({ success: true, message: 'Đổi mật khẩu thành công!' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// SEPARATE ADMIN ENDPOINT: RESET USER PASSWORD
+app.post('/api/admin/users/:id/reset-password', authenticateToken, requireRole(['admin']), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const targetUser = await prisma.user.findUnique({ where: { userId: id } });
+    if (!targetUser) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy tài khoản người dùng.' });
+    }
+
+    // Generate random strong temporary password
+    const tempPassword = crypto.randomBytes(8).toString('hex') + 'Aa1!';
+    const hashed = await bcrypt.hash(tempPassword, 10);
+
+    await prisma.user.update({
+      where: { userId: id },
+      data: { password: hashed, mustChangePassword: true }
+    });
+
+    // Audit Log: only record target ID and admin ID - NEVER log the plain password!
+    const customer = await prisma.customer.findFirst({ where: { phone: targetUser.phone } });
+    if (customer) {
+      await prisma.customerAuditLog.create({
+        data: {
+          customerId: customer.id,
+          action: 'ADMIN_RESET_PASSWORD',
+          details: JSON.stringify({ targetUserId: id, resetBy: req.user.id }),
+          userId: `${req.user.fullName} (${req.user.id})`
+        }
+      });
+    }
+
+    // Anti-caching headers for sensitive one-time password delivery
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+
+    res.json({
+      success: true,
+      message: 'Đã đặt lại mật khẩu tạm thành công cho tài khoản.',
+      tempPassword
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// UPDATE USER NOTE (Admin/Accountant)
+app.put('/api/users/:id/note', authenticateToken, requireRole(['admin', 'accountant']), async (req, res) => {
+  try {
+    const { note } = req.body;
+    const updatedUser = await prisma.user.update({
+      where: { userId: req.params.id },
+      data: { note }
+    });
+    res.json({ success: true, data: sanitizeUser(updatedUser) });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// 5. NETWORK TREE
+app.get('/api/tree', authenticateToken, async (req, res) => {
+  try {
+    const isGlobal = req.user.role === 'admin' || req.user.role === 'accountant';
+    let userFilter = { role: 'ctv' };
+
+    if (!isGlobal) {
+      const downlineIds = await getDownlineUserIds(req.user.id);
+      userFilter.userId = { in: [req.user.id, ...Array.from(downlineIds)] };
+    }
+
+    const users = await prisma.user.findMany({
+      where: userFilter,
+      include: {
+        customers: {
+          include: {
+            orders: {
+              where: { status: 'COMPLETED' },
+              select: { totalAmount: true }
+            }
+          }
+        }
+      }
+    });
+
+    const userMap = {};
+    users.forEach(u => {
+      userMap[u.userId] = {
+        id: u.userId,
+        name: u.fullName,
+        tier: u.tier,
+        totalSales: u.customers.reduce((acc, c) => acc + c.orders.reduce((sum, o) => sum + o.totalAmount, 0), 0),
+        children: []
+      };
+    });
+
+    const tree = [];
+    users.forEach(u => {
+      if (u.parentId && userMap[u.parentId] && u.userId !== req.user.id) {
+        userMap[u.parentId].children.push(userMap[u.userId]);
+      } else if (isGlobal || u.userId === req.user.id) {
+        tree.push(userMap[u.userId]);
+      }
+    });
+
+    res.json({ success: true, data: tree });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// 6. CUSTOMER LEADS & AUDIT TRAIL
+app.get('/api/customers', authenticateToken, async (req, res) => {
+  try {
+    let whereFilter = {};
+    if (req.user.role === 'ctv') {
+      const downlineIds = await getDownlineUserIds(req.user.id);
+      whereFilter.sourceCtvId = { in: [req.user.id, ...Array.from(downlineIds)] };
+    }
+
+    const customers = await prisma.customer.findMany({
+      where: whereFilter,
+      include: { sourceCtv: { select: { userId: true, fullName: true, phone: true, tier: true } } },
+      orderBy: { registeredAt: 'desc' }
+    });
+
+    res.json({ success: true, data: customers });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// CREATE CUSTOMER
+app.post('/api/customers', authenticateToken, async (req, res) => {
+  try {
+    let { fullName, phone, sourceCtvId } = req.body;
+
+    if (!fullName || !phone) {
+      return res.status(400).json({ success: false, message: 'Vui lòng nhập đầy đủ Họ tên và Số điện thoại' });
+    }
+
+    phone = phone.trim();
+
+    let sponsorUser = null;
+    if (req.user.role === 'admin' || req.user.role === 'accountant') {
+      if (sourceCtvId && sourceCtvId.trim()) {
+        sponsorUser = await prisma.user.findFirst({
+          where: { OR: [{ userId: sourceCtvId.trim() }, { id: sourceCtvId.trim() }] }
+        });
+      }
+    }
+    if (!sponsorUser) {
+      sponsorUser = await prisma.user.findFirst({
+        where: { OR: [{ id: req.user.id }, { userId: req.user.id }] }
+      });
+    }
+
+    const validCtvId = sponsorUser ? sponsorUser.userId : req.user.id;
+    const sponsorUserId = sponsorUser ? sponsorUser.id : null;
+
+    const existing = await prisma.customer.findFirst({
+      where: { phone, sourceCtvId: validCtvId }
+    });
+    if (existing) {
+      return res.status(400).json({ success: false, message: 'Khách hàng này đã được đăng ký trong danh sách của bạn.' });
+    }
+
+    // Check if customer already has a User account
+    const existingUser = await prisma.user.findUnique({ where: { phone } });
+    const linkedUserId = existingUser ? existingUser.id : null;
+
+    const customer = await prisma.customer.create({
+      data: {
+        fullName,
+        phone,
+        sourceCtvId: validCtvId,
+        sponsorUserId,
+        linkedUserId,
+        expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+      }
+    });
+
+    // Audit Log with authentic token identity
+    await prisma.customerAuditLog.create({
+      data: {
+        customerId: customer.id,
+        action: 'CREATE_CUSTOMER',
+        details: JSON.stringify({ name: fullName, phone, sourceCtvId: validCtvId }),
+        userId: `${req.user.fullName} (${req.user.id})`
+      }
+    });
+
+    // Auto-create customer account with secure password if not existing
+    if (!existingUser) {
+      let isUnique = false;
+      let genId = '';
+      while (!isUnique) {
+        genId = 'C' + Math.floor(100 + Math.random() * 900);
+        const check = await prisma.user.findUnique({ where: { userId: genId } });
+        if (!check) isUnique = true;
+      }
+
+      const defaultHashed = await bcrypt.hash('123456', 10);
+      const newUser = await prisma.user.create({
+        data: {
+          userId: genId,
+          fullName,
+          phone,
+          password: defaultHashed,
+          role: 'customer',
+          tier: 'NONE',
+          parentId: validCtvId,
+          mustChangePassword: true
+        }
+      });
+      await prisma.customer.update({
+        where: { id: customer.id },
+        data: { linkedUserId: newUser.id }
+      }).catch(() => {});
+    }
+
+    res.json({ success: true, data: customer });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Lỗi hệ thống: ' + error.message });
+  }
+});
+
+// UPDATE CUSTOMER STATUS
+app.put('/api/customers/:id/status', authenticateToken, async (req, res) => {
+  try {
+    const { status } = req.body;
+    const customer = await prisma.customer.findUnique({ where: { id: req.params.id } });
+
+    if (!customer) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy khách hàng.' });
+    }
+
+    if (req.user.role === 'ctv') {
+      const downline = await getDownlineUserIds(req.user.id);
+      if (customer.sourceCtvId !== req.user.id && !downline.has(customer.sourceCtvId)) {
+        return res.status(403).json({ success: false, message: 'Bạn không có quyền chỉnh sửa khách hàng của CTV khác.' });
+      }
+    }
+
+    const updated = await prisma.customer.update({
+      where: { id: req.params.id },
+      data: { status }
+    });
+
+    if (customer.status !== status) {
+      await prisma.customerAuditLog.create({
+        data: {
+          customerId: customer.id,
+          userId: `${req.user.fullName} (${req.user.id})`,
+          action: 'UPDATE_STATUS',
+          details: JSON.stringify({ from: customer.status, to: status })
+        }
+      });
+    }
+
+    res.json({ success: true, data: updated });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// PROMOTE CUSTOMER TO CTV
+app.put('/api/customers/:id/promote', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { tier } = req.body;
+
+    const customer = await prisma.customer.findUnique({ where: { id } });
+    if (!customer) return res.status(404).json({ success: false, message: 'Không tìm thấy khách hàng.' });
+
+    if (req.user.role === 'ctv') {
+      const downline = await getDownlineUserIds(req.user.id);
+      if (customer.sourceCtvId !== req.user.id && !downline.has(customer.sourceCtvId)) {
+        return res.status(403).json({ success: false, message: 'Bạn không có quyền nâng cấp khách hàng của CTV khác.' });
+      }
+    }
+
+    let user = await prisma.user.findUnique({ where: { phone: customer.phone } });
+    const targetTier = (tier || 'SILVER').toUpperCase();
+
+    if (!user) {
+      let isUnique = false;
+      let genId = '';
+      const prefix = targetTier.charAt(0);
+      while (!isUnique) {
+        genId = prefix + Math.floor(100 + Math.random() * 900);
+        const check = await prisma.user.findUnique({ where: { userId: genId } });
+        if (!check) isUnique = true;
+      }
+      const defaultPwd = await bcrypt.hash('123456', 10);
+      user = await prisma.user.create({
+        data: {
+          userId: genId,
+          fullName: customer.fullName,
+          phone: customer.phone,
+          password: defaultPwd,
+          role: 'ctv',
+          tier: targetTier,
+          parentId: customer.sourceCtvId,
+          mustChangePassword: true
+        }
+      });
+    } else {
+      let dataToUpdate = { role: 'ctv', tier: targetTier, mustChangePassword: true };
+      if (user.userId.startsWith('C') || user.userId.startsWith('U')) {
+        let isUnique = false;
+        let genId = '';
+        const prefix = targetTier.charAt(0);
+        while (!isUnique) {
+          genId = prefix + Math.floor(100 + Math.random() * 900);
+          const check = await prisma.user.findUnique({ where: { userId: genId } });
+          if (!check) isUnique = true;
+        }
+        dataToUpdate.userId = genId;
+      }
+      await prisma.user.update({
+        where: { id: user.id },
+        data: dataToUpdate
+      });
+    }
+
+    await prisma.customerAuditLog.create({
+      data: {
+        customerId: customer.id,
+        userId: `${req.user.fullName} (${req.user.id})`,
+        action: 'PROMOTE_TO_CTV',
+        details: JSON.stringify({ tier: targetTier })
+      }
+    });
+
+    res.json({ success: true, message: 'Đã nâng cấp thành công!' });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// CUSTOMER AUDIT LOGS
+app.get('/api/customers/:id/audit-log', authenticateToken, async (req, res) => {
+  try {
+    const customer = await prisma.customer.findUnique({ where: { id: req.params.id } });
+    if (!customer) return res.status(404).json({ success: false, message: 'Không tìm thấy khách hàng.' });
+
+    if (req.user.role === 'ctv') {
+      const downline = await getDownlineUserIds(req.user.id);
+      if (customer.sourceCtvId !== req.user.id && !downline.has(customer.sourceCtvId)) {
+        return res.status(403).json({ success: false, message: 'Không có quyền xem lịch sử khách hàng này.' });
+      }
+    }
+
+    const logs = await prisma.customerAuditLog.findMany({
+      where: { customerId: req.params.id },
+      orderBy: { createdAt: 'desc' }
+    });
+    res.json({ success: true, data: logs });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// 7. ORDERS & COMMISSIONS
+
+// GET ORDERS
+app.get('/api/orders', authenticateToken, async (req, res) => {
+  try {
+    const { ctvUserId, ordererUserId } = req.query;
+    let whereFilter = {};
+
+    if (req.user.role === 'ctv') {
+      // CTV chỉ thấy orders liên quan đến CTV và downline
+      const downline = await getDownlineUserIds(req.user.id);
+      const allowedCtvIds = [req.user.id, ...Array.from(downline)];
+      whereFilter = {
+        customer: { sourceCtvId: { in: allowedCtvIds } }
+      };
+    } else {
+      // Admin/accountant: có thể filter theo CTV hoặc orderer
+      if (ctvUserId) {
+        whereFilter = { customer: { sourceCtvId: ctvUserId } };
+      } else if (ordererUserId) {
+        whereFilter = { ordererUserId };
+      }
+    }
+
+    const orders = await prisma.order.findMany({
+      where: whereFilter,
+      orderBy: { createdAt: 'desc' },
+      include: {
+        customer: {
+          include: { sourceCtv: { select: { userId: true, fullName: true, phone: true, tier: true, rank: true, businessId: true } } }
+        },
+        orderer: { select: { userId: true, fullName: true, phone: true, role: true } },
+        items: {
+          include: {
+            service: true,
+            product: { select: { id: true, title: true, price: true, commissionPoints: true } }
+          }
+        },
+        commissions: {
+          select: { type: true, receiverId: true, earnedMoney: true, earnedPoints: true, ruleKey: true, status: true }
+        },
+        period: { select: { id: true, periodName: true, status: true } }
+      }
+    });
+
+    res.json({ success: true, data: orders });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// CREATE ORDER — Phase 2D: Purchase Subject Validation
+app.post('/api/orders', authenticateToken, async (req, res) => {
+  try {
+    // ─── PHASE 2D: PURCHASE SUBJECT VALIDATION ─────────────────────────────
+    // purchaseSubject from client is INTENT only. Backend validates and computes truth.
+    // Refs: PHASE 2D SPEC v1
+
+    let { customerId, purchaseSubject, items } = req.body;
+
+    if (!items || !Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ success: false, message: 'Đơn hàng phải có ít nhất một sản phẩm/dịch vụ.' });
+    }
+
+    // Step 1: Validate purchaseSubject is declared
+    if (!purchaseSubject || !['SELF', 'CUSTOMER'].includes(purchaseSubject)) {
+      return res.status(400).json({ success: false, error: 'INVALID_PURCHASE_SUBJECT',
+        message: 'purchaseSubject phải là "SELF" hoặc "CUSTOMER".' });
+    }
+
+    // Step 2: Orderer is strictly from JWT — never from client payload
+    const ordererUserId = req.user.dbId || req.user.id;
+
+    let customer;
+
+    if (purchaseSubject === 'SELF') {
+      // ── SELF PURCHASE ────────────────────────────────────────────────────
+      // Customer MUST be the one linked to this orderer. No auto-create.
+      customer = await prisma.customer.findFirst({
+        where: { linkedUserId: ordererUserId }
+      });
+      if (!customer) {
+        return res.status(400).json({ success: false, error: 'SELF_PURCHASE_NOT_LINKED',
+          message: 'Không tìm thấy hồ sơ khách hàng liên kết với tài khoản của bạn. Vui lòng join-system trước.' });
+      }
+      // If client also sent customerId, it must match
+      if (customerId && customerId !== customer.id) {
+        return res.status(400).json({ success: false, error: 'SELF_PURCHASE_CUSTOMER_MISMATCH',
+          message: 'customerId không khớp với hồ sơ khách hàng của bạn.' });
+      }
+      customerId = customer.id;
+
+    } else {
+      // ── CUSTOMER PURCHASE ────────────────────────────────────────────────
+      if (!customerId) {
+        return res.status(400).json({ success: false, error: 'CUSTOMER_ID_REQUIRED',
+          message: 'Vui lòng chọn khách hàng.' });
+      }
+      customer = await prisma.customer.findUnique({ where: { id: customerId } });
+      if (!customer) {
+        return res.status(404).json({ success: false, error: 'CUSTOMER_NOT_FOUND',
+          message: 'Không tìm thấy thông tin khách hàng.' });
+      }
+      if (!customer.sponsorUserId) {
+        return res.status(400).json({ success: false, error: 'CUSTOMER_NO_SPONSOR',
+          message: 'Khách hàng này chưa có sponsor. Vui lòng cập nhật thông tin trước khi tạo đơn.' });
+      }
+      // Cannot use CUSTOMER subject to buy for own linked customer — must use SELF
+      if (customer.linkedUserId && customer.linkedUserId === ordererUserId) {
+        return res.status(400).json({ success: false, error: 'SELF_PURCHASE_USE_SELF_SUBJECT',
+          message: 'Đây là tài khoản của bạn. Vui lòng chọn "Tự mua" thay vì "Khách hàng".' });
+      }
+    }
+
+    // Step 3: Server computes purchaseType — never trust client for this
+    const isSelf = !!(customer.linkedUserId && customer.linkedUserId === ordererUserId);
+    const purchaseType = isSelf ? 'SELF_PURCHASE' : 'CUSTOMER_PURCHASE';
+
+    // Step 4: Final cross-check — client intent must match server truth
+    const clientIntendedSelf = (purchaseSubject === 'SELF');
+    if (clientIntendedSelf !== isSelf) {
+      return res.status(400).json({ success: false, error: 'PURCHASE_SUBJECT_MISMATCH',
+        message: 'purchaseSubject không khớp với dữ liệu thực tế. Vui lòng làm mới trang và thử lại.' });
+    }
+
+    // CTV permission check (downline restriction for CUSTOMER purchases)
+    if (req.user.role === 'ctv' && !isSelf) {
+      const downline = await getDownlineUserIds(req.user.id);
+      if (customer.sourceCtvId !== req.user.userId && !downline.has(customer.sourceCtvId)) {
+        return res.status(403).json({ success: false, message: 'Bạn không có quyền tạo đơn cho khách hàng của CTV khác.' });
+      }
+    }
+    // ─── END PHASE 2D VALIDATION ──────────────────────────────────────────
+
+    // Build order items
+    let totalAmount = 0;
+    const itemsData = [];
+
+    for (const item of items) {
+      const hasService = !!item.serviceId;
+      const hasProduct = !!item.productId;
+
+      if ((hasService && hasProduct) || (!hasService && !hasProduct)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Mỗi mục đơn hàng phải có chính xác một nguồn (serviceId HOẶC productId).'
+        });
+      }
+
+      const qty = item.qty ? Math.max(1, parseInt(item.qty, 10)) : 1;
+      let itemAmount = 0;
+      let unitCommissionPts = 0;
+      let serviceId = null;
+      let productId = null;
+
+      if (hasService) {
+        const svc = await prisma.service.findUnique({ where: { id: item.serviceId } });
+        if (!svc) return res.status(400).json({ success: false, message: `Dịch vụ ${item.serviceId} không tồn tại` });
+        serviceId = svc.id;
+        itemAmount = Number(item.amount) || (svc.price * qty);
+        unitCommissionPts = Math.round(Number(svc.commissionPoints || 0));
+      } else {
+        const prod = await prisma.product.findUnique({ where: { id: item.productId } });
+        if (!prod) return res.status(400).json({ success: false, message: `Sản phẩm ${item.productId} không tồn tại` });
+        productId = prod.id;
+        itemAmount = Number(item.amount) || (prod.price * qty);
+        unitCommissionPts = Math.round(Number(prod.commissionPoints || 0));
+      }
+
+      totalAmount += itemAmount;
+      const lineCommissionPts = unitCommissionPts * qty;
+
+      itemsData.push({ serviceId, productId, amount: itemAmount, qty, unitCommissionPts, lineCommissionPts });
+    }
+
+    // Period Lifecycle: Assign order to current OPEN period (lenient — null if no OPEN period)
+    const openPeriodForOrder = await prisma.commissionPeriod.findFirst({
+      where: { status: 'OPEN' },
+      orderBy: { createdAt: 'desc' }
+    });
+    const orderPeriodId = openPeriodForOrder ? openPeriodForOrder.id : null;
+
+    const order = await prisma.order.create({
+      data: {
+        customerId,
+        totalAmount,
+        status: 'COMPLETED',
+        orderType: 'RETAIL',
+        isSelfBuy: isSelf,
+        purchaseType,
+        ordererUserId,
+        periodId: orderPeriodId, // Period Lifecycle
+        items: {
+          create: itemsData.map(i => ({
+            serviceId: i.serviceId,
+            productId: i.productId,
+            amount: i.amount,
+            qty: i.qty,
+            unitCommissionPts: i.unitCommissionPts,
+            lineCommissionPts: i.lineCommissionPts
+          }))
+        }
+      }
+    });
+
+    // Phase 2C Unified Order Settlement (idempotent, atomic transaction)
+    let settlementResult = null;
+    try {
+      settlementResult = await executeOrderSettlement(order.id);
+    } catch (settleErr) {
+      console.error('[SETTLEMENT ERROR] order', order.id, settleErr.message);
+    }
+
+    res.json({
+      success: true,
+      data: order,
+      settlement: settlementResult,
+      commissions: settlementResult?.createdCommissions || [],
+      periodId: orderPeriodId,
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// VOID / CANCEL ORDER (No hard delete! Preserves full accounting audit trail with REVERSAL for PAID commissions)
+app.delete('/api/orders/:id', authenticateToken, requireRole(['admin', 'accountant']), async (req, res) => {
+  try {
+    const orderId = req.params.id;
+    const order = await prisma.order.findUnique({
+      where: { id: orderId },
+      include: { commissions: true, customer: true }
+    });
+
+    if (!order) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy đơn hàng cần hủy.' });
+    }
+
+    if (order.status === 'CANCELLED') {
+      return res.status(400).json({ success: false, message: 'Đơn hàng này đã bị hủy trước đó.' });
+    }
+
+    await prisma.$transaction(async (tx) => {
+      // 1. Mark Order as CANCELLED
+      await tx.order.update({
+        where: { id: orderId },
+        data: { status: 'CANCELLED' }
+      });
+
+      // 2. Handle commissions
+      for (const comm of order.commissions) {
+        if (comm.status === 'PENDING') {
+          await tx.commission.update({
+            where: { id: comm.id },
+            data: { status: 'REVOKED' }
+          });
+        } else if (comm.status === 'PAID') {
+          // Create exact REVERSAL counter-record with negative amount
+          await tx.commission.create({
+            data: {
+              orderId: order.id,
+              receiverId: comm.receiverId,
+              amount: -comm.amount,
+              type: 'REVERSAL',
+              status: 'COMPLETED'
+            }
+          });
+        }
+      }
+
+      // 3. Record Audit Log
+      await tx.customerAuditLog.create({
+        data: {
+          customerId: order.customerId,
+          action: 'CANCEL_ORDER',
+          details: JSON.stringify({
+            orderId: order.id,
+            totalAmount: order.totalAmount,
+            reason: 'Hủy đơn bởi ' + req.user.role,
+            cancelledBy: `${req.user.fullName} (${req.user.id})`
+          }),
+          userId: `${req.user.fullName} (${req.user.id})`
+        }
+      });
+    });
+
+    res.json({ success: true, message: 'Đã hủy đơn hàng và thu hồi/ghi nhận hoàn trả hoa hồng thành công!' });
+  } catch (error) {
+    console.error('Cancel order error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// 8. COMMISSIONS LIST
+app.get('/api/commissions', authenticateToken, async (req, res) => {
+  try {
+    const { userId } = req.query;
+    let whereFilter = {};
+
+    if (req.user.role === 'ctv') {
+      whereFilter.receiverId = req.user.id;
+    } else if (userId && userId !== 'ADMIN' && userId !== 'admin') {
+      whereFilter.receiverId = userId;
+    }
+
+    const commissions = await prisma.commission.findMany({
+      where: whereFilter,
+      include: {
+        order: {
+          include: {
+            customer: true,
+            items: { include: { service: true } }
+          }
+        },
+        receiver: { select: { userId: true, fullName: true, phone: true, tier: true } }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    res.json({ success: true, data: commissions });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// 9. STATISTICS
+app.get('/api/statistics', authenticateToken, async (req, res) => {
+  try {
+    const { timeFilter, period } = req.query;
+    let dateFilter = undefined;
+
+    if (timeFilter === 'month' && period) {
+      const [y, m] = period.split('-');
+      dateFilter = {
+        createdAt: {
+          gte: new Date(y, m - 1, 1),
+          lt: new Date(y, m, 1)
+        }
+      };
+    } else if (timeFilter === 'quarter' && period) {
+      const [y, q] = period.split('-');
+      const startMonth = (parseInt(q, 10) - 1) * 3;
+      dateFilter = {
+        createdAt: {
+          gte: new Date(y, startMonth, 1),
+          lt: new Date(y, startMonth + 3, 1)
+        }
+      };
+    }
+
+    const orderWhere = Object.assign({ status: 'COMPLETED' }, dateFilter || {});
+
+    if (req.user.role === 'ctv') {
+      const downline = await getDownlineUserIds(req.user.id);
+      orderWhere.customer = { sourceCtvId: { in: [req.user.id, ...Array.from(downline)] } };
+    }
+
+    const items = await prisma.orderItem.findMany({
+      where: { order: orderWhere },
+      include: { service: true }
+    });
+
+    const serviceStats = {};
+    items.forEach(item => {
+      const sName = item.service?.name || 'Khác';
+      if (!serviceStats[sName]) serviceStats[sName] = 0;
+      serviceStats[sName] += item.amount;
+    });
+
+    const chartData = Object.keys(serviceStats).map(name => ({
+      name,
+      value: serviceStats[name]
+    })).sort((a, b) => b.value - a.value);
+
+    res.json({ success: true, data: chartData });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// 10. INTERNAL STAFF (Admin only)
+app.get('/api/internal-users', authenticateToken, requireRole(['admin']), async (req, res) => {
+  try {
+    const users = await prisma.user.findMany({
+      where: { role: { in: ['admin', 'accountant'] } },
+      orderBy: { createdAt: 'desc' }
+    });
+    res.json({ success: true, data: users.map(sanitizeUser) });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// ─── ADMIN CTV MANAGEMENT ─────────────────────────────────────────────────────
+
+// GET /api/admin/ctv — CTV list with stats
+app.get('/api/admin/ctv', authenticateToken, requireRole(['admin', 'accountant']), async (req, res) => {
+  try {
+    const users = await prisma.user.findMany({
+      where: { role: 'ctv' },
+      orderBy: { createdAt: 'desc' },
+      include: {
+        parent: { select: { userId: true, fullName: true } },
+        customers: { select: { id: true } },
+        commissions: {
+          where: { status: { in: ['PENDING', 'PAID'] } },
+          select: { earnedMoney: true, earnedPoints: true, status: true, periodId: true }
+        }
+      }
+    });
+
+    const mapped = users.map(u => ({
+      id: u.id,
+      userId: u.userId,
+      fullName: u.fullName,
+      phone: u.phone,
+      tier: u.tier,
+      role: u.role,
+      rank: u.rank,
+      rankStatus: u.rankStatus,
+      sPoints: u.sPoints,
+      businessId: u.businessId,
+      isSystemParticipant: u.isSystemParticipant,
+      status: u.status,
+      createdAt: u.createdAt,
+      parentId: u.parentId,
+      parent: u.parent ? `${u.parent.fullName} (${u.parent.userId})` : 'Trực tiếp Công ty',
+      customerCount: u.customers.length,
+      commissionCount: u.commissions.length,
+      totalEarnedMoney: u.commissions.reduce((s, c) => s + (c.earnedMoney || 0), 0),
+      totalEarnedPoints: u.commissions.reduce((s, c) => s + (c.earnedPoints || 0), 0),
+      note: u.note,
+    }));
+
+    res.json({ success: true, data: mapped });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// GET /api/admin/ctv/:id — CTV detail: info + customers + orders + commissions
+app.get('/api/admin/ctv/:id', authenticateToken, requireRole(['admin', 'accountant']), async (req, res) => {
+  try {
+    const { id } = req.params; // userId (e.g. "S249") or internal cuid
+    const user = await prisma.user.findFirst({
+      where: { OR: [{ userId: id }, { id }] },
+      include: {
+        parent: { select: { userId: true, fullName: true, phone: true } },
+        children: { select: { userId: true, fullName: true, phone: true, rank: true, tier: true } }
+      }
+    });
+
+    if (!user) return res.status(404).json({ success: false, message: 'Không tìm thấy CTV.' });
+
+    // Customers directly registered by this CTV
+    const customers = await prisma.customer.findMany({
+      where: { sourceCtvId: user.userId },
+      orderBy: { registeredAt: 'desc' },
+      include: {
+        sponsorUser: { select: { userId: true, fullName: true } }
+      }
+    });
+
+    // Orders where this CTV was orderer OR customer belongs to this CTV
+    const orders = await prisma.order.findMany({
+      where: {
+        OR: [
+          { ordererUserId: user.id },
+          { customer: { sourceCtvId: user.userId } }
+        ]
+      },
+      orderBy: { createdAt: 'desc' },
+      include: {
+        customer: { select: { fullName: true, phone: true } },
+        orderer: { select: { userId: true, fullName: true } },
+        items: {
+          include: {
+            service: { select: { name: true } },
+            product: { select: { title: true, commissionPoints: true } }
+          }
+        },
+        period: { select: { periodName: true, status: true } }
+      }
+    });
+
+    // Commissions earned by this CTV
+    const commissions = await prisma.commission.findMany({
+      where: { receiverId: user.userId },
+      orderBy: { createdAt: 'desc' },
+      include: {
+        order: {
+          select: {
+            id: true, totalAmount: true, createdAt: true,
+            customer: { select: { fullName: true, phone: true } }
+          }
+        },
+        period: { select: { periodName: true, status: true } }
+      }
+    });
+
+    const ctvInfo = {
+      id: user.id, userId: user.userId, fullName: user.fullName, phone: user.phone,
+      tier: user.tier, rank: user.rank, rankStatus: user.rankStatus, sPoints: user.sPoints,
+      businessId: user.businessId, isSystemParticipant: user.isSystemParticipant,
+      status: user.status, createdAt: user.createdAt, note: user.note,
+      parentId: user.parentId, parent: user.parent, directDownline: user.children
+    };
+
+    res.json({ success: true, data: { ctv: ctvInfo, customers, orders, commissions } });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.post('/api/internal-users', authenticateToken, requireRole(['admin']), async (req, res) => {
+  try {
+    const { fullName, phone, role, password } = req.body;
+    if (!fullName || !phone || !role) {
+      return res.status(400).json({ success: false, message: 'Vui lòng cung cấp đầy đủ thông tin.' });
+    }
+
+    const existing = await prisma.user.findUnique({ where: { phone: phone.trim() } });
+    if (existing) {
+      return res.status(400).json({ success: false, message: 'Số điện thoại này đã tồn tại.' });
+    }
+
+    const generatedId = role.substring(0, 3).toUpperCase() + Math.floor(10 + Math.random() * 90);
+    const rawPwd = password && password.trim() ? password.trim() : '123456';
+    const hashedPassword = await bcrypt.hash(rawPwd, 10);
+
+    const user = await prisma.user.create({
+      data: {
+        userId: generatedId,
+        fullName,
+        phone: phone.trim(),
+        password: hashedPassword,
+        role,
+        tier: 'NONE',
+        status: 'ACTIVE',
+        mustChangePassword: true
+      }
+    });
+
+    res.json({ success: true, data: sanitizeUser(user) });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.put('/api/internal-users/:id', authenticateToken, requireRole(['admin']), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { password, status, role } = req.body;
+    const data = {};
+    if (password && password.trim()) {
+      data.password = await bcrypt.hash(password.trim(), 10);
+      data.mustChangePassword = true;
+    }
+    if (status) data.status = status;
+    if (role) data.role = role;
+
+    const user = await prisma.user.update({
+      where: { userId: id },
+      data
+    });
+    res.json({ success: true, data: sanitizeUser(user) });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// 11. AUDIT LOGS (Admin / Accountant)
+app.get('/api/audit-logs', authenticateToken, requireRole(['admin', 'accountant']), async (req, res) => {
+  try {
+    const logs = await prisma.customerAuditLog.findMany({
+      orderBy: { createdAt: 'desc' },
+      include: { customer: true },
+      take: 200
+    });
+    res.json({ success: true, data: logs });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// 12. SERVICES CATALOG (Public Read / Admin Write)
+app.get('/api/services', async (req, res) => {
+  try {
+    const services = await prisma.service.findMany({ include: { category: true } });
+    res.json({ success: true, data: services });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.post('/api/services', authenticateToken, requireRole(['admin', 'accountant']), async (req, res) => {
+  try {
+    const { name, group, price, commissionPoints, categoryName, description, imageUrl, reason } = req.body;
+    const cp = commissionPoints !== undefined ? Math.max(0, Math.round(Number(commissionPoints))) : 0;
+    let cat = null;
+    if (categoryName) {
+      cat = await prisma.serviceCategory.findUnique({ where: { name: categoryName } });
+    }
+    if (!cat) {
+      cat = await prisma.serviceCategory.findFirst();
+      if (!cat) {
+        cat = await prisma.serviceCategory.create({ data: { name: 'Chăm sóc' } });
+      }
+    }
+    const s = await prisma.service.create({
+      data: { name, group, price: Number(price), commissionPoints: cp, categoryId: cat.id, description, imageUrl }
+    });
+    if (cp > 0) {
+      await prisma.commissionPointAuditLog.create({
+        data: {
+          itemType: 'SERVICE',
+          itemId: s.id,
+          itemName: s.name,
+          oldValue: null,
+          newValue: cp,
+          actor: req.user?.userId || req.user?.email || 'ADMIN',
+          reason: reason || 'INITIAL_SERVICE_CREATION'
+        }
+      }).catch(e => console.error('[AUDIT ERROR]', e.message));
+    }
+    res.json({ success: true, data: s });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.put('/api/services/:id', authenticateToken, requireRole(['admin', 'accountant']), async (req, res) => {
+  try {
+    let { price, commissionPoints, description, imageUrl, reason } = req.body;
+    const updateData = {};
+    if (price !== undefined) updateData.price = Number(price);
+    if (description !== undefined) updateData.description = description;
+    if (imageUrl !== undefined) updateData.imageUrl = imageUrl;
+
+    let oldService = null;
+    if (commissionPoints !== undefined) {
+      const newCP = Math.max(0, Math.round(Number(commissionPoints)));
+      oldService = await prisma.service.findUnique({ where: { id: req.params.id } });
+      if (oldService && oldService.commissionPoints !== newCP) {
+        updateData.commissionPoints = newCP;
+      }
+    }
+
+    const s = await prisma.service.update({
+      where: { id: req.params.id },
+      data: updateData
+    });
+
+    if (updateData.commissionPoints !== undefined && oldService) {
+      await prisma.commissionPointAuditLog.create({
+        data: {
+          itemType: 'SERVICE',
+          itemId: s.id,
+          itemName: s.name,
+          oldValue: oldService.commissionPoints,
+          newValue: updateData.commissionPoints,
+          actor: req.user?.userId || req.user?.email || 'ADMIN',
+          reason: reason || 'ADMIN_UPDATE_COMMISSION_POINTS'
+        }
+      }).catch(e => console.error('[AUDIT ERROR]', e.message));
+    }
+
+    res.json({ success: true, data: s });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.delete('/api/services/:id', authenticateToken, requireRole(['admin']), async (req, res) => {
+  try {
+    const s = await prisma.service.delete({ where: { id: req.params.id } });
+    res.json({ success: true, data: s });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// 13. WEBSITE PRODUCTS (Public Read / Admin Write Protected)
+app.get('/api/products', async (req, res) => {
+  try {
+    const { categoryId, search, sort, limit, isHot } = req.query;
+    let where = {};
+    if (categoryId) where.categoryId = categoryId;
+    if (isHot === 'true') where.isHot = true;
+    if (search) where.title = { contains: search };
+    let orderBy = { createdAt: 'desc' };
+    if (sort === 'price_asc') orderBy = { price: 'asc' };
+    if (sort === 'price_desc') orderBy = { price: 'desc' };
+    const products = await prisma.product.findMany({
+      where,
+      orderBy,
+      take: limit ? parseInt(limit, 10) : undefined,
+      include: { category: true }
+    });
+    res.json(products.map(p => ({
+      ...p,
+      gallery: JSON.parse(p.gallery || '[]'),
+      specs: JSON.parse(p.specs || '{}')
+    })));
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.get('/api/products/:slugOrId', async (req, res) => {
+  try {
+    const p = await prisma.product.findFirst({
+      where: { OR: [{ slug: req.params.slugOrId }, { id: req.params.slugOrId }] },
+      include: { category: true }
+    });
+    if (!p) return res.status(404).json({ error: 'Not found' });
+    res.json({
+      ...p,
+      gallery: JSON.parse(p.gallery || '[]'),
+      specs: JSON.parse(p.specs || '{}')
+    });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.get('/api/product-categories', async (req, res) => {
+  try {
+    const cats = await prisma.productCategory.findMany({
+      include: { _count: { select: { products: true } } }
+    });
+    res.json(cats);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// PROTECTED PRODUCT CRUD (Admin only)
+app.post('/api/products', authenticateToken, requireRole(['admin']), async (req, res) => {
+  try {
+    const { title, slug, categoryId, price, originalPrice, image, gallery, description, specs, isHot, isNew, stock, commissionPoints, reason } = req.body;
+    const cp = commissionPoints !== undefined ? Math.max(0, Math.round(Number(commissionPoints))) : 0;
+    const product = await prisma.product.create({
+      data: {
+        title,
+        slug,
+        categoryId,
+        price: Number(price || 0),
+        commissionPoints: cp,
+        originalPrice: originalPrice ? Number(originalPrice) : null,
+        image: image || '',
+        gallery: typeof gallery === 'string' ? gallery : JSON.stringify(gallery || []),
+        description: description || '',
+        specs: typeof specs === 'string' ? specs : JSON.stringify(specs || {}),
+        isHot: isHot || false,
+        isNew: isNew || false,
+        stock: Number(stock || 0)
+      }
+    });
+
+    if (cp > 0) {
+      await prisma.commissionPointAuditLog.create({
+        data: {
+          itemType: 'PRODUCT',
+          itemId: product.id,
+          itemName: product.title,
+          oldValue: null,
+          newValue: cp,
+          actor: req.user?.userId || req.user?.email || 'ADMIN',
+          reason: reason || 'INITIAL_PRODUCT_CREATION'
+        }
+      }).catch(e => console.error('[AUDIT ERROR]', e.message));
+    }
+    res.json({
+      ...product,
+      gallery: JSON.parse(product.gallery || '[]'),
+      specs: JSON.parse(product.specs || '{}')
+    });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.put('/api/products/:id', authenticateToken, requireRole(['admin']), async (req, res) => {
+  try {
+    const data = {};
+    ['title', 'slug', 'categoryId', 'description', 'image', 'isHot', 'isNew'].forEach(f => {
+      if (req.body[f] !== undefined) data[f] = req.body[f];
+    });
+    if (req.body.price !== undefined) data.price = Number(req.body.price);
+    if (req.body.originalPrice !== undefined) data.originalPrice = Number(req.body.originalPrice);
+    if (req.body.stock !== undefined) data.stock = Number(req.body.stock);
+    if (req.body.gallery !== undefined) data.gallery = typeof req.body.gallery === 'string' ? req.body.gallery : JSON.stringify(req.body.gallery);
+    if (req.body.specs !== undefined) data.specs = typeof req.body.specs === 'string' ? req.body.specs : JSON.stringify(req.body.specs);
+
+    let oldProduct = null;
+    if (req.body.commissionPoints !== undefined) {
+      const newCP = Math.max(0, Math.round(Number(req.body.commissionPoints)));
+      oldProduct = await prisma.product.findUnique({ where: { id: req.params.id } });
+      if (oldProduct && oldProduct.commissionPoints !== newCP) {
+        data.commissionPoints = newCP;
+      }
+    }
+
+    const updated = await prisma.product.update({ where: { id: req.params.id }, data });
+
+    if (data.commissionPoints !== undefined && oldProduct) {
+      await prisma.commissionPointAuditLog.create({
+        data: {
+          itemType: 'PRODUCT',
+          itemId: updated.id,
+          itemName: updated.title,
+          oldValue: oldProduct.commissionPoints,
+          newValue: data.commissionPoints,
+          actor: req.user?.userId || req.user?.email || 'ADMIN',
+          reason: req.body.reason || 'ADMIN_UPDATE_COMMISSION_POINTS'
+        }
+      }).catch(e => console.error('[AUDIT ERROR]', e.message));
+    }
+    res.json({
+      ...updated,
+      gallery: JSON.parse(updated.gallery || '[]'),
+      specs: JSON.parse(updated.specs || '{}')
+    });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.delete('/api/products/:id', authenticateToken, requireRole(['admin']), async (req, res) => {
+  try {
+    await prisma.product.delete({ where: { id: req.params.id } });
+    res.json({ success: true, message: 'Deleted product' });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+
+// ================= PHASE 2A: S-POINTS & RANK FOUNDATION API =================
+
+// HELPER: Award S-Points passively after order completion
+// Only awards if service.productType = 'MACHINE' (per spec)
+// If productType is null, no points are awarded (safe default ? pending MAU_THUAN_04 decision)
+async function awardSPointsForOrder(order, ctv) {
+  try {
+    const items = await prisma.orderItem.findMany({
+      where: { orderId: order.id },
+      include: { service: true }
+    });
+
+    let totalPointsEarned = 0;
+    for (const item of items) {
+      if (item.service && item.service.productType === 'MACHINE') {
+        // 1 point = 1,000 VND per policy
+        const pointsEarned = Math.floor(item.amount / 1000);
+        if (pointsEarned > 0) {
+          await prisma.sPointTransaction.create({
+            data: {
+              userId: ctv.userId,
+              orderId: order.id,
+              points: pointsEarned,
+              type: 'EARN',
+              description: `Don hang #${order.id} - ${item.service.name} (${item.qty} may)`
+            }
+          });
+          totalPointsEarned += pointsEarned;
+          await prisma.user.update({
+            where: { userId: ctv.userId },
+            data: { totalMachinesBought: { increment: item.qty } }
+          });
+        }
+      }
+    }
+
+    if (totalPointsEarned > 0) {
+      await prisma.user.update({
+        where: { userId: ctv.userId },
+        data: { sPoints: { increment: totalPointsEarned } }
+      });
+      console.log(`[S-POINTS] Awarded ${totalPointsEarned} pts to ${ctv.userId} for order ${order.id}`);
+    }
+  } catch (err) {
+    console.error(`[S-POINTS] Error for order ${order.id}:`, err.message);
+  }
+}
+
+
+// ============================================================
+// PHASE 2B — HELPER FUNCTIONS
+// ============================================================
+
+
+/**
+ * Phase 2C Unified Order Settlement Orchestrator (FINAL SPEC v3.6)
+ *
+ * UNIFIED TRANSACTION BOUNDARY:
+ * All operations run inside ONE atomic prisma.$transaction:
+ * 1. Idempotency Marker (CommissionProcessing table)
+ * 2. Resolve Parties (Orderer, Customer, Qualifying Member, Direct Sponsor, Upstream)
+ * 3. Calculate & persist Commission records (SELF, DIRECT/SPLIT, UPSTREAM) with all 6 snapshot fields
+ * 4. Award S-Points & Qualifying Points (SPointTransaction)
+ * 5. Ambassador Activation (BusinessIdSequence WK-NNNNN, rank -> AMBASSADOR, RankHistory)
+ *
+ * ATOMIC GUARANTEE:
+ * - If Commission calculation/write fails -> points, Business ID, rank, and RankHistory ROLL BACK.
+ * - If Activation/sequence fails -> Commission records ROLL BACK.
+ * - Retry same order -> CommissionProcessing prevents double execution.
+ */
+/**
+ * Normalize rank to policy prefix:
+ * AMBASSADOR -> 'AMBASSADOR'
+ * SALES_MANAGER / MANAGER -> 'MANAGER'
+ * SALES_DIRECTOR / DIRECTOR -> 'DIRECTOR'
+ */
+function normalizeRankPrefix(rank) {
+  if (!rank) return null;
+  const upper = String(rank).toUpperCase().trim();
+  if (upper === 'AMBASSADOR') return 'AMBASSADOR';
+  if (upper === 'SALES_MANAGER' || upper === 'MANAGER') return 'MANAGER';
+  if (upper === 'SALES_DIRECTOR' || upper === 'DIRECTOR') return 'DIRECTOR';
+  return null;
+}
+
+/**
+ * Phase 2C-6: Core Commission Calculation Engine (FINAL SPEC v3.6)
+ * Strictly calculates & inserts Commission records inside the active prisma transaction:
+ * - SELF: for qualifyingMember when isSelf (Ambassador: 20%, Manager: 25%, Director: 30%)
+ * - DIRECT / SPLIT: for customer.sponsorUserId
+ *   * If Customer not in system -> DIRECT_NO_ID
+ *   * If Customer in system, no ID:
+ *     - If orderTotalCP + currentQP < 5000 -> DIRECT_NO_ID
+ *     - If orderTotalCP + currentQP >= 5000 -> SPLIT (qualifyingPart: 20%, excessPart: 10%)
+ *   * If Customer already has ID -> DIRECT_WITH_ID (10%)
+ * - UPSTREAM (D1 & D2):
+ *   * For qualifyingMember's sponsor chain (D1 = parent, D2 = parent of parent)
+ *   * Does NOT skip unranked sponsors
+ *   * D1: Manager F1 purchase = 10%
+ *   * D2: Manager F2 purchase = 5%
+ *   * NOT_CONFIGURED rates -> 0 commissions created
+ *   * Depth >= 3 -> NO commission
+ * - Integer points & VND arithmetic:
+ *   * earnedPoints = Math.round(basePoints * rateSnapshot)
+ *   * earnedMoney = earnedPoints * 1000
+ * - Mandatory 6 snapshot fields recorded on every Commission
+ */
+async function calculateAndCreateCommissions(tx, context) {
+  const {
+    order,
+    orderTotalCP,
+    orderer,
+    customer,
+    qualifyingMember,
+    directSponsor,
+    isSelf,
+    priorQP,
+    priorBusinessId,
+    isParticipant,
+    threshold,
+    policyMap,
+    policyVersion,
+    activated,
+  } = context;
+
+  if (orderTotalCP <= 0) {
+    return [];
+  }
+
+  const createdCommissions = [];
+
+  function getPolicyRate(key) {
+    const val = policyMap[key];
+    if (!val || val === 'NOT_CONFIGURED') return null;
+    const num = parseFloat(val);
+    return isNaN(num) ? null : num;
+  }
+
+  async function createCommissionRecord({ receiver, role, ruleKey, rateSnapshot, basePoints, type, metadata }) {
+    if (!receiver || !ruleKey || !rateSnapshot || rateSnapshot <= 0 || basePoints <= 0) {
+      return null;
+    }
+    const earnedPoints = Math.round(basePoints * rateSnapshot);
+    const earnedMoney = Math.round(earnedPoints * 1000);
+    if (earnedPoints <= 0 && earnedMoney <= 0) {
+      return null;
+    }
+
+    const comm = await tx.commission.create({
+      data: {
+        orderId: order.id,
+        receiverId: receiver.userId,
+        amount: earnedMoney,
+        type: type || 'DIRECT',
+        status: 'PENDING',
+        rateSnapshot,
+        rankSnapshot: receiver.rank || null,
+        baseAmount: Math.round(basePoints * 1000),
+        policyRef: ruleKey,
+        ruleKey,
+        policyVersion,
+        role,
+        basePoints: Math.round(basePoints),
+        earnedPoints,
+        earnedMoney,
+        metadata: metadata ? JSON.stringify(metadata) : null,
+        periodId: orderPeriodId || null, // Period Lifecycle: gắn commission với kỳ
+      }
+    });
+    createdCommissions.push(comm);
+    return comm;
+  }
+
+  // -------------------------------------------------------------
+  // 1. SELF COMMISSION
+  // -------------------------------------------------------------
+  // SELF only when Customer.linkedUserId == Orderer.id
+  // Receiver = Orderer (Customer Member)
+  // Ambassador SELF = 20%, Manager SELF = 25%, Director SELF = 30%
+  if (isSelf && orderer) {
+    const effectiveRank = (activated && isSelf) ? 'AMBASSADOR' : orderer.rank;
+    const rankPrefix = normalizeRankPrefix(effectiveRank);
+
+    if (rankPrefix) {
+      const selfRuleKey = rankPrefix + '_SELF_BUY';
+      const selfRate = getPolicyRate(selfRuleKey);
+      if (selfRate) {
+        await createCommissionRecord({
+          receiver: orderer,
+          role: 'SELF',
+          ruleKey: selfRuleKey,
+          rateSnapshot: selfRate,
+          basePoints: orderTotalCP,
+          type: 'SELF',
+          metadata: { isSelf: true, rank: effectiveRank },
+        });
+      }
+    }
+  }
+
+  // -------------------------------------------------------------
+  // 2. DIRECT / SPLIT COMMISSION
+  // -------------------------------------------------------------
+  // DIRECT receiver = Customer.sponsorUserId (NEVER Orderer.sponsorUserId)
+  // Only applies if directSponsor exists
+  if (!isSelf && directSponsor) {
+    const sponsorRank = directSponsor.rank || (directSponsor.role === 'ctv' ? 'AMBASSADOR' : null);
+    const sponsorPrefix = normalizeRankPrefix(sponsorRank);
+    if (sponsorPrefix) {
+      // Check SPLIT conditions:
+      // - CUSTOMER_PURCHASE (!isSelf)
+      // - qualifyingMember != null
+      // - isSystemParticipant = true
+      // - businessId = null (prior to this order)
+      // - orderTotalCP > 0
+      // - priorQP + orderTotalCP >= threshold
+      const isSplitEligible = !isSelf &&
+        qualifyingMember &&
+        isParticipant &&
+        !priorBusinessId &&
+        orderTotalCP > 0 &&
+        (priorQP + orderTotalCP >= threshold);
+
+      if (isSplitEligible) {
+        // SPLIT replaces DIRECT_NO_ID completely (NO DIRECT_NO_ID created!)
+        const qualifyingPart = Math.max(0, threshold - priorQP);
+        const excessPart = Math.max(0, orderTotalCP - qualifyingPart);
+
+        // Rates:
+        // qualifying rate: 20% (Ambassador), or sponsor's DIRECT_NO_ID
+        // excess rate: 10% (Ambassador/Manager/Director), or sponsor's DIRECT_WITH_ID
+        const qualifyingRate = getPolicyRate(sponsorPrefix + '_QUALIFYING_SPLIT') || getPolicyRate(sponsorPrefix + '_DIRECT_NO_ID') || 0.20;
+        const excessRate = getPolicyRate(sponsorPrefix + '_EXCESS_SPLIT') || getPolicyRate(sponsorPrefix + '_DIRECT_WITH_ID') || 0.10;
+
+        if (qualifyingPart > 0) {
+          await createCommissionRecord({
+            receiver: directSponsor,
+            role: 'DIRECT_SPONSOR',
+            ruleKey: sponsorPrefix + '_QUALIFYING_SPLIT',
+            rateSnapshot: qualifyingRate,
+            basePoints: qualifyingPart,
+            type: 'SPLIT',
+            metadata: {
+              splitType: 'QUALIFYING',
+              threshold,
+              priorQP,
+              qualifyingPart,
+            }
+          });
+        }
+
+        if (excessPart > 0) {
+          await createCommissionRecord({
+            receiver: directSponsor,
+            role: 'DIRECT_SPONSOR',
+            ruleKey: sponsorPrefix + '_EXCESS_SPLIT',
+            rateSnapshot: excessRate,
+            basePoints: excessPart,
+            type: 'SPLIT',
+            metadata: {
+              splitType: 'EXCESS',
+              threshold,
+              priorQP,
+              excessPart,
+            }
+          });
+        }
+      } else {
+        // NON-SPLIT: Either DIRECT_WITH_ID or DIRECT_NO_ID
+        const hasId = qualifyingMember && (priorBusinessId || qualifyingMember.businessId);
+
+        if (hasId) {
+          // Customer has ID -> DIRECT_WITH_ID
+          const directRuleKey = sponsorPrefix + '_DIRECT_WITH_ID';
+          const directRate = getPolicyRate(directRuleKey);
+          if (directRate) {
+            await createCommissionRecord({
+              receiver: directSponsor,
+              role: 'DIRECT_SPONSOR',
+              ruleKey: directRuleKey,
+              rateSnapshot: directRate,
+              basePoints: orderTotalCP,
+              type: 'DIRECT',
+              metadata: { hasId: true },
+            });
+          }
+        } else {
+          // Customer has NO ID:
+          // - either retail customer (qualifyingMember == null)
+          // - or not system participant
+          // - or system participant who did not cross threshold (priorQP + orderTotalCP < threshold)
+          const directRuleKey = sponsorPrefix + '_DIRECT_NO_ID';
+          const directRate = getPolicyRate(directRuleKey);
+          if (directRate) {
+            await createCommissionRecord({
+              receiver: directSponsor,
+              role: 'DIRECT_SPONSOR',
+              ruleKey: directRuleKey,
+              rateSnapshot: directRate,
+              basePoints: orderTotalCP,
+              type: 'DIRECT',
+              metadata: { hasId: false },
+            });
+          }
+        }
+      }
+    }
+  }
+
+  // -------------------------------------------------------------
+  // 3. UPSTREAM COMMISSION (Depth-1 & Depth-2)
+  // -------------------------------------------------------------
+  // Chỉ xét sponsor chain của Customer Member / Qualifying Member.
+  // Depth-1 và Depth-2 ONLY. Không skip sponsor chưa có businessId.
+  // Rate NOT_CONFIGURED -> không tạo Commission record.
+  const memberForUpstream = isSelf ? orderer : qualifyingMember;
+
+  if (memberForUpstream) {
+    // Traverse Upstream:
+    // Depth-1
+    let d1User = null;
+    if (memberForUpstream.parentId) {
+      d1User = await tx.user.findUnique({ where: { userId: memberForUpstream.parentId } });
+    } else if (customer && customer.sponsorUserId) {
+      d1User = directSponsor || (await tx.user.findUnique({ where: { id: customer.sponsorUserId } }));
+    }
+
+    if (d1User) {
+      const d1Rank = d1User.rank || (d1User.role === 'ctv' ? 'AMBASSADOR' : null);
+      const d1Prefix = normalizeRankPrefix(d1Rank);
+      if (d1Prefix) {
+        const d1RuleKey = d1Prefix === 'DIRECTOR' ? 'DIRECTOR_F1' : (isSelf ? (d1Prefix + '_F1_PURCHASE') : (d1Prefix + '_F1_SELL_TO_CUSTOMER_NO_ID'));
+        const d1Rate = getPolicyRate(d1RuleKey);
+        if (d1Rate) {
+          await createCommissionRecord({
+            receiver: d1User,
+            role: 'UPSTREAM_D1',
+            ruleKey: d1RuleKey,
+            rateSnapshot: d1Rate,
+            basePoints: orderTotalCP,
+            type: 'OVERRIDE_F1',
+            metadata: { depth: 1, buyerUserId: memberForUpstream.userId },
+          });
+        }
+      }
+
+      // Depth-2: parent of Depth-1. Do NOT skip even if d1User has no businessId!
+      let d2User = null;
+      if (d1User.parentId) {
+        d2User = await tx.user.findUnique({ where: { userId: d1User.parentId } });
+      }
+
+      if (d2User) {
+        const d2Rank = d2User.rank || (d2User.role === 'ctv' ? 'AMBASSADOR' : null);
+        const d2Prefix = normalizeRankPrefix(d2Rank);
+        if (d2Prefix) {
+          const d2RuleKey = d2Prefix === 'DIRECTOR' ? 'DIRECTOR_F2' : (isSelf ? (d2Prefix + '_F2_PURCHASE') : (d2Prefix + '_F2'));
+          const d2Rate = getPolicyRate(d2RuleKey);
+          if (d2Rate) {
+            await createCommissionRecord({
+              receiver: d2User,
+              role: 'UPSTREAM_D2',
+              ruleKey: d2RuleKey,
+              rateSnapshot: d2Rate,
+              basePoints: orderTotalCP,
+              type: 'OVERRIDE_F2',
+              metadata: { depth: 2, buyerUserId: memberForUpstream.userId },
+            });
+          }
+        }
+      }
+
+      // Depth-3+ is NEVER processed: "Depth-1 và Depth-2 בלבד. F3 không commission."
+    }
+  }
+
+  return createdCommissions;
+}
+
+/**
+ * Phase 2C Unified Order Settlement Orchestrator (FINAL SPEC v3.6)
+ *
+ * UNIFIED TRANSACTION BOUNDARY:
+ * All operations run inside ONE atomic prisma.$transaction:
+ * 1. Idempotency Marker (CommissionProcessing table)
+ * 2. Resolve Parties (Orderer, Customer, Qualifying Member, Direct Sponsor, Upstream)
+ * 3. Calculate & persist Commission records (SELF, DIRECT/SPLIT, UPSTREAM) with all 6 snapshot fields
+ * 4. Award S-Points & Qualifying Points (SPointTransaction)
+ * 5. Ambassador Activation (BusinessIdSequence WK-NNNNN, rank -> AMBASSADOR, RankHistory)
+ *
+ * ATOMIC GUARANTEE:
+ * - If Commission calculation/write fails -> points, Business ID, rank, and RankHistory ROLL BACK.
+ * - If Activation/sequence fails -> Commission records ROLL BACK.
+ * - Retry same order -> CommissionProcessing prevents double execution.
+ */
+async function executeOrderSettlement(orderId, options = {}) {
+  // Idempotency check 1: Outside transaction
+  const existingProcessing = await prisma.commissionProcessing.findUnique({
+    where: { orderId }
+  });
+  if (existingProcessing) {
+    return {
+      success: true,
+      alreadyProcessed: true,
+      message: 'Order settlement already completed (idempotent guard)',
+      processing: existingProcessing,
+    };
+  }
+
+  return await prisma.$transaction(async (tx) => {
+    // 1. Idempotency marker inside transaction
+    const processing = await tx.commissionProcessing.create({
+      data: {
+        orderId,
+        status: 'COMPLETED',
+        policyVersion: '1.0.0', // will be updated after policy load — kept for backward compat
+      }
+    });
+
+    // 2. Load Order & Attributions
+    const order = await tx.order.findUnique({
+      where: { id: orderId },
+      include: {
+        items: true,
+        customer: {
+          include: {
+            sponsorUser: true,
+            linkedUser: true,
+          }
+        },
+        orderer: true,
+      }
+    });
+
+    if (!order) throw new Error('Order ' + orderId + ' not found');
+
+    const orderer = order.orderer || (order.ordererUserId ? await tx.user.findUnique({ where: { id: order.ordererUserId } }) : null);
+    const customer = order.customer;
+    const qualifyingMember = customer.linkedUser || null;
+    const isSelf = !!(qualifyingMember && orderer && qualifyingMember.id === orderer.id);
+
+    let directSponsor = customer.sponsorUser || null;
+    if (!directSponsor && customer.sponsorUserId) {
+      directSponsor = await tx.user.findUnique({ where: { id: customer.sponsorUserId } });
+    }
+
+    // 3. S-Points & Qualifying Points
+    const orderTotalCP = order.items.reduce((sum, item) => sum + Math.round(item.lineCommissionPts || 0), 0);
+    let pointsAwarded = 0;
+    let activated = false;
+    let allocatedBusinessId = null;
+
+    // Load Policy Configs — Period-aware (fallback to SystemPolicyConfig for legacy data)
+    let configs, policyMap, policyVersion, policySetVersion;
+    const orderPeriodId = order.periodId || null;
+
+    if (orderPeriodId) {
+      // NEW: Load from PeriodPolicyConfig for this period
+      const periodConfigs = await tx.periodPolicyConfig.findMany({ where: { periodId: orderPeriodId } });
+      configs = periodConfigs;
+      policyMap = Object.fromEntries(periodConfigs.map(c => [c.key, c.value]));
+      // Get period version from any config (they share the same version within a period)
+      policySetVersion = periodConfigs.length > 0 ? periodConfigs[0].version : null;
+      policyVersion = policySetVersion || '1.0.0';
+    } else {
+      // LEGACY FALLBACK: Use SystemPolicyConfig (backward compat for old orders)
+      const sysConfigs = await tx.systemPolicyConfig.findMany();
+      configs = sysConfigs;
+      policyMap = Object.fromEntries(sysConfigs.map(c => [c.key, c.value]));
+      policyVersion = policyMap['POLICY_VERSION'] || '1.0.0';
+      policySetVersion = null;
+    }
+
+    const threshold = parseInt(policyMap['AMBASSADOR_THRESHOLD'] || '5000', 10);
+
+    // Track qualifyingMember state BEFORE points awarded (for SPLIT eligibility)
+    let priorQP = 0;
+    let priorBusinessId = null;
+    let isParticipant = false;
+
+    if (qualifyingMember) {
+      const freshQM = await tx.user.findUnique({ where: { id: qualifyingMember.id } });
+      if (freshQM) {
+        priorQP = freshQM.qualifyingPoints || 0;
+        priorBusinessId = freshQM.businessId || null;
+        isParticipant = !!freshQM.isSystemParticipant;
+      }
+    }
+
+    if (orderTotalCP > 0 && qualifyingMember) {
+      const currentUser = await tx.user.findUnique({ where: { id: qualifyingMember.id } });
+      const isQualifying = !!currentUser.isSystemParticipant;
+      const newQualifyingPoints = isQualifying
+        ? Math.round((currentUser.qualifyingPoints || 0) + orderTotalCP)
+        : Math.round(currentUser.qualifyingPoints || 0);
+      const newSPoints = Math.round((currentUser.sPoints || 0) + orderTotalCP);
+
+      await tx.sPointTransaction.create({
+        data: {
+          userId: currentUser.userId,
+          orderId: order.id,
+          points: orderTotalCP,
+          type: 'EARN',
+          isQualifying,
+          snapshotBalance: newSPoints,
+          policyVersion,
+          description: 'Tích lũy điểm xét Ambassador từ đơn hàng #' + order.id,
+        }
+      });
+      pointsAwarded = orderTotalCP;
+
+      // 4. Ambassador Activation
+      const userUpdateData = {
+        sPoints: newSPoints,
+        qualifyingPoints: newQualifyingPoints,
+      };
+
+      if (currentUser.isSystemParticipant && !currentUser.businessId && newQualifyingPoints >= threshold) {
+        const seq = await tx.businessIdSequence.findUnique({ where: { id: 1 } });
+        const currentSeqVal = seq ? seq.nextVal : 10001;
+        allocatedBusinessId = 'WK-' + currentSeqVal;
+
+        await tx.businessIdSequence.update({
+          where: { id: 1 },
+          data: { nextVal: currentSeqVal + 1 },
+        });
+
+        userUpdateData.businessId = allocatedBusinessId;
+        userUpdateData.rank = 'AMBASSADOR';
+        userUpdateData.rankStatus = 'ACTIVE_RANK';
+        userUpdateData.rankAchievedAt = new Date();
+        userUpdateData.rankActivationMethod = 'AUTO_SPOINT_THRESHOLD';
+        userUpdateData.rankActivatedBy = 'SYSTEM';
+
+        await tx.rankHistory.create({
+          data: {
+            userId: currentUser.userId,
+            fromRank: currentUser.rank || 'CUSTOMER',
+            toRank: 'AMBASSADOR',
+            fromStatus: currentUser.rankStatus || 'NOT_QUALIFIED',
+            toStatus: 'ACTIVE_RANK',
+            reason: 'AUTO_SPOINT_THRESHOLD',
+            triggeredBy: 'SYSTEM',
+            metadata: JSON.stringify({
+              orderId: order.id,
+              qualifyingPoints: newQualifyingPoints,
+              threshold,
+              allocatedBusinessId,
+              activatedAt: new Date().toISOString(),
+            }),
+          }
+        });
+        activated = true;
+      }
+
+      await tx.user.update({
+        where: { id: currentUser.id },
+        data: userUpdateData,
+      });
+
+      if (activated) {
+        try {
+          await checkAndPromoteUplines(tx, currentUser.userId);
+        } catch (promoErr) {
+          console.error('[PROMOTION HOOK ERROR]', promoErr.message);
+        }
+      }
+    }
+
+    // 5. Commission Calculation & Creation inside the SAME transaction boundary
+    let createdCommissions = [];
+    const commContext = {
+      order,
+      orderTotalCP,
+      orderer,
+      customer,
+      qualifyingMember,
+      directSponsor,
+      isSelf,
+      priorQP,
+      priorBusinessId,
+      isParticipant,
+      threshold,
+      policyMap,
+      policyVersion,
+      activated,
+      allocatedBusinessId,
+    };
+
+    if (typeof options.commissionHandler === 'function') {
+      createdCommissions = await options.commissionHandler(tx, commContext);
+    } else {
+      createdCommissions = await calculateAndCreateCommissions(tx, commContext);
+    }
+
+    return {
+      success: true,
+      orderId: order.id,
+      pointsAwarded,
+      activated,
+      allocatedBusinessId,
+      createdCommissions,
+      processingId: processing.id,
+    };
+  });
+}
+// Keep backwards-compatible helper alias
+async function processOrderPointsAndActivation(orderId) {
+  return await executeOrderSettlement(orderId);
+}
+
+// Endpoint to trigger/inspect order settlement
+app.post('/api/orders/:id/process-activation', authenticateToken, async (req, res) => {
+  try {
+    const result = await executeOrderSettlement(req.params.id);
+    res.json({ success: true, data: result });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+
+// PHASE 2B — HELPER FUNCTIONS
+// ============================================================
+
+/** Check if a user is an active Ambassador */
+function isActiveAmbassador(user) {
+  return user &&
+    user.rank === 'AMBASSADOR' &&
+    ['ACTIVE_RANK', 'MANUAL_APPROVED'].includes(user.rankStatus);
+}
+
+/** Find nearest Ambassador ancestor above a given userId */
+async function findNearestAmbassadorAncestor(startUserId, excludeUserId = null) {
+  let currentId = startUserId;
+  const visited = new Set();
+  while (currentId && !visited.has(currentId)) {
+    visited.add(currentId);
+    const user = await prisma.user.findUnique({ where: { userId: currentId } });
+    if (!user || !user.parentId) break;
+    const parent = await prisma.user.findUnique({ where: { userId: user.parentId } });
+    if (!parent) break;
+    if (parent.userId === excludeUserId) {
+      currentId = parent.userId;
+      continue;
+    }
+    if (isActiveAmbassador(parent)) {
+      return parent;
+    }
+    currentId = parent.userId;
+  }
+  return null;
+}
+
+/** Look up a retail commission rule for a given productType and price */
+async function getRetailCommRule(productType, price, rank) {
+  const rules = await prisma.commissionPriceRule.findMany({
+    where: {
+      productType,
+      isActive: true,
+      OR: [{ rankRequired: rank }, { rankRequired: null }]
+    },
+    orderBy: { minPrice: 'desc' }
+  });
+  for (const rule of rules) {
+    const aboveMin = rule.minPrice === null || price >= rule.minPrice;
+    const belowMax = rule.maxPrice === null || price <= rule.maxPrice;
+    if (aboveMin && belowMax) return rule;
+  }
+  return null;
+}
+
+
+// ============================================================
+// OFFICIAL RANK PROMOTION RULES (5 F1 RULE)
+// 1. AMBASSADOR -> MANAGER: 5 direct F1 with Business ID & rank AMBASSADOR
+// 2. MANAGER -> DIRECTOR:    5 direct F1 with Business ID & rank MANAGER
+// ============================================================
+async function checkAndPromoteUplines(client, startUserId) {
+  let currentUserId = startUserId;
+  const promotions = [];
+  const visited = new Set();
+
+  while (currentUserId && !visited.has(currentUserId)) {
+    visited.add(currentUserId);
+    const user = await client.user.findUnique({ where: { userId: currentUserId } });
+    if (!user || !user.parentId) break;
+
+    const parent = await client.user.findUnique({ where: { userId: user.parentId } });
+    if (!parent) break;
+
+    const pRank = (parent.rank || '').toUpperCase();
+
+    if (pRank === 'AMBASSADOR') {
+      const qualifiedF1s = await client.user.findMany({
+        where: {
+          parentId: parent.userId,
+          businessId: { not: null },
+          rank: { in: ['AMBASSADOR', 'MANAGER', 'DIRECTOR', 'SALES_MANAGER', 'SALES_DIRECTOR'] },
+          rankStatus: { in: ['ACTIVE_RANK', 'MANUAL_APPROVED'] }
+        }
+      });
+
+      if (qualifiedF1s.length >= 5) {
+        await client.user.update({
+          where: { id: parent.id },
+          data: {
+            rank: 'MANAGER',
+            rankStatus: 'ACTIVE_RANK',
+            rankAchievedAt: new Date(),
+            rankActivationMethod: 'AUTO_5_F1_AMBASSADOR',
+            rankActivatedBy: 'SYSTEM'
+          }
+        });
+
+        await client.rankHistory.create({
+          data: {
+            userId: parent.userId,
+            fromRank: 'AMBASSADOR',
+            toRank: 'MANAGER',
+            fromStatus: parent.rankStatus || 'ACTIVE_RANK',
+            toStatus: 'ACTIVE_RANK',
+            reason: 'AUTO_5_F1_AMBASSADOR',
+            triggeredBy: 'SYSTEM',
+            metadata: JSON.stringify({
+              f1Count: qualifiedF1s.length,
+              f1List: qualifiedF1s.map(f => ({ userId: f.userId, businessId: f.businessId, rank: f.rank })),
+              promotedAt: new Date().toISOString()
+            })
+          }
+        });
+
+        console.log(`[PROMOTION] User ${parent.userId} (${parent.fullName}) promoted AMBASSADOR -> MANAGER (${qualifiedF1s.length} F1 Ambassadors)`);
+        promotions.push({ userId: parent.userId, from: 'AMBASSADOR', to: 'MANAGER' });
+      }
+    } else if (pRank === 'MANAGER' || pRank === 'SALES_MANAGER') {
+      const qualifiedF1s = await client.user.findMany({
+        where: {
+          parentId: parent.userId,
+          businessId: { not: null },
+          rank: { in: ['MANAGER', 'DIRECTOR', 'SALES_MANAGER', 'SALES_DIRECTOR'] },
+          rankStatus: { in: ['ACTIVE_RANK', 'MANUAL_APPROVED'] }
+        }
+      });
+
+      if (qualifiedF1s.length >= 5) {
+        await client.user.update({
+          where: { id: parent.id },
+          data: {
+            rank: 'DIRECTOR',
+            rankStatus: 'ACTIVE_RANK',
+            rankAchievedAt: new Date(),
+            rankActivationMethod: 'AUTO_5_F1_MANAGER',
+            rankActivatedBy: 'SYSTEM'
+          }
+        });
+
+        await client.rankHistory.create({
+          data: {
+            userId: parent.userId,
+            fromRank: parent.rank,
+            toRank: 'DIRECTOR',
+            fromStatus: parent.rankStatus || 'ACTIVE_RANK',
+            toStatus: 'ACTIVE_RANK',
+            reason: 'AUTO_5_F1_MANAGER',
+            triggeredBy: 'SYSTEM',
+            metadata: JSON.stringify({
+              f1Count: qualifiedF1s.length,
+              f1List: qualifiedF1s.map(f => ({ userId: f.userId, businessId: f.businessId, rank: f.rank })),
+              promotedAt: new Date().toISOString()
+            })
+          }
+        });
+
+        console.log(`[PROMOTION] User ${parent.userId} (${parent.fullName}) promoted MANAGER -> DIRECTOR (${qualifiedF1s.length} F1 Managers)`);
+        promotions.push({ userId: parent.userId, from: parent.rank, to: 'DIRECTOR' });
+      }
+    }
+
+    currentUserId = parent.userId;
+  }
+
+  return promotions;
+}
+
+/** Auto-activate Ambassador if user qualifies. Creates RankHistory audit. */
+async function checkAndAutoActivateAmbassador(userId) {
+  try {
+    const user = await prisma.user.findUnique({ where: { userId } });
+    if (!user || user.rank === 'AMBASSADOR') return;
+    const qualifies = user.totalMachinesBought >= 1 || user.sPoints >= 5000;
+    if (!qualifies) return;
+    const method = user.totalMachinesBought >= 1 ? 'AUTO_MACHINE_PURCHASE' : 'AUTO_SPOINT_THRESHOLD';
+    await prisma.user.update({
+      where: { userId },
+      data: {
+        rank: 'AMBASSADOR',
+        rankStatus: 'ACTIVE_RANK',
+        rankAchievedAt: new Date(),
+        rankActivationMethod: method,
+        rankActivatedBy: null
+      }
+    });
+    await prisma.rankHistory.create({
+      data: {
+        userId,
+        fromRank: null,
+        toRank: 'AMBASSADOR',
+        fromStatus: null,
+        toStatus: 'ACTIVE_RANK',
+        reason: method,
+        triggeredBy: 'SYSTEM',
+        metadata: JSON.stringify({
+          machinesBoughtAtTime: user.totalMachinesBought,
+          sPointsAtTime: user.sPoints
+        })
+      }
+    });
+    console.log(`[AMBASSADOR AUTO] ${userId} qualified via ${method}`);
+    await checkAndPromoteUplines(prisma, userId);
+  } catch (e) {
+    console.error('[AMBASSADOR AUTO ERROR]', e.message);
+  }
+}
+
+// ============================================================
+// PHASE 2B — AMBASSADOR RANK MANAGEMENT ENDPOINTS
+// ============================================================
+
+
+/** GET /api/rank/promotion-progress/:userId — Get progress to next rank (5 F1 rule) */
+app.get('/api/rank/promotion-progress/:userId', authenticateToken, async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const user = await prisma.user.findFirst({
+      where: {
+        OR: [
+          { userId: userId },
+          { id: userId }
+        ]
+      }
+    });
+    if (!user) return res.status(404).json({ success: false, message: 'User không tồn tại.' });
+
+    if (req.user.role !== 'admin' && req.user.id !== user.userId) {
+      return res.status(403).json({ success: false, message: 'Không có quyền truy cập.' });
+    }
+
+    const rank = (user.rank || 'CUSTOMER').toUpperCase();
+    const threshold = 5000;
+
+    if (rank === 'CUSTOMER' || !user.rank) {
+      const qp = Math.round(user.qualifyingPoints || 0);
+      return res.json({
+        success: true,
+        data: {
+          currentRank: 'CUSTOMER',
+          nextRank: 'AMBASSADOR',
+          progress: Math.min(100, Math.round((qp / threshold) * 100)),
+          current: qp,
+          target: threshold,
+          unit: 'CP',
+          description: `Tích lũy tối thiểu ${threshold.toLocaleString('vi-VN')} CP để đạt chuẩn Đại Sứ`
+        }
+      });
+    }
+
+    if (rank === 'AMBASSADOR') {
+      const f1Ambassadors = await prisma.user.findMany({
+        where: {
+          parentId: user.userId,
+          businessId: { not: null },
+          rank: { in: ['AMBASSADOR', 'MANAGER', 'DIRECTOR', 'SALES_MANAGER', 'SALES_DIRECTOR'] },
+          rankStatus: { in: ['ACTIVE_RANK', 'MANUAL_APPROVED'] }
+        },
+        select: { userId: true, fullName: true, phone: true, businessId: true, rank: true, rankAchievedAt: true }
+      });
+
+      const count = f1Ambassadors.length;
+      const target = 5;
+      return res.json({
+        success: true,
+        data: {
+          currentRank: 'AMBASSADOR',
+          nextRank: 'MANAGER',
+          progress: Math.min(100, Math.round((count / target) * 100)),
+          current: count,
+          target: target,
+          unit: 'F1 Đại Sứ',
+          f1List: f1Ambassadors,
+          description: 'Cần đủ 5 thành viên F1 trực tiếp đạt cấp Đại Sứ (có Business ID) để tự động lên Quản Lý'
+        }
+      });
+    }
+
+    if (rank === 'MANAGER' || rank === 'SALES_MANAGER') {
+      const f1Managers = await prisma.user.findMany({
+        where: {
+          parentId: user.userId,
+          businessId: { not: null },
+          rank: { in: ['MANAGER', 'DIRECTOR', 'SALES_MANAGER', 'SALES_DIRECTOR'] },
+          rankStatus: { in: ['ACTIVE_RANK', 'MANUAL_APPROVED'] }
+        },
+        select: { userId: true, fullName: true, phone: true, businessId: true, rank: true, rankAchievedAt: true }
+      });
+
+      const count = f1Managers.length;
+      const target = 5;
+      return res.json({
+        success: true,
+        data: {
+          currentRank: 'MANAGER',
+          nextRank: 'DIRECTOR',
+          progress: Math.min(100, Math.round((count / target) * 100)),
+          current: count,
+          target: target,
+          unit: 'F1 Quản Lý',
+          f1List: f1Managers,
+          description: 'Cần đủ 5 thành viên F1 trực tiếp đạt cấp Quản Lý (có Business ID) để tự động lên Giám Đốc'
+        }
+      });
+    }
+
+    if (rank === 'DIRECTOR' || rank === 'SALES_DIRECTOR') {
+      return res.json({
+        success: true,
+        data: {
+          currentRank: 'DIRECTOR',
+          nextRank: null,
+          isMaxRank: true,
+          progress: 100,
+          current: 5,
+          target: 5,
+          unit: '',
+          description: 'Bạn đã đạt cấp bậc cao nhất: Giám Đốc Kinh Doanh 👑'
+        }
+      });
+    }
+
+    return res.json({ success: true, data: { currentRank: rank, nextRank: null } });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+/** POST /api/rank/sync-all — Admin scan and promote all eligible users */
+app.post('/api/rank/sync-all', authenticateToken, requireRole(['admin']), async (req, res) => {
+  try {
+    const allUsers = await prisma.user.findMany({
+      where: { role: 'ctv' },
+      select: { userId: true, rank: true, parentId: true }
+    });
+
+    let totalPromotions = [];
+    for (const u of allUsers) {
+      if (u.parentId) {
+        const promos = await checkAndPromoteUplines(prisma, u.userId);
+        if (promos.length > 0) totalPromotions.push(...promos);
+      }
+    }
+
+    res.json({ success: true, count: totalPromotions.length, promotions: totalPromotions });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+/** GET /api/rank/ambassador/check/:userId — Preview eligibility */
+app.get('/api/rank/ambassador/check/:userId', authenticateToken, async (req, res) => {
+  try {
+    const targetId = req.params.userId;
+    if (req.user.role !== 'admin' && req.user.id !== targetId) {
+      return res.status(403).json({ success: false, message: 'Không có quyền.' });
+    }
+    const user = await prisma.user.findUnique({ where: { userId: targetId } });
+    if (!user) return res.status(404).json({ success: false, message: 'Không tìm thấy user.' });
+    const conditionA = user.totalMachinesBought >= 1;
+    const conditionB = user.sPoints >= 5000;
+    res.json({
+      success: true,
+      data: {
+        userId: user.userId,
+        name: user.fullName,
+        currentRank: user.rank,
+        currentRankStatus: user.rankStatus,
+        isAmbassador: user.rank === 'AMBASSADOR',
+        eligibility: {
+          qualifies: conditionA || conditionB,
+          conditionA: { met: conditionA, value: user.totalMachinesBought, required: 1, label: 'Đã mua ≥1 sản phẩm' },
+          conditionB: { met: conditionB, value: user.sPoints, required: 5000, label: 'S-Points ≥5.000' }
+        }
+      }
+    });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+/** GET /api/rank/ambassador/eligible — List CTVs eligible for auto-activation */
+app.get('/api/rank/ambassador/eligible', authenticateToken, requireRole(['admin']), async (req, res) => {
+  try {
+    const eligible = await prisma.user.findMany({
+      where: {
+        role: 'ctv',
+        rank: null,
+        OR: [
+          { totalMachinesBought: { gte: 1 } },
+          { sPoints: { gte: 5000 } }
+        ]
+      },
+      select: { userId: true, fullName: true, phone: true, tier: true, totalMachinesBought: true, sPoints: true, createdAt: true }
+    });
+    res.json({ success: true, data: eligible, count: eligible.length });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+/** POST /api/rank/ambassador/activate/:userId — Admin manual approve */
+app.post('/api/rank/ambassador/activate/:userId', authenticateToken, requireRole(['admin']), async (req, res) => {
+  try {
+    const targetId = req.params.userId;
+    const { note } = req.body;
+    const user = await prisma.user.findUnique({ where: { userId: targetId } });
+    if (!user) return res.status(404).json({ success: false, message: 'Không tìm thấy user.' });
+    if (user.rank === 'AMBASSADOR' && user.rankStatus === 'ACTIVE_RANK') {
+      return res.status(400).json({ success: false, message: 'User đã là Ambassador ACTIVE.' });
+    }
+    await prisma.user.update({
+      where: { userId: targetId },
+      data: {
+        rank: 'AMBASSADOR',
+        rankStatus: 'MANUAL_APPROVED',
+        rankAchievedAt: new Date(),
+        rankActivationMethod: 'ADMIN_MANUAL_APPROVE',
+        rankActivatedBy: req.user.id
+      }
+    });
+    await prisma.rankHistory.create({
+      data: {
+        userId: targetId,
+        fromRank: user.rank,
+        toRank: 'AMBASSADOR',
+        fromStatus: user.rankStatus,
+        toStatus: 'MANUAL_APPROVED',
+        reason: 'ADMIN_MANUAL_APPROVE',
+        triggeredBy: req.user.id,
+        metadata: JSON.stringify({
+          approvalNote: note || '',
+          machinesBoughtAtTime: user.totalMachinesBought,
+          sPointsAtTime: user.sPoints,
+          approvedByAdmin: req.user.id
+        })
+      }
+    });
+    await checkAndPromoteUplines(prisma, targetId);
+    res.json({ success: true, message: `Đã kích hoạt Ambassador cho ${user.name}.` });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+/** POST /api/rank/ambassador/revoke/:userId — Admin revoke */
+app.post('/api/rank/ambassador/revoke/:userId', authenticateToken, requireRole(['admin']), async (req, res) => {
+  try {
+    const targetId = req.params.userId;
+    const { reason } = req.body;
+    if (!reason) return res.status(400).json({ success: false, message: 'Vui lòng cung cấp lý do thu hồi.' });
+    const user = await prisma.user.findUnique({ where: { userId: targetId } });
+    if (!user) return res.status(404).json({ success: false, message: 'Không tìm thấy user.' });
+    if (user.rank !== 'AMBASSADOR') {
+      return res.status(400).json({ success: false, message: 'User không phải Ambassador.' });
+    }
+    await prisma.user.update({
+      where: { userId: targetId },
+      data: { rankStatus: 'REVOKED', rankActivationMethod: null }
+    });
+    await prisma.rankHistory.create({
+      data: {
+        userId: targetId,
+        fromRank: 'AMBASSADOR',
+        toRank: 'AMBASSADOR',
+        fromStatus: user.rankStatus,
+        toStatus: 'REVOKED',
+        reason: 'ADMIN_REVOKE',
+        triggeredBy: req.user.id,
+        metadata: JSON.stringify({ revokeReason: reason, revokedByAdmin: req.user.id })
+      }
+    });
+    res.json({ success: true, message: `Đã thu hồi Ambassador của ${user.name}.` });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+/** GET /api/rank/history/:userId — Rank change history */
+app.get('/api/rank/history/:userId', authenticateToken, async (req, res) => {
+  try {
+    const targetId = req.params.userId;
+    if (req.user.role !== 'admin' && req.user.id !== targetId) {
+      return res.status(403).json({ success: false, message: 'Không có quyền.' });
+    }
+    const history = await prisma.rankHistory.findMany({
+      where: { userId: targetId },
+      orderBy: { createdAt: 'desc' }
+    });
+    res.json({ success: true, data: history });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+// ============================================================
+// PHASE 2B — WHOLESALE ORDER MODULE
+// All CTVs can create wholesale orders (no rank restriction)
+// Base price = service.price (CHOT — MAU_THUAN_03)
+// ============================================================
+
+function getWholesaleDiscountRate(totalMachines) {
+  if (totalMachines >= 20) return 0.45;
+  if (totalMachines >= 10) return 0.40;
+  if (totalMachines >= 5) return 0.35;
+  return null; // below minimum
+}
+
+/** GET /api/wholesale/price-preview — Preview wholesale pricing */
+app.get('/api/wholesale/price-preview', authenticateToken, requireRole(['admin', 'ctv']), async (req, res) => {
+  try {
+    const { qty } = req.query;
+    const totalQty = parseInt(qty) || 0;
+    const rate = getWholesaleDiscountRate(totalQty);
+    res.json({
+      success: true,
+      data: {
+        totalMachines: totalQty,
+        discountRate: rate,
+        discountPercent: rate ? Math.round(rate * 100) + '%' : null,
+        eligible: rate !== null,
+        message: rate ? `Chiết khấu ${Math.round(rate * 100)}% trên giá bán` : 'Cần tối thiểu 5 máy để được chiết khấu sỉ.'
+      }
+    });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+/** GET /api/wholesale/orders */
+app.get('/api/wholesale/orders', authenticateToken, requireRole(['admin', 'ctv']), async (req, res) => {
+  try {
+    const { status } = req.query;
+    const where = {};
+    if (req.user.role === 'ctv') where.buyerUserId = req.user.id;
+    if (status) where.status = status;
+    const orders = await prisma.wholesaleOrder.findMany({
+      where,
+      include: {
+        buyer: { select: { userId: true, fullName: true, phone: true, tier: true, rank: true } },
+        items: { include: { service: { select: { id: true, name: true, price: true, listPrice: true } } } }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+    res.json({ success: true, data: orders });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+/** POST /api/wholesale/orders — Create wholesale order */
+app.post('/api/wholesale/orders', authenticateToken, requireRole(['admin', 'ctv']), async (req, res) => {
+  try {
+    const { items, notes } = req.body;
+    if (!items || !Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ success: false, message: 'Vui lòng cung cấp danh sách sản phẩm.' });
+    }
+    // Validate and calculate
+    let totalMachines = 0;
+    let priceTotal = 0;
+    let listPriceTotal = 0;
+    const itemsData = [];
+    for (const item of items) {
+      const svc = await prisma.service.findUnique({ where: { id: item.serviceId } });
+      if (!svc) return res.status(400).json({ success: false, message: `Không tìm thấy sản phẩm ${item.serviceId}` });
+      const qty = Math.max(1, parseInt(item.qty) || 1);
+      totalMachines += qty;
+      const unitPrice = svc.price;
+      const unitListPrice = svc.listPrice || null;
+      priceTotal += unitPrice * qty;
+      if (unitListPrice) listPriceTotal += unitListPrice * qty;
+      itemsData.push({ serviceId: item.serviceId, qty, unitPrice, unitListPrice, serviceName: svc.name });
+    }
+    const discountRate = getWholesaleDiscountRate(totalMachines);
+    if (!discountRate) {
+      return res.status(400).json({ success: false, message: `Cần tối thiểu 5 máy để đặt đơn sỉ. Hiện tại: ${totalMachines} máy.` });
+    }
+    const finalAmount = priceTotal * (1 - discountRate);
+    const buyerUserId = req.user.id;
+    const order = await prisma.wholesaleOrder.create({
+      data: {
+        buyerUserId,
+        totalMachines,
+        discountRate,
+        basePriceType: 'PRICE',
+        priceTotal,
+        listPriceTotal: listPriceTotal || null,
+        finalAmount,
+        notes: notes || null,
+        status: 'PENDING_APPROVAL',
+        items: {
+          create: itemsData.map(i => ({
+            serviceId: i.serviceId,
+            qty: i.qty,
+            unitPrice: i.unitPrice,
+            unitListPrice: i.unitListPrice,
+            discountRate,
+            discountedPrice: i.unitPrice * (1 - discountRate),
+            subtotal: i.unitPrice * (1 - discountRate) * i.qty
+          }))
+        }
+      },
+      include: { items: true }
+    });
+    res.json({ success: true, data: order, message: `Đơn sỉ đã tạo. Chiết khấu ${Math.round(discountRate * 100)}% trên giá bán.` });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+/** GET /api/wholesale/orders/:id */
+app.get('/api/wholesale/orders/:id', authenticateToken, requireRole(['admin', 'ctv']), async (req, res) => {
+  try {
+    const order = await prisma.wholesaleOrder.findUnique({
+      where: { id: req.params.id },
+      include: {
+        buyer: { select: { userId: true, fullName: true, phone: true, tier: true, rank: true } },
+        items: { include: { service: { select: { id: true, name: true, price: true, listPrice: true } } } }
+      }
+    });
+    if (!order) return res.status(404).json({ success: false, message: 'Không tìm thấy đơn sỉ.' });
+    if (req.user.role === 'ctv' && order.buyerUserId !== req.user.id) {
+      return res.status(403).json({ success: false, message: 'Không có quyền.' });
+    }
+    res.json({ success: true, data: order });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+/** PUT /api/wholesale/orders/:id/approve */
+app.put('/api/wholesale/orders/:id/approve', authenticateToken, requireRole(['admin']), async (req, res) => {
+  try {
+    const order = await prisma.wholesaleOrder.update({
+      where: { id: req.params.id },
+      data: { status: 'APPROVED', approvedBy: req.user.id, approvedAt: new Date() }
+    });
+    res.json({ success: true, data: order, message: 'Đã duyệt đơn sỉ.' });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+/** PUT /api/wholesale/orders/:id/ship */
+app.put('/api/wholesale/orders/:id/ship', authenticateToken, requireRole(['admin']), async (req, res) => {
+  try {
+    const order = await prisma.wholesaleOrder.update({
+      where: { id: req.params.id },
+      data: { status: 'SHIPPING', shippedAt: new Date() }
+    });
+    res.json({ success: true, data: order, message: 'Đã cập nhật trạng thái giao hàng.' });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+/** PUT /api/wholesale/orders/:id/complete */
+app.put('/api/wholesale/orders/:id/complete', authenticateToken, requireRole(['admin']), async (req, res) => {
+  try {
+    const order = await prisma.wholesaleOrder.update({
+      where: { id: req.params.id },
+      data: { status: 'COMPLETED', completedAt: new Date() }
+    });
+    res.json({ success: true, data: order, message: 'Đơn sỉ đã hoàn tất.' });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+/** PUT /api/wholesale/orders/:id/cancel */
+app.put('/api/wholesale/orders/:id/cancel', authenticateToken, requireRole(['admin']), async (req, res) => {
+  try {
+    const { reason } = req.body;
+    const order = await prisma.wholesaleOrder.update({
+      where: { id: req.params.id },
+      data: { status: 'CANCELLED', notes: reason || null }
+    });
+    res.json({ success: true, data: order, message: 'Đã hủy đơn sỉ.' });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+// ============================================================
+// PHASE 2B — COMMISSION PRICE RULES MANAGEMENT (Admin)
+// ============================================================
+
+/** GET /api/commission-rules */
+app.get('/api/commission-rules', authenticateToken, requireRole(['admin']), async (req, res) => {
+  try {
+    const rules = await prisma.commissionPriceRule.findMany({ orderBy: [{ productType: 'asc' }, { minPrice: 'desc' }] });
+    res.json({ success: true, data: rules });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+/** POST /api/commission-rules */
+app.post('/api/commission-rules', authenticateToken, requireRole(['admin']), async (req, res) => {
+  try {
+    const { productType, minPrice, maxPrice, rate, commType, rankRequired, isActive, note } = req.body;
+    if (!productType || !commType) {
+      return res.status(400).json({ success: false, message: 'productType và commType là bắt buộc.' });
+    }
+    const rule = await prisma.commissionPriceRule.create({
+      data: { productType, minPrice: minPrice || null, maxPrice: maxPrice || null, rate: rate || null, commType, rankRequired: rankRequired || null, isActive: isActive !== false, note: note || null }
+    });
+    res.json({ success: true, data: rule });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+/** PUT /api/commission-rules/:id */
+app.put('/api/commission-rules/:id', authenticateToken, requireRole(['admin']), async (req, res) => {
+  try {
+    const { minPrice, maxPrice, rate, commType, rankRequired, isActive, note } = req.body;
+    const rule = await prisma.commissionPriceRule.update({
+      where: { id: req.params.id },
+      data: {
+        ...(minPrice !== undefined && { minPrice }),
+        ...(maxPrice !== undefined && { maxPrice }),
+        ...(rate !== undefined && { rate }),
+        ...(commType && { commType }),
+        ...(rankRequired !== undefined && { rankRequired }),
+        ...(isActive !== undefined && { isActive }),
+        ...(note !== undefined && { note })
+      }
+    });
+    res.json({ success: true, data: rule });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+/** GET /api/commissions/preview — Preview commission for a hypothetical order */
+app.get('/api/commissions/preview', authenticateToken, requireRole(['admin']), async (req, res) => {
+  try {
+    const { ctvUserId, serviceId, amount, qty } = req.query;
+    if (!ctvUserId || !serviceId || !amount) {
+      return res.status(400).json({ success: false, message: 'ctvUserId, serviceId, amount required.' });
+    }
+    const ctv = await prisma.user.findUnique({
+      where: { userId: ctvUserId },
+      include: { parent: { include: { parent: true } } }
+    });
+    const svc = await prisma.service.findUnique({ where: { id: serviceId } });
+    if (!ctv || !svc) return res.status(404).json({ success: false, message: 'User hoặc Service không tồn tại.' });
+    const orderAmount = parseFloat(amount);
+    const preview = [];
+    const ambassadorActive = isActiveAmbassador(ctv);
+    if (ambassadorActive) {
+      const rule = await getRetailCommRule(svc.productType || 'SERVICE', svc.price, 'AMBASSADOR');
+      if (rule && rule.rate) {
+        preview.push({ receiver: ctv.name, type: rule.commType, rate: rule.rate, amount: orderAmount * rule.rate, policyRef: 'AM-02' });
+      }
+      if (ctv.parent && isActiveAmbassador(ctv.parent)) {
+        preview.push({ receiver: ctv.parent.name, type: 'DISTRIBUTION_PARTNER', rate: 0.10, amount: orderAmount * 0.10, policyRef: 'AM-03' });
+      }
+    }
+    res.json({ success: true, data: preview });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+
+// GET /api/s-points/:userId
+app.get('/api/s-points/:userId', authenticateToken, async (req, res) => {
+  try {
+    const { userId } = req.params;
+    if (req.user.role !== 'admin' && req.user.role !== 'accountant' && req.user.id !== userId) {
+      return res.status(403).json({ success: false, message: 'Khong co quyen xem diem S tai khoan nay.' });
+    }
+    const user = await prisma.user.findUnique({
+      where: { userId },
+      select: { userId: true, fullName: true, sPoints: true, rank: true, rankStatus: true, totalMachinesBought: true }
+    });
+    if (!user) return res.status(404).json({ success: false, message: 'Khong tim thay nguoi dung.' });
+    res.json({ success: true, data: user });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// GET /api/s-points/:userId/history
+app.get('/api/s-points/:userId/history', authenticateToken, async (req, res) => {
+  try {
+    const { userId } = req.params;
+    if (req.user.role !== 'admin' && req.user.role !== 'accountant' && req.user.id !== userId) {
+      return res.status(403).json({ success: false, message: 'Khong co quyen xem lich su diem S nay.' });
+    }
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
+    const skip = (page - 1) * limit;
+    const [total, transactions] = await Promise.all([
+      prisma.sPointTransaction.count({ where: { userId } }),
+      prisma.sPointTransaction.findMany({ where: { userId }, orderBy: { createdAt: 'desc' }, skip, take: limit })
+    ]);
+    res.json({ success: true, data: transactions, pagination: { page, limit, total, totalPages: Math.ceil(total / limit) } });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// GET /api/rank/info/:userId
+app.get('/api/rank/info/:userId', authenticateToken, async (req, res) => {
+  try {
+    const { userId } = req.params;
+    if (req.user.role !== 'admin' && req.user.role !== 'accountant' && req.user.id !== userId) {
+      return res.status(403).json({ success: false, message: 'Khong co quyen truy cap thong tin cap bac nay.' });
+    }
+    const user = await prisma.user.findUnique({
+      where: { userId },
+      select: { userId: true, fullName: true, tier: true, rank: true, rankStatus: true, rankAchievedAt: true, sPoints: true, totalMachinesBought: true, wholesaleEligible: true, regionCode: true }
+    });
+    if (!user) return res.status(404).json({ success: false, message: 'Khong tim thay nguoi dung.' });
+    res.json({ success: true, data: user });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// GET /api/services/product-types  (admin only)
+app.get('/api/services/product-types', authenticateToken, requireRole(['admin']), async (req, res) => {
+  try {
+    const services = await prisma.service.findMany({ select: { id: true, name: true, productType: true, price: true, listPrice: true } });
+    res.json({ success: true, data: services });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// PUT /api/services/:id/product-type  (admin only)
+app.put('/api/services/:id/product-type', authenticateToken, requireRole(['admin']), async (req, res) => {
+  try {
+    const { productType, listPrice } = req.body;
+    const allowed = ['MACHINE', 'SUPPLY', 'SERVICE', null];
+    if (!allowed.includes(productType)) {
+      return res.status(400).json({ success: false, message: 'productType khong hop le. Chap nhan: MACHINE, SUPPLY, SERVICE, hoac null.' });
+    }
+    const updated = await prisma.service.update({
+      where: { id: req.params.id },
+      data: { productType: productType || null, listPrice: listPrice !== undefined ? parseFloat(listPrice) : undefined }
+    });
+    res.json({ success: true, data: updated });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+
+// ============================================================
+// PHASE 3 — WEBSITE ORDER UNIFIED FLOW
+// wasypro.com orders link to User identity when logged in
+// ============================================================
+
+/**
+ * POST /api/orders/website
+ * Public (guest) OR authenticated (user).
+ * - Guest: saves customerName + customerPhone (text), no userId
+ * - Auth: saves userId, sponsorUserId from user.parentId, commissionPoints from Product
+ * - If user.isSystemParticipant → increments qualifyingPoints + checks 5000 CP threshold
+ */
+app.post('/api/orders/website', async (req, res) => {
+  try {
+    const { customerName, customerPhone, address, message, type, productId, productTitle, productPrice, qty, refCode } = req.body;
+    if (!customerPhone) return res.status(400).json({ success: false, message: 'Vui lòng nhập số điện thoại.' });
+
+    // Try to identify authenticated user from JWT cookie (optional — not required)
+    let authedUser = null;
+    try {
+      const token = req.cookies?.token;
+      if (token) {
+        const jwt = require('jsonwebtoken');
+        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key-here');
+        authedUser = await prisma.user.findUnique({ where: { userId: decoded.userId } });
+      }
+    } catch (_) { /* guest order */ }
+
+    // Resolve product and commission points
+    let cpSnapshot = 0;
+    let resolvedProductTitle = productTitle || null;
+    if (productId) {
+      const prod = await prisma.product.findUnique({ where: { id: productId } });
+      if (prod) {
+        cpSnapshot = prod.commissionPoints || 0;
+        resolvedProductTitle = resolvedProductTitle || prod.title;
+      }
+    }
+
+    // Resolve sponsor
+    let sponsorUserId = null;
+    if (authedUser) {
+      sponsorUserId = authedUser.parentId || null; // parent in sponsor tree
+    } else if (refCode) {
+      const sponsor = await prisma.user.findUnique({ where: { userId: refCode.trim() } });
+      if (sponsor) sponsorUserId = sponsor.userId;
+    }
+
+    const totalAmount = (productPrice || 0) * (qty || 1);
+
+    const websiteOrder = await prisma.websiteOrder.create({
+      data: {
+        customerName: customerName || (authedUser?.fullName) || 'Khách',
+        customerPhone: customerPhone.trim(),
+        address: address || '',
+        message: message || '',
+        type: type || 'ORDER',
+        productId: productId || null,
+        productTitle: resolvedProductTitle,
+        productPrice: productPrice || 0,
+        qty: qty || 1,
+        totalAmount,
+        userId: authedUser ? authedUser.userId : null,
+        sponsorUserId,
+        commissionPoints: cpSnapshot,
+        qualifyingPointsAwarded: false,
+      }
+    });
+
+    // Award qualifying points if user is a system participant
+    if (authedUser && authedUser.isSystemParticipant && cpSnapshot > 0) {
+      await prisma.$transaction(async (tx) => {
+        const updated = await tx.user.update({
+          where: { id: authedUser.id },
+          data: { qualifyingPoints: { increment: Math.round(cpSnapshot * (qty || 1)) } }
+        });
+        await tx.websiteOrder.update({
+          where: { id: websiteOrder.id },
+          data: { qualifyingPointsAwarded: true }
+        });
+
+        // Check 5000 CP threshold → Ambassador auto-activation
+        const THRESHOLD = 5000;
+        if (updated.qualifyingPoints >= THRESHOLD && !updated.businessId) {
+          // Allocate Business ID from sequence
+          const seq = await tx.businessIdSequence.update({
+            where: { id: 1 },
+            data: { nextVal: { increment: 1 } }
+          });
+          const bizId = 'WK-' + String(seq.nextVal - 1).padStart(5, '0');
+          const now2 = new Date();
+          await tx.user.update({
+            where: { id: authedUser.id },
+            data: {
+              businessId: bizId,
+              rank: 'AMBASSADOR',
+              rankStatus: 'ACTIVE',
+              rankAchievedAt: now2,
+              rankActivationMethod: 'AUTO_WEBSITE',
+            }
+          });
+          await tx.rankHistory.create({
+            data: {
+              userId: authedUser.id,
+              fromRank: authedUser.rank || null,
+              toRank: 'AMBASSADOR',
+              reason: 'Reached 5000 qualifying points via wasypro.com orders',
+              activatedBy: 'SYSTEM',
+              activationMethod: 'AUTO_WEBSITE',
+              businessId: bizId,
+            }
+          });
+          console.log(`[AMBASSADOR AUTO] ${authedUser.userId} → ${bizId} via website order`);
+        }
+      });
+    }
+
+    console.log(`[WEBSITE ORDER] ${websiteOrder.customerName} (${websiteOrder.customerPhone}) userId=${authedUser?.userId || 'guest'} product=${resolvedProductTitle} total=${totalAmount}`);
+    res.status(201).json({ success: true, order: { id: websiteOrder.id, status: websiteOrder.status } });
+  } catch (err) {
+    console.error('[WEBSITE ORDER]', err.message);
+    res.status(500).json({ success: false, message: 'Lỗi máy chủ. Vui lòng thử lại.' });
+  }
+});
+
+/**
+ * GET /api/orders/my
+ * Authenticated — returns logged-in user's WebsiteOrders + CTV Orders
+ */
+app.get('/api/orders/my', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const user = await prisma.user.findUnique({ where: { userId } });
+    if (!user) return res.status(404).json({ success: false, message: 'User not found.' });
+
+    // Website orders placed by this user
+    const websiteOrders = await prisma.websiteOrder.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    // CTV orders placed by this user (via Customer.linkedUserId)
+    const customer = await prisma.customer.findFirst({ where: { linkedUserId: user.id } });
+    const ctvOrders = customer ? await prisma.order.findMany({
+      where: { customerId: customer.id },
+      include: { items: { include: { product: true } } },
+      orderBy: { createdAt: 'desc' },
+    }) : [];
+
+    res.json({
+      success: true,
+      data: {
+        websiteOrders,
+        ctvOrders,
+        user: {
+          userId: user.userId,
+          fullName: user.fullName,
+          isSystemParticipant: user.isSystemParticipant,
+          participantAt: user.participantAt,
+          qualifyingPoints: user.qualifyingPoints,
+          sPoints: user.sPoints,
+          businessId: user.businessId,
+          rank: user.rank,
+          rankStatus: user.rankStatus,
+        }
+      }
+    });
+  } catch (err) {
+    console.error('[MY ORDERS]', err.message);
+    res.status(500).json({ success: false, message: 'Lỗi máy chủ.' });
+  }
+});
+
+// Export app with attached helper functions for testing and backwards compatibility
+app.executeOrderSettlement = executeOrderSettlement;
+app.calculateAndCreateCommissions = calculateAndCreateCommissions;
+app.processOrderPointsAndActivation = processOrderPointsAndActivation;
+app.normalizeRankPrefix = normalizeRankPrefix;
+
+module.exports = app;
+module.exports.app = app;
+module.exports.executeOrderSettlement = executeOrderSettlement;
+module.exports.calculateAndCreateCommissions = calculateAndCreateCommissions;
+module.exports.processOrderPointsAndActivation = processOrderPointsAndActivation;
+module.exports.normalizeRankPrefix = normalizeRankPrefix;
+
+// START SERVER
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log('[SECURE BACKEND ENGINE] Running on port ' + PORT);
+  });
+}
