@@ -150,9 +150,10 @@ export default function OrdersView({ currentUser }) {
                                     <div className="pl-2 border-l-2 border-blue-200 ml-1 mt-2">
                                         {order.items.map((item, idx) => {
                                            const svc = item.service;
-                                           return (
-                                           <div key={idx} className="text-sm border-b border-subtle pb-1 mb-1 last:border-0 last:pb-0 last:mb-0">
-                                              - <span className="font-medium text-secondary">{svc?.name || 'Dịch vụ'}</span>
+     const itemName = item.product?.title || svc?.name || 'Sản phẩm';
+     return (
+     <div key={idx} className="text-sm border-b border-subtle pb-1 mb-1 last:border-0 last:pb-0 last:mb-0">
+        - <span className="font-medium text-secondary">{itemName}</span>
                                               <span className="font-bold text-muted ml-2 px-1 rounded bg-gray-100 dark:bg-gray-800" style={{ fontSize: '0.8rem' }}>x{item.qty || 1}</span> <br/>
                                               <span className="text-green-500 font-bold ml-2">{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(item.amount)}</span>
                                            </div>
@@ -163,9 +164,10 @@ export default function OrdersView({ currentUser }) {
                               ) : (
                                   order.items?.map((item, idx) => {
                                      const svc = item.service;
-                                     return (
-                                     <div key={idx} className="text-sm border-b border-subtle pb-1 mb-1 last:border-0 last:pb-0 last:mb-0">
-                                        - <span className="font-medium text-secondary">{svc?.name || 'Dịch vụ'}</span>
+     const itemName = item.product?.title || svc?.name || 'Sản phẩm';
+     return (
+     <div key={idx} className="text-sm border-b border-subtle pb-1 mb-1 last:border-0 last:pb-0 last:mb-0">
+        - <span className="font-medium text-secondary">{itemName}</span>
                                         <span className="font-bold text-muted ml-2 px-1 rounded bg-gray-100 dark:bg-gray-800" style={{ fontSize: '0.8rem' }}>x{item.qty || 1}</span> <br/>
                                         <span className="text-green-500 font-bold ml-2">{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(item.amount)}</span>
                                      </div>

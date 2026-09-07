@@ -189,6 +189,9 @@ function App() {
   const isAdmin = currentUser?.role === 'admin' || currentUser?.id === 'ADMIN';
   const isAccountant = currentUser?.role === 'accountant' || currentUser?.id === 'ACCOUNTANT';
   const isAdminOrAccountant = isAdmin || isAccountant;
+  const isParticipant = !!currentUser?.isSystemParticipant || 
+    ['AMBASSADOR', 'MANAGER', 'DIRECTOR', 'SALES_MANAGER', 'SALES_DIRECTOR'].includes(currentUser?.rank || '') ||
+    isAdminOrAccountant;
 
   return (
     <div className="app-container">
@@ -208,93 +211,25 @@ function App() {
             <BarChart3 size={20} />
             <span>Dashboard</span>
           </div>
-          {currentUser?.role !== 'customer' && (
-            <div 
-              className={`nav-item ${activeTab === 'network' ? 'active' : ''}`}
-              onClick={() => { setActiveTab('network'); setSidebarOpen(false); }}
-            >
-              <Network size={20} />
-              <span>Sơ đồ</span>
-            </div>
-          )}
-          {isAdminOrAccountant && (
-            <div 
-              className={`nav-item ${activeTab === 'users' ? 'active' : ''}`}
-              onClick={() => { setActiveTab('users'); setSidebarOpen(false); }}
-            >
-              <Users size={20} />
-              <span>Danh sách CTV</span>
-            </div>
-          )}
-          {currentUser?.role !== 'customer' && (
-            <div 
-              className={`nav-item ${activeTab === 'customers' ? 'active' : ''}`}
-              onClick={() => { setActiveTab('customers'); setSidebarOpen(false); }}
-            >
-              <Contact size={20} />
-              <span>Danh sách Khách</span>
-            </div>
-          )}
+
           <div 
             className={`nav-item ${activeTab === 'orders' ? 'active' : ''}`}
             onClick={() => { setActiveTab('orders'); setSidebarOpen(false); }}
           >
             <ShoppingCart size={20} />
-            <span>Quản lý Đơn Hàng</span>
+            <span>{isParticipant ? 'Quản lý Đơn Hàng' : 'Đơn Hàng Của Tôi'}</span>
           </div>
-          {/* Settings tạm ẩn theo Phase 2C */}
-          <div className="nav-group" style={{ display: 'flex', flexDirection: 'column' }}>
-            <div 
-              className={`nav-item ${(activeTab === 'pricelist' || activeTab === 'service-detail') ? 'active' : ''}`}
-              onClick={() => { setIsServicesExpanded(!isServicesExpanded); setActiveTab('pricelist'); }}
-              style={{ justifyContent: 'space-between' }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <BookOpen size={20} />
-                <span>Danh Mục Sản Phẩm</span>
-              </div>
-              <span style={{ fontSize: '10px', transform: isServicesExpanded ? 'rotate(180deg)' : 'none', transition: '0.3s' }}>▼</span>
-            </div>
-            
-            {isServicesExpanded && (
-              <div style={{ paddingLeft: '32px', marginTop: '4px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                {(isServicesShowAll ? serviceList : serviceList.slice(0, 5)).map(s => (
-                  <div 
-                    key={s.id}
-                    className="nav-item" 
-                    style={{ 
-                       padding: '8px', 
-                       fontSize: '13px', 
-                       minHeight: 'auto',
-                       color: activeServiceId === s.id && activeTab === 'service-detail' ? 'var(--accent-diamond)' : 'var(--text-secondary)',
-                       background: activeServiceId === s.id && activeTab === 'service-detail' ? 'rgba(0, 240, 255, 0.05)' : 'transparent' 
-                    }}
-                    onClick={() => { setActiveTab('service-detail'); setActiveServiceId(s.id); setSidebarOpen(false); }}
-                  >
-                    {s.name}
-                  </div>
-                ))}
-                {serviceList.length > 5 && (
-                  <div 
-                    className="nav-item" 
-                    style={{ padding: '8px', fontSize: '12px', fontStyle: 'italic', minHeight: 'auto', color: 'var(--text-muted)' }}
-                    onClick={() => setIsServicesShowAll(!isServicesShowAll)}
-                  >
-                    {isServicesShowAll ? '▲ Thu gọn' : '▼ Xem thêm...'}
-                  </div>
-                )}
-              </div>
-            )}
+
+          <div 
+            className={`nav-item ${activeTab === 'rank' ? 'active' : ''}`}
+            onClick={() => { setActiveTab('rank'); setSidebarOpen(false); }}
+          >
+            <TrendingUp size={20} />
+            <span>Cấp Bậc & Điểm Tích Lũy</span>
           </div>
-          {currentUser?.role !== 'customer' && (
+
+          {isParticipant && (
             <>
-              <div 
-                className={`nav-item ${activeTab === 'statistics' ? 'active' : ''}`}
-                onClick={() => { setActiveTab('statistics'); setSidebarOpen(false); }}
-              >
-                <PieChartIcon size={20} />
-                <span>Thống Kê Bán Hàng</span>
-              </div>
               <div 
                 className={`nav-item ${activeTab === 'commissions' ? 'active' : ''}`}
                 onClick={() => { setActiveTab('commissions'); setSidebarOpen(false); }}
@@ -302,15 +237,35 @@ function App() {
                 <Wallet size={20} />
                 <span>Lịch sử Hoa Hồng</span>
               </div>
-              <div
-                className={`nav-item ${activeTab === 'policy' ? 'active' : ''}`}
-                onClick={() => { setActiveTab('policy'); setSidebarOpen(false); }}
+
+              <div 
+                className={`nav-item ${activeTab === 'network' ? 'active' : ''}`}
+                onClick={() => { setActiveTab('network'); setSidebarOpen(false); }}
               >
-                <FileText size={20} />
-                <span>Chính Sách Hoa Hồng</span>
+                <Network size={20} />
+                <span>Sơ đồ Tuyến dưới</span>
               </div>
             </>
           )}
+
+          <div
+            className={`nav-item ${activeTab === 'policy' ? 'active' : ''}`}
+            onClick={() => { setActiveTab('policy'); setSidebarOpen(false); }}
+          >
+            <FileText size={20} />
+            <span>Chính Sách Hoa Hồng</span>
+          </div>
+
+          {isAdminOrAccountant && (
+            <div 
+              className={`nav-item ${activeTab === 'users' ? 'active' : ''}`}
+              onClick={() => { setActiveTab('users'); setSidebarOpen(false); }}
+            >
+              <Users size={20} />
+              <span>Quản lý CTV Toàn HT</span>
+            </div>
+          )}
+
           {isAdmin && (
             <div 
               className={`nav-item ${activeTab === 'internal-users' ? 'active' : ''}`}
@@ -320,6 +275,7 @@ function App() {
               <span>Quản lý Nhân Sự</span>
             </div>
           )}
+
           {isAdminOrAccountant && (
             <div 
               className={`nav-item ${activeTab === 'audit-logs' ? 'active' : ''}`}
@@ -329,27 +285,6 @@ function App() {
               <span>Lịch sử Hệ thống</span>
             </div>
           )}
-          <div 
-            className={`nav-item ${activeTab === 'wholesale' ? 'active' : ''}`}
-            onClick={() => { setActiveTab('wholesale'); setSidebarOpen(false); }}
-          >
-            <Truck size={20} />
-            <span>Đơn Hàng Sỉ</span>
-          </div>
-          <div 
-            className={`nav-item ${activeTab === 'rank' ? 'active' : ''}`}
-            onClick={() => { setActiveTab('rank'); setSidebarOpen(false); }}
-          >
-            <TrendingUp size={20} />
-            <span>Hạng & Ambassador</span>
-          </div>
-          <div 
-            className={`nav-item ${activeTab === 'about' ? 'active' : ''}`}
-            onClick={() => { setActiveTab('about'); setSidebarOpen(false); }}
-          >
-            <AlertCircle size={20} />
-            <span>Chính sách WATER KING</span>
-          </div>
         </nav>
       </aside>
 
@@ -393,12 +328,12 @@ function App() {
                 <span className="md:hidden flex items-center gap-1"><Download size={16}/> App</span>
               </button>
             )}
-            <button className="btn btn-primary flex items-center gap-2" onClick={() => { setSidebarOpen(false); setCustomerModalOpen(true); }}>
-               <Plus size={16}/> <span className="hide-text-mobile">Pre-check Khách</span>
-            </button>
+            
+            {isParticipant && (
             <button className="btn btn-action flex items-center gap-2" onClick={() => { setSidebarOpen(false); setOrderModalOpen(true); }}>
                <Wallet size={16}/> <span className="hide-text-mobile">Tạo Đơn Hàng</span>
             </button>
+          )}
             <button className="btn-icon btn-secondary">
               <Bell size={20} />
             </button>

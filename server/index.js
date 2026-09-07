@@ -193,6 +193,7 @@ const authenticateToken = async (req, res, next) => {
 
     req.user = {
       id: user.userId,
+      userId: user.userId,
       dbId: user.id,
       role: user.role, // Always read fresh from DB, never trust stale token payload
       fullName: user.fullName,
@@ -324,7 +325,8 @@ app.post('/api/auth/login', authLimiter, async (req, res) => {
 // AUTH ME (Session Status) — returns fresh data from DB
 app.get('/api/auth/me', authenticateToken, async (req, res) => {
   try {
-    const user = await prisma.user.findUnique({ where: { userId: req.user.userId } });
+    const lookupId = req.user.userId || req.user.id;
+    const user = await prisma.user.findFirst({ where: { OR: [{ userId: lookupId }, { id: lookupId }] } });
     if (!user) return res.status(404).json({ success: false, message: 'Người dùng không tồn tại.' });
     res.json({
       success: true,
@@ -451,7 +453,8 @@ app.post('/api/auth/register', authLimiter, async (req, res) => {
 // Idempotent: calling twice is safe — second call returns 200 with no change.
 app.post('/api/users/me/join-system', authenticateToken, async (req, res) => {
   try {
-    const user = await prisma.user.findUnique({ where: { userId: req.user.userId } });
+    const lookupId = req.user.userId || req.user.id;
+    const user = await prisma.user.findFirst({ where: { OR: [{ userId: lookupId }, { id: lookupId }] } });
     if (!user) return res.status(404).json({ success: false, message: 'Người dùng không tồn tại.' });
 
     // Idempotent guard
@@ -1356,9 +1359,19 @@ app.get('/api/users', authenticateToken, async (req, res) => {
       const totalCommission = u.commissions.reduce((acc, c) => acc + c.amount, 0);
       return {
         id: u.userId,
+        userId: u.userId,
         name: u.fullName,
+        fullName: u.fullName,
         phone: u.phone,
         tier: u.tier,
+        role: u.role,
+        rank: u.rank,
+        rankStatus: u.rankStatus,
+        businessId: u.businessId,
+        isSystemParticipant: !!u.isSystemParticipant,
+        participantAt: u.participantAt,
+        qualifyingPoints: u.qualifyingPoints || 0,
+        sPoints: u.sPoints || 0,
         note: u.note,
         parentId: u.parentId || '',
         parent: u.parent ? `${u.parent.fullName} (${u.parent.userId})` : 'Trực tiếp Công ty',

@@ -73,10 +73,10 @@ export default function RankView({ currentUser }) {
             <Award size={16} /> Cấp bậc hiện tại
           </div>
           <div className="flex items-center gap-4">
-            <RankBadge tier={currentUser?.tier} rank={currentUser?.rank} size="lg" />
+            <RankBadge tier={currentUser?.tier} rank={currentUser?.rank} isSystemParticipant={currentUser?.isSystemParticipant} size="lg" />
             <div>
               <p className="font-bold text-primary text-lg">{currentUser?.fullName}</p>
-              <p className="text-xs text-secondary">Mã đối tác: <strong className="text-primary font-mono">{currentUser?.businessId || currentUser?.id}</strong></p>
+              <p className="text-xs text-secondary">Mã đối tác: {currentUser?.businessId ? <strong className="text-primary font-mono">{currentUser?.businessId}</strong> : <strong className="text-amber-500 italic">Chưa cấp (Cần 5.000 CP)</strong>}</p>
               {currentUser?.rank && (
                 <p className="text-xs text-purple-400 mt-1 font-medium">Chức danh đối tác chính thức</p>
               )}

@@ -99,7 +99,7 @@ export default function RankView({ currentUser }) {
             <Award size={16} /> C\u1EA5p b\u1EADc hi\u1EC7n t\u1EA1i
           </div>
           <div className="flex items-center gap-4">
-            <RankBadge tier={currentUser?.tier} rank={currentUser?.rank} size="lg" />
+            <RankBadge tier={currentUser?.tier} rank={currentUser?.rank} isSystemParticipant={currentUser?.isSystemParticipant} size="lg" />
             <div>
               <p className="font-bold text-primary text-lg">{currentUser?.fullName}</p>
               <p className="text-xs text-secondary">M\xE3 \u0111\u1ED1i t\xE1c: <strong className="text-primary font-mono">{currentUser?.businessId || currentUser?.id}</strong></p>

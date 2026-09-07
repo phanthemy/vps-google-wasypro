@@ -3,22 +3,16 @@ import {
   BarChart3, 
   ShoppingCart, 
   Users, 
-  Settings, 
   TrendingUp, 
   LogOut, 
   Copy, 
   Check, 
   Key, 
-  Contact, 
-  BookOpen, 
   Network, 
-  Truck, 
   Award,
   Wallet,
-  PieChart as PieChartIcon,
   UserCog,
   History,
-  Info,
   ArrowLeft,
   ChevronDown,
   MoreHorizontal
@@ -30,19 +24,11 @@ import DashboardView from './views/DashboardView.jsx';
 // @ts-ignore
 import OrdersView from './views/OrdersView.jsx';
 // @ts-ignore
-import CustomersView from './views/CustomersView.jsx';
-// @ts-ignore
 import UsersView from './views/UsersView.jsx';
 // @ts-ignore
 import SettingsView from './views/SettingsView.jsx';
 // @ts-ignore
 import NetworkView from './views/NetworkView.jsx';
-// @ts-ignore
-import PriceListView from './views/PriceListView.jsx';
-// @ts-ignore
-import ServiceDetailView from './views/ServiceDetailView.jsx';
-// @ts-ignore
-import StatisticsView from './views/StatisticsView.jsx';
 // @ts-ignore
 import CommissionHistoryView from './views/CommissionHistoryView.jsx';
 // @ts-ignore
@@ -50,19 +36,9 @@ import SystemUsersView from './views/SystemUsersView.jsx';
 // @ts-ignore
 import SystemLogsView from './views/SystemLogsView.jsx';
 // @ts-ignore
-import AboutView from './views/AboutView.jsx';
-// @ts-ignore
-import WholesaleOrdersView from './views/WholesaleOrdersView.jsx';
-// @ts-ignore
 import RankView from './views/RankView.jsx';
 
 // Shared Modals
-// @ts-ignore
-import CustomerModal from './components/modals/CustomerModal.jsx';
-// @ts-ignore
-import OrderModal from './components/modals/OrderModal.jsx';
-// @ts-ignore
-import UserModal from './components/modals/UserModal.jsx';
 // @ts-ignore
 import ChangePasswordModal from './components/modals/ChangePasswordModal.jsx';
 
@@ -87,20 +63,8 @@ export const CTVPortalContainer: React.FC<CTVPortalContainerProps> = ({
   const moreDropdownRef = useRef<HTMLDivElement>(null);
 
   // Modals state
-  const [isCustomerModalOpen, setCustomerModalOpen] = useState(false);
-  const [isOrderModalOpen, setOrderModalOpen] = useState(false);
-  const [isUserModalOpen, setUserModalOpen] = useState(false);
   const [isPassModalOpen, setPassModalOpen] = useState(false);
-  const [editingUser, setEditingUser] = useState<any>(null);
-
-  // Shared Data state
-  const [userList, setUserList] = useState<any[]>([]);
-  const [customerList, setCustomerList] = useState<any[]>([]);
-  const [serviceList, setServiceList] = useState<any[]>([]);
   const [refreshKey, setRefreshKey] = useState(0);
-
-  // Service Detail State
-  const [activeServiceId, setActiveServiceId] = useState<string | null>(null);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -111,20 +75,6 @@ export const CTVPortalContainer: React.FC<CTVPortalContainerProps> = ({
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
-
-  useEffect(() => {
-    fetch('/api/users', { credentials: 'include' }).then(r=>r.json()).then(res => res.success && setUserList(res.data)).catch(()=>{});
-    fetch('/api/customers', { credentials: 'include' }).then(r=>r.json()).then(res => {
-      if(res.success) {
-        if (currentUser?.role === 'admin' || currentUser?.id === 'ADMIN' || currentUser?.id === 'ADMIN01') {
-          setCustomerList(res.data);
-        } else {
-          setCustomerList(res.data.filter((c: any) => c.sourceCtvId === currentUser?.id));
-        }
-      }
-    }).catch(()=>{});
-    fetch('/api/products', { credentials: 'include' }).then(r=>r.json()).then(res => res.success && setServiceList(res.data)).catch(()=>{});
-  }, [refreshKey, currentUser]);
 
   const referralLink = typeof window !== 'undefined' 
     ? `${window.location.origin}/?ref=${currentUser.id}` 
@@ -141,27 +91,53 @@ export const CTVPortalContainer: React.FC<CTVPortalContainerProps> = ({
   const isAdmin = currentUser?.role === 'admin' || currentUser?.id === 'ADMIN' || currentUser?.id === 'ADMIN01';
   const isAccountant = currentUser?.role === 'accountant' || currentUser?.id === 'ACCOUNTANT' || currentUser?.id === 'ACC01';
   const isAdminOrAccountant = isAdmin || isAccountant;
-  const isCustomer = currentUser?.role === 'customer';
+  
+  // A user is considered a full partner if they joined the system or already have an official rank
+  const isParticipant = !!currentUser?.isSystemParticipant || 
+    ['AMBASSADOR', 'MANAGER', 'DIRECTOR', 'SALES_MANAGER', 'SALES_DIRECTOR'].includes(currentUser?.rank || '') ||
+    isAdminOrAccountant;
+
+  // Rank Display Information
+  const rankLabel = (() => {
+    const r = (currentUser?.rank || '').toUpperCase();
+    if (r === 'DIRECTOR' || r === 'SALES_DIRECTOR') return '👑 Giám Đốc';
+    if (r === 'MANAGER' || r === 'SALES_MANAGER') return '🛡️ Quản Lý';
+    if (r === 'AMBASSADOR') return '⭐ Đại Sứ';
+    return isParticipant ? 'Thành Viên' : 'Khách Hàng';
+  })();
+
+  const rankBadgeStyle = (() => {
+    const r = (currentUser?.rank || '').toUpperCase();
+    if (r === 'DIRECTOR' || r === 'SALES_DIRECTOR') return 'bg-red-500/25 text-red-200 border border-red-400/40';
+    if (r === 'MANAGER' || r === 'SALES_MANAGER') return 'bg-emerald-500/25 text-emerald-200 border border-emerald-400/40';
+    if (r === 'AMBASSADOR') return 'bg-purple-500/25 text-purple-200 border border-purple-400/40';
+    if (isParticipant) return 'bg-blue-500/25 text-blue-200 border border-blue-400/40';
+    return 'bg-white/20 text-white border border-white/30';
+  })();
+
+  const roleText = isAdmin 
+    ? 'Quản Trị' 
+    : isAccountant 
+    ? 'Kế Toán' 
+    : isParticipant 
+    ? 'Đối Tác CTV' 
+    : 'Khách Hàng';
 
   // 1. Primary Navigation Tabs (Pinned on main bar)
+  // Cleaned: Removed 'wholesale' and 'customers'
   const primaryNavItems = [
     { id: 'dashboard', label: 'Dashboard', icon: BarChart3, visible: true },
-    { id: 'orders', label: 'Đơn Hàng', icon: ShoppingCart, visible: true },
-    { id: 'wholesale', label: 'Đơn Hàng Sỉ', icon: Truck, visible: !isCustomer },
-    { id: 'customers', label: 'Khách Hàng', icon: Contact, visible: !isCustomer },
+    { id: 'orders', label: isParticipant ? 'Đơn Hàng' : 'Đơn Hàng Của Tôi', icon: ShoppingCart, visible: true },
     { id: 'rank', label: 'Cấp Bậc & Điểm Tích Lũy', icon: TrendingUp, visible: true },
-    { id: 'commissions', label: 'Hoa Hồng', icon: Wallet, visible: !isCustomer },
+    { id: 'commissions', label: 'Hoa Hồng', icon: Wallet, visible: isParticipant },
   ];
 
   // 2. Secondary Navigation Tabs (Grouped in "Thêm ▾" dropdown)
+  // Cleaned: Removed 'pricelist', 'statistics', 'about', 'settings'
   const moreNavItems = [
-    { id: 'network', label: 'Sơ đồ Tuyến dưới', icon: Network, visible: !isCustomer, group: 'ctv' },
-    { id: 'pricelist', label: 'Bảng Giá Sản Phẩm', icon: BookOpen, visible: true, group: 'ctv' },
-    { id: 'statistics', label: 'Thống Kê Bán Hàng', icon: PieChartIcon, visible: !isCustomer, group: 'ctv' },
-    { id: 'about', label: 'Chính sách WATER KING', icon: Info, visible: true, group: 'ctv' },
+    { id: 'network', label: 'Sơ đồ Tuyến dưới', icon: Network, visible: isParticipant, group: 'ctv' },
     { id: 'account', label: 'Thông Tin Tài Khoản', icon: UserCog, visible: true, group: 'ctv' },
     { id: 'users', label: 'Quản Lý CTV Toàn HT', icon: Users, visible: isAdminOrAccountant, group: 'admin' },
-    { id: 'settings', label: 'Cấu Hình Cơ Chế', icon: Settings, visible: false, group: 'admin' },
     { id: 'internal-users', label: 'Quản Lý Nhân Sự', icon: UserCog, visible: isAdmin, group: 'admin' },
     { id: 'audit-logs', label: 'Lịch Sử Hệ Thống', icon: History, visible: isAdminOrAccountant, group: 'admin' },
   ];
@@ -177,7 +153,7 @@ export const CTVPortalContainer: React.FC<CTVPortalContainerProps> = ({
 
   return (
     <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 font-sans">
-      {/* Top CTV Quick Banner */}
+      {/* Top Header Card */}
       <div className="mb-6 p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-primary-dark via-primary to-accent text-white shadow-xl flex flex-col md:flex-row items-center justify-between gap-4">
         <div className="flex items-center gap-3.5">
           <div className="w-12 h-12 rounded-xl bg-white/20 backdrop-blur flex items-center justify-center border border-white/30 text-white font-extrabold text-lg shadow-inner">
@@ -185,18 +161,18 @@ export const CTVPortalContainer: React.FC<CTVPortalContainerProps> = ({
           </div>
           <div>
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-white/20 uppercase tracking-wider">
-                {currentUser.tier || 'SILVER'}
+              <span className={`text-xs font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wider ${rankBadgeStyle}`}>
+                {rankLabel}
               </span>
-              {(currentUser as any).businessId && (
+              {(currentUser as any).businessId ? (
                 <span className="text-xs font-extrabold bg-amber-400 text-slate-900 px-2 py-0.5 rounded shadow-sm">
                   Mã đối tác: {(currentUser as any).businessId}
                 </span>
-              )}
+              ) : null}
               <span className="text-xs font-mono bg-black/20 px-2 py-0.5 rounded text-white/90">
                 ID: {currentUser.id}
               </span>
-              <span className="text-xs text-white/70">({currentUser.role.toUpperCase()})</span>
+              <span className="text-xs text-white/80">({roleText})</span>
             </div>
             <h2 className="text-lg sm:text-xl font-extrabold tracking-wide mt-0.5">
               {currentUser.fullName}
@@ -206,14 +182,17 @@ export const CTVPortalContainer: React.FC<CTVPortalContainerProps> = ({
 
         {/* Action Buttons & Referral Copy */}
         <div className="flex flex-wrap items-center gap-2.5 w-full md:w-auto justify-start md:justify-end">
-          <button
-            onClick={copyReferralLink}
-            className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl bg-white/20 hover:bg-white/30 text-white text-xs font-bold transition-all border border-white/30"
-            title="Sao chép link giới thiệu của bạn"
-          >
-            {copiedLink ? <Check className="w-4 h-4 text-emerald-300" /> : <Copy className="w-4 h-4" />}
-            <span>{copiedLink ? 'Đã sao chép link!' : 'Link giới thiệu của tôi'}</span>
-          </button>
+          {/* Referral link only shown if user has joined the system */}
+          {isParticipant && (
+            <button
+              onClick={copyReferralLink}
+              className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl bg-white/20 hover:bg-white/30 text-white text-xs font-bold transition-all border border-white/30"
+              title="Sao chép link giới thiệu của bạn"
+            >
+              {copiedLink ? <Check className="w-4 h-4 text-emerald-300" /> : <Copy className="w-4 h-4" />}
+              <span>{copiedLink ? 'Đã sao chép link!' : 'Link giới thiệu của tôi'}</span>
+            </button>
+          )}
 
           <button
             onClick={() => setPassModalOpen(true)}
@@ -292,9 +271,11 @@ export const CTVPortalContainer: React.FC<CTVPortalContainerProps> = ({
 
               {moreDropdownOpen && (
                 <div className="absolute left-0 mt-2 w-64 bg-white rounded-2xl shadow-2xl border border-gray-100 py-2 z-50 animate-fadeIn divide-y divide-gray-50">
-                  {/* CTV Group */}
+                  {/* Partner Group */}
                   <div className="py-1">
-                    <p className="px-4 py-1 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Khu vực CTV</p>
+                    <p className="px-4 py-1 text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                      {isParticipant ? 'Khu vực Đối tác' : 'Tài khoản'}
+                    </p>
                     {visibleMoreItems.filter(i => i.group === 'ctv').map((item) => {
                       const Icon = item.icon;
                       const isActive = activeTab === item.id;
@@ -318,7 +299,7 @@ export const CTVPortalContainer: React.FC<CTVPortalContainerProps> = ({
                   {/* Admin / System Group */}
                   {visibleMoreItems.some(i => i.group === 'admin') && (
                     <div className="py-1 bg-slate-50/50">
-                      <p className="px-4 py-1 text-[10px] font-bold text-slate-500 uppercase tracking-wider">Quản trị & Cấu hình</p>
+                      <p className="px-4 py-1 text-[10px] font-bold text-slate-500 uppercase tracking-wider">Quản trị Hệ thống</p>
                       {visibleMoreItems.filter(i => i.group === 'admin').map((item) => {
                         const Icon = item.icon;
                         const isActive = activeTab === item.id;
@@ -345,8 +326,8 @@ export const CTVPortalContainer: React.FC<CTVPortalContainerProps> = ({
           )}
         </div>
 
-        {/* View Content Rendering Area */}
-        <div className="p-4 sm:p-6 min-h-[600px]">
+        {/* View Content Area */}
+        <div className="p-4 sm:p-6 min-h-[500px]">
           {activeTab === 'dashboard' && (
             <DashboardView 
               refreshKey={refreshKey} 
@@ -361,72 +342,32 @@ export const CTVPortalContainer: React.FC<CTVPortalContainerProps> = ({
             />
           )}
 
-          {activeTab === 'wholesale' && (
-            <WholesaleOrdersView 
-              currentUser={currentUser} 
-            />
-          )}
-
           {activeTab === 'rank' && (
             <RankView 
               currentUser={currentUser} 
             />
           )}
 
-          {activeTab === 'network' && (
-            <NetworkView 
-              refreshKey={refreshKey} 
-              currentUser={currentUser} 
-            />
-          )}
-
-          {activeTab === 'customers' && (
-            <CustomersView 
-              refreshKey={refreshKey} 
-              currentUser={currentUser} 
-              onAddCustomer={() => setCustomerModalOpen(true)} 
-            />
-          )}
-
-          {activeTab === 'commissions' && (
+          {activeTab === 'commissions' && isParticipant && (
             <CommissionHistoryView 
               currentUser={currentUser} 
               setActiveTab={setActiveTab} 
             />
           )}
 
-          {activeTab === 'pricelist' && (
-            <PriceListView 
-              isAdmin={isAdminOrAccountant} 
-              serviceList={serviceList} 
-              onRefresh={() => setRefreshKey(prev => prev + 1)} 
-            />
-          )}
-
-          {activeTab === 'service-detail' && activeServiceId && (
-            <ServiceDetailView 
-              service={serviceList.find((s: any) => s.id === activeServiceId)} 
-              onBack={() => setActiveTab('pricelist')} 
-            />
-          )}
-
-          {activeTab === 'statistics' && (
-            <StatisticsView 
+          {activeTab === 'network' && isParticipant && (
+            <NetworkView 
+              refreshKey={refreshKey} 
               currentUser={currentUser} 
-              userList={userList} 
             />
           )}
 
           {activeTab === 'users' && isAdminOrAccountant && (
             <UsersView 
               refreshKey={refreshKey} 
-              onAddUser={() => { setEditingUser(null); setUserModalOpen(true); }} 
-              onEditUser={(user: any) => { setEditingUser(user); setUserModalOpen(true); }} 
+              onAddUser={() => {}} 
+              onEditUser={() => {}} 
             />
-          )}
-
-          {activeTab === 'settings' && isAdmin && (
-            <SettingsView currentUser={currentUser} />
           )}
 
           {activeTab === 'internal-users' && isAdmin && (
@@ -439,46 +380,13 @@ export const CTVPortalContainer: React.FC<CTVPortalContainerProps> = ({
             />
           )}
 
-          {activeTab === 'about' && (
-            <AboutView />
-          )}
-
           {activeTab === 'account' && (
             <SettingsView currentUser={currentUser} />
           )}
         </div>
       </div>
 
-      {/* Shared Modals */}
-      {isCustomerModalOpen && (
-        <CustomerModal 
-          currentUser={currentUser}
-          userList={userList}
-          onClose={() => setCustomerModalOpen(false)}
-          onSuccess={() => { setCustomerModalOpen(false); setRefreshKey(k => k + 1); }}
-        />
-      )}
-
-      {isOrderModalOpen && (
-        <OrderModal 
-          currentUser={currentUser}
-          customerList={customerList}
-          userList={userList}
-          serviceList={serviceList}
-          onClose={() => setOrderModalOpen(false)}
-          onSuccess={() => { setOrderModalOpen(false); setRefreshKey(k => k + 1); }}
-        />
-      )}
-
-      {isUserModalOpen && (
-        <UserModal 
-          editingUser={editingUser}
-          userList={userList}
-          onClose={() => setUserModalOpen(false)}
-          onSuccess={() => { setUserModalOpen(false); setRefreshKey(k => k + 1); }}
-        />
-      )}
-
+      {/* Password Modal */}
       {isPassModalOpen && (
         <ChangePasswordModal 
           currentUser={currentUser}
