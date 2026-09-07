@@ -527,8 +527,6 @@ export const AdminCTVManagement: React.FC = () => {
           <option value="AMBASSADOR">Đại Sứ</option>
           <option value="MANAGER">Quản Lý</option>
           <option value="DIRECTOR">Giám Đốc</option>
-          <option value="SALES_MANAGER">Quản Lý (Legacy)</option>
-          <option value="SALES_DIRECTOR">Giám Đốc (Legacy)</option>
         </select>
         {(search || rankFilter !== 'all') && (
           <button onClick={() => { setSearch(''); setRankFilter('all'); }} className="px-3 text-xs text-slate-500 hover:text-rose-600 flex items-center gap-1 font-semibold">
