@@ -3317,6 +3317,14 @@ async function executeOrderSettlement(orderId, options = {}) {
         where: { id: currentUser.id },
         data: userUpdateData,
       });
+
+      if (activated) {
+        try {
+          await checkAndPromoteUplines(tx, currentUser.userId);
+        } catch (promoErr) {
+          console.error('[PROMOTION HOOK ERROR]', promoErr.message);
+        }
+      }
     }
 
     // 5. Commission Calculation & Creation inside the SAME transaction boundary
@@ -3422,6 +3430,119 @@ async function getRetailCommRule(productType, price, rank) {
   return null;
 }
 
+
+// ============================================================
+// OFFICIAL RANK PROMOTION RULES (5 F1 RULE)
+// 1. AMBASSADOR -> MANAGER: 5 direct F1 with Business ID & rank AMBASSADOR
+// 2. MANAGER -> DIRECTOR:    5 direct F1 with Business ID & rank MANAGER
+// ============================================================
+async function checkAndPromoteUplines(client, startUserId) {
+  let currentUserId = startUserId;
+  const promotions = [];
+  const visited = new Set();
+
+  while (currentUserId && !visited.has(currentUserId)) {
+    visited.add(currentUserId);
+    const user = await client.user.findUnique({ where: { userId: currentUserId } });
+    if (!user || !user.parentId) break;
+
+    const parent = await client.user.findUnique({ where: { userId: user.parentId } });
+    if (!parent) break;
+
+    const pRank = (parent.rank || '').toUpperCase();
+
+    if (pRank === 'AMBASSADOR') {
+      const qualifiedF1s = await client.user.findMany({
+        where: {
+          parentId: parent.userId,
+          businessId: { not: null },
+          rank: { in: ['AMBASSADOR', 'MANAGER', 'DIRECTOR', 'SALES_MANAGER', 'SALES_DIRECTOR'] },
+          rankStatus: { in: ['ACTIVE_RANK', 'MANUAL_APPROVED'] }
+        }
+      });
+
+      if (qualifiedF1s.length >= 5) {
+        await client.user.update({
+          where: { id: parent.id },
+          data: {
+            rank: 'MANAGER',
+            rankStatus: 'ACTIVE_RANK',
+            rankAchievedAt: new Date(),
+            rankActivationMethod: 'AUTO_5_F1_AMBASSADOR',
+            rankActivatedBy: 'SYSTEM'
+          }
+        });
+
+        await client.rankHistory.create({
+          data: {
+            userId: parent.userId,
+            fromRank: 'AMBASSADOR',
+            toRank: 'MANAGER',
+            fromStatus: parent.rankStatus || 'ACTIVE_RANK',
+            toStatus: 'ACTIVE_RANK',
+            reason: 'AUTO_5_F1_AMBASSADOR',
+            triggeredBy: 'SYSTEM',
+            metadata: JSON.stringify({
+              f1Count: qualifiedF1s.length,
+              f1List: qualifiedF1s.map(f => ({ userId: f.userId, businessId: f.businessId, rank: f.rank })),
+              promotedAt: new Date().toISOString()
+            })
+          }
+        });
+
+        console.log(`[PROMOTION] User ${parent.userId} (${parent.fullName}) promoted AMBASSADOR -> MANAGER (${qualifiedF1s.length} F1 Ambassadors)`);
+        promotions.push({ userId: parent.userId, from: 'AMBASSADOR', to: 'MANAGER' });
+      }
+    } else if (pRank === 'MANAGER' || pRank === 'SALES_MANAGER') {
+      const qualifiedF1s = await client.user.findMany({
+        where: {
+          parentId: parent.userId,
+          businessId: { not: null },
+          rank: { in: ['MANAGER', 'DIRECTOR', 'SALES_MANAGER', 'SALES_DIRECTOR'] },
+          rankStatus: { in: ['ACTIVE_RANK', 'MANUAL_APPROVED'] }
+        }
+      });
+
+      if (qualifiedF1s.length >= 5) {
+        await client.user.update({
+          where: { id: parent.id },
+          data: {
+            rank: 'DIRECTOR',
+            rankStatus: 'ACTIVE_RANK',
+            rankAchievedAt: new Date(),
+            rankActivationMethod: 'AUTO_5_F1_MANAGER',
+            rankActivatedBy: 'SYSTEM'
+          }
+        });
+
+        await client.rankHistory.create({
+          data: {
+            userId: parent.userId,
+            fromRank: parent.rank,
+            toRank: 'DIRECTOR',
+            fromStatus: parent.rankStatus || 'ACTIVE_RANK',
+            toStatus: 'ACTIVE_RANK',
+            reason: 'AUTO_5_F1_MANAGER',
+            triggeredBy: 'SYSTEM',
+            metadata: JSON.stringify({
+              f1Count: qualifiedF1s.length,
+              f1List: qualifiedF1s.map(f => ({ userId: f.userId, businessId: f.businessId, rank: f.rank })),
+              promotedAt: new Date().toISOString()
+            })
+          }
+        });
+
+        console.log(`[PROMOTION] User ${parent.userId} (${parent.fullName}) promoted MANAGER -> DIRECTOR (${qualifiedF1s.length} F1 Managers)`);
+        promotions.push({ userId: parent.userId, from: parent.rank, to: 'DIRECTOR' });
+      }
+    }
+
+    currentUserId = parent.userId;
+  }
+
+  return promotions;
+}
+
 /** Auto-activate Ambassador if user qualifies. Creates RankHistory audit. */
 async function checkAndAutoActivateAmbassador(userId) {
   try {
@@ -3456,6 +3577,7 @@ async function checkAndAutoActivateAmbassador(userId) {
       }
     });
     console.log(`[AMBASSADOR AUTO] ${userId} qualified via ${method}`);
+    await checkAndPromoteUplines(prisma, userId);
   } catch (e) {
     console.error('[AMBASSADOR AUTO ERROR]', e.message);
   }
@@ -3464,6 +3586,144 @@ async function checkAndAutoActivateAmbassador(userId) {
 // ============================================================
 // PHASE 2B — AMBASSADOR RANK MANAGEMENT ENDPOINTS
 // ============================================================
+
+
+/** GET /api/rank/promotion-progress/:userId — Get progress to next rank (5 F1 rule) */
+app.get('/api/rank/promotion-progress/:userId', authenticateToken, async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const user = await prisma.user.findFirst({
+      where: {
+        OR: [
+          { userId: userId },
+          { id: userId }
+        ]
+      }
+    });
+    if (!user) return res.status(404).json({ success: false, message: 'User không tồn tại.' });
+
+    if (req.user.role !== 'admin' && req.user.id !== user.userId) {
+      return res.status(403).json({ success: false, message: 'Không có quyền truy cập.' });
+    }
+
+    const rank = (user.rank || 'CUSTOMER').toUpperCase();
+    const threshold = 5000;
+
+    if (rank === 'CUSTOMER' || !user.rank) {
+      const qp = Math.round(user.qualifyingPoints || 0);
+      return res.json({
+        success: true,
+        data: {
+          currentRank: 'CUSTOMER',
+          nextRank: 'AMBASSADOR',
+          progress: Math.min(100, Math.round((qp / threshold) * 100)),
+          current: qp,
+          target: threshold,
+          unit: 'CP',
+          description: `Tích lũy tối thiểu ${threshold.toLocaleString('vi-VN')} CP để đạt chuẩn Đại Sứ`
+        }
+      });
+    }
+
+    if (rank === 'AMBASSADOR') {
+      const f1Ambassadors = await prisma.user.findMany({
+        where: {
+          parentId: user.userId,
+          businessId: { not: null },
+          rank: { in: ['AMBASSADOR', 'MANAGER', 'DIRECTOR', 'SALES_MANAGER', 'SALES_DIRECTOR'] },
+          rankStatus: { in: ['ACTIVE_RANK', 'MANUAL_APPROVED'] }
+        },
+        select: { userId: true, fullName: true, phone: true, businessId: true, rank: true, rankAchievedAt: true }
+      });
+
+      const count = f1Ambassadors.length;
+      const target = 5;
+      return res.json({
+        success: true,
+        data: {
+          currentRank: 'AMBASSADOR',
+          nextRank: 'MANAGER',
+          progress: Math.min(100, Math.round((count / target) * 100)),
+          current: count,
+          target: target,
+          unit: 'F1 Đại Sứ',
+          f1List: f1Ambassadors,
+          description: 'Cần đủ 5 thành viên F1 trực tiếp đạt cấp Đại Sứ (có Business ID) để tự động lên Quản Lý'
+        }
+      });
+    }
+
+    if (rank === 'MANAGER' || rank === 'SALES_MANAGER') {
+      const f1Managers = await prisma.user.findMany({
+        where: {
+          parentId: user.userId,
+          businessId: { not: null },
+          rank: { in: ['MANAGER', 'DIRECTOR', 'SALES_MANAGER', 'SALES_DIRECTOR'] },
+          rankStatus: { in: ['ACTIVE_RANK', 'MANUAL_APPROVED'] }
+        },
+        select: { userId: true, fullName: true, phone: true, businessId: true, rank: true, rankAchievedAt: true }
+      });
+
+      const count = f1Managers.length;
+      const target = 5;
+      return res.json({
+        success: true,
+        data: {
+          currentRank: 'MANAGER',
+          nextRank: 'DIRECTOR',
+          progress: Math.min(100, Math.round((count / target) * 100)),
+          current: count,
+          target: target,
+          unit: 'F1 Quản Lý',
+          f1List: f1Managers,
+          description: 'Cần đủ 5 thành viên F1 trực tiếp đạt cấp Quản Lý (có Business ID) để tự động lên Giám Đốc'
+        }
+      });
+    }
+
+    if (rank === 'DIRECTOR' || rank === 'SALES_DIRECTOR') {
+      return res.json({
+        success: true,
+        data: {
+          currentRank: 'DIRECTOR',
+          nextRank: null,
+          isMaxRank: true,
+          progress: 100,
+          current: 5,
+          target: 5,
+          unit: '',
+          description: 'Bạn đã đạt cấp bậc cao nhất: Giám Đốc Kinh Doanh 👑'
+        }
+      });
+    }
+
+    return res.json({ success: true, data: { currentRank: rank, nextRank: null } });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+/** POST /api/rank/sync-all — Admin scan and promote all eligible users */
+app.post('/api/rank/sync-all', authenticateToken, requireRole(['admin']), async (req, res) => {
+  try {
+    const allUsers = await prisma.user.findMany({
+      where: { role: 'ctv' },
+      select: { userId: true, rank: true, parentId: true }
+    });
+
+    let totalPromotions = [];
+    for (const u of allUsers) {
+      if (u.parentId) {
+        const promos = await checkAndPromoteUplines(prisma, u.userId);
+        if (promos.length > 0) totalPromotions.push(...promos);
+      }
+    }
+
+    res.json({ success: true, count: totalPromotions.length, promotions: totalPromotions });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
 
 /** GET /api/rank/ambassador/check/:userId — Preview eligibility */
 app.get('/api/rank/ambassador/check/:userId', authenticateToken, async (req, res) => {
@@ -3553,6 +3813,7 @@ app.post('/api/rank/ambassador/activate/:userId', authenticateToken, requireRole
         })
       }
     });
+    await checkAndPromoteUplines(prisma, targetId);
     res.json({ success: true, message: `Đã kích hoạt Ambassador cho ${user.name}.` });
   } catch (e) {
     res.status(500).json({ success: false, error: e.message });
