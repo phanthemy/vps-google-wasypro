@@ -285,33 +285,64 @@ export const api = {
 
   // Admin user management
   getAdminUsers: async () => {
-    const res = await fetch('/api/admin/users');
+    const res = await fetch('/api/internal-users', { credentials: 'include' });
     if (!res.ok) throw new Error('Failed to get users');
-    return await res.json();
+    const data = await res.json();
+    const list = data.data || data;
+    // Map DB fields (fullName, userId, phone, role) to what AdminUsers expects
+    return list.map((u: any) => ({
+      id: u.userId,
+      email: u.phone,      // dùng phone làm identifier (ko có email trong schema)
+      name: u.fullName,
+      role: u.role,
+      isActive: u.status !== 'INACTIVE',
+      createdAt: u.createdAt,
+    }));
   },
 
   createAdminUser: async (data: { email: string; password: string; name: string; role?: string }) => {
-    const res = await fetch('/api/admin/users', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
-    if (!res.ok) { const e = await res.json(); throw new Error(e.error || 'Failed'); }
+    const csrf = (document.cookie.match(/(?:^|;\s*)csrf_token=([^;]*)/) || [])[1] || '';
+    const res = await fetch('/api/internal-users', {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrf },
+      body: JSON.stringify({ fullName: data.name, phone: data.email, password: data.password, role: data.role || 'admin' }),
+    });
+    if (!res.ok) { const e = await res.json(); throw new Error(e.message || e.error || 'Failed'); }
     return await res.json();
   },
 
   updateAdminUser: async (id: string, data: any) => {
-    const res = await fetch('/api/admin/users/' + id, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
-    if (!res.ok) { const e = await res.json(); throw new Error(e.error || 'Failed'); }
+    const csrf = (document.cookie.match(/(?:^|;\s*)csrf_token=([^;]*)/) || [])[1] || '';
+    const payload: any = {};
+    if (data.role) payload.role = data.role;
+    if (data.isActive === false) payload.status = 'INACTIVE';
+    if (data.isActive === true) payload.status = 'ACTIVE';
+    const res = await fetch('/api/internal-users/' + id, {
+      method: 'PUT',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrf },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) { const e = await res.json(); throw new Error(e.message || e.error || 'Failed'); }
     return await res.json();
   },
 
   deleteAdminUser: async (id: string) => {
-    const res = await fetch('/api/admin/users/' + id, { method: 'DELETE' });
-    if (!res.ok) throw new Error('Failed');
-    return await res.json();
+    // Backend chưa có DELETE endpoint — báo lỗi rõ ràng
+    throw new Error('Chức năng xóa tài khoản admin chưa được hỗ trợ. Liên hệ kỹ thuật.');
   },
 
   changePassword: async (userId: string, currentPassword: string, newPassword: string) => {
-    const res = await fetch('/api/admin/change-password', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId, currentPassword, newPassword }) });
+    const csrf = (document.cookie.match(/(?:^|;\s*)csrf_token=([^;]*)/) || [])[1] || '';
+    const res = await fetch('/api/internal-users/' + userId, {
+      method: 'PUT',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrf },
+      body: JSON.stringify({ password: newPassword }),
+    });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Failed');
+    if (!res.ok) throw new Error(data.message || data.error || 'Failed');
     return data;
   },
 };
