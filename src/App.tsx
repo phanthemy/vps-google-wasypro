@@ -168,10 +168,14 @@ export const App: React.FC = () => {
       localStorage.setItem('wasy_admin_user', JSON.stringify(adminData));
       setIsAdminMode(true);
       window.history.pushState(null, '', '/');
-    } else {
-      // CTV / partner → CTV Portal
+    } else if (loggedInUser.isSystemParticipant || ['AMBASSADOR','MANAGER','DIRECTOR'].includes(loggedInUser.rank || '')) {
+      // CTV partner → CTV Portal
       setActiveSection('ctv');
       window.history.pushState(null, '', '/ctv');
+    } else {
+      // Regular customer → stay on website
+      setActiveSection('hero');
+      window.history.pushState(null, '', '/');
     }
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -327,11 +331,50 @@ export const App: React.FC = () => {
         {activeSection === 'ctv' ? (
           /* CTV Portal Section */
           user ? (
-            <CTVPortalContainer
-              currentUser={user}
-              onLogout={handleLogout}
-              onNavigateHome={() => handleNavigate('hero')}
-            />
+            (user.isSystemParticipant || ['AMBASSADOR','MANAGER','DIRECTOR'].includes((user as any).rank || '') || user.role === 'admin' || user.role === 'accountant') ? (
+              <CTVPortalContainer
+                currentUser={user}
+                onLogout={handleLogout}
+                onNavigateHome={() => handleNavigate('hero')}
+              />
+            ) : (
+              <div className="max-w-xl mx-auto px-4 py-16 text-center animate-fadeIn">
+                <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-tr from-primary to-accent flex items-center justify-center shadow-lg text-white">
+                  <Award className="w-8 h-8 text-white" />
+                </div>
+                <h2 className="text-xl sm:text-2xl font-extrabold text-primary uppercase tracking-wide">
+                  Chào {user.fullName}!
+                </h2>
+                <p className="text-sm text-gray-600 mt-3 max-w-md mx-auto font-medium leading-relaxed">
+                  Bạn chưa tham gia hệ thống kinh doanh WATER KING. Hãy tham gia ngay để mở khoá Dashboard, theo dõi hoa hồng và quản lý đội nhóm.
+                </p>
+                <div className="mt-6 flex flex-col sm:flex-row gap-3 justify-center">
+                  <button
+                    onClick={async () => {
+                      try {
+                        const res = await fetch('/api/users/me/join-system', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' } });
+                        const data = await res.json();
+                        if (data.success) {
+                          await checkSession();
+                          showToast('Chúc mừng! Bạn đã tham gia hệ thống kinh doanh WATER KING.');
+                        } else {
+                          showToast(data.message || 'Không thể tham gia. Vui lòng thử lại.');
+                        }
+                      } catch { showToast('Lỗi kết nối máy chủ.'); }
+                    }}
+                    className="px-6 py-3 rounded-xl bg-primary hover:bg-primary-dark text-white font-bold text-sm uppercase tracking-wider shadow-md shadow-primary/20 hover:scale-[1.02] transition-all"
+                  >
+                    Tham Gia Hệ Thống Kinh Doanh
+                  </button>
+                  <button
+                    onClick={() => { setActiveSection('hero'); window.history.pushState(null, '', '/'); }}
+                    className="px-6 py-3 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold text-sm transition-all"
+                  >
+                    Quay Về Trang Chủ
+                  </button>
+                </div>
+              </div>
+            )
           ) : (
             <div className="max-w-xl mx-auto px-4 py-16 text-center animate-fadeIn">
               <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-tr from-primary to-accent flex items-center justify-center shadow-lg text-white">
