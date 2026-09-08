@@ -34,7 +34,7 @@ export const UnifiedAuthModal: React.FC<UnifiedAuthModalProps> = ({
   const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault(); setError(''); setLoading(true);
     try {
-      const res = await fetch('/api/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ phone: loginPhone.trim(), password: loginPassword }), credentials: 'include' });
+      const res = await fetch('/api/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ phone: loginPhone.trim(), password: loginPassword }) });
       const data = await res.json();
       if (!res.ok || !data.success) throw new Error(data.message || 'Số điện thoại hoặc mật khẩu không chính xác');
       localStorage.setItem('crm_user', JSON.stringify(data.data));
@@ -45,7 +45,7 @@ export const UnifiedAuthModal: React.FC<UnifiedAuthModalProps> = ({
   const handleRegisterSubmit = async (e: React.FormEvent) => {
     e.preventDefault(); setError(''); setLoading(true);
     try {
-      const res = await fetch('/api/auth/register', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ fullName: regFullName.trim(), phone: regPhone.trim(), password: '123456', refCode: regRefCode.trim() || undefined, joinSystem: joinCtv }), credentials: 'include' }).then(r => r.json());
+      const res = await fetch('/api/auth/register', { credentials: 'include', method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ fullName: regFullName.trim(), phone: regPhone.trim(), password: '123456', refCode: regRefCode.trim() || undefined, joinSystem: joinCtv }) }).then(r => r.json());
       if (res?.success) {
         setSuccessMsg('Đăng ký thành công! Mật khẩu mặc định: 123456. Vui lòng đăng nhập.');
         setTab('login'); setLoginPhone(regPhone.trim()); setLoginPassword('123456');

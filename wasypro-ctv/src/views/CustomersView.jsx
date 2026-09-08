@@ -11,7 +11,7 @@ export default function CustomersView({ refreshKey, currentUser, onAddCustomer }
   const [loadingAudit, setLoadingAudit] = useState(false);
 
   useEffect(() => {
-    fetch('/api/customers')
+    fetch('/api/customers', { credentials: 'include' })
       .then(r => r.json())
       .then(res => {
         if (res.success) setCustomers(res.data);
@@ -33,6 +33,7 @@ export default function CustomersView({ refreshKey, currentUser, onAddCustomer }
   const handleStatusChange = async (id, newStatus) => {
     try {
       const res = await fetch(`/api/customers/${id}/status`, {
+        credentials: 'include',
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: newStatus })
@@ -53,6 +54,7 @@ export default function CustomersView({ refreshKey, currentUser, onAddCustomer }
 
     try {
       const res = await fetch(`/api/customers/${promoteTarget.id}/promote`, {
+        credentials: 'include',
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ tier: promoteTier, userId: currentUser.id, userFullName: currentUser.fullName })
@@ -61,7 +63,7 @@ export default function CustomersView({ refreshKey, currentUser, onAddCustomer }
       if (res.success) {
         alert('Đã nâng cấp thành công! Khách hàng giờ đây có thể đăng nhập bằng tài khoản đối tác.');
         setPromoteTarget(null);
-        fetch('/api/customers').then(r => r.json()).then(res => { if (res.success) setCustomers(res.data); });
+        fetch('/api/customers', { credentials: 'include' }).then(r => r.json()).then(res => { if (res.success) setCustomers(res.data); });
       } else {
         alert(`Lỗi nâng cấp: ${res.message || 'Không xác định'}`);
       }
@@ -74,7 +76,7 @@ export default function CustomersView({ refreshKey, currentUser, onAddCustomer }
     setAuditLogCustomer(cus);
     setLoadingAudit(true);
     try {
-      const res = await fetch(`/api/customers/${cus.id}/audit-log`).then(r => r.json());
+      const res = await fetch(`/api/customers/${cus.id}/audit-log`, { credentials: 'include' }).then(r => r.json());
       if (res.success) setAuditLogs(res.data);
     } catch (e) {
       console.error(e);

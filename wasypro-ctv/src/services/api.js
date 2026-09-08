@@ -1,21 +1,21 @@
 // Centralized API services for CTV Portal
 export async function getDashboardData() {
-  const res = await fetch('/api/dashboard');
+  const res = await fetch('/api/dashboard', { credentials: 'include' });
   return res.json();
 }
 
 export async function getUsers() {
-  const res = await fetch('/api/users');
+  const res = await fetch('/api/users', { credentials: 'include' });
   return res.json();
 }
 
 export async function getCustomers() {
-  const res = await fetch('/api/customers');
+  const res = await fetch('/api/customers', { credentials: 'include' });
   return res.json();
 }
 
 export async function getServices() {
-  const res = await fetch('/api/services');
+  const res = await fetch('/api/services', { credentials: 'include' });
   return res.json();
 }
 
@@ -32,6 +32,6 @@ export async function getCommissions(userId) {
 }
 
 export async function logout() {
-  const res = await fetch('/api/auth/logout', { method: 'POST' });
+  const res = await fetch('/api/auth/logout', { credentials: 'include', method: 'POST' });
   return res.json();
 }

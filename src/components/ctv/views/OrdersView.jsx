@@ -87,7 +87,7 @@ export default function OrdersView({ currentUser }) {
   const handleDelete = async (id) => {
     if (!window.confirm('CẢNH BÁO: Xóa đơn hàng sẽ tự động XÓA TOÀN BỘ hoa hồng liên quan!\n\nBạn có chắc chắn muốn xóa?')) return;
     try {
-      const res = await fetch(`/api/orders/${id}`, { method: 'DELETE', credentials: 'include' }).then(r => r.json());
+      const res = await fetch(`/api/orders/${id}`, { method: 'DELETE' }).then(r => r.json());
       if (res.success) {
          alert('Đã xóa đơn hàng và thu hồi hoa hồng thành công.');
          loadOrders();

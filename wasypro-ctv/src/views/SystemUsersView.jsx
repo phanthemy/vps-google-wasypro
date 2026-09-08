@@ -11,7 +11,7 @@ export default function SystemUsersView() {
 
   const loadUsers = () => {
     setLoading(true);
-    fetch('/api/internal-users').then(r => r.json()).then(res => {
+    fetch('/api/internal-users', { credentials: 'include' }).then(r => r.json()).then(res => {
       if (res.success) setUsers(res.data);
       setLoading(false);
     });
@@ -114,6 +114,7 @@ export default function SystemUsersView() {
                         const newPass = prompt(`Nhập mật khẩu mới cho ${u.fullName}:`, "123456");
                         if (newPass && newPass.length >= 3) {
                           const res = await fetch(`/api/internal-users/${u.userId}`, {
+                            credentials: 'include',
                             method: 'PUT',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({ password: newPass })

@@ -10,7 +10,7 @@ export default function CommissionHistoryView({ currentUser, setActiveTab }) {
   const [showTaxes, setShowTaxes] = useState(false);
 
   useEffect(() => {
-    fetch(`/api/commissions?userId=${currentUser.id}`)
+    fetch(`/api/commissions?userId=${currentUser.id}`, { credentials: 'include' })
       .then(r => r.json())
       .then(res => {
         if (res.success) {

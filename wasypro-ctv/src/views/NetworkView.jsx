@@ -7,7 +7,7 @@ export default function NetworkView({ refreshKey, currentUser }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch('/api/tree')
+    fetch('/api/tree', { credentials: 'include' })
       .then(r => r.json())
       .then(res => {
         if(res.success) {

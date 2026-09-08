@@ -13,7 +13,7 @@ export default function StatisticsView({ currentUser, userList }) {
 
   useEffect(() => {
     setLoading(true);
-    fetch(`/api/statistics?timeFilter=${timeFilter}&period=${period}&userId=${userId}`)
+    fetch(`/api/statistics?timeFilter=${timeFilter}&period=${period}&userId=${userId}`, { credentials: 'include' })
       .then(r => r.json())
       .then(res => {
          if(res.success) setData(res.data);

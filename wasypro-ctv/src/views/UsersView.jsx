@@ -17,7 +17,7 @@ export default function UsersView({ refreshKey, onAddUser, onEditUser }) {
   });
 
   useEffect(() => {
-    fetch(`/api/users?timeFilter=${timeFilter}&period=${period}`)
+    fetch(`/api/users?timeFilter=${timeFilter}&period=${period}`, { credentials: 'include' })
       .then(r => r.json())
       .then(res => {
         if (res.success) setUsers(res.data);
@@ -26,6 +26,7 @@ export default function UsersView({ refreshKey, onAddUser, onEditUser }) {
 
   const handleNoteChange = async (id, note) => {
     await fetch(`/api/users/${id}/note`, {
+      credentials: 'include',
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ note })

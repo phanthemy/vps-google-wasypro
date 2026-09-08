@@ -20,6 +20,7 @@ export default function LoginView({ onLogin }) {
     setLoading(true);
     try {
       const res = await fetch('/api/auth/login', {
+        credentials: 'include',
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ phone, password })
@@ -40,6 +41,7 @@ export default function LoginView({ onLogin }) {
     setLoading(true);
     try {
       const res = await fetch('/api/auth/register', {
+        credentials: 'include',
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ fullName, phone, password: '123456', refCode })

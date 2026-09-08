@@ -14,6 +14,7 @@ export default function PriceListView({ isAdmin, serviceList, onRefresh }) {
   const handleSavePrice = async (id) => {
     try {
       const res = await fetch(`/api/services/${id}`, {
+        credentials: 'include',
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -37,6 +38,7 @@ export default function PriceListView({ isAdmin, serviceList, onRefresh }) {
     if (!newService.name || !newService.price) return alert('Vui lòng nhập tên và giá sản phẩm');
     try {
       const res = await fetch('/api/services', {
+        credentials: 'include',
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -56,7 +58,7 @@ export default function PriceListView({ isAdmin, serviceList, onRefresh }) {
   const handleDeleteService = async (id) => {
     if (!window.confirm('Bạn có chắc muốn xóa sản phẩm này? Hành động này không thể hoàn tác.')) return;
     try {
-      const res = await fetch(`/api/services/${id}`, { method: 'DELETE' }).then(r => r.json());
+      const res = await fetch(`/api/services/${id}`, { credentials: 'include', method: 'DELETE' }).then(r => r.json());
       if (res.success && onRefresh) onRefresh();
     } catch (e) { alert('Lỗi kết nối máy chủ!'); }
   };

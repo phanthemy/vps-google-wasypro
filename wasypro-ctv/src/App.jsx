@@ -127,8 +127,8 @@ function App() {
 
   useEffect(() => {
     // Tải dữ liệu dùng chung cho các Form
-    fetch('/api/users').then(r=>r.json()).then(res => res.success && setUserList(res.data));
-    fetch('/api/customers').then(r=>r.json()).then(res => {
+    fetch('/api/users', { credentials: 'include' }).then(r=>r.json()).then(res => res.success && setUserList(res.data));
+    fetch('/api/customers', { credentials: 'include' }).then(r=>r.json()).then(res => {
       if(res.success) {
         if (currentUser?.role === 'admin' || currentUser?.userId === 'admin') {
           setCustomerList(res.data);
@@ -137,15 +137,15 @@ function App() {
         }
       }
     });
-    fetch('/api/services').then(r=>r.json()).then(res => res.success && setServiceList(res.data));
+    fetch('/api/services', { credentials: 'include' }).then(r=>r.json()).then(res => res.success && setServiceList(res.data));
     // Product Master từ wasypro.com — nguồn sản phẩm duy nhất cho OrderModal
-    fetch('/api/products').then(r=>r.json()).then(data => {
+    fetch('/api/products', { credentials: 'include' }).then(r=>r.json()).then(data => {
       if (Array.isArray(data)) setProductList(data);
     });
   }, [refreshKey, currentUser]);
 
   const handleLogout = async () => {
-    try { await fetch('/api/auth/logout', { method: 'POST' }); } catch(e) {}
+    try { await fetch('/api/auth/logout', { credentials: 'include', method: 'POST' }); } catch(e) {}
     localStorage.removeItem('crm_user');
     setCurrentUser(null);
   };
@@ -164,7 +164,7 @@ function App() {
   // Refresh currentUser from server (after join-system or points update)
   const refreshCurrentUser = async () => {
     try {
-      const res = await fetch('/api/auth/me').then(r => r.json());
+      const res = await fetch('/api/auth/me', { credentials: 'include' }).then(r => r.json());
       if (res.success) {
         const updated = { ...currentUser, ...res.data };
         localStorage.setItem('crm_user', JSON.stringify(updated));
@@ -176,7 +176,7 @@ function App() {
   // THAM GIA HỆ THỐNG action
   const handleJoinSystem = async () => {
     try {
-      const res = await fetch('/api/users/me/join-system', { method: 'POST' }).then(r => r.json());
+      const res = await fetch('/api/users/me/join-system', { credentials: 'include', method: 'POST' }).then(r => r.json());
       if (res.success) {
         await refreshCurrentUser();
       }

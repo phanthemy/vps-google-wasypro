@@ -82,6 +82,7 @@ export default function OrderModal({ currentUser, customerList, userList, servic
       }
 
       const res = await fetch('/api/orders', {
+        credentials: 'include',
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       }).then(r => r.json());

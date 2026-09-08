@@ -11,6 +11,7 @@ export default function ChangePasswordModal({ currentUser, onClose }) {
     e.preventDefault();
     setLoading(true); setError('');
     const res = await fetch(`/api/users/${currentUser.id}/password`, {
+      credentials: 'include',
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ oldPassword, newPassword, isForce: false })

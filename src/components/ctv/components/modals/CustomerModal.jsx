@@ -10,6 +10,7 @@ export default function CustomerModal({ userList, onClose, onSuccess, currentUse
     setError('');
     try {
       const res = await fetch('/api/customers', {
+        credentials: 'include',
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData)
       }).then(r => r.json());

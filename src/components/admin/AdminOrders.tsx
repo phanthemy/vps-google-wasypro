@@ -132,7 +132,7 @@ export const AdminOrders: React.FC = () => {
     setWebLoading(true);
     setWebError(null);
     try {
-      const res = await fetch('/api/admin/website-orders');
+      const res = await fetch('/api/admin/website-orders', { credentials: 'include' });
       if (!res.ok) throw new Error('Lỗi tải đơn hàng website');
       const body = await res.json();
       setWebOrders(body?.data ?? []);

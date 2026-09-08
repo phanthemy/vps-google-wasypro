@@ -90,7 +90,7 @@ export const AdminCTVManagement: React.FC = () => {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch('/api/admin/ctv');
+      const res = await fetch('/api/admin/ctv', { credentials: 'include' });
       if (!res.ok) throw new Error('Lỗi tải danh sách CTV');
       const body = await res.json();
       setCtvList(body?.data ?? []);
@@ -105,7 +105,7 @@ export const AdminCTVManagement: React.FC = () => {
     setDetailLoading(true);
     setDetail(null);
     try {
-      const res = await fetch(`/api/admin/ctv/${id}`);
+      const res = await fetch(`/api/admin/ctv/${id}`, { credentials: 'include' });
       if (!res.ok) throw new Error('Lỗi tải thông tin CTV');
       const body = await res.json();
       setDetail(body?.data ?? null);
