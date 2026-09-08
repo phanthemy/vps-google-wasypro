@@ -5,7 +5,7 @@ import RankBadge from '../components/common/RankBadge.jsx';
 import AmbassadorProgressCard from '../components/common/AmbassadorProgressCard.jsx';
 
 export default function DashboardView({ refreshKey, currentUser, setActiveTab }) {
-  const [data, setData] = useState({ totalDiamond: 0, totalGold: 0, totalSilver: 0, totalSales: 0 });
+  const [data, setData] = useState({ totalDirector: 0, totalManager: 0, totalAmbassador: 0, totalSales: 0 });
   const [personalStats, setPersonalStats] = useState(null);
   const [freshUser, setFreshUser] = useState(currentUser || {});
   const [loading, setLoading] = useState(true);
@@ -113,7 +113,7 @@ export default function DashboardView({ refreshKey, currentUser, setActiveTab })
             </div>
             <div className="stat-info">
               <div className="stat-label">Giám đốc</div>
-              <div className="stat-value">{data.totalDiamond} <span className="text-xs text-secondary font-normal">Thành viên</span></div>
+              <div className="stat-value">{data.totalDirector} <span className="text-xs text-secondary font-normal">Thành viên</span></div>
             </div>
           </div>
 
@@ -123,7 +123,7 @@ export default function DashboardView({ refreshKey, currentUser, setActiveTab })
             </div>
             <div className="stat-info">
               <div className="stat-label">Quản lý</div>
-              <div className="stat-value">{data.totalGold} <span className="text-xs text-secondary font-normal">Thành viên</span></div>
+              <div className="stat-value">{data.totalManager} <span className="text-xs text-secondary font-normal">Thành viên</span></div>
             </div>
           </div>
 
@@ -133,7 +133,7 @@ export default function DashboardView({ refreshKey, currentUser, setActiveTab })
             </div>
             <div className="stat-info">
               <div className="stat-label">Đại sứ</div>
-              <div className="stat-value">{data.totalSilver} <span className="text-xs text-secondary font-normal">Thành viên</span></div>
+              <div className="stat-value">{data.totalAmbassador} <span className="text-xs text-secondary font-normal">Thành viên</span></div>
             </div>
           </div>
         </div>

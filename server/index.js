@@ -1346,9 +1346,9 @@ app.get('/api/dashboard', authenticateToken, async (req, res) => {
     const isGlobal = req.user.role === 'admin' || req.user.role === 'accountant';
 
     if (isGlobal) {
-      const totalDiamond = await prisma.user.count({ where: { tier: 'DIAMOND', role: 'ctv' } });
-      const totalGold = await prisma.user.count({ where: { tier: 'GOLD', role: 'ctv' } });
-      const totalSilver = await prisma.user.count({ where: { tier: 'SILVER', role: 'ctv' } });
+      const totalDirector = await prisma.user.count({ where: { rank: 'DIRECTOR', role: 'ctv' } });
+      const totalManager = await prisma.user.count({ where: { rank: 'MANAGER', role: 'ctv' } });
+      const totalAmbassador = await prisma.user.count({ where: { rank: 'AMBASSADOR', role: 'ctv' } });
       const totalSalesAgg = await prisma.order.aggregate({
         _sum: { totalAmount: true },
         where: { status: 'COMPLETED' }
@@ -1356,9 +1356,9 @@ app.get('/api/dashboard', authenticateToken, async (req, res) => {
       return res.json({
         success: true,
         data: {
-          totalDiamond,
-          totalGold,
-          totalSilver,
+          totalDirector,
+          totalManager,
+          totalAmbassador,
           totalSales: totalSalesAgg._sum.totalAmount || 0
         }
       });
