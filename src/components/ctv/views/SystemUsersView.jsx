@@ -11,7 +11,7 @@ export default function SystemUsersView() {
 
   const loadUsers = () => {
     setLoading(true);
-    fetch('/api/internal-users').then(r => r.json()).then(res => {
+    fetch('/api/internal-users', { credentials: 'include' }).then(r => r.json()).then(res => {
       if (res.success) setUsers(res.data);
       setLoading(false);
     });

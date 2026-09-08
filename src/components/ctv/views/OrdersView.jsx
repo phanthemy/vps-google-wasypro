@@ -21,13 +21,13 @@ export default function OrdersView({ currentUser }) {
     try {
       if (false && isAdmin) {
         // Admin: use /api/orders for full CTV order management
-        const res = await fetch('/api/orders').then(r => r.json());
+        const res = await fetch('/api/orders', { credentials: 'include' }).then(r => r.json());
         if (res.success) {
           setOrders(res.data.map(o => ({ ...o, _source: 'ctv' })));
         }
       } else {
         // Regular user (CTV, Khách Hàng): use /api/orders/my for combined view
-        const res = await fetch('/api/orders/my').then(r => r.json());
+        const res = await fetch('/api/orders/my', { credentials: 'include' }).then(r => r.json());
         if (res.success) {
           const combined = [];
           
@@ -87,7 +87,7 @@ export default function OrdersView({ currentUser }) {
   const handleDelete = async (id) => {
     if (!window.confirm('CẢNH BÁO: Xóa đơn hàng sẽ tự động XÓA TOÀN BỘ hoa hồng liên quan!\n\nBạn có chắc chắn muốn xóa?')) return;
     try {
-      const res = await fetch(`/api/orders/${id}`, { method: 'DELETE' }).then(r => r.json());
+      const res = await fetch(`/api/orders/${id}`, { method: 'DELETE', credentials: 'include' }).then(r => r.json());
       if (res.success) {
          alert('Đã xóa đơn hàng và thu hồi hoa hồng thành công.');
          loadOrders();

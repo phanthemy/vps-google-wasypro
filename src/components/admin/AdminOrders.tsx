@@ -148,7 +148,11 @@ export const AdminOrders: React.FC = () => {
     try {
       const res = await fetch(`/api/admin/website-orders/${id}/status`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-Token': (document.cookie.match(/(?:^|;\s*)csrf_token=([^;]*)/) || [])[1] || '',
+        },
         body: JSON.stringify({ status: newStatus }),
       });
       if (res.ok) {

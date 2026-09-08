@@ -131,7 +131,7 @@ export const CTVPortalContainer: React.FC<CTVPortalContainerProps> = ({
   const primaryNavItems = [
     { id: 'dashboard', label: 'Dashboard', icon: BarChart3, visible: true },
     { id: 'orders', label: isParticipant ? 'Đơn Hàng' : 'Đơn Hàng Của Tôi', icon: ShoppingCart, visible: true },
-    { id: 'rank', label: 'Cấp Bậc & Điểm Tích Lũy', icon: TrendingUp, visible: true },
+    { id: 'rank', label: 'Cấp Bậc & Điểm Tích Lũy', icon: TrendingUp, visible: isParticipant },
     { id: 'commissions', label: 'Hoa Hồng', icon: Wallet, visible: isParticipant },
   ];
 

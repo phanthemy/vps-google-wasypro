@@ -61,7 +61,7 @@ export default function CustomersView({ refreshKey, currentUser, onAddCustomer }
       if (res.success) {
         alert('Đã nâng cấp thành công! Khách hàng giờ đây có thể đăng nhập bằng tài khoản đối tác.');
         setPromoteTarget(null);
-        fetch('/api/customers').then(r => r.json()).then(res => { if (res.success) setCustomers(res.data); });
+        fetch('/api/customers', { credentials: 'include' }).then(r => r.json()).then(res => { if (res.success) setCustomers(res.data); });
       } else {
         alert(`Lỗi nâng cấp: ${res.message || 'Không xác định'}`);
       }

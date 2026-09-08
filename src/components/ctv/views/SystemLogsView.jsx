@@ -6,7 +6,7 @@ export default function SystemLogsView({ currentUser }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch('/api/audit-logs').then(r => r.json()).then(res => {
+    fetch('/api/audit-logs', { credentials: 'include' }).then(r => r.json()).then(res => {
       if (res.success) setLogs(res.data);
       setLoading(false);
     });
