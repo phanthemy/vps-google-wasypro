@@ -253,7 +253,7 @@ export const AdminCTVManagement: React.FC = () => {
                       });
                       const data = await res.json();
                       if (data.success) {
-                        alert(`✅ Đã reset mật khẩu "${detail.ctv.fullName}"\n\nMật khẩu tạm: ${data.tempPassword}\n\nBáo cho khách đổi mật khẩu sau khi đăng nhập.`);
+                        window.prompt(`✅ Đã reset mật khẩu "${detail.ctv.fullName}"\n\nCopy mật khẩu tạm bên dưới:`, data.tempPassword);
                       } else {
                         alert('Lỗi: ' + (data.message || 'Không thể reset mật khẩu'));
                       }

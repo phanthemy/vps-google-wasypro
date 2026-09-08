@@ -56,7 +56,7 @@ const AdminMembersView: React.FC = () => {
     try {
       const res = await fetch(`/api/admin/users/${m.userId}/reset-password`, { method: "POST", credentials: "include", headers: { "Content-Type": "application/json", "X-CSRF-Token": getCsrfToken() } });
       const data = await res.json();
-      if (data.success) alert(`Da reset mat khau "${m.fullName}"\n\nMat khau tam: ${data.tempPassword}\n\nBao cho khach doi mat khau sau khi dang nhap.`);
+      if (data.success) window.prompt(`Da reset mat khau "${m.fullName}"\n\nCopy mat khau tam ben duoi:`, data.tempPassword);
       else alert("Loi: " + (data.message || "Khong the reset"));
     } catch { alert("Loi ket noi may chu"); }
     finally { setActionLoading(null); }
