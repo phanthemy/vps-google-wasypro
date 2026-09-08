@@ -62,10 +62,10 @@ export function useUnifiedAuth() {
 
   const login = async (phone: string, password: string) => {
     const res = await fetch('/api/auth/login', {
+      credentials: 'include',
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ phone, password }),
-      credentials: 'include',
     });
     const data = await res.json();
     if (!res.ok || !data.success) {
@@ -79,8 +79,8 @@ export function useUnifiedAuth() {
   const logout = async () => {
     try {
       await fetch('/api/auth/logout', {
-        method: 'POST',
         credentials: 'include',
+        method: 'POST',
       });
     } catch (e) {
       console.warn('Logout request failed', e);
