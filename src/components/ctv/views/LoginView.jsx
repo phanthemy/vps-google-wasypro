@@ -9,7 +9,7 @@ export default function LoginView({ onLogin }) {
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
   const [refCode, setRefCode] = useState(refFromUrl);
-  const [regRole, setRegRole] = useState('ctv'); // 'ctv' or 'customer'
+  // Registration always uses /api/auth/register
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
@@ -40,19 +40,11 @@ export default function LoginView({ onLogin }) {
     setLoading(true);
     try {
       let res;
-      if (regRole === 'ctv') {
-        res = await fetch('/api/users', {
+      res = await fetch('/api/auth/register', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ fullName, phone, tier: 'SILVER', parentId: refCode, password: '123456' })
+          body: JSON.stringify({ fullName, phone, password: '123456', refCode: refCode || undefined })
         }).then(r => r.json());
-      } else {
-        res = await fetch('/api/customers', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ fullName, phone, sourceCtvId: refCode })
-        }).then(r => r.json());
-      }
 
       if (res.success) {
         setSuccess('Đăng ký thành công! Mật khẩu mặc định của bạn là: 123456');
