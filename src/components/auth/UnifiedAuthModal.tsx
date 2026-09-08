@@ -34,7 +34,7 @@ export const UnifiedAuthModal: React.FC<UnifiedAuthModalProps> = ({
   const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault(); setError(''); setLoading(true);
     try {
-      const res = await fetch('/api/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ phone: loginPhone.trim(), password: loginPassword }) });
+      const res = await fetch('/api/auth/login', { credentials: 'include', method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ phone: loginPhone.trim(), password: loginPassword }) });
       const data = await res.json();
       if (!res.ok || !data.success) throw new Error(data.message || 'Số điện thoại hoặc mật khẩu không chính xác');
       localStorage.setItem('crm_user', JSON.stringify(data.data));
