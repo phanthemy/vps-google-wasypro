@@ -104,7 +104,7 @@ app.use('/uploads', express.static(uploadsDir));
 // Rate limiters
 const authLimiter = rateLimit({
   windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS || '900000', 10), // 15 mins
-  max: parseInt(process.env.RATE_LIMIT_MAX || '10', 10), // 10 attempts
+  max: parseInt(process.env.RATE_LIMIT_MAX || '30', 10), // 30 attempts
   message: { success: false, message: 'Bạn đã thử đăng nhập quá nhiều lần. Vui lòng thử lại sau 15 phút.' },
   standardHeaders: true,
   legacyHeaders: false,
