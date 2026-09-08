@@ -402,7 +402,7 @@ app.post('/api/auth/register', authLimiter, async (req, res) => {
         fullName,
         phone,
         password: hashedPassword,
-        tier: 'SILVER',
+        tier: 'NONE',
         role: 'ctv',
         parentId,
         mustChangePassword: false,
@@ -413,18 +413,44 @@ app.post('/api/auth/register', authLimiter, async (req, res) => {
       }
     });
 
-    // Auto-link existing Customer record if phone matches
+    // Auto-link existing Customer record OR create new one if joinSystem
     try {
       const existingCustomer = await prisma.customer.findFirst({
         where: { phone, linkedUserId: null }
       });
       if (existingCustomer) {
+        let regLinkSponsor = newUser.id;
+        if (parentId) {
+          const pUser3 = await prisma.user.findUnique({ where: { userId: parentId }, select: { id: true } });
+          if (pUser3) regLinkSponsor = pUser3.id;
+        }
         await prisma.customer.update({
           where: { id: existingCustomer.id },
-          data: { linkedUserId: newUser.id }
+          data: { linkedUserId: newUser.id, sponsorUserId: regLinkSponsor }
         });
+        console.log(`[REGISTER] Auto-linked Customer ${existingCustomer.id} to ${generatedId}`);
+      } else if (willJoinSystem) {
+        // FIX A01: Create Customer record so SELF_PURCHASE works immediately
+        // sourceCtvId -> User.userId, sponsorUserId -> User.id (cuid), linkedUserId -> User.id (cuid)
+        let regSponsorId = newUser.id; // self if no parent
+        if (parentId) {
+          const pUser2 = await prisma.user.findUnique({ where: { userId: parentId }, select: { id: true } });
+          if (pUser2) regSponsorId = pUser2.id;
+        }
+        await prisma.customer.create({
+          data: {
+            fullName,
+            phone,
+            sourceCtvId: generatedId,          // User.userId
+            sponsorUserId: regSponsorId,        // User.id (cuid)
+            linkedUserId: newUser.id,            // User.id (cuid)
+            status: 'NEW',
+            expiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
+          }
+        });
+        console.log(`[REGISTER] Created linked Customer for ${generatedId} (joinSystem=true)`);
       }
-    } catch (_) { /* non-critical — link can be done later */ }
+    } catch (linkErr) { console.error('[REGISTER] Customer link error:', linkErr.message); }
 
     console.log(`[REGISTER] ${generatedId} ${fullName} (${phone}) joinSystem=${willJoinSystem}`);
 
@@ -481,6 +507,47 @@ app.post('/api/users/me/join-system', authenticateToken, async (req, res) => {
     });
 
     console.log(`[JOIN-SYSTEM] ${user.userId} (${user.fullName}) joined at ${now.toISOString()}`);
+
+    // FIX A01: Ensure linked Customer record exists for SELF_PURCHASE
+    let linkedCustomer = await prisma.customer.findFirst({ where: { linkedUserId: user.id } });
+    if (!linkedCustomer) {
+      // Also check by phone (auto-link existing Customer)
+      linkedCustomer = await prisma.customer.findFirst({ where: { phone: user.phone, linkedUserId: null } });
+      if (linkedCustomer) {
+        // Link existing Customer to this user
+        // sponsorUserId -> User.id (cuid), linkedUserId -> User.id (cuid)
+        let linkSponsorId = user.id;
+        if (user.parentId) {
+          const pUser = await prisma.user.findUnique({ where: { userId: user.parentId }, select: { id: true } });
+          if (pUser) linkSponsorId = pUser.id;
+        }
+        await prisma.customer.update({
+          where: { id: linkedCustomer.id },
+          data: { linkedUserId: user.id, sponsorUserId: linkSponsorId }
+        });
+        console.log(`[JOIN-SYSTEM] Linked existing Customer ${linkedCustomer.id} to User ${user.userId}`);
+      } else {
+        // Create new Customer record linked to this user
+        // FK refs: sourceCtvId -> User.userId, sponsorUserId -> User.id (cuid), linkedUserId -> User.id (cuid)
+        let joinSponsorId = user.id; // self if no parent
+        if (user.parentId) {
+          const parentU = await prisma.user.findUnique({ where: { userId: user.parentId }, select: { id: true } });
+          if (parentU) joinSponsorId = parentU.id;
+        }
+        linkedCustomer = await prisma.customer.create({
+          data: {
+            fullName: user.fullName,
+            phone: user.phone,
+            sourceCtvId: user.userId,          // User.userId (short ID)
+            sponsorUserId: joinSponsorId,       // User.id (cuid) of sponsor
+            linkedUserId: user.id,              // User.id (cuid) of self
+            status: 'NEW',
+            expiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
+          }
+        });
+        console.log(`[JOIN-SYSTEM] Created Customer ${linkedCustomer.id} for User ${user.userId}`);
+      }
+    }
 
     res.json({
       success: true,
@@ -733,6 +800,8 @@ const PERIOD_POLICY_KEYS = [
   { key: 'AMBASSADOR_SELF_BUY',              description: 'Đại Sứ — Tự mua' },
   { key: 'AMBASSADOR_DIRECT_NO_ID',          description: 'Đại Sứ — Bán cho khách chưa có ID' },
   { key: 'AMBASSADOR_DIRECT_WITH_ID',        description: 'Đại Sứ — Bán cho khách đã có ID' },
+  { key: 'AMBASSADOR_F1',                   description: 'Đại Sứ — Upstream từ F1 (D1) (10%)' },
+  { key: 'AMBASSADOR_F2',                   description: 'Đại Sứ — Upstream từ F2 (D2) (5%)' },
   { key: 'AMBASSADOR_THRESHOLD',             description: 'Ngưỡng điểm tích lũy (Qualifying Points)' },
   { key: 'MANAGER_SELF_BUY',                 description: 'Quản Lý — Tự mua' },
   { key: 'MANAGER_DIRECT_NO_ID',             description: 'Quản Lý — Bán cho khách chưa có ID' },
@@ -1122,7 +1191,7 @@ function getPolicyKeysForRank(rank) {
   const r = (rank || '').toUpperCase();
   const keys = [];
   if (r.includes('AMBASSADOR') || r === 'AMBASSADOR') {
-    keys.push('AMBASSADOR_SELF_BUY', 'AMBASSADOR_DIRECT_NO_ID', 'AMBASSADOR_DIRECT_WITH_ID', 'AMBASSADOR_THRESHOLD');
+    keys.push('AMBASSADOR_SELF_BUY', 'AMBASSADOR_DIRECT_NO_ID', 'AMBASSADOR_DIRECT_WITH_ID', 'AMBASSADOR_F1', 'AMBASSADOR_F2', 'AMBASSADOR_THRESHOLD');
   } else if (r.includes('SALES_MANAGER') || r === 'SALES_MANAGER') {
     keys.push('MANAGER_SELF_BUY', 'MANAGER_DIRECT_NO_ID', 'MANAGER_DIRECT_WITH_ID',
               'MANAGER_F1_PURCHASE', 'MANAGER_F2_PURCHASE', 'MANAGER_F1_SELL_TO_CUSTOMER_NO_ID');
@@ -3222,7 +3291,8 @@ async function calculateAndCreateCommissions(tx, context) {
         let d1RuleKey = null;
         if (d1Prefix === 'DIRECTOR') d1RuleKey = 'DIRECTOR_F1';
         else if (d1Prefix === 'MANAGER') d1RuleKey = 'MANAGER_F1_PURCHASE';
-        // Ambassador không có F1 upstream trong spec → skip
+        else if (d1Prefix === 'AMBASSADOR') d1RuleKey = 'AMBASSADOR_F1';
+        // Boss approved: Ambassador F1=10%, F2=5% — DO NOT skip
 
         if (d1RuleKey) {
           const d1Rate = getPolicyRate(d1RuleKey);
@@ -3252,7 +3322,8 @@ async function calculateAndCreateCommissions(tx, context) {
             let d2RuleKey = null;
             if (d2Prefix === 'DIRECTOR') d2RuleKey = 'DIRECTOR_F2';
             else if (d2Prefix === 'MANAGER') d2RuleKey = 'MANAGER_F2_PURCHASE';
-            // Ambassador không có F2 upstream → skip
+            else if (d2Prefix === 'AMBASSADOR') d2RuleKey = 'AMBASSADOR_F2';
+            // Boss approved: Ambassador F2=5% — DO NOT skip
 
             if (d2RuleKey) {
               const d2Rate = getPolicyRate(d2RuleKey);
@@ -4434,7 +4505,7 @@ app.post('/api/orders/website', async (req, res) => {
     // Try to identify authenticated user from JWT cookie (optional — not required)
     let authedUser = null;
     try {
-      const token = req.cookies?.token;
+      const token = req.cookies?.auth_token;
       if (token) {
         const jwt = require('jsonwebtoken');
         const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key-here');
