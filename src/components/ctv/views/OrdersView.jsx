@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { ShoppingCart, Trash2, Package, RefreshCw } from 'lucide-react';
+import { ShoppingCart, Trash2, Package, RefreshCw, Plus } from 'lucide-react';
+import CreateOrderModal from './CreateOrderModal';
 
 export default function OrdersView({ currentUser }) {
   const [orders, setOrders] = useState([]);
@@ -11,6 +12,7 @@ export default function OrdersView({ currentUser }) {
   const [exactDate, setExactDate] = useState(new Date().toISOString().slice(0, 10));
   const [searchQuery, setSearchQuery] = useState('');
   const [orderType, setOrderType] = useState('all');
+  const [showCreateModal, setShowCreateModal] = useState(false);
 
   const isAdmin = currentUser?.role === 'admin' || currentUser?.role === 'accountant';
   const isParticipant = currentUser?.isSystemParticipant;
@@ -180,6 +182,21 @@ export default function OrdersView({ currentUser }) {
           <div className="flex-col gap-4 mb-2">
              <div className="flex justify-between items-center">
                 <h2 className="text-xl font-bold text-primary flex items-center gap-2"><ShoppingCart className="text-blue-500"/> Đơn Hàng Của Tôi</h2>
+                {isParticipant && (
+                  <button
+                    onClick={() => setShowCreateModal(true)}
+                    className="hover-scale"
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: '6px',
+                      padding: '8px 16px', borderRadius: '12px',
+                      background: '#6366f1', color: 'white',
+                      fontWeight: 700, fontSize: '0.8rem',
+                      border: 'none', cursor: 'pointer',
+                    }}
+                  >
+                    <Plus size={16} /> Tạo Đơn
+                  </button>
+                )}
                 <button onClick={loadOrders} className="btn-icon hover-scale" title="Làm mới" style={{ padding: '8px', borderRadius: '50%' }}>
                   <RefreshCw size={18} />
                 </button>
@@ -288,6 +305,14 @@ export default function OrdersView({ currentUser }) {
               ))}
             </div>
           )}
+          {showCreateModal && (
+            <CreateOrderModal
+              currentUser={currentUser}
+              onClose={() => setShowCreateModal(false)}
+              onSuccess={() => { setShowCreateModal(false); loadOrders(); }}
+            />
+          )}
+
        </div>
     </div>
   )
