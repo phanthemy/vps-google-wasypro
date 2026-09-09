@@ -17,6 +17,7 @@ import { AdminProducts } from './components/admin/AdminProducts';
 import { AdminWarranties } from './components/admin/AdminWarranties';
 import { AdminLeads } from './components/admin/AdminLeads';
 import { AdminOrders } from './components/admin/AdminOrders';
+import MyOrdersView from './components/MyOrdersView';
 import { AdminNews } from './components/admin/AdminNews';
 import AdminUsers from './components/admin/AdminUsers';
 import AdminPolicyConfig from './components/admin/AdminPolicyConfig';
@@ -328,7 +329,12 @@ export const App: React.FC = () => {
 
       {/* Main Container Content */}
       <main className="pt-28 sm:pt-32">
-        {activeSection === 'ctv' ? (
+        {activeSection === 'my-orders' && user ? (
+          <MyOrdersView
+            user={user}
+            onBack={() => { setActiveSection('hero'); window.history.pushState(null, '', '/'); }}
+          />
+        ) : activeSection === 'ctv' ? (
           /* CTV Portal Section */
           user ? (
             (user.isSystemParticipant || ['AMBASSADOR','MANAGER','DIRECTOR'].includes((user as any).rank || '') || user.role === 'admin' || user.role === 'accountant') ? (

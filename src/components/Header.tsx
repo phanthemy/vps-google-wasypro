@@ -17,7 +17,7 @@ import {
   Users,
   History,
   Sparkles
-} from 'lucide-react';
+, ShoppingBag} from 'lucide-react';
 import { UserSession } from '../hooks/useUnifiedAuth';
 
 interface HeaderProps {
@@ -191,6 +191,15 @@ export const Header: React.FC<HeaderProps> = ({
                       <p className="text-[10px] text-gray-500 font-mono mt-0.5">{user.phone}</p>
                     </div>
 
+                    {/* Đơn hàng của tôi — visible to all logged-in users */}
+                    <button
+                      onClick={() => { onNavigate('my-orders'); setUserDropdownOpen(false); }}
+                      className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-semibold text-gray-700 hover:bg-primary/5 hover:text-primary transition-colors text-left"
+                    >
+                      <ShoppingBag className="w-4 h-4 text-primary" />
+                      <span>Đơn hàng của tôi</span>
+                    </button>
+
                     {/* CTV Portal — visible to all logged-in users */}
                     <a
                       href="/ctv"
@@ -298,6 +307,14 @@ export const Header: React.FC<HeaderProps> = ({
                     <p className="text-xs font-bold text-gray-900">{user.fullName}</p>
                     <p className="text-[10px] text-gray-500 font-mono">{user.phone}</p>
                   </div>
+                  {/* Đơn hàng của tôi — mobile */}
+                  <button
+                    onClick={() => { onNavigate('my-orders'); setMobileMenuOpen(false); }}
+                    className="w-full py-2.5 rounded-lg bg-slate-100 text-slate-700 text-xs font-bold uppercase flex items-center justify-center gap-2"
+                  >
+                    <ShoppingBag className="w-3.5 h-3.5 text-primary" />
+                    Đơn hàng của tôi
+                  </button>
                   {/* CTV Portal — all logged-in users */}
                   <a
                     href="/ctv"

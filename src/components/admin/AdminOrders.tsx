@@ -347,7 +347,7 @@ export const AdminOrders: React.FC = () => {
                           <td className="py-3 px-4">
                             <div className="font-bold text-slate-800">{order.customerName}</div>
                             <div className="text-[11px] text-slate-400 mt-0.5">{order.customerPhone}</div>
-                            {order.address && <div className="text-[10px] text-slate-400 mt-0.5 line-clamp-1">{order.address}</div>}
+                            {order.address && <div className="text-[10px] text-slate-400 mt-0.5 line-clamp-1">📍 {order.address}</div>}
                           </td>
                           <td className="py-3 px-4">
                             <div className="font-semibold text-slate-700 text-xs line-clamp-2">{order.productTitle || '—'}</div>
@@ -372,7 +372,8 @@ export const AdminOrders: React.FC = () => {
                           <td className="py-3 px-4">
                             {order.userId ? (
                               <div>
-                                <div className="text-xs font-bold text-slate-700">{order.userId}</div>
+                                <div className="text-[10px] font-bold text-purple-500 uppercase">Tài khoản</div>
+                                <div className="text-xs font-bold text-slate-800">{order.userId}</div>
                                 {order.sponsorUserId && (
                                   <div className="text-[10px] text-emerald-600 mt-0.5">
                                     Sponsor: {order.sponsorUserId}
@@ -380,7 +381,10 @@ export const AdminOrders: React.FC = () => {
                                 )}
                               </div>
                             ) : (
-                              <span className="text-[10px] text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded font-bold">Khách vãng lai</span>
+                              <div>
+                                <div className="text-[10px] font-bold text-amber-500 uppercase">Khách vãng lai</div>
+                                <div className="text-[10px] text-slate-400 mt-0.5">Không có tài khoản</div>
+                              </div>
                             )}
                           </td>
                           <td className="py-3 px-4 text-right">
