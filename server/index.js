@@ -3421,7 +3421,11 @@ async function executeOrderSettlement(orderId, options = {}) {
     const orderer = order.orderer || (order.ordererUserId ? await tx.user.findUnique({ where: { id: order.ordererUserId } }) : null);
     const customer = order.customer;
     const qualifyingMember = customer.linkedUser || null;
-    const isSelf = !!(qualifyingMember && orderer && qualifyingMember.id === orderer.id);
+    // CANONICAL isSelf: buyer IS orderer AND buyer is system participant.
+    // Non-participant buyers who self-checkout = CUSTOMER_PURCHASE (Direct Customer),
+    // not SELF_PURCHASE. SELF commission only for CTV members.
+    const buyerIsOrderer = !!(qualifyingMember && orderer && qualifyingMember.id === orderer.id);
+    const isSelf = buyerIsOrderer && !!qualifyingMember.isSystemParticipant;
 
     let directSponsor = customer.sponsorUser || null;
     if (!directSponsor && customer.sponsorUserId) {
@@ -4615,10 +4619,12 @@ app.post('/api/orders/website', async (req, res) => {
     }
 
     // ─── COMMISSION BRIDGE: WebsiteOrder → Commission Engine ───
-    // ONLY for CTV members (isSystemParticipant=true) buying via website.
-    // Regular users (non-CTV) self-buying = 0 commission for sponsor.
-    // F1/F2 only applies to members WITH Business ID in sponsor tree.
-    if (authedUser && authedUser.isSystemParticipant && sponsorUserId && cpSnapshot > 0) {
+    // Fires for ANY authenticated user with a valid sponsor and product with CP.
+    // Commission classification is handled by the canonical engine:
+    //   - Non-participant buyer → DIRECT commission to sponsor
+    //   - CTV participant buyer → SELF + F1/F2 upstream
+    //   - Guest / no sponsor → no bridge
+    if (authedUser && sponsorUserId && cpSnapshot > 0) {
       try {
         // 1. Find or create Customer record for this user
         let customer = await prisma.customer.findFirst({
@@ -4626,7 +4632,27 @@ app.post('/api/orders/website', async (req, res) => {
         });
         
         if (!customer) {
-          // Create Customer linked to user, with sponsor as sourceCtv
+          // Resolve sponsor for Customer creation
+          const sponsorUser = await prisma.user.findFirst({
+            where: { OR: [{ id: sponsorUserId }, { userId: sponsorUserId }] }
+          });
+          const sourceCtvUserId = sponsorUser?.userId || sponsorUserId;
+          
+          // Try to find existing Customer by phone+sourceCtvId (created by CTV, not yet linked)
+          const existingByPhone = await prisma.customer.findFirst({
+            where: { phone: authedUser.phone, sourceCtvId: sourceCtvUserId }
+          });
+          if (existingByPhone) {
+            // Link existing Customer record to this user
+            customer = await prisma.customer.update({
+              where: { id: existingByPhone.id },
+              data: { linkedUserId: authedUser.id, sponsorUserId: sponsorUser?.id || existingByPhone.sponsorUserId }
+            });
+            console.log('[COMMISSION BRIDGE] Linked existing Customer', customer.id, 'to', authedUser.userId);
+          }
+        }
+        
+        if (!customer) {
           const sponsorUser = await prisma.user.findFirst({
             where: { OR: [{ id: sponsorUserId }, { userId: sponsorUserId }] }
           });
@@ -4665,8 +4691,8 @@ app.post('/api/orders/website', async (req, res) => {
             totalAmount: itemPrice * itemQty,
             status: 'COMPLETED',
             orderType: 'RETAIL',
-            isSelfBuy: !!(customer.linkedUserId && customer.linkedUserId === authedUser.id),
-            purchaseType: (customer.linkedUserId && customer.linkedUserId === authedUser.id) ? 'SELF_PURCHASE' : 'CUSTOMER_PURCHASE',
+            isSelfBuy: !!(authedUser.isSystemParticipant && customer.linkedUserId && customer.linkedUserId === authedUser.id),
+            purchaseType: (authedUser.isSystemParticipant && customer.linkedUserId && customer.linkedUserId === authedUser.id) ? 'SELF_PURCHASE' : 'CUSTOMER_PURCHASE',
             ordererUserId: authedUser.id,
             periodId: openPeriod?.id || null,
             items: {
