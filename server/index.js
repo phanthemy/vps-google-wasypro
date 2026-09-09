@@ -2497,7 +2497,7 @@ app.get('/api/internal-users', authenticateToken, requireRole(['admin']), async 
 app.get('/api/admin/ctv', authenticateToken, requireRole(['admin', 'accountant']), async (req, res) => {
   try {
     const users = await prisma.user.findMany({
-      where: { role: 'ctv' },
+      where: { role: 'ctv', isSystemParticipant: true },
       orderBy: { createdAt: 'desc' },
       include: {
         parent: { select: { userId: true, fullName: true } },
