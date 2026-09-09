@@ -4627,7 +4627,8 @@ app.post('/api/orders/website', async (req, res) => {
     //   - Non-participant buyer → DIRECT commission to sponsor
     //   - CTV participant buyer → SELF + F1/F2 upstream
     //   - Guest / no sponsor → no bridge
-    if (authedUser && sponsorUserId && cpSnapshot > 0) {
+    // Bridge fires if: (1) has sponsor → DIRECT/F1/F2, OR (2) is CTV → SELF
+    if (authedUser && (sponsorUserId || authedUser.isSystemParticipant) && cpSnapshot > 0) {
       try {
         // 1. Find or create Customer record for this user
         let customer = await prisma.customer.findFirst({
@@ -4635,11 +4636,14 @@ app.post('/api/orders/website', async (req, res) => {
         });
         
         if (!customer) {
-          // Resolve sponsor for Customer creation
-          const sponsorUser = await prisma.user.findFirst({
-            where: { OR: [{ id: sponsorUserId }, { userId: sponsorUserId }] }
-          });
-          const sourceCtvUserId = sponsorUser?.userId || sponsorUserId;
+          // Resolve sponsor for Customer creation (may be null for top-level CTV)
+          let sponsorUser = null;
+          if (sponsorUserId) {
+            sponsorUser = await prisma.user.findFirst({
+              where: { OR: [{ id: sponsorUserId }, { userId: sponsorUserId }] }
+            });
+          }
+          const sourceCtvUserId = sponsorUser?.userId || authedUser.userId;
           
           // Try to find existing Customer by phone+sourceCtvId (created by CTV, not yet linked)
           const existingByPhone = await prisma.customer.findFirst({
@@ -4656,23 +4660,26 @@ app.post('/api/orders/website', async (req, res) => {
         }
         
         if (!customer) {
-          const sponsorUser = await prisma.user.findFirst({
-            where: { OR: [{ id: sponsorUserId }, { userId: sponsorUserId }] }
-          });
-          const sourceCtvUserId = sponsorUser?.userId || sponsorUserId;
+          let sponsorUser2 = null;
+          if (sponsorUserId) {
+            sponsorUser2 = await prisma.user.findFirst({
+              where: { OR: [{ id: sponsorUserId }, { userId: sponsorUserId }] }
+            });
+          }
+          const sourceCtvUserId2 = sponsorUser2?.userId || authedUser.userId;
           
           customer = await prisma.customer.create({
             data: {
               fullName: authedUser.fullName || customerName || 'Khách',
               phone: authedUser.phone || customerPhone,
-              sourceCtvId: sourceCtvUserId,
-              sponsorUserId: sponsorUser?.id || null,
+              sourceCtvId: sourceCtvUserId2,
+              sponsorUserId: sponsorUser2?.id || null,
               linkedUserId: authedUser.id,
               status: 'ARRIVED',
               expiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
             }
           });
-          console.log('[COMMISSION BRIDGE] Created Customer', customer.id, 'for', authedUser.userId, 'sponsor:', sourceCtvUserId);
+          console.log('[COMMISSION BRIDGE] Created Customer', customer.id, 'for', authedUser.userId, 'sponsor:', sourceCtvUserId2);
         }
 
         // 2. Resolve product for order item
