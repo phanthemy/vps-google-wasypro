@@ -282,6 +282,8 @@ model WebsiteOrder {
   sponsorUserId String?  // FK to User.userId (refCode at time of order, for commission)
   commissionPoints Float @default(0) // snapshot of product.commissionPoints at order time
   qualifyingPointsAwarded Boolean @default(false) // true once QP credited to user
+  shadowOrderId   String?  // Link to shadow Order (set only when CTV participant at creation)
+  isCtvOrder      Boolean  @default(false) // true = classified as CTV order at creation time
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 }

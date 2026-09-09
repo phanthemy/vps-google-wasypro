@@ -4580,6 +4580,7 @@ app.post('/api/orders/website', async (req, res) => {
         sponsorUserId,
         commissionPoints: cpSnapshot,
         qualifyingPointsAwarded: false,
+        isCtvOrder: !!(authedUser && authedUser.isSystemParticipant),
       }
     });
 
@@ -4687,6 +4688,15 @@ app.post('/api/orders/website', async (req, res) => {
         });
         console.log('[COMMISSION BRIDGE] Shadow Order', shadowOrder.id, 'for WebsiteOrder', websiteOrder.id);
 
+        // 4b. Link shadow Order to WebsiteOrder + classify as CTV if participant
+        await prisma.websiteOrder.update({
+          where: { id: websiteOrder.id },
+          data: {
+            shadowOrderId: shadowOrder.id,
+            isCtvOrder: !!authedUser.isSystemParticipant,
+          }
+        });
+
         // 5. Run Commission Engine
         const settlementResult = await executeOrderSettlement(shadowOrder.id);
         console.log('[COMMISSION BRIDGE] Settlement:', settlementResult?.createdCommissions?.length || 0, 'commissions');
@@ -4736,7 +4746,7 @@ app.get('/api/orders/my', authenticateToken, async (req, res) => {
       // Regular user: search by userId OR by phone (for guest orders placed before login)
       const userPhone = user.phone || user.username || '';
       const websiteOrdersById = await prisma.websiteOrder.findMany({
-        where: { userId },
+        where: { userId, isCtvOrder: false },
         orderBy: { createdAt: 'desc' },
       });
       
@@ -4767,13 +4777,33 @@ app.get('/api/orders/my', authenticateToken, async (req, res) => {
       // Sort combined by date
       websiteOrders.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
-      // CTV orders placed by this user (via Customer.linkedUserId)
-      const customer = await prisma.customer.findFirst({ where: { linkedUserId: user.id } });
-      ctvOrders = customer ? await prisma.order.findMany({
-        where: { customerId: customer.id },
-        include: { items: { include: { product: true } } },
-        orderBy: { createdAt: 'desc' },
-      }) : [];
+      // CTV orders: all orders where user is orderer (CTV Portal + Website shadow orders)
+      // Only include orders created after user joined CTV (participantAt)
+      if (user.isSystemParticipant && user.participantAt) {
+        ctvOrders = await prisma.order.findMany({
+          where: {
+            ordererUserId: user.id,
+            createdAt: { gte: user.participantAt },
+          },
+          include: {
+            items: { include: { product: true } },
+            customer: true,
+          },
+          orderBy: { createdAt: 'desc' },
+        });
+      } else if (user.isSystemParticipant) {
+        // Participant without participantAt (edge case) — show all orders
+        ctvOrders = await prisma.order.findMany({
+          where: { ordererUserId: user.id },
+          include: {
+            items: { include: { product: true } },
+            customer: true,
+          },
+          orderBy: { createdAt: 'desc' },
+        });
+      } else {
+        ctvOrders = [];
+      }
     }
 
     res.json({
