@@ -4610,8 +4610,10 @@ app.post('/api/orders/website', async (req, res) => {
     }
 
     // ─── COMMISSION BRIDGE: WebsiteOrder → Commission Engine ───
-    // If authenticated user has a sponsor and product has CP, create shadow Order for commission
-    if (authedUser && sponsorUserId && cpSnapshot > 0) {
+    // ONLY for CTV members (isSystemParticipant=true) buying via website.
+    // Regular users (non-CTV) self-buying = 0 commission for sponsor.
+    // F1/F2 only applies to members WITH Business ID in sponsor tree.
+    if (authedUser && authedUser.isSystemParticipant && sponsorUserId && cpSnapshot > 0) {
       try {
         // 1. Find or create Customer record for this user
         let customer = await prisma.customer.findFirst({
