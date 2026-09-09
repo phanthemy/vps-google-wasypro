@@ -210,7 +210,8 @@ const authenticateToken = async (req, res, next) => {
 
     // STRICT ENFORCEMENT OF MANDATORY PASSWORD CHANGE
     // When mustChangePassword is true, block ALL business endpoints!
-    if (user.mustChangePassword) {
+    // DISABLED: frontend has no UI for forced password change — users get stuck
+    if (false && user.mustChangePassword) {
       const allowedEndpoints = [
         { method: 'PUT', pattern: new RegExp(`^/api/users/${user.userId}/password$`) },
         { method: 'GET', pattern: /^\/api\/auth\/me$/ },
@@ -1595,7 +1596,7 @@ app.post('/api/users', authenticateToken, requireRole(['admin', 'accountant']), 
         role: 'ctv',
         tier,
         parentId: validParentId,
-        mustChangePassword: true
+        mustChangePassword: false /* AUTO-DISABLED: no frontend UI yet */
       };
       if (password && password.trim()) {
         updateData.password = await bcrypt.hash(password.trim(), 10);
@@ -1630,7 +1631,7 @@ app.post('/api/users', authenticateToken, requireRole(['admin', 'accountant']), 
         role: 'ctv',
         tier,
         parentId: validParentId,
-        mustChangePassword: true
+        mustChangePassword: false /* AUTO-DISABLED: no frontend UI yet */
       }
     });
 
@@ -1748,7 +1749,7 @@ app.post('/api/admin/users/:id/reset-password', authenticateToken, requireRole([
 
     await prisma.user.update({
       where: { userId: id },
-      data: { password: hashed, mustChangePassword: true }
+      data: { password: hashed, mustChangePassword: false /* AUTO-DISABLED: no frontend UI yet */ }
     });
 
     // Audit Log: only record target ID and admin ID - NEVER log the plain password!
@@ -1945,7 +1946,7 @@ app.post('/api/customers', authenticateToken, async (req, res) => {
           role: 'customer',
           tier: 'NONE',
           parentId: validCtvId,
-          mustChangePassword: true
+          mustChangePassword: false /* AUTO-DISABLED: no frontend UI yet */
         }
       });
       await prisma.customer.update({
@@ -2037,11 +2038,11 @@ app.put('/api/customers/:id/promote', authenticateToken, async (req, res) => {
           role: 'ctv',
           tier: targetTier,
           parentId: customer.sourceCtvId,
-          mustChangePassword: true
+          mustChangePassword: false /* AUTO-DISABLED: no frontend UI yet */
         }
       });
     } else {
-      let dataToUpdate = { role: 'ctv', tier: targetTier, mustChangePassword: true };
+      let dataToUpdate = { role: 'ctv', tier: targetTier, mustChangePassword: false /* AUTO-DISABLED: no frontend UI yet */ };
       if (user.userId.startsWith('C') || user.userId.startsWith('U')) {
         let isUnique = false;
         let genId = '';
@@ -2636,7 +2637,7 @@ app.post('/api/internal-users', authenticateToken, requireRole(['admin']), async
         role,
         tier: 'NONE',
         status: 'ACTIVE',
-        mustChangePassword: true
+        mustChangePassword: false /* AUTO-DISABLED: no frontend UI yet */
       }
     });
 
