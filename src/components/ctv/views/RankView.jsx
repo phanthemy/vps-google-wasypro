@@ -93,6 +93,18 @@ export default function RankView({ currentUser }) {
           label: 'Bán trực tiếp (Thành viên)',
           desc: 'Bán cho khách hàng hoặc thành viên đã có ID',
           rate: fmtRate('AMBASSADOR_DIRECT_WITH_ID', '10%')
+        },
+        {
+          key: 'AMBASSADOR_F1',
+          label: 'Đồng hành F1 (D1)',
+          desc: 'Hoa hồng từ đơn hàng do F1 trực tiếp tự mua',
+          rate: fmtRate('AMBASSADOR_F1', '10%')
+        },
+        {
+          key: 'AMBASSADOR_F2',
+          label: 'Đồng hành F2 (D2)',
+          desc: 'Hoa hồng từ đơn hàng do F2 trực thuộc tự mua',
+          rate: fmtRate('AMBASSADOR_F2', '5%')
         }
       ]
     },
@@ -134,12 +146,6 @@ export default function RankView({ currentUser }) {
           label: 'Đồng hành F2 (D2)',
           desc: 'Hoa hồng từ đơn hàng do F2 trực thuộc tự mua',
           rate: fmtRate('MANAGER_F2_PURCHASE', '5%')
-        },
-        {
-          key: 'MANAGER_F1_SELL_TO_CUSTOMER_NO_ID',
-          label: 'F1 bán cho khách mới',
-          desc: 'Hỗ trợ F1 phát triển thị trường khách hàng mới',
-          rate: fmtRate('MANAGER_F1_SELL_TO_CUSTOMER_NO_ID', '5%')
         }
       ]
     },
@@ -251,10 +257,10 @@ export default function RankView({ currentUser }) {
           <div>
             <div className="flex items-center gap-2 text-sm font-extrabold text-slate-900 uppercase tracking-wide">
               <TrendingUp size={18} className="text-emerald-600" />
-              <span>Bảng Cơ Chế Hoa Hồng Theo Cấp Bậc (Phase 2C)</span>
+              <span>Bảng Cơ Chế Hoa Hồng — {{ AMBASSADOR: 'ĐẠI SỨ (AMBASSADOR)', MANAGER: 'QUẢN LÝ (MANAGER)', DIRECTOR: 'GIÁM ĐỐC (DIRECTOR)' }[currentUser?.rank?.toUpperCase()] || 'Chưa xác định'}</span>
             </div>
             <p className="text-xs text-slate-500 mt-0.5">
-              Cơ chế được đồng bộ tự động trực tiếp từ chính sách hệ thống quản trị
+              Cơ chế hoa hồng áp dụng cho cấp bậc hiện tại của bạn
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -282,10 +288,19 @@ export default function RankView({ currentUser }) {
           <div className="p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs text-center font-medium">
             ⚠️ {policyError} — Vui lòng bấm "Làm mới" để thử lại.
           </div>
+        ) : !currentUser?.rank || currentUser?.rank === 'NONE' ? (
+          <div className="p-6 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-center">
+            <p className="text-sm font-bold mb-1">Bạn chưa đạt cấp bậc đối tác</p>
+            <p className="text-xs text-amber-600">Tích lũy đủ 5.000 CP từ đơn hàng cá nhân để đạt chuẩn Đại Sứ và xem bảng cơ chế hoa hồng.</p>
+          </div>
         ) : (
-          /* High-Contrast 3-Column Layout with Crisp Typography */
-          <div className="grid gap-5" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))' }}>
-            {rankGroups.map(grp => (
+          /* Show only the commission table for the current user's rank */
+          <div className="grid gap-5" style={{ gridTemplateColumns: '1fr' }}>
+            {rankGroups.filter(grp => {
+              const userRank = currentUser?.rank?.toUpperCase();
+              if (!userRank || userRank === 'NONE') return false;
+              return grp.role === userRank;
+            }).map(grp => (
               <div
                 key={grp.role}
                 className={`rounded-2xl border ${grp.borderClass} bg-white shadow-sm hover:shadow-md transition-all flex flex-col justify-between overflow-hidden`}
