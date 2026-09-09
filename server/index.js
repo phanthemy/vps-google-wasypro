@@ -4609,6 +4609,81 @@ app.post('/api/orders/website', async (req, res) => {
       });
     }
 
+    // ─── COMMISSION BRIDGE: WebsiteOrder → Commission Engine ───
+    // If authenticated user has a sponsor and product has CP, create shadow Order for commission
+    if (authedUser && sponsorUserId && cpSnapshot > 0) {
+      try {
+        // 1. Find or create Customer record for this user
+        let customer = await prisma.customer.findFirst({
+          where: { linkedUserId: authedUser.id }
+        });
+        
+        if (!customer) {
+          // Create Customer linked to user, with sponsor as sourceCtv
+          const sponsorUser = await prisma.user.findFirst({
+            where: { OR: [{ id: sponsorUserId }, { userId: sponsorUserId }] }
+          });
+          const sourceCtvUserId = sponsorUser?.userId || sponsorUserId;
+          
+          customer = await prisma.customer.create({
+            data: {
+              fullName: authedUser.fullName || customerName || 'Khách',
+              phone: authedUser.phone || customerPhone,
+              sourceCtvId: sourceCtvUserId,
+              sponsorUserId: sponsorUser?.id || null,
+              linkedUserId: authedUser.id,
+              status: 'ARRIVED',
+              expiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
+            }
+          });
+          console.log('[COMMISSION BRIDGE] Created Customer', customer.id, 'for', authedUser.userId, 'sponsor:', sourceCtvUserId);
+        }
+
+        // 2. Resolve product for order item
+        const prod = productId ? await prisma.product.findUnique({ where: { id: productId } }) : null;
+        const itemPrice = prod ? prod.price : (productPrice || 0);
+        const itemCP = prod ? (prod.commissionPoints || 0) : cpSnapshot;
+        const itemQty = qty || 1;
+
+        // 3. Get current OPEN period
+        const openPeriod = await prisma.commissionPeriod.findFirst({
+          where: { status: 'OPEN' },
+          orderBy: { createdAt: 'desc' }
+        });
+
+        // 4. Create shadow Order (mirrors WebsiteOrder for commission engine)
+        const shadowOrder = await prisma.order.create({
+          data: {
+            customerId: customer.id,
+            totalAmount: itemPrice * itemQty,
+            status: 'COMPLETED',
+            orderType: 'RETAIL',
+            isSelfBuy: !!(customer.linkedUserId && customer.linkedUserId === authedUser.id),
+            purchaseType: (customer.linkedUserId && customer.linkedUserId === authedUser.id) ? 'SELF_PURCHASE' : 'CUSTOMER_PURCHASE',
+            ordererUserId: authedUser.id,
+            periodId: openPeriod?.id || null,
+            items: {
+              create: [{
+                productId: productId || null,
+                amount: itemPrice * itemQty,
+                qty: itemQty,
+                unitCommissionPts: itemCP,
+                lineCommissionPts: itemCP * itemQty,
+              }]
+            }
+          }
+        });
+        console.log('[COMMISSION BRIDGE] Shadow Order', shadowOrder.id, 'for WebsiteOrder', websiteOrder.id);
+
+        // 5. Run Commission Engine
+        const settlementResult = await executeOrderSettlement(shadowOrder.id);
+        console.log('[COMMISSION BRIDGE] Settlement:', settlementResult?.createdCommissions?.length || 0, 'commissions');
+      } catch (bridgeErr) {
+        // Non-fatal: commission failure should not block order
+        console.error('[COMMISSION BRIDGE ERROR]', bridgeErr.message);
+      }
+    }
+
     console.log(`[WEBSITE ORDER] ${websiteOrder.customerName} (${websiteOrder.customerPhone}) userId=${authedUser?.userId || 'guest'} product=${resolvedProductTitle} total=${totalAmount}`);
     res.status(201).json({ success: true, order: { id: websiteOrder.id, status: websiteOrder.status } });
   } catch (err) {
