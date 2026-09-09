@@ -1852,6 +1852,9 @@ app.get('/api/customers', authenticateToken, async (req, res) => {
     if (req.user.role === 'ctv') {
       const downlineIds = await getDownlineUserIds(req.user.id);
       whereFilter.sourceCtvId = { in: [req.user.id, ...Array.from(downlineIds)] };
+      // Exclude CTV's own self-linked Customer record (for SELF_PURCHASE only)
+      // This prevents CTV from seeing themselves in the "Khách Hàng" dropdown
+      whereFilter.NOT = { linkedUserId: req.user.dbId };
     }
 
     const customers = await prisma.customer.findMany({
