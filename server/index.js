@@ -3082,6 +3082,7 @@ async function calculateAndCreateCommissions(tx, context) {
     isSelf,
     priorQP,
     priorBusinessId,
+    priorRank,
     isParticipant,
     threshold,
     policyMap,
@@ -3143,8 +3144,11 @@ async function calculateAndCreateCommissions(tx, context) {
   // SELF only when Customer.linkedUserId == Orderer.id
   // Receiver = Orderer (Customer Member)
   // Ambassador SELF = 20%, Manager SELF = 25%, Director SELF = 30%
-  if (isSelf && orderer) {
-    const effectiveRank = (activated && isSelf) ? 'AMBASSADOR' : orderer.rank;
+  // BOSS RULE: SELF requires priorBusinessId (user had BID BEFORE this order).
+  // Order that crosses 5000 CP threshold → promoted AFTER → NO SELF on that order.
+  // Next order after promotion → SELF eligible.
+  if (isSelf && orderer && priorBusinessId) {
+    const effectiveRank = priorRank || orderer.rank;
     const rankPrefix = normalizeRankPrefix(effectiveRank);
 
     if (rankPrefix) {
@@ -3233,7 +3237,8 @@ async function calculateAndCreateCommissions(tx, context) {
         }
       } else {
         // NON-SPLIT: Either DIRECT_WITH_ID or DIRECT_NO_ID
-        const hasId = qualifyingMember && (priorBusinessId || qualifyingMember.businessId);
+        // BOSS RULE: Use priorBusinessId only (PRE-ORDER state). No post-promotion fallback.
+        const hasId = qualifyingMember && priorBusinessId;
 
         if (hasId) {
           // Customer has ID -> DIRECT_WITH_ID
@@ -3288,11 +3293,12 @@ async function calculateAndCreateCommissions(tx, context) {
   const memberForUpstream = isSelf ? orderer : qualifyingMember;
 
   // F1/F2 GATE: Only fire upstream commission when the buyer/member is
-  // a system participant WITH Business ID. Non-CTV users with referral
-  // codes (parentId from registration) are NOT F1 members.
+  // a system participant WITH Business ID AT TIME OF ORDER (pre-order state).
+  // BOSS RULE: Order crossing threshold does NOT retroactively qualify for F1/F2.
+  // Uses priorBusinessId and isParticipant from pre-order snapshot.
   if (memberForUpstream && memberForUpstream.parentId
-      && memberForUpstream.isSystemParticipant
-      && memberForUpstream.businessId) {
+      && isParticipant
+      && priorBusinessId) {
     // --- Depth-1: parent trực tiếp của member ---
     const d1User = await tx.user.findUnique({ where: { userId: memberForUpstream.parentId } });
 
@@ -3464,9 +3470,12 @@ async function executeOrderSettlement(orderId, options = {}) {
 
     const threshold = parseInt(policyMap['AMBASSADOR_THRESHOLD'] || '5000', 10);
 
-    // Track qualifyingMember state BEFORE points awarded (for SPLIT eligibility)
+    // Track qualifyingMember state BEFORE points awarded (for eligibility)
+    // BOSS RULE: Commission eligibility = PRE-ORDER state, not POST-ORDER state.
+    // Order crossing 5000 CP threshold does NOT retroactively qualify for SELF/F1/F2.
     let priorQP = 0;
     let priorBusinessId = null;
+    let priorRank = null;
     let isParticipant = false;
 
     if (qualifyingMember) {
@@ -3474,6 +3483,7 @@ async function executeOrderSettlement(orderId, options = {}) {
       if (freshQM) {
         priorQP = freshQM.qualifyingPoints || 0;
         priorBusinessId = freshQM.businessId || null;
+        priorRank = freshQM.rank || null;
         isParticipant = !!freshQM.isSystemParticipant;
       }
     }
@@ -3570,6 +3580,7 @@ async function executeOrderSettlement(orderId, options = {}) {
       isSelf,
       priorQP,
       priorBusinessId,
+      priorRank,
       isParticipant,
       threshold,
       policyMap,
@@ -4572,54 +4583,12 @@ app.post('/api/orders/website', async (req, res) => {
       }
     });
 
-    // Award qualifying points if user is a system participant
-    if (authedUser && authedUser.isSystemParticipant && cpSnapshot > 0) {
-      await prisma.$transaction(async (tx) => {
-        const updated = await tx.user.update({
-          where: { id: authedUser.id },
-          data: { qualifyingPoints: { increment: Math.round(cpSnapshot * (qty || 1)) } }
-        });
-        await tx.websiteOrder.update({
-          where: { id: websiteOrder.id },
-          data: { qualifyingPointsAwarded: true }
-        });
-
-        // Check 5000 CP threshold → Ambassador auto-activation
-        const THRESHOLD = 5000;
-        if (updated.qualifyingPoints >= THRESHOLD && !updated.businessId) {
-          // Allocate Business ID from sequence
-          const seq = await tx.businessIdSequence.update({
-            where: { id: 1 },
-            data: { nextVal: { increment: 1 } }
-          });
-          const bizId = 'WK-' + String(seq.nextVal - 1).padStart(5, '0');
-          const now2 = new Date();
-          await tx.user.update({
-            where: { id: authedUser.id },
-            data: {
-              businessId: bizId,
-              rank: 'AMBASSADOR',
-              rankStatus: 'ACTIVE',
-              rankAchievedAt: now2,
-              rankActivationMethod: 'AUTO_WEBSITE',
-            }
-          });
-          await tx.rankHistory.create({
-            data: {
-              userId: authedUser.userId,
-              fromRank: authedUser.rank || null,
-              toRank: 'AMBASSADOR',
-              fromStatus: authedUser.rankStatus || 'NOT_QUALIFIED',
-              toStatus: 'ACTIVE_RANK',
-              reason: 'AUTO_5000_CP_WEBSITE',
-              triggeredBy: 'SYSTEM',
-              metadata: JSON.stringify({ businessId: bizId, method: 'AUTO_WEBSITE', cpThreshold: 5000, qualifyingPoints: updated.qualifyingPoints }),
-            }
-          });
-          console.log(`[AMBASSADOR AUTO] ${authedUser.userId} → ${bizId} via website order`);
-        }
-      });
-    }
+    // [REMOVED] Duplicate qualifying points + auto-promote block.
+    // Settlement (executeOrderSettlement) handles points, threshold check, BID issuance,
+    // and rank promotion inside the commission bridge transaction.
+    // Removing prevents: (a) double qualifying points, (b) retroactive promotion before
+    // commission calculation.
+    // BOSS RULE: Commission eligibility = PRE-ORDER state.
 
     // ─── COMMISSION BRIDGE: WebsiteOrder → Commission Engine ───
     // Fires for ANY authenticated user with a valid sponsor and product with CP.
