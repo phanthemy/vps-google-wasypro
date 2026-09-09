@@ -101,8 +101,12 @@ if (!fs.existsSync(uploadsDir)) {
 }
 app.use('/uploads', express.static(uploadsDir));
 
+// Trust proxy (behind Nginx reverse proxy)
+app.set('trust proxy', 1);
+
 // Rate limiters
 const authLimiter = rateLimit({
+  validate: false,
   windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS || '900000', 10), // 15 mins
   max: parseInt(process.env.RATE_LIMIT_MAX || '30', 10), // 30 attempts
   message: { success: false, message: 'Bạn đã thử đăng nhập quá nhiều lần. Vui lòng thử lại sau 15 phút.' },
@@ -111,6 +115,7 @@ const authLimiter = rateLimit({
 });
 
 const passwordLimiter = rateLimit({
+  validate: false,
   windowMs: 15 * 60 * 1000,
   max: 5,
   message: { success: false, message: 'Bạn đã thử đổi mật khẩu quá nhiều lần. Vui lòng thử lại sau 15 phút.' },
