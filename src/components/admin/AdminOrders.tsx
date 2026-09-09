@@ -328,7 +328,7 @@ export const AdminOrders: React.FC = () => {
                       <th className="py-4 px-4">SL</th>
                       <th className="py-4 px-4">Tổng Tiền</th>
                       <th className="py-4 px-4">CP</th>
-                      <th className="py-4 px-4">User ID</th>
+                      <th className="py-4 px-4">Thành Viên</th>
                       <th className="py-4 px-4 text-right">Trạng Thái</th>
                     </tr>
                   </thead>
@@ -371,7 +371,14 @@ export const AdminOrders: React.FC = () => {
                           </td>
                           <td className="py-3 px-4">
                             {order.userId ? (
-                              <span className="text-xs font-mono text-slate-600">{order.userId}</span>
+                              <div>
+                                <div className="text-xs font-bold text-slate-700">{order.userId}</div>
+                                {order.sponsorUserId && (
+                                  <div className="text-[10px] text-emerald-600 mt-0.5">
+                                    Sponsor: {order.sponsorUserId}
+                                  </div>
+                                )}
+                              </div>
                             ) : (
                               <span className="text-[10px] text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded font-bold">Khách vãng lai</span>
                             )}
@@ -552,7 +559,7 @@ export const AdminOrders: React.FC = () => {
                                     {ctv.fullName}
                                   </div>
                                   <div className="text-[11px] text-slate-400 mt-0.5">
-                                    {'userId' in ctv ? ctv.userId : ''} · {'phone' in ctv ? ctv.phone : ''}
+                                    {'userId' in ctv ? ctv.userId : ''}{'businessId' in ctv && ctv.businessId ? ` · ${ctv.businessId}` : ''} · {'phone' in ctv ? ctv.phone : ''}
                                   </div>
                                 </>
                               ) : <span className="text-slate-400 text-xs">—</span>}
@@ -597,6 +604,47 @@ export const AdminOrders: React.FC = () => {
                           {isExpanded && (
                             <tr className="bg-slate-50/50">
                               <td colSpan={7} className="py-4 px-6">
+                                {/* ORDER AUDIT INFO */}
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+                                  <div className="bg-white rounded-xl p-3 border border-slate-100">
+                                    <div className="text-[10px] font-bold text-slate-400 uppercase">Loại Đơn</div>
+                                    <div className={`text-xs font-extrabold mt-1 ${order.purchaseType === 'SELF_PURCHASE' ? 'text-purple-700' : 'text-sky-700'}`}>
+                                      {order.purchaseType === 'SELF_PURCHASE' ? '🛒 Tự mua (Self Buy)' : '👤 Khách mua (Customer)'}
+                                    </div>
+                                    <div className="text-[10px] text-slate-400 mt-0.5">isSelfBuy: {order.isSelfBuy ? 'true' : 'false'}</div>
+                                  </div>
+                                  <div className="bg-white rounded-xl p-3 border border-purple-100">
+                                    <div className="text-[10px] font-bold text-purple-400 uppercase">CTV Tạo Đơn (Orderer)</div>
+                                    {order.orderer ? (
+                                      <>
+                                        <div className="text-xs font-extrabold text-purple-800 mt-1">{order.orderer.fullName}</div>
+                                        <div className="text-[10px] text-slate-500">{order.orderer.userId} · {order.orderer.phone}</div>
+                                      </>
+                                    ) : (
+                                      <div className="text-[10px] text-slate-400 mt-1">ID: {order.ordererUserId || '—'}</div>
+                                    )}
+                                  </div>
+                                  <div className="bg-white rounded-xl p-3 border border-sky-100">
+                                    <div className="text-[10px] font-bold text-sky-400 uppercase">Khách Hàng (Customer)</div>
+                                    <div className="text-xs font-extrabold text-sky-800 mt-1">{order.customer?.fullName || '—'}</div>
+                                    <div className="text-[10px] text-slate-500">{order.customer?.phone || '—'}</div>
+                                  </div>
+                                  <div className="bg-white rounded-xl p-3 border border-emerald-100">
+                                    <div className="text-[10px] font-bold text-emerald-400 uppercase">Sponsor (CTV Quản Lý)</div>
+                                    {order.customer?.sourceCtv ? (
+                                      <>
+                                        <div className="text-xs font-extrabold text-emerald-800 mt-1">{order.customer.sourceCtv.fullName}</div>
+                                        <div className="text-[10px] text-slate-500">
+                                          {order.customer.sourceCtv.userId}
+                                          {order.customer.sourceCtv.businessId ? ` · ${order.customer.sourceCtv.businessId}` : ''}
+                                        </div>
+                                      </>
+                                    ) : (
+                                      <div className="text-[10px] text-slate-400 mt-1">{order.customer?.sourceCtvId || '—'}</div>
+                                    )}
+                                  </div>
+                                </div>
+
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                                   <div>
                                     <div className="text-xs font-bold text-slate-600 uppercase mb-2">Sản Phẩm / Dịch Vụ</div>
