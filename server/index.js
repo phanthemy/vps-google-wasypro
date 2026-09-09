@@ -3284,7 +3284,12 @@ async function calculateAndCreateCommissions(tx, context) {
 
   const memberForUpstream = isSelf ? orderer : qualifyingMember;
 
-  if (memberForUpstream && memberForUpstream.parentId) {
+  // F1/F2 GATE: Only fire upstream commission when the buyer/member is
+  // a system participant WITH Business ID. Non-CTV users with referral
+  // codes (parentId from registration) are NOT F1 members.
+  if (memberForUpstream && memberForUpstream.parentId
+      && memberForUpstream.isSystemParticipant
+      && memberForUpstream.businessId) {
     // --- Depth-1: parent trực tiếp của member ---
     const d1User = await tx.user.findUnique({ where: { userId: memberForUpstream.parentId } });
 
