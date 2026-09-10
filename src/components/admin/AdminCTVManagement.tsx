@@ -506,21 +506,21 @@ export const AdminCTVManagement: React.FC = () => {
         </button>
         <button
                 onClick={async () => {
-                  const code = window.prompt('⚠️ XÓA TOÀN BỘ dữ liệu test:\n- Đơn hàng, Hoa hồng, Điểm\n- CTV/Đại sứ, Khách hàng\n\nNhập RESET_ALL để xác nhận:');
-                  if (code !== 'RESET_ALL') return;
-                  if (!window.confirm('LẦN CUỐI: Bạn chắc chắn xóa TOÀN BỘ?')) return;
+                  const c = window.prompt('⚠️ Reset CTV/Đại sứ\n(Hạ rank, xóa sponsor, xóa hoa hồng\nGiữ tài khoản user)\n\nNhập RESET_CTV để xác nhận:');
+                  if (c !== 'RESET_CTV') return;
+                  if (!window.confirm('Xác nhận lần cuối?')) return;
                   try {
-                    const token = localStorage.getItem('token') || localStorage.getItem('crm_token');
-                    const csrfToken = (document.cookie.match(/(?:^|;\s*)csrf_token=([^;]*)/) || [])[1] || '';
-                    const res = await fetch('/api/admin/reset-uat', {
+                    const tk = localStorage.getItem('token') || localStorage.getItem('crm_token');
+                    const csrf = (document.cookie.match(/(?:^|;\s*)csrf_token=([^;]*)/) || [])[1] || '';
+                    const r = await fetch('/api/admin/reset-ctv', {
                       method: 'POST',
-                      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token, 'X-CSRF-Token': csrfToken },
-                      body: JSON.stringify({ confirm: 'RESET_ALL' }),
+                      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + tk, 'X-CSRF-Token': csrf },
+                      body: JSON.stringify({ confirm: 'RESET_CTV' }),
                     }).then(r => r.json());
-                    if (res.success) {
-                      window.alert('✅ Đã reset!\n\n' + Object.entries(res.summary).map(([k,v]) => k + ': ' + v).join('\n'));
-                      fetchList; 
-                    } else { window.alert('Lỗi: ' + res.message); }
+                    if (r.success) {
+                      window.alert('✅ Done!\n\n' + Object.entries(r.summary).map(([k,v]) => k + ': ' + v).join('\n'));
+                      fetchList();
+                    } else { window.alert('Lỗi: ' + r.message); }
                   } catch(e) { window.alert('Lỗi kết nối'); }
                 }}
                 className="px-3 py-1.5 rounded-xl text-xs font-bold transition-all border border-red-200 bg-red-50 text-red-600 hover:bg-red-100"

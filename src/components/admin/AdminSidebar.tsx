@@ -21,6 +21,7 @@ export const NAV_ITEMS = [
   { id: 'users', label: 'Tài Khoản Admin', icon: Users, badge: null },
   { id: 'periods', label: 'Kỳ Hoa Hồng', icon: Calendar, badge: null },
   { id: 'policy', label: 'Cấu Hình Hoa Hồng', icon: Settings2, badge: null },
+  { id: 'system', label: 'Hệ Thống', icon: Settings2, badge: null },
 ];
 
 export const AdminSidebar: React.FC<AdminSidebarProps> = ({

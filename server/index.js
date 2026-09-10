@@ -2382,99 +2382,164 @@ app.put('/api/admin/orders/:id/status', authenticateToken, async (req, res) => {
 });
 
 
+
 /**
- * POST /api/admin/reset-uat
- * ⚠️ TEMPORARY — Boss-controlled UAT data reset
- * Deletes all transactional data, resets CTV participants to clean state
- * Will be locked after testing is complete
+ * POST /api/admin/reset-orders
+ * Reset Orders only — keeps users, CTV, members
  */
-app.post('/api/admin/reset-uat', authenticateToken, async (req, res) => {
+app.post('/api/admin/reset-orders', authenticateToken, async (req, res) => {
   try {
-    if (req.user.role !== 'admin') {
-      return res.status(403).json({ success: false, message: 'Chỉ admin mới được reset.' });
-    }
-    
+    if (req.user.role !== 'admin') return res.status(403).json({ success: false, message: 'Super Admin only' });
     const { confirm } = req.body;
-    if (confirm !== 'RESET_ALL') {
-      return res.status(400).json({ success: false, message: 'Vui lòng xác nhận bằng code RESET_ALL' });
-    }
+    if (confirm !== 'RESET_ORDERS') return res.status(400).json({ success: false, message: 'Nhập RESET_ORDERS' });
 
-    console.log('[RESET UAT] Started by', req.user.id, 'at', new Date().toISOString());
-
-    // 1. Delete transactional data (order matters due to FK)
-    const delCommProcessing = await prisma.commissionProcessing.deleteMany({});
-    const delCommissions = await prisma.commission.deleteMany({});
-    const delOrderItems = await prisma.orderItem.deleteMany({});
-    const delOrders = await prisma.order.deleteMany({});
-    const delWebsiteOrders = await prisma.websiteOrder.deleteMany({});
+    console.log('[RESET ORDERS] by', req.user.id, new Date().toISOString());
+    const r = {};
+    try { r.commissionProcessing = (await prisma.commissionProcessing.deleteMany({})).count; } catch(e) { r.commissionProcessing = 0; }
+    try { r.commissions = (await prisma.commission.deleteMany({})).count; } catch(e) { r.commissions = 0; }
+    try { r.commissionPointAudit = (await prisma.commissionPointAuditLog.deleteMany({})).count; } catch(e) { r.commissionPointAudit = 0; }
+    try { r.orderItems = (await prisma.orderItem.deleteMany({})).count; } catch(e) { r.orderItems = 0; }
+    try { r.orders = (await prisma.order.deleteMany({})).count; } catch(e) { r.orders = 0; }
+    try { r.websiteOrders = (await prisma.websiteOrder.deleteMany({})).count; } catch(e) { r.websiteOrders = 0; }
+    try { r.sPointTx = (await prisma.sPointTransaction.deleteMany({})).count; } catch(e) { r.sPointTx = 0; }
+    try { r.rankHistory = (await prisma.rankHistory.deleteMany({})).count; } catch(e) { r.rankHistory = 0; }
     
-    // 2. Delete rank history & point transactions
-    let delRankHistory = { count: 0 };
-    try { delRankHistory = await prisma.rankHistory.deleteMany({}); } catch(e) {}
-    let delSPointTx = { count: 0 };
-    try { delSPointTx = await prisma.sPointTransaction.deleteMany({}); } catch(e) {}
+    // Reverse QP/SP on all users
+    const allU = await prisma.user.findMany({ select: { id: true } });
+    for (const u of allU) {
+      try {
+        await prisma.user.update({ where: { id: u.id }, data: { qualifyingPoints: 0, sPoints: 0, totalMachinesBought: 0, wholesaleEligible: false } });
+      } catch(e) {}
+    }
+    r.usersPointsReset = allU.length;
+    
+    res.json({ success: true, summary: r });
+  } catch(e) { console.error('[RESET ORDERS]', e); res.status(500).json({ success: false, message: e.message }); }
+});
 
-    // 3. Reset all users: clear CTV/Ambassador status
-    // Reset users one by one (businessId has @unique constraint)
-    const allUsers = await prisma.user.findMany({ select: { id: true } });
+/**
+ * POST /api/admin/reset-ctv
+ * Reset CTV/Ambassador — keeps user accounts, customer profiles
+ */
+app.post('/api/admin/reset-ctv', authenticateToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') return res.status(403).json({ success: false, message: 'Super Admin only' });
+    const { confirm } = req.body;
+    if (confirm !== 'RESET_CTV') return res.status(400).json({ success: false, message: 'Nhập RESET_CTV' });
+
+    console.log('[RESET CTV] by', req.user.id, new Date().toISOString());
+    const r = {};
+    
+    // Delete commission data
+    try { r.commissionProcessing = (await prisma.commissionProcessing.deleteMany({})).count; } catch(e) { r.commissionProcessing = 0; }
+    try { r.commissions = (await prisma.commission.deleteMany({})).count; } catch(e) { r.commissions = 0; }
+    try { r.commissionPointAudit = (await prisma.commissionPointAuditLog.deleteMany({})).count; } catch(e) { r.commissionPointAudit = 0; }
+    try { r.sPointTx = (await prisma.sPointTransaction.deleteMany({})).count; } catch(e) { r.sPointTx = 0; }
+    try { r.rankHistory = (await prisma.rankHistory.deleteMany({})).count; } catch(e) { r.rankHistory = 0; }
+    
+    // Reset all non-admin users: rank, sponsor, qualification, wallet
+    const allU = await prisma.user.findMany({ where: { role: { not: 'admin' } }, select: { id: true } });
     let resetCount = 0;
-    for (const u of allUsers) {
+    for (const u of allU) {
       try {
         await prisma.user.update({
           where: { id: u.id },
           data: {
-            qualifyingPoints: 0,
-            sPoints: 0,
-            rank: null,
-            rankStatus: null,
-            rankAchievedAt: null,
-            rankActivationMethod: null,
-            rankActivatedBy: null,
-            tier: 'NONE',
-            isSystemParticipant: false,
-            participantAt: null,
-            businessId: null,
-            totalMachinesBought: 0,
-            wholesaleEligible: false,
+            qualifyingPoints: 0, sPoints: 0, rank: null, rankStatus: null, rankAchievedAt: null,
+            rankActivationMethod: null, rankActivatedBy: null, tier: 'NONE',
+            isSystemParticipant: false, participantAt: null, businessId: null,
+            totalMachinesBought: 0, wholesaleEligible: false, parentId: null,
           }
         });
         resetCount++;
-      } catch(e) { console.log('[RESET] Skip user', u.id, e.message); }
+      } catch(e) {}
     }
-    const resetUsers = { count: resetCount };
+    r.usersReset = resetCount;
+    
+    res.json({ success: true, summary: r });
+  } catch(e) { console.error('[RESET CTV]', e); res.status(500).json({ success: false, message: e.message }); }
+});
 
-    // 4. Delete customers (CTV-linked customers)
-    let delCustomers = { count: 0 };
-    try { delCustomers = await prisma.customer.deleteMany({}); } catch(e) {}
+/**
+ * POST /api/admin/reset-members
+ * Reset Members — deletes non-admin users + customers
+ */
+app.post('/api/admin/reset-members', authenticateToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') return res.status(403).json({ success: false, message: 'Super Admin only' });
+    const { confirm } = req.body;
+    if (confirm !== 'RESET_MEMBERS') return res.status(400).json({ success: false, message: 'Nhập RESET_MEMBERS' });
 
-    // 5. Delete ALL non-admin users (test accounts)
-    let delUsers = { count: 0 };
-    try { delUsers = await prisma.user.deleteMany({ where: { role: { not: 'admin' } } }); } catch(e) { console.log('[RESET] delUsers error:', e.message); }
+    console.log('[RESET MEMBERS] by', req.user.id, new Date().toISOString());
+    const r = {};
+    
+    // Must delete related data first (FK constraints)
+    try { r.commissionProcessing = (await prisma.commissionProcessing.deleteMany({})).count; } catch(e) { r.commissionProcessing = 0; }
+    try { r.commissions = (await prisma.commission.deleteMany({})).count; } catch(e) { r.commissions = 0; }
+    try { r.commissionPointAudit = (await prisma.commissionPointAuditLog.deleteMany({})).count; } catch(e) { r.commissionPointAudit = 0; }
+    try { r.orderItems = (await prisma.orderItem.deleteMany({})).count; } catch(e) { r.orderItems = 0; }
+    try { r.orders = (await prisma.order.deleteMany({})).count; } catch(e) { r.orders = 0; }
+    try { r.sPointTx = (await prisma.sPointTransaction.deleteMany({})).count; } catch(e) { r.sPointTx = 0; }
+    try { r.rankHistory = (await prisma.rankHistory.deleteMany({})).count; } catch(e) { r.rankHistory = 0; }
+    try { r.customerAuditLog = (await prisma.customerAuditLog.deleteMany({})).count; } catch(e) { r.customerAuditLog = 0; }
+    try { r.customers = (await prisma.customer.deleteMany({})).count; } catch(e) { r.customers = 0; }
+    try { r.usersDeleted = (await prisma.user.deleteMany({ where: { role: { not: 'admin' } } })).count; } catch(e) { r.usersDeleted = 0; }
+    
+    res.json({ success: true, summary: r });
+  } catch(e) { console.error('[RESET MEMBERS]', e); res.status(500).json({ success: false, message: e.message }); }
+});
 
-    const summary = {
-      commissionProcessing: delCommProcessing.count,
-      commissions: delCommissions.count,
-      orderItems: delOrderItems.count,
-      orders: delOrders.count,
-      websiteOrders: delWebsiteOrders.count,
-      rankHistory: delRankHistory.count,
-      sPointTransactions: delSPointTx.count,
-      customers: delCustomers.count,
-      usersDeleted: delUsers.count,
-      usersReset: resetUsers.count,
-    };
+/**
+ * POST /api/admin/factory-reset
+ * 🔥 Factory Reset — deletes EVERYTHING except Super Admin + system config
+ */
+app.post('/api/admin/factory-reset', authenticateToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') return res.status(403).json({ success: false, message: 'Super Admin only' });
+    const { confirm } = req.body;
+    if (confirm !== 'DELETE ALL DATA') return res.status(400).json({ success: false, message: 'Nhập đúng: DELETE ALL DATA' });
 
-    console.log('[RESET UAT] Complete:', JSON.stringify(summary));
-
-    res.json({
-      success: true,
-      message: 'UAT đã được reset về trạng thái sạch.',
-      summary,
-    });
-  } catch (err) {
-    console.error('[RESET UAT] Error:', err.message);
-    res.status(500).json({ success: false, message: err.message });
-  }
+    console.log('[FACTORY RESET] ⚠️ by', req.user.id, new Date().toISOString());
+    const r = {};
+    
+    // Delete ALL transactional data
+    try { r.commissionProcessing = (await prisma.commissionProcessing.deleteMany({})).count; } catch(e) { r.commissionProcessing = 0; }
+    try { r.commissions = (await prisma.commission.deleteMany({})).count; } catch(e) { r.commissions = 0; }
+    try { r.commissionPointAudit = (await prisma.commissionPointAuditLog.deleteMany({})).count; } catch(e) { r.commissionPointAudit = 0; }
+    try { r.periodCloseAudit = (await prisma.periodCloseAudit.deleteMany({})).count; } catch(e) { r.periodCloseAudit = 0; }
+    try { r.periodPolicyAudit = (await prisma.periodPolicyAuditLog.deleteMany({})).count; } catch(e) { r.periodPolicyAudit = 0; }
+    try { r.periodPolicy = (await prisma.periodPolicyConfig.deleteMany({})).count; } catch(e) { r.periodPolicy = 0; }
+    try { r.periods = (await prisma.commissionPeriod.deleteMany({})).count; } catch(e) { r.periods = 0; }
+    try { r.orderItems = (await prisma.orderItem.deleteMany({})).count; } catch(e) { r.orderItems = 0; }
+    try { r.orders = (await prisma.order.deleteMany({})).count; } catch(e) { r.orders = 0; }
+    try { r.websiteOrders = (await prisma.websiteOrder.deleteMany({})).count; } catch(e) { r.websiteOrders = 0; }
+    try { r.wholesaleItems = (await prisma.wholesaleOrderItem.deleteMany({})).count; } catch(e) { r.wholesaleItems = 0; }
+    try { r.wholesaleOrders = (await prisma.wholesaleOrder.deleteMany({})).count; } catch(e) { r.wholesaleOrders = 0; }
+    try { r.sPointTx = (await prisma.sPointTransaction.deleteMany({})).count; } catch(e) { r.sPointTx = 0; }
+    try { r.rankHistory = (await prisma.rankHistory.deleteMany({})).count; } catch(e) { r.rankHistory = 0; }
+    try { r.customerAuditLog = (await prisma.customerAuditLog.deleteMany({})).count; } catch(e) { r.customerAuditLog = 0; }
+    try { r.appointments = (await prisma.appointment.deleteMany({})).count; } catch(e) { r.appointments = 0; }
+    try { r.customers = (await prisma.customer.deleteMany({})).count; } catch(e) { r.customers = 0; }
+    try { r.usersDeleted = (await prisma.user.deleteMany({ where: { role: { not: 'admin' } } })).count; } catch(e) { r.usersDeleted = 0; }
+    
+    // Reset admin users points
+    const admins = await prisma.user.findMany({ where: { role: 'admin' }, select: { id: true } });
+    for (const u of admins) {
+      try {
+        await prisma.user.update({
+          where: { id: u.id },
+          data: { qualifyingPoints: 0, sPoints: 0, rank: null, rankStatus: null, rankAchievedAt: null,
+            rankActivationMethod: null, rankActivatedBy: null, totalMachinesBought: 0, wholesaleEligible: false }
+        });
+      } catch(e) {}
+    }
+    r.adminsReset = admins.length;
+    
+    // Reset BusinessId sequence
+    try { r.businessIdSeq = (await prisma.businessIdSequence.deleteMany({})).count; } catch(e) { r.businessIdSeq = 0; }
+    
+    res.json({ success: true, summary: r });
+  } catch(e) { console.error('[FACTORY RESET]', e); res.status(500).json({ success: false, message: e.message }); }
 });
 
 // VOID / CANCEL ORDER (No hard delete! Preserves full accounting audit trail with REVERSAL for PAID commissions)

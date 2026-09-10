@@ -263,30 +263,25 @@ export const AdminOrders: React.FC = () => {
               </button>
               <button
                 onClick={async () => {
-                  const code = window.prompt('⚠️ XÓA TOÀN BỘ dữ liệu test:\n- Đơn hàng\n- Hoa hồng\n- Điểm\n- CTV/Đại sứ\n- Khách hàng\n\nNhập RESET_ALL để xác nhận:');
-                  if (code !== 'RESET_ALL') return;
-                  if (!window.confirm('LẦN CUỐI: Bạn chắc chắn muốn xóa TOÀN BỘ dữ liệu?')) return;
+                  const c = window.prompt('⚠️ Xóa tất cả đơn hàng + hoa hồng + điểm\n(Giữ user, CTV, thành viên)\n\nNhập RESET_ORDERS để xác nhận:');
+                  if (c !== 'RESET_ORDERS') return;
+                  if (!window.confirm('Xác nhận lần cuối?')) return;
                   try {
-                    const token = localStorage.getItem('token') || localStorage.getItem('crm_token');
-                    const res = await fetch('/api/admin/reset-uat', {
+                    const tk = localStorage.getItem('token') || localStorage.getItem('crm_token');
+                    const csrf = (document.cookie.match(/(?:^|;\s*)csrf_token=([^;]*)/) || [])[1] || '';
+                    const r = await fetch('/api/admin/reset-orders', {
                       method: 'POST',
-                      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token, 'X-CSRF-Token': (document.cookie.match(/(?:^|;\s*)csrf_token=([^;]*)/) || [])[1] || '' },
-                      body: JSON.stringify({ confirm: 'RESET_ALL' }),
+                      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + tk, 'X-CSRF-Token': csrf },
+                      body: JSON.stringify({ confirm: 'RESET_ORDERS' }),
                     }).then(r => r.json());
-                    if (res.success) {
-                      window.alert('✅ Đã reset!\n\n' + Object.entries(res.summary).map(([k,v]) => k + ': ' + v).join('\n'));
-                      fetchWebOrders();
-                      fetchCtvOrders();
-                    } else {
-                      window.alert('Lỗi: ' + res.message);
-                    }
+                    if (r.success) {
+                      window.alert('✅ Done!\n\n' + Object.entries(r.summary).map(([k,v]) => k + ': ' + v).join('\n'));
+                      fetchWebOrders(); fetchCtvOrders();
+                    } else { window.alert('Lỗi: ' + r.message); }
                   } catch(e) { window.alert('Lỗi kết nối'); }
                 }}
                 className="px-3 py-1.5 rounded-xl text-xs font-bold transition-all border border-red-200 bg-red-50 text-red-600 hover:bg-red-100"
-                title="Xóa toàn bộ dữ liệu test"
-              >
-                🗑️ Reset
-              </button>
+              >🗑️ Reset</button>
             </div>
           </div>
 
