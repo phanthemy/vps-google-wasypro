@@ -2419,12 +2419,17 @@ app.post('/api/admin/reset-uat', authenticateToken, async (req, res) => {
       data: {
         qualifyingPoints: 0,
         sPoints: 0,
-        totalCommission: 0,
-        rank: 'NONE',
-        tier: 'customer',
+        rank: null,
+        rankStatus: null,
+        rankAchievedAt: null,
+        rankActivationMethod: null,
+        rankActivatedBy: null,
+        tier: 'NONE',
         isSystemParticipant: false,
         participantAt: null,
         businessId: null,
+        totalMachinesBought: 0,
+        wholesaleEligible: false,
       }
     });
 
