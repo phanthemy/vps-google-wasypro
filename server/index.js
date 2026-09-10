@@ -2381,6 +2381,82 @@ app.put('/api/admin/orders/:id/status', authenticateToken, async (req, res) => {
   }
 });
 
+
+/**
+ * POST /api/admin/reset-uat
+ * ⚠️ TEMPORARY — Boss-controlled UAT data reset
+ * Deletes all transactional data, resets CTV participants to clean state
+ * Will be locked after testing is complete
+ */
+app.post('/api/admin/reset-uat', authenticateToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Chỉ admin mới được reset.' });
+    }
+    
+    const { confirm } = req.body;
+    if (confirm !== 'RESET_ALL') {
+      return res.status(400).json({ success: false, message: 'Vui lòng xác nhận bằng code RESET_ALL' });
+    }
+
+    console.log('[RESET UAT] Started by', req.user.id, 'at', new Date().toISOString());
+
+    // 1. Delete transactional data (order matters due to FK)
+    const delCommProcessing = await prisma.commissionProcessing.deleteMany({});
+    const delCommissions = await prisma.commission.deleteMany({});
+    const delOrderItems = await prisma.orderItem.deleteMany({});
+    const delOrders = await prisma.order.deleteMany({});
+    const delWebsiteOrders = await prisma.websiteOrder.deleteMany({});
+    
+    // 2. Delete rank history & point transactions
+    let delRankHistory = { count: 0 };
+    try { delRankHistory = await prisma.rankHistory.deleteMany({}); } catch(e) {}
+    let delSPointTx = { count: 0 };
+    try { delSPointTx = await prisma.sPointTransaction.deleteMany({}); } catch(e) {}
+
+    // 3. Reset all users: clear CTV/Ambassador status
+    const resetUsers = await prisma.user.updateMany({
+      data: {
+        qualifyingPoints: 0,
+        sPoints: 0,
+        totalCommission: 0,
+        rank: 'NONE',
+        tier: 'customer',
+        isSystemParticipant: false,
+        participantAt: null,
+        businessId: null,
+      }
+    });
+
+    // 4. Delete customers (CTV-linked customers)
+    let delCustomers = { count: 0 };
+    try { delCustomers = await prisma.customer.deleteMany({}); } catch(e) {}
+
+    const summary = {
+      commissionProcessing: delCommProcessing.count,
+      commissions: delCommissions.count,
+      orderItems: delOrderItems.count,
+      orders: delOrders.count,
+      websiteOrders: delWebsiteOrders.count,
+      rankHistory: delRankHistory.count,
+      sPointTransactions: delSPointTx.count,
+      customers: delCustomers.count,
+      usersReset: resetUsers.count,
+    };
+
+    console.log('[RESET UAT] Complete:', JSON.stringify(summary));
+
+    res.json({
+      success: true,
+      message: 'UAT đã được reset về trạng thái sạch.',
+      summary,
+    });
+  } catch (err) {
+    console.error('[RESET UAT] Error:', err.message);
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
 // VOID / CANCEL ORDER (No hard delete! Preserves full accounting audit trail with REVERSAL for PAID commissions)
 app.delete('/api/orders/:id', authenticateToken, requireRole(['admin', 'accountant']), async (req, res) => {
   try {

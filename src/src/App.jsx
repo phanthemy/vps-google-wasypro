@@ -2549,6 +2549,30 @@ function OrdersView({ currentUser }) {
        <div className="card glass-panel flex-col gap-4">
           <div className="flex justify-between items-center mb-4">
              <h2 className="text-xl font-bold text-primary flex items-center gap-2"><ShoppingCart className="text-blue-500"/> Quản lý Đơn Hàng</h2>
+             <button 
+               onClick={async () => {
+                 const code = prompt('⚠️ XÓA TOÀN BỘ dữ liệu test:\n- Đơn hàng\n- Hoa hồng\n- Điểm\n- CTV/Đại sứ\n- Khách hàng\n\nNhập RESET_ALL để xác nhận:');
+                 if (code !== 'RESET_ALL') return;
+                 if (!window.confirm('LẦN CUỐI: Bạn chắc chắn muốn xóa TOÀN BỘ dữ liệu?')) return;
+                 try {
+                   const res = await fetch('/api/admin/reset-uat', {
+                     method: 'POST',
+                     headers: { 'Content-Type': 'application/json' },
+                     body: JSON.stringify({ confirm: 'RESET_ALL' }),
+                   }).then(r => r.json());
+                   if (res.success) {
+                     alert('✅ Đã reset!\n\n' + Object.entries(res.summary).map(([k,v]) => k + ': ' + v).join('\n'));
+                     loadOrders();
+                   } else {
+                     alert('Lỗi: ' + res.message);
+                   }
+                 } catch(e) { alert('Lỗi kết nối'); }
+               }}
+               className="text-xs font-bold px-3 py-2 rounded-lg transition-all hover:opacity-80"
+               style={{ background: '#fef2f2', color: '#ef4444', border: '1px solid #fecaca' }}
+             >
+               🗑️ Reset Test Data
+             </button>
           </div>
 
           {/* Sub-tabs */}
