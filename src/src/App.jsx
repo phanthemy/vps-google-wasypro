@@ -2533,6 +2533,33 @@ function OrdersView({ currentUser }) {
     }
   };
 
+  const handleCtvOrderStatus = async (orderId, newStatus) => {
+    const statusNames = { CONFIRMED: 'Xác nhận', SHIPPING: 'Giao hàng', COMPLETED: 'Hoàn thành', CANCELLED: 'Hủy' };
+    const msg = newStatus === 'COMPLETED'
+      ? 'Hoàn thành đơn sẽ tự động tính hoa hồng. Tiếp tục?'
+      : newStatus === 'CANCELLED'
+      ? 'Hủy đơn sẽ thu hồi hoa hồng (nếu có). Tiếp tục?'
+      : `Chuyển sang "${statusNames[newStatus]}"?`;
+    if (!window.confirm(msg)) return;
+    try {
+      const res = await fetch(`/api/admin/orders/${orderId}/status`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus }),
+      }).then(r => r.json());
+      if (res.success) {
+        const extra = res.settlement ? ` → ${res.settlement.commissions} hoa hồng` : '';
+        const extra2 = res.reversal ? ` → Thu hồi ${res.reversal.commissionsRevoked} hoa hồng` : '';
+        alert('Cập nhật thành công!' + extra + extra2);
+        loadOrders();
+      } else {
+        alert('Lỗi: ' + res.message);
+      }
+    } catch (e) {
+      alert('Lỗi kết nối');
+    }
+  };
+
   const getNextStatuses = (current) => {
     const transitions = {
       'NEW': ['CONFIRMED', 'CANCELLED'],
@@ -2699,14 +2726,32 @@ function OrdersView({ currentUser }) {
                           </div>
                        </td>
                        <td style={{ padding: '12px', textAlign: 'center' }}>
-                          <button 
-                             className="btn-icon hover-scale" 
-                             style={{ color: '#ef4444', background: 'rgba(239, 68, 68, 0.1)', borderRadius: '50%', padding: '8px', margin: '0 auto' }}
-                             onClick={() => handleDelete(order.id)}
-                             title="Xóa Đơn Hàng & Thu hồi Hoa Hồng"
-                          >
-                             <Trash2 size={18} />
-                          </button>
+                          <div className="flex flex-col gap-1 items-center">
+                            {getNextStatuses(order.status).map(ns => (
+                              <button
+                                key={ns}
+                                onClick={() => handleCtvOrderStatus(order.id, ns)}
+                                className="text-xs font-bold px-3 py-1 rounded-lg transition-all hover:opacity-80"
+                                style={{
+                                  color: statusMap[ns]?.color || '#666',
+                                  background: statusMap[ns]?.bg || '#f5f5f5',
+                                  border: `1px solid ${statusMap[ns]?.color || '#ccc'}40`,
+                                }}
+                              >
+                                → {statusMap[ns]?.text || ns}
+                              </button>
+                            ))}
+                            {order.status !== 'CANCELLED' && (
+                              <button 
+                                className="btn-icon hover-scale mt-1" 
+                                style={{ color: '#ef4444', background: 'rgba(239, 68, 68, 0.1)', borderRadius: '50%', padding: '6px' }}
+                                onClick={() => handleDelete(order.id)}
+                                title="Xóa Đơn Hàng"
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            )}
+                          </div>
                        </td>
                     </tr>
                  ))}

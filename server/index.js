@@ -2287,7 +2287,7 @@ app.post('/api/orders', authenticateToken, async (req, res) => {
       data: {
         customerId,
         totalAmount,
-        status: 'COMPLETED',
+        status: 'NEW',
         orderType: 'RETAIL',
         isSelfBuy: isSelf,
         purchaseType,
@@ -2306,23 +2306,78 @@ app.post('/api/orders', authenticateToken, async (req, res) => {
       }
     });
 
-    // Phase 2C Unified Order Settlement (idempotent, atomic transaction)
-    let settlementResult = null;
-    try {
-      settlementResult = await executeOrderSettlement(order.id);
-    } catch (settleErr) {
-      console.error('[SETTLEMENT ERROR] order', order.id, settleErr.message);
-    }
+    // Settlement DEFERRED — only runs when admin marks order as COMPLETED
+    // CTV Portal orders follow the same lifecycle as Website Orders:
+    // NEW → CONFIRMED → SHIPPING → COMPLETED (settlement) | CANCELLED (reversal)
 
     res.json({
       success: true,
       data: order,
-      settlement: settlementResult,
-      commissions: settlementResult?.createdCommissions || [],
+      settlement: null,
+      commissions: [],
       periodId: orderPeriodId,
+      message: 'Đơn hàng đã tạo thành công. Chờ admin xác nhận và hoàn thành để tính hoa hồng.',
     });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * PUT /api/admin/orders/:id/status
+ * Admin — update CTV Order status + trigger settlement/reversal
+ * Same lifecycle as Website Orders: NEW → CONFIRMED → SHIPPING → COMPLETED | CANCELLED
+ */
+app.put('/api/admin/orders/:id/status', authenticateToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin' && req.user.role !== 'accountant') {
+      return res.status(403).json({ success: false, message: 'Không có quyền.' });
+    }
+    const { status } = req.body;
+    const validStatuses = ['NEW', 'CONFIRMED', 'SHIPPING', 'COMPLETED', 'CANCELLED'];
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({ success: false, message: 'Trạng thái không hợp lệ.' });
+    }
+
+    const order = await prisma.order.findUnique({ where: { id: req.params.id } });
+    if (!order) return res.status(404).json({ success: false, message: 'Đơn hàng không tồn tại.' });
+
+    if (order.status === 'CANCELLED') {
+      return res.status(400).json({ success: false, message: 'Đơn đã hủy, không thể thay đổi.' });
+    }
+
+    await prisma.order.update({ where: { id: req.params.id }, data: { status } });
+    console.log('[ORDER STATUS]', req.params.id, order.status, '→', status);
+
+    let settlementResult = null;
+    let reversalResult = null;
+
+    if (status === 'COMPLETED') {
+      try {
+        settlementResult = await executeOrderSettlement(req.params.id);
+        console.log('[ORDER LIFECYCLE] Settlement:', settlementResult?.createdCommissions?.length || 0, 'commissions');
+      } catch (e) {
+        console.error('[ORDER LIFECYCLE] Settlement error:', e.message);
+      }
+    }
+
+    if (status === 'CANCELLED') {
+      try {
+        reversalResult = await reverseOrderSettlement(req.params.id, req.user);
+        console.log('[ORDER LIFECYCLE] Reversal:', JSON.stringify(reversalResult));
+      } catch (e) {
+        console.error('[ORDER LIFECYCLE] Reversal error:', e.message);
+      }
+    }
+
+    res.json({
+      success: true,
+      settlement: settlementResult ? { commissions: settlementResult.createdCommissions?.length || 0 } : null,
+      reversal: reversalResult || null,
+    });
+  } catch (err) {
+    console.error('[ORDER STATUS]', err.message);
+    res.status(500).json({ success: false, message: 'Lỗi máy chủ.' });
   }
 });
 
