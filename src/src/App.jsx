@@ -2458,10 +2458,10 @@ function AboutView() {
 }
 
 function OrdersView({ currentUser }) {
-  const [orders, setOrders] = useState([]);
+  const [ctvOrders, setCtvOrders] = useState([]);
   const [websiteOrders, setWebsiteOrders] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [activeSubTab, setActiveSubTab] = useState('website');
+  const [activeSubTab, setActiveSubTab] = useState('manage');
 
   const statusMap = {
     'NEW': { text: 'Mới', color: '#3b82f6', bg: '#eff6ff' },
@@ -2476,102 +2476,73 @@ function OrdersView({ currentUser }) {
     return <span style={{ color: s.color, background: s.bg, padding: '2px 10px', borderRadius: '12px', fontSize: '0.75rem', fontWeight: 700, border: `1px solid ${s.color}30` }}>{s.text}</span>;
   };
 
+  const getNextStatuses = (current) => {
+    const t = { 'NEW': ['CONFIRMED', 'CANCELLED'], 'CONFIRMED': ['SHIPPING', 'CANCELLED'], 'SHIPPING': ['COMPLETED', 'CANCELLED'], 'COMPLETED': ['CANCELLED'], 'CANCELLED': [] };
+    return t[current] || [];
+  };
+
   const loadOrders = () => {
     setLoading(true);
     Promise.all([
       fetch('/api/orders').then(r => r.json()),
       fetch('/api/admin/website-orders').then(r => r.json()),
     ]).then(([ctvRes, woRes]) => {
-      if (ctvRes.success) setOrders(ctvRes.data);
+      if (ctvRes.success) setCtvOrders(ctvRes.data);
       if (woRes.success) setWebsiteOrders(woRes.data);
     }).finally(() => setLoading(false));
   };
 
-  useEffect(() => {
-    loadOrders();
-  }, []);
+  useEffect(() => { loadOrders(); }, []);
 
-  const handleDelete = async (id) => {
-    if (!window.confirm('CẢNH BÁO: Xóa đơn hàng sẽ tự động thu hồi hoa hồng liên quan!\n\nBạn có chắc chắn muốn xóa?')) return;
-    try {
-      const res = await fetch(`/api/orders/${id}`, { method: 'DELETE' }).then(r => r.json());
-      if (res.success) {
-         alert('Đã xóa đơn hàng và thu hồi hoa hồng thành công.');
-         loadOrders();
-      } else {
-         alert('Lỗi: ' + (res.message || res.error));
-      }
-    } catch (e) {
-      alert('Lỗi kết nối máy chủ');
-    }
-  };
-
+  // ─── STATUS CHANGE: Website Orders (source of truth → syncs to shadow CTV) ───
   const handleWebsiteOrderStatus = async (woId, newStatus) => {
-    const statusNames = { CONFIRMED: 'Xác nhận', SHIPPING: 'Giao hàng', COMPLETED: 'Hoàn thành', CANCELLED: 'Hủy' };
     const msg = newStatus === 'COMPLETED'
-      ? 'Hoàn thành đơn sẽ tự động tính hoa hồng. Tiếp tục?'
+      ? 'Hoàn thành đơn → tự động tính hoa hồng + cộng điểm. Tiếp tục?'
       : newStatus === 'CANCELLED'
-      ? 'Hủy đơn sẽ thu hồi hoa hồng và hoàn trả điểm (nếu đã tính). Tiếp tục?'
-      : `Chuyển sang "${statusNames[newStatus]}"?`;
+      ? 'Hủy đơn → thu hồi hoa hồng + hoàn trả điểm (nếu đã tính). Tiếp tục?'
+      : `Chuyển sang "${statusMap[newStatus]?.text}"?`;
     if (!window.confirm(msg)) return;
     try {
       const res = await fetch(`/api/admin/website-orders/${woId}/status`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: newStatus }),
       }).then(r => r.json());
       if (res.success) {
-        const extra = res.settlement ? ` → ${res.settlement.commissions} hoa hồng được tạo` : '';
-        const extra2 = res.reversal ? ` → Thu hồi ${res.reversal.commissionsRevoked} hoa hồng` : '';
-        alert('Cập nhật thành công!' + extra + extra2);
+        let extra = res.settlement ? ` → ${res.settlement.commissions} hoa hồng` : '';
+        extra += res.reversal ? ` → Thu hồi ${res.reversal.commissionsRevoked} hoa hồng` : '';
+        alert('Cập nhật thành công!' + extra);
         loadOrders();
-      } else {
-        alert('Lỗi: ' + res.message);
-      }
-    } catch (e) {
-      alert('Lỗi kết nối');
-    }
+      } else { alert('Lỗi: ' + res.message); }
+    } catch (e) { alert('Lỗi kết nối'); }
   };
 
-  const handleCtvOrderStatus = async (orderId, newStatus) => {
-    const statusNames = { CONFIRMED: 'Xác nhận', SHIPPING: 'Giao hàng', COMPLETED: 'Hoàn thành', CANCELLED: 'Hủy' };
+  // ─── STATUS CHANGE: Standalone CTV Portal orders (đơn gốc, không có WebsiteOrder) ───
+  const handleCtvPortalStatus = async (orderId, newStatus) => {
     const msg = newStatus === 'COMPLETED'
-      ? 'Hoàn thành đơn sẽ tự động tính hoa hồng. Tiếp tục?'
+      ? 'Hoàn thành đơn → tự động tính hoa hồng + cộng điểm. Tiếp tục?'
       : newStatus === 'CANCELLED'
-      ? 'Hủy đơn sẽ thu hồi hoa hồng (nếu có). Tiếp tục?'
-      : `Chuyển sang "${statusNames[newStatus]}"?`;
+      ? 'Hủy đơn → thu hồi hoa hồng + hoàn trả điểm (nếu đã tính). Tiếp tục?'
+      : `Chuyển sang "${statusMap[newStatus]?.text}"?`;
     if (!window.confirm(msg)) return;
     try {
       const res = await fetch(`/api/admin/orders/${orderId}/status`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: newStatus }),
       }).then(r => r.json());
       if (res.success) {
-        const extra = res.settlement ? ` → ${res.settlement.commissions} hoa hồng` : '';
-        const extra2 = res.reversal ? ` → Thu hồi ${res.reversal.commissionsRevoked} hoa hồng` : '';
-        alert('Cập nhật thành công!' + extra + extra2);
+        let extra = res.settlement ? ` → ${res.settlement.commissions} hoa hồng` : '';
+        extra += res.reversal ? ` → Thu hồi ${res.reversal.commissionsRevoked} hoa hồng` : '';
+        alert('Cập nhật thành công!' + extra);
         loadOrders();
-      } else {
-        alert('Lỗi: ' + res.message);
-      }
-    } catch (e) {
-      alert('Lỗi kết nối');
-    }
-  };
-
-  const getNextStatuses = (current) => {
-    const transitions = {
-      'NEW': ['CONFIRMED', 'CANCELLED'],
-      'CONFIRMED': ['SHIPPING', 'CANCELLED'],
-      'SHIPPING': ['COMPLETED', 'CANCELLED'],
-      'COMPLETED': ['CANCELLED'],
-      'CANCELLED': [],
-    };
-    return transitions[current] || [];
+      } else { alert('Lỗi: ' + res.message); }
+    } catch (e) { alert('Lỗi kết nối'); }
   };
 
   if (loading) return <div className="p-4 text-center">Đang tải danh sách đơn hàng...</div>;
+
+  // Separate CTV orders: shadow (linked from WebsiteOrder) vs standalone (CTV Portal)
+  const shadowOrderIds = new Set(websiteOrders.filter(wo => wo.shadowOrderId).map(wo => wo.shadowOrderId));
+  const standaloneCtvOrders = ctvOrders.filter(o => !shadowOrderIds.has(o.id));
 
   return (
     <div className="flex-col gap-6 fade-in">
@@ -2580,188 +2551,203 @@ function OrdersView({ currentUser }) {
              <h2 className="text-xl font-bold text-primary flex items-center gap-2"><ShoppingCart className="text-blue-500"/> Quản lý Đơn Hàng</h2>
           </div>
 
-          {/* Sub-tabs: Website / CTV */}
+          {/* Sub-tabs */}
           <div className="flex gap-2 mb-4">
-            <button
-              onClick={() => setActiveSubTab('website')}
-              className={`px-4 py-2 rounded-lg font-bold text-sm transition-all ${activeSubTab === 'website' ? 'bg-blue-500 text-white shadow-md' : 'bg-gray-100 dark:bg-gray-800 text-muted hover:bg-gray-200'}`}
-            >
-              📦 Đơn Website ({websiteOrders.length})
+            <button onClick={() => setActiveSubTab('manage')}
+              className={`px-4 py-2 rounded-lg font-bold text-sm transition-all ${activeSubTab === 'manage' ? 'bg-blue-500 text-white shadow-md' : 'bg-gray-100 dark:bg-gray-800 text-muted hover:bg-gray-200'}`}>
+              ⚙️ Quản lý trạng thái ({websiteOrders.length + standaloneCtvOrders.length})
             </button>
-            <button
-              onClick={() => setActiveSubTab('ctv')}
-              className={`px-4 py-2 rounded-lg font-bold text-sm transition-all ${activeSubTab === 'ctv' ? 'bg-purple-500 text-white shadow-md' : 'bg-gray-100 dark:bg-gray-800 text-muted hover:bg-gray-200'}`}
-            >
-              🤝 Đơn CTV ({orders.length})
+            <button onClick={() => setActiveSubTab('ctv')}
+              className={`px-4 py-2 rounded-lg font-bold text-sm transition-all ${activeSubTab === 'ctv' ? 'bg-purple-500 text-white shadow-md' : 'bg-gray-100 dark:bg-gray-800 text-muted hover:bg-gray-200'}`}>
+              📋 Đơn CTV — Chỉ xem ({ctvOrders.length})
             </button>
           </div>
 
-          {/* ════════ WEBSITE ORDERS TAB ════════ */}
-          {activeSubTab === 'website' && (
-          <div className="table-container fade-in bg-secondary rounded-xl p-1" style={{ border: '1px solid var(--border-subtle)' }}>
-            <div className="p-3 text-xs text-muted" style={{ borderBottom: '1px solid var(--border-subtle)', background: 'rgba(59,130,246,0.05)' }}>
-              💡 Website Order là nguồn dữ liệu gốc. Thay đổi trạng thái ở đây sẽ tự động đồng bộ sang đơn CTV và tính/thu hồi hoa hồng.
-            </div>
-             <table className="data-table" style={{ width: '100%', minWidth: '800px' }}>
-               <thead>
-                 <tr>
-                   <th style={{ padding: '12px', textAlign: 'left' }}>Mã Đơn / Ngày</th>
-                   <th style={{ padding: '12px', textAlign: 'left' }}>Khách Hàng</th>
-                   <th style={{ padding: '12px', textAlign: 'left' }}>Sản Phẩm / Giá</th>
-                   <th style={{ padding: '12px', textAlign: 'center' }}>Trạng Thái</th>
-                   <th style={{ padding: '12px', textAlign: 'center' }}>CTV</th>
-                   <th style={{ padding: '12px', textAlign: 'center' }}>Thao Tác</th>
-                 </tr>
-               </thead>
-               <tbody>
-                 {websiteOrders.length === 0 ? (
-                    <tr><td colSpan="6" className="text-center p-8 text-muted font-medium">Chưa có đơn Website nào</td></tr>
-                 ) : websiteOrders.map(wo => {
-                   const nextStatuses = getNextStatuses(wo.status);
-                   return (
+          {/* ════════ TAB 1: QUẢN LÝ TRẠNG THÁI (Website + CTV Portal standalone) ════════ */}
+          {activeSubTab === 'manage' && (
+          <div className="flex-col gap-6">
+
+            {/* ── Section A: Website Orders ── */}
+            <div className="table-container fade-in bg-secondary rounded-xl p-1" style={{ border: '1px solid var(--border-subtle)' }}>
+              <div className="p-3 text-xs font-bold" style={{ borderBottom: '1px solid var(--border-subtle)', background: 'rgba(59,130,246,0.05)', color: '#3b82f6' }}>
+                📦 Đơn Website ({websiteOrders.length}) — Thay đổi trạng thái ở đây sẽ tự động đồng bộ sang Đơn CTV
+              </div>
+              <table className="data-table" style={{ width: '100%', minWidth: '800px' }}>
+                <thead>
+                  <tr>
+                    <th style={{ padding: '12px', textAlign: 'left' }}>Mã Đơn / Ngày</th>
+                    <th style={{ padding: '12px', textAlign: 'left' }}>Khách Hàng</th>
+                    <th style={{ padding: '12px', textAlign: 'left' }}>Sản Phẩm / Giá</th>
+                    <th style={{ padding: '12px', textAlign: 'center' }}>Trạng Thái</th>
+                    <th style={{ padding: '12px', textAlign: 'center' }}>Thao Tác</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {websiteOrders.length === 0 ? (
+                    <tr><td colSpan="5" className="text-center p-6 text-muted">Chưa có đơn Website nào</td></tr>
+                  ) : websiteOrders.map(wo => {
+                    const next = getNextStatuses(wo.status);
+                    return (
                     <tr key={wo.id} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
-                       <td style={{ padding: '12px' }}>
-                          <div className="font-bold text-primary" style={{ fontFamily: 'monospace', fontSize: '0.8rem' }}>{wo.id.slice(0, 8).toUpperCase()}</div>
-                          <div className="text-xs text-muted mt-1">{new Date(wo.createdAt).toLocaleString('vi-VN')}</div>
-                       </td>
-                       <td style={{ padding: '12px' }}>
-                          <div className="font-bold" style={{ color: 'var(--accent-diamond)' }}>{wo.customerName}</div>
-                          <div className="text-xs text-muted mt-1">{wo.customerPhone}</div>
-                       </td>
-                       <td style={{ padding: '12px' }}>
-                          <div className="font-medium text-secondary text-sm">{wo.productTitle || 'N/A'}</div>
-                          <div className="text-green-500 font-bold text-sm mt-1">{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(wo.totalAmount)}</div>
-                       </td>
-                       <td style={{ padding: '12px', textAlign: 'center' }}>
-                          {renderStatus(wo.status)}
-                          {wo.isCtvOrder && <div className="text-xs text-purple-500 mt-1 font-bold">CTV ↗</div>}
-                       </td>
-                       <td style={{ padding: '12px', textAlign: 'center' }}>
-                          {wo.sponsorUserId ? <span className="text-xs font-bold text-purple-500">{wo.sponsorUserId}</span> : <span className="text-xs text-muted">—</span>}
-                       </td>
-                       <td style={{ padding: '12px', textAlign: 'center' }}>
-                          {nextStatuses.length > 0 ? (
-                            <div className="flex flex-col gap-1">
-                              {nextStatuses.map(ns => (
-                                <button
-                                  key={ns}
-                                  onClick={() => handleWebsiteOrderStatus(wo.id, ns)}
-                                  className="text-xs font-bold px-3 py-1 rounded-lg transition-all hover:opacity-80"
-                                  style={{
-                                    color: statusMap[ns]?.color || '#666',
-                                    background: statusMap[ns]?.bg || '#f5f5f5',
-                                    border: `1px solid ${statusMap[ns]?.color || '#ccc'}40`,
-                                  }}
-                                >
-                                  → {statusMap[ns]?.text || ns}
-                                </button>
-                              ))}
-                            </div>
-                          ) : (
-                            <span className="text-xs text-muted">—</span>
-                          )}
-                       </td>
-                    </tr>
-                   );
-                 })}
-               </tbody>
-             </table>
+                      <td style={{ padding: '12px' }}>
+                        <div className="font-bold text-primary" style={{ fontFamily: 'monospace', fontSize: '0.8rem' }}>{wo.id.slice(0, 8).toUpperCase()}</div>
+                        <div className="text-xs text-muted mt-1">{new Date(wo.createdAt).toLocaleString('vi-VN')}</div>
+                        {wo.isCtvOrder && <span className="text-xs font-bold text-purple-500">CTV ↗</span>}
+                      </td>
+                      <td style={{ padding: '12px' }}>
+                        <div className="font-bold" style={{ color: 'var(--accent-diamond)' }}>{wo.customerName}</div>
+                        <div className="text-xs text-muted mt-1">{wo.customerPhone}</div>
+                      </td>
+                      <td style={{ padding: '12px' }}>
+                        <div className="font-medium text-secondary text-sm">{wo.productTitle || 'N/A'}</div>
+                        <div className="text-green-500 font-bold text-sm mt-1">{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(wo.totalAmount)}</div>
+                      </td>
+                      <td style={{ padding: '12px', textAlign: 'center' }}>
+                        {renderStatus(wo.status)}
+                      </td>
+                      <td style={{ padding: '12px', textAlign: 'center' }}>
+                        {next.length > 0 ? (
+                          <div className="flex flex-col gap-1">
+                            {next.map(ns => (
+                              <button key={ns} onClick={() => handleWebsiteOrderStatus(wo.id, ns)}
+                                className="text-xs font-bold px-3 py-1 rounded-lg transition-all hover:opacity-80"
+                                style={{ color: statusMap[ns]?.color, background: statusMap[ns]?.bg, border: `1px solid ${statusMap[ns]?.color}40` }}>
+                                → {statusMap[ns]?.text}
+                              </button>
+                            ))}
+                          </div>
+                        ) : <span className="text-xs text-muted">—</span>}
+                      </td>
+                    </tr>);
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {/* ── Section B: Standalone CTV Portal Orders ── */}
+            {standaloneCtvOrders.length > 0 && (
+            <div className="table-container fade-in bg-secondary rounded-xl p-1" style={{ border: '1px solid var(--border-subtle)' }}>
+              <div className="p-3 text-xs font-bold" style={{ borderBottom: '1px solid var(--border-subtle)', background: 'rgba(139,92,246,0.05)', color: '#8b5cf6' }}>
+                🏪 Đơn CTV Portal ({standaloneCtvOrders.length}) — Đơn tạo trực tiếp từ CTV Portal, không có đơn Website liên kết
+              </div>
+              <table className="data-table" style={{ width: '100%', minWidth: '800px' }}>
+                <thead>
+                  <tr>
+                    <th style={{ padding: '12px', textAlign: 'left' }}>Mã Đơn / Ngày</th>
+                    <th style={{ padding: '12px', textAlign: 'left' }}>Khách Hàng</th>
+                    <th style={{ padding: '12px', textAlign: 'left' }}>Sản Phẩm / Doanh Thu</th>
+                    <th style={{ padding: '12px', textAlign: 'center' }}>Trạng Thái</th>
+                    <th style={{ padding: '12px', textAlign: 'center' }}>Thao Tác</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {standaloneCtvOrders.map(order => {
+                    const next = getNextStatuses(order.status);
+                    return (
+                    <tr key={order.id} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+                      <td style={{ padding: '12px' }}>
+                        <div className="font-bold text-primary" style={{ fontFamily: 'monospace', fontSize: '0.8rem' }}>{order.id.slice(0, 8).toUpperCase()}</div>
+                        <div className="text-xs text-muted mt-1">{new Date(order.createdAt).toLocaleString('vi-VN')}</div>
+                        <div className="text-xs text-muted">{order.purchaseType === 'SELF_PURCHASE' ? '🛒 Tự mua' : '👤 Khách mua'}</div>
+                      </td>
+                      <td style={{ padding: '12px' }}>
+                        <div className="font-bold" style={{ color: 'var(--accent-diamond)' }}>{order.customer?.fullName}</div>
+                        <div className="text-xs text-muted mt-1">SĐT: {order.customer?.phone}</div>
+                      </td>
+                      <td style={{ padding: '12px' }}>
+                        {order.items?.map((item, idx) => {
+                          const prod = item.product || item.service;
+                          return (<div key={idx} className="text-sm">
+                            <span className="font-medium text-secondary">{prod?.title || prod?.name || 'Sản phẩm'}</span>
+                            <span className="text-muted ml-1">x{item.qty || 1}</span>
+                            <span className="text-green-500 font-bold ml-2">{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(item.amount)}</span>
+                          </div>);
+                        })}
+                        <div className="font-bold text-blue-500 text-sm mt-1">{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(order.totalAmount)}</div>
+                      </td>
+                      <td style={{ padding: '12px', textAlign: 'center' }}>
+                        {renderStatus(order.status)}
+                      </td>
+                      <td style={{ padding: '12px', textAlign: 'center' }}>
+                        {next.length > 0 ? (
+                          <div className="flex flex-col gap-1">
+                            {next.map(ns => (
+                              <button key={ns} onClick={() => handleCtvPortalStatus(order.id, ns)}
+                                className="text-xs font-bold px-3 py-1 rounded-lg transition-all hover:opacity-80"
+                                style={{ color: statusMap[ns]?.color, background: statusMap[ns]?.bg, border: `1px solid ${statusMap[ns]?.color}40` }}>
+                                → {statusMap[ns]?.text}
+                              </button>
+                            ))}
+                          </div>
+                        ) : <span className="text-xs text-muted">—</span>}
+                      </td>
+                    </tr>);
+                  })}
+                </tbody>
+              </table>
+            </div>
+            )}
           </div>
           )}
 
-          {/* ════════ CTV ORDERS TAB ════════ */}
+          {/* ════════ TAB 2: ĐƠN CTV — CHỈ XEM (READ-ONLY) ════════ */}
           {activeSubTab === 'ctv' && (
           <div className="table-container fade-in bg-secondary rounded-xl p-1" style={{ border: '1px solid var(--border-subtle)' }}>
-            <div className="p-3 text-xs text-muted" style={{ borderBottom: '1px solid var(--border-subtle)', background: 'rgba(139,92,246,0.05)' }}>
-              💡 Đơn CTV bao gồm đơn từ CTV Portal và đơn shadow (đồng bộ từ Website). Trạng thái shadow được đồng bộ tự động từ Đơn Website.
+            <div className="p-3 text-xs text-muted" style={{ borderBottom: '1px solid var(--border-subtle)', background: 'rgba(139,92,246,0.03)' }}>
+              📋 Tab này chỉ hiển thị — trạng thái được đồng bộ từ đơn gốc. Để thay đổi trạng thái, vui lòng sử dụng tab "Quản lý trạng thái".
             </div>
-             <table className="data-table" style={{ width: '100%', minWidth: '800px' }}>
-               <thead>
-                 <tr>
-                   <th style={{ padding: '12px', textAlign: 'left' }}>Mã Đơn / Ngày</th>
-                   <th style={{ padding: '12px', textAlign: 'left' }}>Khách Hàng</th>
-                   <th style={{ padding: '12px', textAlign: 'left' }}>Sản Phẩm / Doanh Thu</th>
-                   <th style={{ padding: '12px', textAlign: 'center' }}>Trạng Thái</th>
-                   <th style={{ padding: '12px', textAlign: 'left' }}>CTV / Nguồn</th>
-                   <th style={{ padding: '12px', textAlign: 'center' }}>Thao tác</th>
-                 </tr>
-               </thead>
-               <tbody>
-                 {orders.length === 0 ? (
-                    <tr><td colSpan="6" className="text-center p-8 text-muted font-medium">Chưa có đơn CTV nào</td></tr>
-                 ) : orders.map(order => (
-                    <tr key={order.id} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
-                       <td style={{ padding: '12px' }}>
-                          <div className="font-bold text-primary" style={{ fontFamily: 'monospace', fontSize: '0.8rem' }}>{order.id.slice(0, 8).toUpperCase()}</div>
-                          <div className="text-xs text-muted mt-1">{new Date(order.createdAt).toLocaleString('vi-VN')}</div>
-                       </td>
-                       <td style={{ padding: '12px' }}>
-                          <div className="font-bold" style={{ color: 'var(--accent-diamond)' }}>{order.customer?.fullName}</div>
-                          <div className="text-xs text-muted mt-1">SĐT: {order.customer?.phone}</div>
-                       </td>
-                       <td style={{ padding: '12px' }}>
-                          <div className="flex-col gap-2">
-                             {order.items?.map((item, idx) => {
-                                const prod = item.product || item.service;
-                                return (
-                                <div key={idx} className="text-sm">
-                                   - <span className="font-medium text-secondary">{prod?.title || prod?.name || 'Sản phẩm'}</span>
-                                   <span className="font-bold text-muted ml-2 px-1 rounded bg-gray-100 dark:bg-gray-800" style={{ fontSize: '0.8rem' }}>x{item.qty || 1}</span>
-                                   <span className="text-green-500 font-bold ml-2">{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(item.amount)}</span>
-                                </div>
-                                );
-                             })}
-                             <div className="font-bold text-primary mt-1 pt-1 border-t border-subtle border-dashed text-sm">
-                               Tổng: <span className="text-blue-500">{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(order.totalAmount)}</span>
-                             </div>
-                          </div>
-                       </td>
-                       <td style={{ padding: '12px', textAlign: 'center' }}>
-                          {renderStatus(order.status)}
-                          <div className="text-xs text-muted mt-1">{order.purchaseType === 'SELF_PURCHASE' ? '🛒 Tự mua' : '👤 Khách mua'}</div>
-                       </td>
-                       <td style={{ padding: '12px' }}>
-                          <div className="badge" style={{ background: 'rgba(234, 179, 8, 0.1)', color: '#ca8a04', border: '1px solid rgba(202, 138, 4, 0.3)', padding: '4px 10px', display: 'inline-block', fontSize: '0.75rem' }}>
-                             {order.customer?.sourceCtv?.fullName || 'Khách Tự Do'}
-                          </div>
-                       </td>
-                       <td style={{ padding: '12px', textAlign: 'center' }}>
-                          <div className="flex flex-col gap-1 items-center">
-                            {getNextStatuses(order.status).map(ns => (
-                              <button
-                                key={ns}
-                                onClick={() => handleCtvOrderStatus(order.id, ns)}
-                                className="text-xs font-bold px-3 py-1 rounded-lg transition-all hover:opacity-80"
-                                style={{
-                                  color: statusMap[ns]?.color || '#666',
-                                  background: statusMap[ns]?.bg || '#f5f5f5',
-                                  border: `1px solid ${statusMap[ns]?.color || '#ccc'}40`,
-                                }}
-                              >
-                                → {statusMap[ns]?.text || ns}
-                              </button>
-                            ))}
-                            {order.status !== 'CANCELLED' && (
-                              <button 
-                                className="btn-icon hover-scale mt-1" 
-                                style={{ color: '#ef4444', background: 'rgba(239, 68, 68, 0.1)', borderRadius: '50%', padding: '6px' }}
-                                onClick={() => handleDelete(order.id)}
-                                title="Xóa Đơn Hàng"
-                              >
-                                <Trash2 size={14} />
-                              </button>
-                            )}
-                          </div>
-                       </td>
-                    </tr>
-                 ))}
-               </tbody>
-             </table>
+            <table className="data-table" style={{ width: '100%', minWidth: '700px' }}>
+              <thead>
+                <tr>
+                  <th style={{ padding: '12px', textAlign: 'left' }}>Mã Đơn / Ngày</th>
+                  <th style={{ padding: '12px', textAlign: 'left' }}>Khách Hàng</th>
+                  <th style={{ padding: '12px', textAlign: 'left' }}>Doanh Thu</th>
+                  <th style={{ padding: '12px', textAlign: 'center' }}>Trạng Thái</th>
+                  <th style={{ padding: '12px', textAlign: 'left' }}>Loại / CTV</th>
+                </tr>
+              </thead>
+              <tbody>
+                {ctvOrders.length === 0 ? (
+                  <tr><td colSpan="5" className="text-center p-6 text-muted">Chưa có đơn CTV nào</td></tr>
+                ) : ctvOrders.map(order => (
+                  <tr key={order.id} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+                    <td style={{ padding: '12px' }}>
+                      <div className="font-bold text-primary" style={{ fontFamily: 'monospace', fontSize: '0.8rem' }}>{order.id.slice(0, 8).toUpperCase()}</div>
+                      <div className="text-xs text-muted mt-1">{new Date(order.createdAt).toLocaleString('vi-VN')}</div>
+                      {shadowOrderIds.has(order.id) && <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: '#dbeafe', color: '#2563eb', fontSize: '0.65rem', fontWeight: 700 }}>Shadow ↤ Website</span>}
+                    </td>
+                    <td style={{ padding: '12px' }}>
+                      <div className="font-bold" style={{ color: 'var(--accent-diamond)' }}>{order.customer?.fullName}</div>
+                      <div className="text-xs text-muted mt-1">SĐT: {order.customer?.phone}</div>
+                    </td>
+                    <td style={{ padding: '12px' }}>
+                      {order.items?.map((item, idx) => {
+                        const prod = item.product || item.service;
+                        return (<div key={idx} className="text-sm">
+                          <span className="text-secondary">{prod?.title || prod?.name || 'SP'}</span>
+                          <span className="text-green-500 font-bold ml-2">{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(item.amount)}</span>
+                        </div>);
+                      })}
+                      <div className="font-bold text-blue-500 text-sm mt-1">{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(order.totalAmount)}</div>
+                    </td>
+                    <td style={{ padding: '12px', textAlign: 'center' }}>
+                      {renderStatus(order.status)}
+                    </td>
+                    <td style={{ padding: '12px' }}>
+                      <div className="text-xs">{order.purchaseType === 'SELF_PURCHASE' ? '🛒 Tự mua' : '👤 Khách mua'}</div>
+                      <div className="badge mt-1" style={{ background: 'rgba(234,179,8,0.1)', color: '#ca8a04', border: '1px solid rgba(202,138,4,0.3)', padding: '2px 8px', display: 'inline-block', fontSize: '0.7rem' }}>
+                        {order.customer?.sourceCtv?.fullName || 'Khách Tự Do'}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
           )}
        </div>
     </div>
   )
-}
 
+}
 
