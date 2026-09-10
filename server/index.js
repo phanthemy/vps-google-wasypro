@@ -420,7 +420,23 @@ app.post('/api/auth/register', authLimiter, async (req, res) => {
       }
     });
 
-    // REMOVED: CTV should NOT be own customer — no auto-create Customer on register
+    // Auto-create linked Customer if joining system at registration
+    if (willJoinSystem) {
+      try {
+        await prisma.customer.create({
+          data: {
+            fullName,
+            phone,
+            sourceCtvId: generatedId,
+            sponsorUserId: newUser.id,
+            linkedUserId: newUser.id,
+            status: 'NEW',
+            expiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
+          }
+        });
+        console.log(`[REGISTER] Created self-linked Customer for ${generatedId}`);
+      } catch (e) { console.error('[REGISTER] Customer create error:', e.message); }
+    }
 
     console.log(`[REGISTER] ${generatedId} ${fullName} (${phone}) joinSystem=${willJoinSystem}`);
 
@@ -2128,13 +2144,29 @@ app.post('/api/orders', authenticateToken, async (req, res) => {
 
     if (purchaseSubject === 'SELF') {
       // ── SELF PURCHASE ────────────────────────────────────────────────────
-      // Customer MUST be the one linked to this orderer. No auto-create.
+      // Find or auto-create linked Customer for self-purchase
       customer = await prisma.customer.findFirst({
         where: { linkedUserId: ordererUserId }
       });
       if (!customer) {
-        return res.status(400).json({ success: false, error: 'SELF_PURCHASE_NOT_LINKED',
-          message: 'Không tìm thấy hồ sơ khách hàng liên kết với tài khoản của bạn. Vui lòng join-system trước.' });
+        // Auto-create linked Customer (fallback for users who joined before this feature)
+        const ordererUser = await prisma.user.findUnique({ where: { id: ordererUserId } });
+        if (!ordererUser || !ordererUser.isSystemParticipant) {
+          return res.status(400).json({ success: false, error: 'NOT_PARTICIPANT',
+            message: 'Bạn chưa tham gia chương trình CTV. Vui lòng tham gia trước.' });
+        }
+        customer = await prisma.customer.create({
+          data: {
+            fullName: ordererUser.fullName,
+            phone: ordererUser.phone,
+            sourceCtvId: ordererUser.userId,
+            sponsorUserId: ordererUser.id,
+            linkedUserId: ordererUser.id,
+            status: 'NEW',
+            expiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
+          }
+        });
+        console.log(`[ORDER] Auto-created self-linked Customer ${customer.id} for ${ordererUser.userId}`);
       }
       // If client also sent customerId, it must match
       if (customerId && customerId !== customer.id) {
