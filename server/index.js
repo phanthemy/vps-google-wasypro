@@ -478,7 +478,31 @@ app.post('/api/users/me/join-system', authenticateToken, async (req, res) => {
 
     console.log(`[JOIN-SYSTEM] ${user.userId} (${user.fullName}) joined at ${now.toISOString()}`);
 
-    // REMOVED: FIX A01 — CTV should NOT create self-Customer on join
+    // Create linked Customer record for SELF_PURCHASE (hidden from admin customer list)
+    let linkedCustomer = await prisma.customer.findFirst({ where: { linkedUserId: user.id } });
+    if (!linkedCustomer) {
+      linkedCustomer = await prisma.customer.findFirst({ where: { phone: user.phone, linkedUserId: null } });
+      if (linkedCustomer) {
+        await prisma.customer.update({
+          where: { id: linkedCustomer.id },
+          data: { linkedUserId: user.id, sponsorUserId: user.id }
+        });
+        console.log(`[JOIN-SYSTEM] Linked existing Customer ${linkedCustomer.id} to ${user.userId}`);
+      } else {
+        linkedCustomer = await prisma.customer.create({
+          data: {
+            fullName: user.fullName,
+            phone: user.phone,
+            sourceCtvId: user.userId,
+            sponsorUserId: user.id,
+            linkedUserId: user.id,
+            status: 'NEW',
+            expiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
+          }
+        });
+        console.log(`[JOIN-SYSTEM] Created self-linked Customer ${linkedCustomer.id} for ${user.userId}`);
+      }
+    }
 
 
     res.json({
@@ -2895,9 +2919,9 @@ app.get('/api/admin/ctv/:id', authenticateToken, requireRole(['admin', 'accounta
 
     if (!user) return res.status(404).json({ success: false, message: 'Không tìm thấy CTV.' });
 
-    // Customers directly registered by this CTV
+    // Customers directly registered by this CTV (exclude self-linked)
     const customers = await prisma.customer.findMany({
-      where: { sourceCtvId: user.userId },
+      where: { sourceCtvId: user.userId, linkedUserId: null },
       orderBy: { registeredAt: 'desc' },
       include: {
         sponsorUser: { select: { userId: true, fullName: true } }
