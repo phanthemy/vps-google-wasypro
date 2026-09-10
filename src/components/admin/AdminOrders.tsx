@@ -270,7 +270,7 @@ export const AdminOrders: React.FC = () => {
                     const token = localStorage.getItem('token') || localStorage.getItem('crm_token');
                     const res = await fetch('/api/admin/reset-uat', {
                       method: 'POST',
-                      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+                      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token, 'X-CSRF-Token': (document.cookie.match(/(?:^|;\s*)csrf_token=([^;]*)/) || [])[1] || '' },
                       body: JSON.stringify({ confirm: 'RESET_ALL' }),
                     }).then(r => r.json());
                     if (res.success) {
