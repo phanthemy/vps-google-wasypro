@@ -2554,7 +2554,25 @@ app.post('/api/admin/reset-members', authenticateToken, async (req, res) => {
 
 /**
  * POST /api/admin/factory-reset
- * 🔥 Factory Reset — deletes EVERYTHING except Super Admin + system config
+ * 🔥 Factory Reset — xóa MỌI dữ liệu vận hành, giữ cấu hình + admin
+ *
+ * ✅ DELETE (dữ liệu vận hành):
+ *   CommissionProcessing, Commission, CommissionPointAuditLog,
+ *   PeriodCloseAudit, PeriodPolicyAuditLog, PeriodPolicyConfig, CommissionPeriod,
+ *   OrderItem, Order, WebsiteOrder,
+ *   WholesaleOrderItem, WholesaleOrder,
+ *   SPointTransaction, RankHistory,
+ *   CustomerAuditLog, Appointment, Customer,
+ *   Lead,
+ *   User (role != admin),
+ *   BusinessIdSequence
+ *
+ * ❌ KEEP (cấu hình + admin):
+ *   User (role=admin), AdminUser,
+ *   Product, ProductCategory,
+ *   Service, ServiceCategory,
+ *   CommissionPriceRule,
+ *   SystemPolicyConfig, SystemPolicyAuditLog
  */
 app.post('/api/admin/factory-reset', authenticateToken, async (req, res) => {
   try {
@@ -2564,43 +2582,61 @@ app.post('/api/admin/factory-reset', authenticateToken, async (req, res) => {
 
     console.log('[FACTORY RESET] ⚠️ by', req.user.id, new Date().toISOString());
     const r = {};
-    
-    // Delete ALL transactional data
+
+    // ── Commission & Settlement ──
     try { r.commissionProcessing = (await prisma.commissionProcessing.deleteMany({})).count; } catch(e) { r.commissionProcessing = 0; }
-    try { r.commissions = (await prisma.commission.deleteMany({})).count; } catch(e) { r.commissions = 0; }
-    try { r.commissionPointAudit = (await prisma.commissionPointAuditLog.deleteMany({})).count; } catch(e) { r.commissionPointAudit = 0; }
-    try { r.periodCloseAudit = (await prisma.periodCloseAudit.deleteMany({})).count; } catch(e) { r.periodCloseAudit = 0; }
+    try { r.commissions          = (await prisma.commission.deleteMany({})).count; }          catch(e) { r.commissions = 0; }
+    try { r.commPointAudit       = (await prisma.commissionPointAuditLog.deleteMany({})).count; } catch(e) { r.commPointAudit = 0; }
+
+    // ── Period (Kỳ hoa hồng) ──
+    try { r.periodCloseAudit  = (await prisma.periodCloseAudit.deleteMany({})).count; }    catch(e) { r.periodCloseAudit = 0; }
     try { r.periodPolicyAudit = (await prisma.periodPolicyAuditLog.deleteMany({})).count; } catch(e) { r.periodPolicyAudit = 0; }
-    try { r.periodPolicy = (await prisma.periodPolicyConfig.deleteMany({})).count; } catch(e) { r.periodPolicy = 0; }
-    try { r.periods = (await prisma.commissionPeriod.deleteMany({})).count; } catch(e) { r.periods = 0; }
-    try { r.orderItems = (await prisma.orderItem.deleteMany({})).count; } catch(e) { r.orderItems = 0; }
-    try { r.orders = (await prisma.order.deleteMany({})).count; } catch(e) { r.orders = 0; }
-    try { r.websiteOrders = (await prisma.websiteOrder.deleteMany({})).count; } catch(e) { r.websiteOrders = 0; }
-    try { r.wholesaleItems = (await prisma.wholesaleOrderItem.deleteMany({})).count; } catch(e) { r.wholesaleItems = 0; }
-    try { r.wholesaleOrders = (await prisma.wholesaleOrder.deleteMany({})).count; } catch(e) { r.wholesaleOrders = 0; }
-    try { r.sPointTx = (await prisma.sPointTransaction.deleteMany({})).count; } catch(e) { r.sPointTx = 0; }
-    try { r.rankHistory = (await prisma.rankHistory.deleteMany({})).count; } catch(e) { r.rankHistory = 0; }
-    try { r.customerAuditLog = (await prisma.customerAuditLog.deleteMany({})).count; } catch(e) { r.customerAuditLog = 0; }
-    try { r.appointments = (await prisma.appointment.deleteMany({})).count; } catch(e) { r.appointments = 0; }
-    try { r.customers = (await prisma.customer.deleteMany({})).count; } catch(e) { r.customers = 0; }
+    try { r.periodPolicy      = (await prisma.periodPolicyConfig.deleteMany({})).count; }  catch(e) { r.periodPolicy = 0; }
+    try { r.periods           = (await prisma.commissionPeriod.deleteMany({})).count; }    catch(e) { r.periods = 0; }
+
+    // ── Orders ──
+    try { r.orderItems      = (await prisma.orderItem.deleteMany({})).count; }          catch(e) { r.orderItems = 0; }
+    try { r.orders          = (await prisma.order.deleteMany({})).count; }              catch(e) { r.orders = 0; }
+    try { r.websiteOrders   = (await prisma.websiteOrder.deleteMany({})).count; }       catch(e) { r.websiteOrders = 0; }
+    try { r.wholesaleItems  = (await prisma.wholesaleOrderItem.deleteMany({})).count; } catch(e) { r.wholesaleItems = 0; }
+    try { r.wholesaleOrders = (await prisma.wholesaleOrder.deleteMany({})).count; }     catch(e) { r.wholesaleOrders = 0; }
+
+    // ── QP / SP / Rank ──
+    try { r.sPointTx    = (await prisma.sPointTransaction.deleteMany({})).count; } catch(e) { r.sPointTx = 0; }
+    try { r.rankHistory = (await prisma.rankHistory.deleteMany({})).count; }        catch(e) { r.rankHistory = 0; }
+
+    // ── Customer / Consultation / Warranty ──
+    try { r.customerAudit = (await prisma.customerAuditLog.deleteMany({})).count; } catch(e) { r.customerAudit = 0; }
+    try { r.appointments  = (await prisma.appointment.deleteMany({})).count; }      catch(e) { r.appointments = 0; }
+    try { r.customers     = (await prisma.customer.deleteMany({})).count; }         catch(e) { r.customers = 0; }
+    try { r.leads         = (await prisma.lead.deleteMany({})).count; }             catch(e) { r.leads = 0; }
+
+    // ── Users (non-admin) ──
     try { r.usersDeleted = (await prisma.user.deleteMany({ where: { role: { not: 'admin' } } })).count; } catch(e) { r.usersDeleted = 0; }
-    
-    // Reset admin users points
+
+    // ── Reset admin users (points/rank only) ──
     const admins = await prisma.user.findMany({ where: { role: 'admin' }, select: { id: true } });
     for (const u of admins) {
       try {
         await prisma.user.update({
           where: { id: u.id },
-          data: { qualifyingPoints: 0, sPoints: 0, rank: null, rankStatus: null, rankAchievedAt: null,
-            rankActivationMethod: null, rankActivatedBy: null, totalMachinesBought: 0, wholesaleEligible: false }
+          data: {
+            qualifyingPoints: 0, sPoints: 0,
+            rank: null, rankStatus: null, rankAchievedAt: null,
+            rankActivationMethod: null, rankActivatedBy: null,
+            totalMachinesBought: 0, wholesaleEligible: false,
+            isSystemParticipant: false, participantAt: null, businessId: null,
+            parentId: null,
+          }
         });
       } catch(e) {}
     }
     r.adminsReset = admins.length;
-    
-    // Reset BusinessId sequence
+
+    // ── Sequences ──
     try { r.businessIdSeq = (await prisma.businessIdSequence.deleteMany({})).count; } catch(e) { r.businessIdSeq = 0; }
-    
+
+    console.log('[FACTORY RESET] ✅ Done', JSON.stringify(r));
     res.json({ success: true, summary: r });
   } catch(e) { console.error('[FACTORY RESET]', e); res.status(500).json({ success: false, message: e.message }); }
 });
