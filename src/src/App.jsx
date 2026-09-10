@@ -2555,11 +2555,11 @@ function OrdersView({ currentUser }) {
           <div className="flex gap-2 mb-4">
             <button onClick={() => setActiveSubTab('manage')}
               className={`px-4 py-2 rounded-lg font-bold text-sm transition-all ${activeSubTab === 'manage' ? 'bg-blue-500 text-white shadow-md' : 'bg-gray-100 dark:bg-gray-800 text-muted hover:bg-gray-200'}`}>
-              ⚙️ Quản lý trạng thái ({websiteOrders.length + standaloneCtvOrders.length})
+              📦 Quản lý đơn Website ({websiteOrders.length + standaloneCtvOrders.length})
             </button>
             <button onClick={() => setActiveSubTab('ctv')}
               className={`px-4 py-2 rounded-lg font-bold text-sm transition-all ${activeSubTab === 'ctv' ? 'bg-purple-500 text-white shadow-md' : 'bg-gray-100 dark:bg-gray-800 text-muted hover:bg-gray-200'}`}>
-              📋 Đơn CTV — Chỉ xem ({ctvOrders.length})
+              🤝 Theo dõi hoa hồng CTV ({ctvOrders.length})
             </button>
           </div>
 
@@ -2694,7 +2694,7 @@ function OrdersView({ currentUser }) {
           {activeSubTab === 'ctv' && (
           <div className="table-container fade-in bg-secondary rounded-xl p-1" style={{ border: '1px solid var(--border-subtle)' }}>
             <div className="p-3 text-xs text-muted" style={{ borderBottom: '1px solid var(--border-subtle)', background: 'rgba(139,92,246,0.03)' }}>
-              📋 Tab này chỉ hiển thị — trạng thái được đồng bộ từ đơn gốc. Để thay đổi trạng thái, vui lòng sử dụng tab "Quản lý trạng thái".
+              📋 Tab này chỉ hiển thị trạng thái đồng bộ từ đơn Website — không được phép chỉnh sửa. Để quản lý, vui lòng sử dụng tab "Quản lý đơn Website".
             </div>
             <table className="data-table" style={{ width: '100%', minWidth: '700px' }}>
               <thead>
