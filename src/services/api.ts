@@ -165,19 +165,33 @@ export const api = {
   },
 
   getLeads: async (status?: string): Promise<Lead[]> => {
-    let result = [...mockLeads];
+    const token = localStorage.getItem('token') || localStorage.getItem('crm_token');
+    const csrfToken = (document.cookie.match(/(?:^|;\s*)csrf_token=([^;]*)/) || [])[1] || '';
+    const res = await fetch('/api/leads', {
+      headers: { 'Authorization': 'Bearer ' + token, 'X-CSRF-Token': csrfToken },
+      credentials: 'include',
+    });
+    const json = await res.json();
+    if (!json.success) throw new Error(json.message || 'Failed to fetch leads');
+    let result = json.data;
     if (status) {
-      result = result.filter(l => l.status === status);
+      result = result.filter((l: Lead) => l.status === status);
     }
-    return result.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    return result;
   },
 
   updateLeadStatus: async (id: string, status: 'new' | 'contacted' | 'completed' | 'cancelled'): Promise<Lead> => {
-    const lead = mockLeads.find(l => l.id === id);
-    if (!lead) throw new Error('Không tìm thấy đơn tư vấn');
-    
-    lead.status = status;
-    return lead;
+    const token = localStorage.getItem('token') || localStorage.getItem('crm_token');
+    const csrfToken = (document.cookie.match(/(?:^|;\s*)csrf_token=([^;]*)/) || [])[1] || '';
+    const res = await fetch('/api/leads/' + id + '/status', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token, 'X-CSRF-Token': csrfToken },
+      credentials: 'include',
+      body: JSON.stringify({ status }),
+    });
+    const json = await res.json();
+    if (!json.success) throw new Error(json.message || 'Update failed');
+    return json.data;
   },
 
   createWarranty: async (warrantyInput: WarrantyInput): Promise<WarrantyRecord> => {

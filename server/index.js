@@ -67,7 +67,8 @@ const csrfProtection = (req, res, next) => {
     req.path === '/api/auth/login' ||
     req.path === '/api/auth/logout' ||
     req.path === '/api/auth/register' ||
-    req.path === '/api/orders/website' ||   // Public order form — accepts guest + logged-in users
+    req.path === '/api/orders/website' ||   // Public order form
+    req.path === '/api/leads' ||              // Public consultation form — accepts guest + logged-in users
     req.path === '/api/users/me/join-system' // CTV portal — same-origin cookie POST
   ) {
     return next();
@@ -2382,6 +2383,68 @@ app.put('/api/admin/orders/:id/status', authenticateToken, async (req, res) => {
 });
 
 
+
+
+// ════════════════════════════════════════════════════
+// LEADS (Đơn Tư Vấn) CRUD
+// ════════════════════════════════════════════════════
+
+/**
+ * GET /api/leads — List all leads (admin only)
+ */
+app.get('/api/leads', authenticateToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') return res.status(403).json({ success: false, message: 'Admin only' });
+    const leads = await prisma.lead.findMany({ orderBy: { createdAt: 'desc' } });
+    res.json({ success: true, data: leads });
+  } catch(e) { res.status(500).json({ success: false, message: e.message }); }
+});
+
+/**
+ * POST /api/leads — Create a new lead (public — from website contact form)
+ */
+app.post('/api/leads', async (req, res) => {
+  try {
+    const { customerName, phone, email, message, address, productName } = req.body;
+    if (!customerName || !phone) {
+      return res.status(400).json({ success: false, message: 'Tên và SĐT là bắt buộc' });
+    }
+    const lead = await prisma.lead.create({
+      data: { customerName, phone, email: email || null, message: message || null, address: address || null, productName: productName || null }
+    });
+    res.json({ success: true, data: lead });
+  } catch(e) { res.status(500).json({ success: false, message: e.message }); }
+});
+
+/**
+ * PUT /api/leads/:id/status — Update lead status (admin only)
+ */
+app.put('/api/leads/:id/status', authenticateToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') return res.status(403).json({ success: false, message: 'Admin only' });
+    const { status } = req.body;
+    const valid = ['new', 'contacted', 'completed', 'cancelled'];
+    if (!valid.includes(status)) {
+      return res.status(400).json({ success: false, message: 'Status không hợp lệ: ' + valid.join(', ') });
+    }
+    const lead = await prisma.lead.update({
+      where: { id: req.params.id },
+      data: { status }
+    });
+    res.json({ success: true, data: lead });
+  } catch(e) { res.status(500).json({ success: false, message: e.message }); }
+});
+
+/**
+ * DELETE /api/leads/:id — Delete a lead (admin only)
+ */
+app.delete('/api/leads/:id', authenticateToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') return res.status(403).json({ success: false, message: 'Admin only' });
+    await prisma.lead.delete({ where: { id: req.params.id } });
+    res.json({ success: true });
+  } catch(e) { res.status(500).json({ success: false, message: e.message }); }
+});
 
 /**
  * POST /api/admin/reset-orders
