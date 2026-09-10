@@ -2394,6 +2394,106 @@ app.delete('/api/orders/:id', authenticateToken, requireRole(['admin', 'accounta
   }
 });
 
+/**
+ * PUT /api/admin/commissions/:id/status
+ * Admin/Accountant — update commission status (approve/reject/pay)
+ * Valid transitions:
+ *   PENDING → APPROVED, PENDING → REJECTED
+ *   APPROVED → PAID, APPROVED → REJECTED
+ */
+app.put('/api/admin/commissions/:id/status', authenticateToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin' && req.user.role !== 'accountant') {
+      return res.status(403).json({ success: false, message: 'Không có quyền.' });
+    }
+    const { status } = req.body;
+    const validStatuses = ['APPROVED', 'PAID', 'REJECTED'];
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({ success: false, message: 'Trạng thái không hợp lệ. Chọn: APPROVED, PAID, REJECTED' });
+    }
+
+    const comm = await prisma.commission.findUnique({ where: { id: req.params.id } });
+    if (!comm) return res.status(404).json({ success: false, message: 'Hoa hồng không tồn tại.' });
+
+    // Validate transitions
+    const validTransitions = {
+      PENDING:  ['APPROVED', 'REJECTED'],
+      APPROVED: ['PAID', 'REJECTED'],
+      PAID:     [], // immutable — use REVERSAL
+      REJECTED: [],
+      REVOKED:  [],
+      COMPLETED: [],
+    };
+    const allowed = validTransitions[comm.status] || [];
+    if (!allowed.includes(status)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Không thể chuyển từ ' + comm.status + ' sang ' + status + '. Cho phép: ' + (allowed.join(', ') || 'không có'),
+      });
+    }
+
+    const updated = await prisma.commission.update({
+      where: { id: req.params.id },
+      data: { status },
+    });
+    console.log('[COMMISSION STATUS]', comm.id, comm.status, '→', status, 'by', req.user.fullName);
+    res.json({ success: true, data: updated });
+  } catch (err) {
+    console.error('[COMMISSION STATUS]', err.message);
+    res.status(500).json({ success: false, message: 'Lỗi máy chủ.' });
+  }
+});
+
+/**
+ * PUT /api/admin/commissions/bulk-approve
+ * Admin — bulk approve all PENDING commissions (optionally by periodId)
+ */
+app.put('/api/admin/commissions/bulk-approve', authenticateToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin' && req.user.role !== 'accountant') {
+      return res.status(403).json({ success: false, message: 'Không có quyền.' });
+    }
+    const { periodId } = req.body;
+    const where = { status: 'PENDING' };
+    if (periodId) where.periodId = periodId;
+
+    const result = await prisma.commission.updateMany({
+      where,
+      data: { status: 'APPROVED' },
+    });
+    console.log('[BULK APPROVE]', result.count, 'commissions approved', periodId ? 'for period ' + periodId : '(all)');
+    res.json({ success: true, count: result.count });
+  } catch (err) {
+    console.error('[BULK APPROVE]', err.message);
+    res.status(500).json({ success: false, message: 'Lỗi máy chủ.' });
+  }
+});
+
+/**
+ * PUT /api/admin/commissions/bulk-pay
+ * Admin — bulk pay all APPROVED commissions (optionally by periodId)
+ */
+app.put('/api/admin/commissions/bulk-pay', authenticateToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin' && req.user.role !== 'accountant') {
+      return res.status(403).json({ success: false, message: 'Không có quyền.' });
+    }
+    const { periodId } = req.body;
+    const where = { status: 'APPROVED' };
+    if (periodId) where.periodId = periodId;
+
+    const result = await prisma.commission.updateMany({
+      where,
+      data: { status: 'PAID' },
+    });
+    console.log('[BULK PAY]', result.count, 'commissions paid', periodId ? 'for period ' + periodId : '(all)');
+    res.json({ success: true, count: result.count });
+  } catch (err) {
+    console.error('[BULK PAY]', err.message);
+    res.status(500).json({ success: false, message: 'Lỗi máy chủ.' });
+  }
+});
+
 // 8. COMMISSIONS LIST
 app.get('/api/commissions', authenticateToken, async (req, res) => {
   try {
@@ -3386,6 +3486,142 @@ async function calculateAndCreateCommissions(tx, context) {
  * - If Activation/sequence fails -> Commission records ROLL BACK.
  * - Retry same order -> CommissionProcessing prevents double execution.
  */
+/**
+ * reverseOrderSettlement — Reverse all effects of a completed settlement
+ * Called when WebsiteOrder is CANCELLED after COMPLETED.
+ * Reverses: QP, SP, commissions, rank (if applicable)
+ */
+async function reverseOrderSettlement(orderId, adminUser = {}) {
+  const order = await prisma.order.findUnique({
+    where: { id: orderId },
+    include: { commissions: true, commissionProcessing: true, items: true },
+  });
+  if (!order) return { skipped: true, reason: 'Order not found' };
+
+  // If no settlement was run, nothing to reverse
+  if (!order.commissionProcessing) {
+    return { skipped: true, reason: 'No settlement to reverse (order was cancelled before completion)' };
+  }
+
+  const result = { commissionsRevoked: 0, commissionsReversed: 0, pointsReversed: 0, rankRevoked: false };
+
+  await prisma.$transaction(async (tx) => {
+    // 1. Handle commissions
+    for (const comm of order.commissions) {
+      if (comm.status === 'PENDING' || comm.status === 'APPROVED') {
+        await tx.commission.update({
+          where: { id: comm.id },
+          data: { status: 'REJECTED' }
+        });
+        result.commissionsRevoked++;
+      } else if (comm.status === 'PAID') {
+        // Create REVERSAL counter-record
+        await tx.commission.create({
+          data: {
+            orderId: order.id,
+            receiverId: comm.receiverId,
+            amount: -comm.amount,
+            type: 'REVERSAL',
+            status: 'COMPLETED',
+            rateSnapshot: comm.rateSnapshot,
+            rankSnapshot: comm.rankSnapshot,
+            basePoints: comm.basePoints ? -comm.basePoints : null,
+            earnedPoints: comm.earnedPoints ? -comm.earnedPoints : null,
+            earnedMoney: comm.earnedMoney ? -comm.earnedMoney : null,
+            policyRef: comm.policyRef,
+            ruleKey: 'REVERSAL_' + (comm.ruleKey || 'UNKNOWN'),
+            role: comm.role,
+            periodId: comm.periodId,
+            metadata: JSON.stringify({ reversedCommissionId: comm.id, reason: 'ORDER_CANCELLED' }),
+          }
+        });
+        result.commissionsReversed++;
+      }
+    }
+
+    // 2. Reverse QP/SP via SPointTransaction
+    const sptTxns = await tx.sPointTransaction.findMany({ where: { orderId } });
+    for (const spt of sptTxns) {
+      if (spt.type === 'EARN' && spt.points > 0) {
+        // Create reversal transaction
+        await tx.sPointTransaction.create({
+          data: {
+            userId: spt.userId,
+            orderId: spt.orderId,
+            points: -spt.points,
+            type: 'REVERSAL',
+            isQualifying: spt.isQualifying,
+            snapshotBalance: 0, // will be recalculated
+            policyVersion: spt.policyVersion,
+          }
+        });
+
+        // Update user QP/SP
+        const updateData = { sPoints: { decrement: spt.points } };
+        if (spt.isQualifying) {
+          updateData.qualifyingPoints = { decrement: spt.points };
+        }
+        await tx.user.updateMany({
+          where: { userId: spt.userId },
+          data: updateData,
+        });
+        result.pointsReversed += spt.points;
+
+        // 3. Check if rank should be revoked (QP dropped below threshold)
+        if (spt.isQualifying) {
+          const user = await tx.user.findFirst({ where: { userId: spt.userId } });
+          if (user && user.rank === 'AMBASSADOR' && user.qualifyingPoints < 5000) {
+            // Revoke Ambassador rank + BID
+            await tx.user.update({
+              where: { id: user.id },
+              data: {
+                rank: null,
+                rankStatus: null,
+                businessId: null,
+                rankAchievedAt: null,
+                rankActivationMethod: null,
+                rankActivatedBy: null,
+              }
+            });
+            await tx.rankHistory.create({
+              data: {
+                userId: user.userId,
+                fromRank: 'AMBASSADOR',
+                toRank: null,
+                reason: 'ORDER_CANCELLED_QP_BELOW_THRESHOLD',
+                changedBy: 'SYSTEM',
+              }
+            });
+            result.rankRevoked = true;
+            console.log('[REVERSAL] Rank revoked for', user.userId, '— QP dropped to', user.qualifyingPoints);
+          }
+        }
+      }
+    }
+
+    // 4. Update CommissionProcessing status
+    await tx.commissionProcessing.update({
+      where: { orderId },
+      data: { status: 'REVERSED' }
+    });
+
+    // 5. Audit log
+    await tx.customerAuditLog.create({
+      data: {
+        customerId: order.customerId,
+        action: 'REVERSE_SETTLEMENT',
+        details: JSON.stringify({
+          orderId, ...result,
+          reversedBy: adminUser.fullName || 'SYSTEM',
+        }),
+        userId: adminUser.id || 'SYSTEM',
+      }
+    });
+  });
+
+  return result;
+}
+
 async function executeOrderSettlement(orderId, options = {}) {
   // Idempotency check 1: Outside transaction
   const existingProcessing = await prisma.commissionProcessing.findUnique({
@@ -4496,7 +4732,8 @@ app.get('/api/admin/website-orders', authenticateToken, async (req, res) => {
 
 /**
  * PUT /api/admin/website-orders/:id/status
- * Admin — update website order status
+ * Admin — update website order status + sync shadow Order + trigger settlement/reversal
+ * WebsiteOrder is SOURCE OF TRUTH for order lifecycle.
  */
 app.put('/api/admin/website-orders/:id/status', authenticateToken, async (req, res) => {
   try {
@@ -4508,11 +4745,61 @@ app.put('/api/admin/website-orders/:id/status', authenticateToken, async (req, r
     if (!validStatuses.includes(status)) {
       return res.status(400).json({ success: false, message: 'Trạng thái không hợp lệ.' });
     }
+
+    // 1. Get current WebsiteOrder
+    const wo = await prisma.websiteOrder.findUnique({ where: { id: req.params.id } });
+    if (!wo) return res.status(404).json({ success: false, message: 'Đơn hàng không tồn tại.' });
+
+    // Prevent re-cancelling or re-completing
+    if (wo.status === 'CANCELLED') {
+      return res.status(400).json({ success: false, message: 'Đơn hàng đã bị hủy, không thể thay đổi trạng thái.' });
+    }
+
+    // 2. Update WebsiteOrder status
     const updated = await prisma.websiteOrder.update({
       where: { id: req.params.id },
       data: { status },
     });
-    res.json({ success: true, data: updated });
+
+    // 3. Sync to shadow Order (if exists)
+    let settlementResult = null;
+    let reversalResult = null;
+
+    if (wo.shadowOrderId) {
+      await prisma.order.update({
+        where: { id: wo.shadowOrderId },
+        data: { status: status === 'CANCELLED' ? 'CANCELLED' : (status === 'COMPLETED' ? 'COMPLETED' : status) },
+      });
+      console.log('[ORDER SYNC] WebsiteOrder', wo.id, '→ Shadow Order', wo.shadowOrderId, '= status:', status);
+
+      // 4. On COMPLETED → run settlement (QP + SP + Commission PENDING)
+      if (status === 'COMPLETED') {
+        try {
+          settlementResult = await executeOrderSettlement(wo.shadowOrderId);
+          console.log('[ORDER LIFECYCLE] Settlement triggered for shadow', wo.shadowOrderId,
+            '→', settlementResult?.createdCommissions?.length || 0, 'commissions');
+        } catch (settleErr) {
+          console.error('[ORDER LIFECYCLE] Settlement error:', settleErr.message);
+        }
+      }
+
+      // 5. On CANCELLED → reverse settlement if already completed
+      if (status === 'CANCELLED') {
+        try {
+          reversalResult = await reverseOrderSettlement(wo.shadowOrderId, req.user);
+          console.log('[ORDER LIFECYCLE] Reversal for shadow', wo.shadowOrderId, '→', JSON.stringify(reversalResult));
+        } catch (revErr) {
+          console.error('[ORDER LIFECYCLE] Reversal error:', revErr.message);
+        }
+      }
+    }
+
+    res.json({
+      success: true,
+      data: updated,
+      settlement: settlementResult ? { commissions: settlementResult.createdCommissions?.length || 0, pointsAwarded: settlementResult.pointsAwarded } : null,
+      reversal: reversalResult || null,
+    });
   } catch (err) {
     console.error('[UPDATE WEBSITE ORDER]', err.message);
     res.status(500).json({ success: false, message: 'Lỗi máy chủ.' });
@@ -4665,11 +4952,12 @@ app.post('/api/orders/website', async (req, res) => {
         });
 
         // 4. Create shadow Order (mirrors WebsiteOrder for commission engine)
+        // Status starts as NEW — settlement only runs when WebsiteOrder reaches COMPLETED
         const shadowOrder = await prisma.order.create({
           data: {
             customerId: customer.id,
             totalAmount: itemPrice * itemQty,
-            status: 'COMPLETED',
+            status: 'NEW',
             orderType: 'RETAIL',
             isSelfBuy: !!(authedUser.isSystemParticipant && customer.linkedUserId && customer.linkedUserId === authedUser.id),
             purchaseType: (authedUser.isSystemParticipant && customer.linkedUserId && customer.linkedUserId === authedUser.id) ? 'SELF_PURCHASE' : 'CUSTOMER_PURCHASE',
@@ -4697,9 +4985,9 @@ app.post('/api/orders/website', async (req, res) => {
           }
         });
 
-        // 5. Run Commission Engine
-        const settlementResult = await executeOrderSettlement(shadowOrder.id);
-        console.log('[COMMISSION BRIDGE] Settlement:', settlementResult?.createdCommissions?.length || 0, 'commissions');
+        // 5. Settlement DEFERRED — will run when admin marks WebsiteOrder as COMPLETED
+        // executeOrderSettlement is NOT called here anymore
+        console.log('[COMMISSION BRIDGE] Shadow Order created (status=NEW). Settlement deferred until COMPLETED.');
       } catch (bridgeErr) {
         // Non-fatal: commission failure should not block order
         console.error('[COMMISSION BRIDGE ERROR]', bridgeErr.message);

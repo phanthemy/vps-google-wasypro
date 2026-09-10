@@ -138,7 +138,7 @@ model Order {
   id          String   @id @default(cuid())
   customerId  String
   totalAmount Float
-  status      String   @default("COMPLETED") // DEPOSIT, COMPLETED, CANCELLED
+  status      String   @default("COMPLETED") // NEW, CONFIRMED, SHIPPING, COMPLETED, CANCELLED
   createdAt   DateTime @default(now())
 
   // Phase 2B: Order classification
@@ -183,7 +183,7 @@ model Commission {
   receiverId  String
   amount      Float
   type        String   // DIRECT, OVERRIDE_F1, OVERRIDE_F2, SELF_CONSUMPTION, DIRECT_RETAIL, DISTRIBUTION_PARTNER, REGIONAL_DEVELOPMENT
-  status      String   @default("PENDING") // PENDING, PAID
+  status      String   @default("PENDING") // PENDING, APPROVED, PAID, REJECTED, REVOKED
   createdAt   DateTime @default(now())
 
   // Phase 2B: Audit snapshot fields
