@@ -2447,6 +2447,10 @@ app.post('/api/admin/reset-uat', authenticateToken, async (req, res) => {
     let delCustomers = { count: 0 };
     try { delCustomers = await prisma.customer.deleteMany({}); } catch(e) {}
 
+    // 5. Delete ALL non-admin users (test accounts)
+    let delUsers = { count: 0 };
+    try { delUsers = await prisma.user.deleteMany({ where: { role: { not: 'admin' } } }); } catch(e) { console.log('[RESET] delUsers error:', e.message); }
+
     const summary = {
       commissionProcessing: delCommProcessing.count,
       commissions: delCommissions.count,
@@ -2456,6 +2460,7 @@ app.post('/api/admin/reset-uat', authenticateToken, async (req, res) => {
       rankHistory: delRankHistory.count,
       sPointTransactions: delSPointTx.count,
       customers: delCustomers.count,
+      usersDeleted: delUsers.count,
       usersReset: resetUsers.count,
     };
 
