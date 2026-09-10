@@ -2471,7 +2471,7 @@ app.post('/api/admin/reset-members', authenticateToken, async (req, res) => {
     try { r.rankHistory = (await prisma.rankHistory.deleteMany({})).count; } catch(e) { r.rankHistory = 0; }
     try { r.customerAuditLog = (await prisma.customerAuditLog.deleteMany({})).count; } catch(e) { r.customerAuditLog = 0; }
     try { r.customers = (await prisma.customer.deleteMany({})).count; } catch(e) { r.customers = 0; }
-    try { r.usersDeleted = (await prisma.user.deleteMany({ where: { role: { not: 'admin' } } })).count; } catch(e) { r.usersDeleted = 0; }
+    try { r.usersDeleted = (await prisma.user.deleteMany({ where: { role: { not: 'admin' } } })).count; } catch(e) { console.error('[RESET] User delete FAILED:', e.message); r.usersDeleted = 'FAILED: ' + e.message; }
     
     res.json({ success: true, summary: r });
   } catch(e) { console.error('[RESET MEMBERS]', e); res.status(500).json({ success: false, message: e.message }); }
@@ -2537,7 +2537,7 @@ app.post('/api/admin/factory-reset', authenticateToken, async (req, res) => {
     try { r.leads         = (await prisma.lead.deleteMany({})).count; }             catch(e) { r.leads = 0; }
 
     // ── Users (non-admin) ──
-    try { r.usersDeleted = (await prisma.user.deleteMany({ where: { role: { not: 'admin' } } })).count; } catch(e) { r.usersDeleted = 0; }
+    try { r.usersDeleted = (await prisma.user.deleteMany({ where: { role: { not: 'admin' } } })).count; } catch(e) { console.error('[RESET] User delete FAILED:', e.message); r.usersDeleted = 'FAILED: ' + e.message; }
 
     // ── Reset admin users (points/rank only) ──
     const admins = await prisma.user.findMany({ where: { role: 'admin' }, select: { id: true } });
