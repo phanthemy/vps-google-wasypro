@@ -117,3 +117,70 @@ useEffect(() => {
   2. Bổ sung hook `useEffect` trong `App.tsx` tự động gán `adminUser` khi `user.role === 'admin'`.
   3. Hỗ trợ prop `mode: 'ctv' | 'system'` trong `UnifiedAuthModal` để hiển thị đúng ngữ cảnh đăng nhập.
 - **Trạng thái:** Đã fix và kiểm thử PASS 100%.
+
+
+---
+
+## [2026-09-10] BUG: CTV Orders luôn hiện COMPLETED
+
+### Observe
+- Boss báo: CTV Orders tab hiển thị tất cả đơn = COMPLETED
+- Admin không thấy status column trước đó
+
+### Hypothesis
+- Shadow Order tạo với status=COMPLETED do code cũ
+- Admin UI không có status column
+
+### Evidence
+- 15 Orders trong DB, 100% status=COMPLETED
+- 2 WebsiteOrders đã đổi status (NEW, CONFIRMED) nhưng shadow không sync
+- Admin OrdersView function (App.jsx line 2460) không render status
+
+### Root Cause
+1. Code cũ (trước commit 86bece8): shadow Order tạo với status='COMPLETED'
+2. executeOrderSettlement chạy ngay trong commission bridge
+3. Admin UI không có cơ chế quản lý status cho WebsiteOrder
+4. Không có sync mechanism khi WebsiteOrder status thay đổi
+
+### Fix
+1. **commit 86bece8**: Shadow status='NEW', remove settlement from bridge
+2. **commit 5c9e7aa**: Admin dual-tab UI (Website + CTV)
+3. **commit 57c1081**: Retroactive sync 2 shadow orders
+4. **commit 086c420**: CTV Portal orders = NEW (unified lifecycle)
+5. **commit e53ca0d**: Single source of truth architecture
+6. **commit 1283576**: Tab rename + 4-case verification
+
+### Test (4 Cases PASS)
+- Case 1: Website → Shadow sync (9/9 match) ✅
+- Case 2: COMPLETED → Settlement ✅
+- Case 3: CANCELLED → Reversal ✅
+- Case 4: CTV Portal → NEW ✅
+
+### Gotcha
+> ⚠️ Khi thêm field hoặc đổi default value trong Order creation:
+> - Dữ liệu CŨ trong DB không tự thay đổi
+> - Cần chạy retroactive sync script
+> - Luôn verify bằng DB query, không tin code analysis đơn thuần
+
+---
+
+## [2026-09-10] BUG: Admin UI bị duplicate OrdersView function
+
+### Observe
+- Vite build lỗi TS1128: Declaration or statement expected
+
+### Root Cause
+- Patch script dùng brace matching, nhưng `function OrdersView({ currentUser })` 
+  có `}` trong param destructuring → matcher tìm sai end position (35 chars)
+- Code mới chèn trước code cũ → duplicate function
+
+### Fix
+- `head -2750` truncate file → append closing brace
+- Lesson: Không dùng simple brace counting cho JS function extraction
+
+### Gotcha
+> ⚠️ Brace matching algorithm cho JS phải skip braces trong:
+> - String literals
+> - Template literals  
+> - Destructuring patterns
+> - Object literals trong function params

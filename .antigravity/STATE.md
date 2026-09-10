@@ -1,75 +1,67 @@
-﻿# STATE.md -- WasyPro CTV Rebuild
+# 🔄 Project State: WASY PRO
 
-_Cap nhat: 2026-09-06T22:32 +07:00_
+> Auto-generated runtime state file
 
-## Commit hien tai
+## Current Status
 
-`e90a4cd` -- feat(ctv): ky hoa hong tren dashboard + CP column tren orders
+| Key | Value |
+|-----|-------|
+| **Status** | IN_PROGRESS |
+| **Last Session** | 2026-09-10 |
+| **Branch** | main |
+| **Last Commit** | 5432203 |
+| **Source of Truth** | Oracle VPS (149.118.62.155) |
+| **Working Dir** | /var/www/wasypro |
 
-## Da hoan thanh (session nay)
+## Active Tasks
 
-### DB Reset
-- Backup: dev.db.backup_20260906_221600 (368KB)
-- Xoa sach: Service, ServiceCategory, CommissionPeriod, SystemPolicyConfig, WholesaleOrder, PeriodPolicyConfig, CommissionPriceRule, AdminUser
-- Reset CTV fields cho 11 users (giu admin/accountant)
-- BusinessIdSequence reset ve 1000
-- Giu nguyen: User(13), Customer(5), Product(10)
+### ✅ Completed This Session
+- [x] Order classification fix (shadowOrderId + isCtvOrder)
+- [x] Deferred settlement workflow
+- [x] Admin dual-tab order management
+- [x] Retroactive shadow status sync
+- [x] Unified lifecycle (CTV Portal = NEW)
+- [x] Single source of truth architecture
+- [x] Tab rename (Quản lý đơn Website / Theo dõi hoa hồng CTV)
+- [x] 4-case verification PASS
+- [x] Admin Reset Test Data button
 
-### Frontend
-- CTVPortalContainer: restore Don Hang Si tab; them Thong Tin Tai Khoan tab; /api/services -> /api/products
-- DashboardView: button THAM GIA HE THONG; ky hoa hong badge; Business ID badge
-- CommissionHistoryView: bo hoan toan thue TNCN + showTaxes
-- SettingsView: rewrite -> Thong Tin Tai Khoan (profile/rank/businessId/QP)
-- OrderModal: serviceId -> productId in payload
-- OrdersView: doi cot CTV Loi Nhuan -> CP (Qualifying Points)
+### ⏳ Pending (Boss Review)
+- [ ] Boss manual testing 4 cases
+- [ ] Lock Reset button after testing complete
+- [ ] Fix ~37 HIGH credential bugs in standalone CTV (wasypro-ctv/src/)
+- [ ] Screenshots of production after all fixes
 
-### Backend
-- CSRF whitelist: /api/users/me/join-system
-- New route: GET /api/periods/current
+### 📋 Boss Decision Items (D2-D8)
+- D2: Commission rates: hardcode vs Policy engine?
+- D3: Service model: keep or remove?
+- D4: AdminUser model: delete?
+- D5: Warranties/Leads/News tabs: build or remove?
+- D6: isSelfBuy vs purchaseType: unify?
+- D7: SQLite → PostgreSQL migration?
+- D8: React Router integration?
 
+## Architecture
 
-### Policy Alignment & Red Badge Clearance (Fix hoàn tất)
-- **DIRECTOR_F1**: 0.10 (10% - Upstream F1/D1 Boss chốt)
-- **DIRECTOR_F2**: 0.05 (5% - Upstream F2/D2 Boss chốt)
-- **MANAGER_F1_SELL_TO_CUSTOMER_NO_ID**: 0.05 (5% - chênh lệch cấp bậc Quản Lý 25% - Đại Sứ 20% khi F1 bán khách chưa ID)
-- **POLICY_VERSION**: 1.3.0
-- **Trạng thái Admin Cấu Hình Hoa Hồng**: 16/16 ACTIVE, 0 NOT_CONFIGURED. Xóa toàn bộ badge cảnh báo đỏ trên tất cả các tab (Đại Sứ Kinh Doanh, Quản Lý, Giám Đốc, Hệ Thống).
-- **seed_phase2c.js**: Đồng bộ rate chuẩn, không revert NOT_CONFIGURED khi reset.
+### Order Lifecycle
+```
+NEW → CONFIRMED → SHIPPING → COMPLETED (settlement) | CANCELLED (reversal)
+```
 
+### Admin UI
+```
+Tab 1: 📦 Quản lý đơn Website (management, source of truth)
+Tab 2: 🤝 Theo dõi hoa hồng CTV (read-only)
+```
 
-### Official Rank Promotion Rules (5 F1 Rule - Đã hoàn tất & Nghiệm thu 100%)
-- **AMBASSADOR → MANAGER**:
-  - Điều kiện: Đủ 5 thành viên F1 TRỰC TIẾP (`parentId`).
-  - Cả 5 F1 đều: có Business ID (`businessId !== null`) VÀ đang ở rank `AMBASSADOR` (hoặc cao hơn).
-  - Đủ 5 F1 trực tiếp → Tự động thăng cấp `MANAGER` và kích hoạt cascade upline.
-- **MANAGER → DIRECTOR**:
-  - Điều kiện: Đủ 5 thành viên F1 TRỰC TIẾP (`parentId`).
-  - Cả 5 F1 đều: có Business ID (`businessId !== null`) VÀ đang ở rank `MANAGER` (hoặc cao hơn).
-  - Đủ 5 F1 trực tiếp → Tự động thăng cấp `DIRECTOR`.
-- **Ràng buộc chuẩn**:
-  - Chỉ tính F1 trực tiếp trong sponsor tree.
-  - Không tính F2/F3, không tính Customer chưa có Business ID.
-  - Không thay bằng doanh số đội nhóm, không tự thêm điều kiện khác.
-  - Tự động ghi nhận lịch sử thăng cấp vào bảng `RankHistory` (`reason: 'AUTO_5_F1_AMBASSADOR'`, `'AUTO_5_F1_MANAGER'`).
-- **Endpoints mới**:
-  - `GET /api/rank/promotion-progress/:userId` — Trả về tiến trình thăng cấp (x/5 F1, %, danh sách F1 đạt chuẩn).
-  - `POST /api/rank/sync-all` — Quét và thăng cấp tự động toàn bộ user đạt chuẩn.
-- **Frontend**:
-  - `AmbassadorProgressCard.jsx` (cả trên `wasypro` và `wasypro-ctv`): Hiển thị tiến trình trực quan theo từng cấp bậc:
-    * Khách hàng: Tích lũy 5.000 CP lên Đại Sứ.
-    * Đại Sứ: x/5 F1 Đại Sứ (có Business ID) lên Quản Lý (kèm danh sách F1).
-    * Quản Lý: x/5 F1 Quản Lý (có Business ID) lên Giám Đốc (kèm danh sách F1).
-    * Giám Đốc: Badge vinh danh cấp bậc cao nhất 👑.
-
-## Trang thai
-- wasypro PM2 (port 5005): running
-- happylife-backend PM2 (port 3011): running
-- DB: sach, san sang test
-
-## Viec tiep theo
-- [ ] Admin tao ky hoa hong dau tien
-- [ ] Test dang ky tai khoan moi
-- [ ] Test THAM GIA HE THONG
-- [ ] Test 5000 QP -> Business ID + Ambassador tu dong
-- [ ] Test don hang -> commission -> CP
-- [ ] PriceListView: doi sang /api/products
+### Key Functions (server/index.js)
+| Function | Line | Purpose |
+|----------|------|---------|
+| executeOrderSettlement | ~3389 | QP/SP/Commission on COMPLETED |
+| reverseOrderSettlement | ~3490 | Reverse all on CANCELLED |
+| calculateAndCreateCommissions | ~3074 | Commission rate logic |
+| POST /api/orders | 2156 | CTV Portal create (NEW) |
+| POST /api/orders/website | 4816 | Website bridge (shadow=NEW) |
+| PUT /api/admin/website-orders/:id/status | ~4754 | WO status + sync + settlement |
+| PUT /api/admin/orders/:id/status | NEW | Standalone CTV status |
+| POST /api/admin/reset-uat | NEW | Reset test data (temporary) |

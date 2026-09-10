@@ -69,3 +69,62 @@
   - Admin (`role === 'admin'`): Hiện cả 2 menu. Nút 🛡️ HỆ THỐNG có dropdown truy cập nhanh (Website CMS, Quản lý CTV, Cấu hình Hoa hồng, Audit Logs).
 - **Cơ chế Single Sign-On (SSO):** Tự động đồng bộ `user.role === 'admin'` từ Unified Auth sang state `adminUser` của CMS, cho phép Admin chuyển đổi giữa CMS và CTV Portal mà không bị hỏi lại mật khẩu.
 - **Tối ưu Mobile Drawer:** Đồng bộ đầy đủ các nút phân quyền và menu trên thiết bị di động.
+
+
+## Cập nhật 10/09/2026 — Order & Commission Lifecycle Redesign
+
+### Kiến trúc đơn hàng (BOSS APPROVED)
+
+**Single Source of Truth**: WebsiteOrder là đơn gốc. Shadow Order (CTV) chỉ đồng bộ.
+
+```
+Website Order (real) ─── Admin đổi status ─── sync shadow ─── COMPLETED → Settlement
+                                                            ─── CANCELLED → Reverse
+```
+
+**Quy tắc duy nhất cho toàn hệ thống**:
+- Mọi đơn (Website + CTV Portal) bắt đầu ở `NEW`
+- Settlement (QP/SP/Commission) chỉ khi `COMPLETED`
+- Reversal khi `CANCELLED`
+
+### Commits phiên này
+
+| Commit | Nội dung |
+|--------|---------|
+| `4b7fd94` | Order classification: shadowOrderId + isCtvOrder |
+| `86bece8` | Deferred settlement: shadow=NEW, remove bridge settlement |
+| `5c9e7aa` | Admin dual-tab order management UI |
+| `57c1081` | Retroactive sync shadow status |
+| `086c420` | Unified lifecycle: CTV Portal orders = NEW |
+| `e53ca0d` | Single source of truth: management tab + read-only tab |
+| `1283576` | Tab rename + 4-case verification |
+| `5432203` | Admin Reset Test Data button (temporary) |
+
+### Quyết định kiến trúc
+
+1. **Order Status lifecycle**: NEW → CONFIRMED → SHIPPING → COMPLETED | CANCELLED
+2. **Commission Status lifecycle**: PENDING → APPROVED → PAID | REJECTED | REVOKED
+3. **Admin UI 2 tabs**:
+   - 📦 Quản lý đơn Website (management, source of truth)
+   - 🤝 Theo dõi hoa hồng CTV (read-only, synced)
+4. **CTV Portal orders**: Cùng lifecycle với Website, không settlement ngay
+5. **reverseOrderSettlement**: Reverse QP/SP, reject commissions, create REVERSAL for PAID, revoke rank
+6. **Reset Test Data**: Nút tạm thời cho Boss test, sẽ khóa sau
+
+### API Endpoints mới
+
+| Method | Path | Mô tả |
+|--------|------|-------|
+| PUT | /api/admin/website-orders/:id/status | Đổi status WO + sync shadow + settlement/reversal |
+| PUT | /api/admin/orders/:id/status | Đổi status standalone CTV order |
+| PUT | /api/admin/commissions/:id/status | Đổi status commission đơn lẻ |
+| PUT | /api/admin/commissions/bulk-approve | Bulk approve PENDING → APPROVED |
+| PUT | /api/admin/commissions/bulk-pay | Bulk pay APPROVED → PAID |
+| POST | /api/admin/reset-uat | Reset toàn bộ test data (temporary) |
+
+### Gotchas / Bẫy lỗi
+
+1. **prisma db push fails với SQLite** — phải dùng better-sqlite3 ALTER TABLE trực tiếp
+2. **PowerShell `&&` không hoạt động** — tách lệnh riêng
+3. **Brace matching trong JS** — `{ currentUser }` param destructuring bị match sai
+4. **Old data**: Orders tạo trước deploy vẫn giữ status cũ, cần retroactive sync
