@@ -261,6 +261,32 @@ export const AdminOrders: React.FC = () => {
               <button onClick={fetchWebOrders} className="p-2 hover:bg-slate-100 rounded-xl transition-colors" title="Tải lại">
                 <RefreshCw className="w-4 h-4 text-slate-500" />
               </button>
+              <button
+                onClick={async () => {
+                  const code = window.prompt('⚠️ XÓA TOÀN BỘ dữ liệu test:\n- Đơn hàng\n- Hoa hồng\n- Điểm\n- CTV/Đại sứ\n- Khách hàng\n\nNhập RESET_ALL để xác nhận:');
+                  if (code !== 'RESET_ALL') return;
+                  if (!window.confirm('LẦN CUỐI: Bạn chắc chắn muốn xóa TOÀN BỘ dữ liệu?')) return;
+                  try {
+                    const token = localStorage.getItem('token') || localStorage.getItem('crm_token');
+                    const res = await fetch('/api/admin/reset-uat', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+                      body: JSON.stringify({ confirm: 'RESET_ALL' }),
+                    }).then(r => r.json());
+                    if (res.success) {
+                      window.alert('✅ Đã reset!\n\n' + Object.entries(res.summary).map(([k,v]) => k + ': ' + v).join('\n'));
+                      fetchWebOrders();
+                      fetchCtvOrders();
+                    } else {
+                      window.alert('Lỗi: ' + res.message);
+                    }
+                  } catch(e) { window.alert('Lỗi kết nối'); }
+                }}
+                className="px-3 py-1.5 rounded-xl text-xs font-bold transition-all border border-red-200 bg-red-50 text-red-600 hover:bg-red-100"
+                title="Xóa toàn bộ dữ liệu test"
+              >
+                🗑️ Reset
+              </button>
             </div>
           </div>
 
