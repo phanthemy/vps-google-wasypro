@@ -420,44 +420,7 @@ app.post('/api/auth/register', authLimiter, async (req, res) => {
       }
     });
 
-    // Auto-link existing Customer record OR create new one if joinSystem
-    try {
-      const existingCustomer = await prisma.customer.findFirst({
-        where: { phone, linkedUserId: null }
-      });
-      if (existingCustomer) {
-        let regLinkSponsor = newUser.id;
-        if (parentId) {
-          const pUser3 = await prisma.user.findUnique({ where: { userId: parentId }, select: { id: true } });
-          if (pUser3) regLinkSponsor = pUser3.id;
-        }
-        await prisma.customer.update({
-          where: { id: existingCustomer.id },
-          data: { linkedUserId: newUser.id, sponsorUserId: regLinkSponsor }
-        });
-        console.log(`[REGISTER] Auto-linked Customer ${existingCustomer.id} to ${generatedId}`);
-      } else if (willJoinSystem) {
-        // FIX A01: Create Customer record so SELF_PURCHASE works immediately
-        // sourceCtvId -> User.userId, sponsorUserId -> User.id (cuid), linkedUserId -> User.id (cuid)
-        let regSponsorId = newUser.id; // self if no parent
-        if (parentId) {
-          const pUser2 = await prisma.user.findUnique({ where: { userId: parentId }, select: { id: true } });
-          if (pUser2) regSponsorId = pUser2.id;
-        }
-        await prisma.customer.create({
-          data: {
-            fullName,
-            phone,
-            sourceCtvId: generatedId,          // User.userId
-            sponsorUserId: regSponsorId,        // User.id (cuid)
-            linkedUserId: newUser.id,            // User.id (cuid)
-            status: 'NEW',
-            expiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
-          }
-        });
-        console.log(`[REGISTER] Created linked Customer for ${generatedId} (joinSystem=true)`);
-      }
-    } catch (linkErr) { console.error('[REGISTER] Customer link error:', linkErr.message); }
+    // REMOVED: CTV should NOT be own customer — no auto-create Customer on register
 
     console.log(`[REGISTER] ${generatedId} ${fullName} (${phone}) joinSystem=${willJoinSystem}`);
 
@@ -515,46 +478,8 @@ app.post('/api/users/me/join-system', authenticateToken, async (req, res) => {
 
     console.log(`[JOIN-SYSTEM] ${user.userId} (${user.fullName}) joined at ${now.toISOString()}`);
 
-    // FIX A01: Ensure linked Customer record exists for SELF_PURCHASE
-    let linkedCustomer = await prisma.customer.findFirst({ where: { linkedUserId: user.id } });
-    if (!linkedCustomer) {
-      // Also check by phone (auto-link existing Customer)
-      linkedCustomer = await prisma.customer.findFirst({ where: { phone: user.phone, linkedUserId: null } });
-      if (linkedCustomer) {
-        // Link existing Customer to this user
-        // sponsorUserId -> User.id (cuid), linkedUserId -> User.id (cuid)
-        let linkSponsorId = user.id;
-        if (user.parentId) {
-          const pUser = await prisma.user.findUnique({ where: { userId: user.parentId }, select: { id: true } });
-          if (pUser) linkSponsorId = pUser.id;
-        }
-        await prisma.customer.update({
-          where: { id: linkedCustomer.id },
-          data: { linkedUserId: user.id, sponsorUserId: linkSponsorId }
-        });
-        console.log(`[JOIN-SYSTEM] Linked existing Customer ${linkedCustomer.id} to User ${user.userId}`);
-      } else {
-        // Create new Customer record linked to this user
-        // FK refs: sourceCtvId -> User.userId, sponsorUserId -> User.id (cuid), linkedUserId -> User.id (cuid)
-        let joinSponsorId = user.id; // self if no parent
-        if (user.parentId) {
-          const parentU = await prisma.user.findUnique({ where: { userId: user.parentId }, select: { id: true } });
-          if (parentU) joinSponsorId = parentU.id;
-        }
-        linkedCustomer = await prisma.customer.create({
-          data: {
-            fullName: user.fullName,
-            phone: user.phone,
-            sourceCtvId: user.userId,          // User.userId (short ID)
-            sponsorUserId: joinSponsorId,       // User.id (cuid) of sponsor
-            linkedUserId: user.id,              // User.id (cuid) of self
-            status: 'NEW',
-            expiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
-          }
-        });
-        console.log(`[JOIN-SYSTEM] Created Customer ${linkedCustomer.id} for User ${user.userId}`);
-      }
-    }
+    // REMOVED: FIX A01 — CTV should NOT create self-Customer on join
+
 
     res.json({
       success: true,
