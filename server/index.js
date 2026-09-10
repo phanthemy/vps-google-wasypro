@@ -2415,23 +2415,33 @@ app.post('/api/admin/reset-uat', authenticateToken, async (req, res) => {
     try { delSPointTx = await prisma.sPointTransaction.deleteMany({}); } catch(e) {}
 
     // 3. Reset all users: clear CTV/Ambassador status
-    const resetUsers = await prisma.user.updateMany({
-      data: {
-        qualifyingPoints: 0,
-        sPoints: 0,
-        rank: null,
-        rankStatus: null,
-        rankAchievedAt: null,
-        rankActivationMethod: null,
-        rankActivatedBy: null,
-        tier: 'NONE',
-        isSystemParticipant: false,
-        participantAt: null,
-        businessId: null,
-        totalMachinesBought: 0,
-        wholesaleEligible: false,
-      }
-    });
+    // Reset users one by one (businessId has @unique constraint)
+    const allUsers = await prisma.user.findMany({ select: { id: true } });
+    let resetCount = 0;
+    for (const u of allUsers) {
+      try {
+        await prisma.user.update({
+          where: { id: u.id },
+          data: {
+            qualifyingPoints: 0,
+            sPoints: 0,
+            rank: null,
+            rankStatus: null,
+            rankAchievedAt: null,
+            rankActivationMethod: null,
+            rankActivatedBy: null,
+            tier: 'NONE',
+            isSystemParticipant: false,
+            participantAt: null,
+            businessId: null,
+            totalMachinesBought: 0,
+            wholesaleEligible: false,
+          }
+        });
+        resetCount++;
+      } catch(e) { console.log('[RESET] Skip user', u.id, e.message); }
+    }
+    const resetUsers = { count: resetCount };
 
     // 4. Delete customers (CTV-linked customers)
     let delCustomers = { count: 0 };

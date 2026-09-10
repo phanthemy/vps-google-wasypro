@@ -504,6 +504,27 @@ export const AdminCTVManagement: React.FC = () => {
         <button onClick={fetchList} className="px-4 py-2 bg-ocean-500 hover:bg-ocean-600 text-white text-sm font-bold rounded-xl transition-colors">
           Tải lại
         </button>
+        <button
+                onClick={async () => {
+                  const code = window.prompt('⚠️ XÓA TOÀN BỘ dữ liệu test:\n- Đơn hàng, Hoa hồng, Điểm\n- CTV/Đại sứ, Khách hàng\n\nNhập RESET_ALL để xác nhận:');
+                  if (code !== 'RESET_ALL') return;
+                  if (!window.confirm('LẦN CUỐI: Bạn chắc chắn xóa TOÀN BỘ?')) return;
+                  try {
+                    const token = localStorage.getItem('token') || localStorage.getItem('crm_token');
+                    const csrfToken = (document.cookie.match(/(?:^|;\s*)csrf_token=([^;]*)/) || [])[1] || '';
+                    const res = await fetch('/api/admin/reset-uat', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token, 'X-CSRF-Token': csrfToken },
+                      body: JSON.stringify({ confirm: 'RESET_ALL' }),
+                    }).then(r => r.json());
+                    if (res.success) {
+                      window.alert('✅ Đã reset!\n\n' + Object.entries(res.summary).map(([k,v]) => k + ': ' + v).join('\n'));
+                      fetchList; 
+                    } else { window.alert('Lỗi: ' + res.message); }
+                  } catch(e) { window.alert('Lỗi kết nối'); }
+                }}
+                className="px-3 py-1.5 rounded-xl text-xs font-bold transition-all border border-red-200 bg-red-50 text-red-600 hover:bg-red-100"
+              >🗑️ Reset</button>
       </div>
 
       {/* Filters */}
