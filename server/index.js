@@ -2362,6 +2362,7 @@ app.put('/api/admin/orders/:id/status', authenticateToken, async (req, res) => {
     let settlementResult = null;
     let reversalResult = null;
 
+    // SETTLEMENT: runs when entering COMPLETED
     if (status === 'COMPLETED') {
       try {
         settlementResult = await executeOrderSettlement(req.params.id);
@@ -2371,10 +2372,12 @@ app.put('/api/admin/orders/:id/status', authenticateToken, async (req, res) => {
       }
     }
 
-    if (status === 'CANCELLED') {
+    // REVERSAL: runs when LEAVING COMPLETED (cancel, return, or any backward change)
+    // This ensures CP/SP/commissions are always reversed when order is no longer complete
+    if (order.status === 'COMPLETED' && status !== 'COMPLETED') {
       try {
         reversalResult = await reverseOrderSettlement(req.params.id, req.user);
-        console.log('[ORDER LIFECYCLE] Reversal:', JSON.stringify(reversalResult));
+        console.log('[ORDER LIFECYCLE] Reversal (left COMPLETED):', JSON.stringify(reversalResult));
       } catch (e) {
         console.error('[ORDER LIFECYCLE] Reversal error:', e.message);
       }
