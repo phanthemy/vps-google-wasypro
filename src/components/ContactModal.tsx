@@ -19,6 +19,55 @@ export const ContactModal: React.FC<ContactModalProps> = ({
 
   const isOrderMode = !!selectedProduct;
 
+  // CHECK: If logged-in user is CTV with rank → block website order, redirect to CTV Portal
+  const [isCtvWithRank, setIsCtvWithRank] = React.useState(false);
+  const [ctvRankLabel, setCtvRankLabel] = React.useState('');
+  React.useEffect(() => {
+    if (!isOpen || !isOrderMode) return;
+    fetch('/api/auth/me', { credentials: 'include' })
+      .then(r => r.json())
+      .then(d => {
+        if (d.success && d.user && d.user.rank && d.user.isSystemParticipant) {
+          setIsCtvWithRank(true);
+          const r = (d.user.rank || '').toUpperCase();
+          setCtvRankLabel(r === 'DIRECTOR' ? 'Giám Đốc' : r === 'MANAGER' ? 'Quản Lý' : 'Đại Sứ');
+        } else {
+          setIsCtvWithRank(false);
+        }
+      })
+      .catch(() => setIsCtvWithRank(false));
+  }, [isOpen, isOrderMode]);
+
+  if (isOrderMode && isCtvWithRank) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-gray-900/70 backdrop-blur-md" onClick={onClose}>
+        <div className="bg-white w-full max-w-md rounded-2xl shadow-xl p-8 text-center space-y-5 animate-in fade-in zoom-in duration-200" onClick={e => e.stopPropagation()}>
+          <button onClick={onClose} className="absolute top-4 right-4 w-10 h-10 rounded-full bg-white hover:bg-gray-100 text-gray-700 flex items-center justify-center shadow-lg border border-gray-200">
+            <X className="w-5 h-5" />
+          </button>
+          <div className="w-16 h-16 mx-auto rounded-full bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center">
+            <ShieldCheck className="w-8 h-8 text-white" />
+          </div>
+          <h2 className="text-xl font-extrabold text-slate-900">Bạn đã là {ctvRankLabel} WasyPro!</h2>
+          <p className="text-sm text-slate-500">
+            Để hưởng đầy đủ quyền lợi hoa hồng và quản lý đơn hàng, vui lòng đặt hàng qua <strong>CTV Portal</strong>.
+          </p>
+          <a
+            href="/ctv"
+            className="inline-flex items-center gap-2 px-6 py-3 rounded-xl text-white font-bold text-sm transition-all"
+            style={{ background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)' }}
+          >
+            <ShoppingBag className="w-4 h-4" />
+            Vào CTV Portal Đặt Hàng
+          </a>
+          <button onClick={onClose} className="block mx-auto text-xs text-slate-400 hover:text-slate-600 font-semibold">
+            Đóng
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   const [formData, setFormData] = useState({
     name: '',
     phone: '',

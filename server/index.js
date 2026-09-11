@@ -2185,7 +2185,21 @@ app.get('/api/orders', authenticateToken, async (req, res) => {
       }
     });
 
-    res.json({ success: true, data: orders });
+    // Attach linked WebsiteOrder info (customer name/phone from website form)
+    const orderIds = orders.map(o => o.id);
+    const linkedWOs = await prisma.websiteOrder.findMany({
+      where: { shadowOrderId: { in: orderIds } },
+      select: { shadowOrderId: true, customerName: true, customerPhone: true, id: true }
+    });
+    const woMap = {};
+    for (const wo of linkedWOs) { if (wo.shadowOrderId) woMap[wo.shadowOrderId] = wo; }
+    
+    const enriched = orders.map(o => ({
+      ...o,
+      websiteCustomer: woMap[o.id] || null,
+    }));
+
+    res.json({ success: true, data: enriched });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
