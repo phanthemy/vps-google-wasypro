@@ -5632,7 +5632,10 @@ app.get('/api/orders/my', authenticateToken, async (req, res) => {
       if (user.isSystemParticipant && user.participantAt) {
         ctvOrders = await prisma.order.findMany({
           where: {
-            ordererUserId: user.id,
+            OR: [
+              { ordererUserId: user.id },
+              { customer: { linkedUserId: user.id } },
+            ],
             createdAt: { gte: user.participantAt },
           },
           include: {
@@ -5644,7 +5647,7 @@ app.get('/api/orders/my', authenticateToken, async (req, res) => {
       } else if (user.isSystemParticipant) {
         // Participant without participantAt (edge case) — show all orders
         ctvOrders = await prisma.order.findMany({
-          where: { ordererUserId: user.id },
+          where: { OR: [{ ordererUserId: user.id }, { customer: { linkedUserId: user.id } }] },
           include: {
             items: { include: { product: true } },
             customer: true,
