@@ -3788,8 +3788,12 @@ async function calculateAndCreateCommissions(tx, context) {
   // Next order after promotion → SELF eligible.
   // SELF: only for orders PLACED AFTER user earned BID
   // If order was placed before BID was assigned → no SELF (regardless of approval order)
-  const orderPlacedBeforeBid = orderer && orderer.rankAchievedAt && order.createdAt < orderer.rankAchievedAt;
-  if (isSelf && orderer && priorBusinessId && !orderPlacedBeforeBid) {
+  // (orderPlacedBeforeBid moved into SELF block below for selfRecipient)
+  const selfRecipient = qualifyingMember || orderer;
+  const selfRecipientBID = qualifyingMember ? priorBusinessId || qualifyingMember.businessId : priorBusinessId;
+  const selfRecipientRankAchievedAt = selfRecipient ? selfRecipient.rankAchievedAt : null;
+  const orderPlacedBeforeSelfBid = selfRecipientRankAchievedAt && order.createdAt < selfRecipientRankAchievedAt;
+  if (isSelf && selfRecipient && selfRecipientBID && !orderPlacedBeforeSelfBid) {
     const effectiveRank = priorRank || orderer.rank;
     const rankPrefix = normalizeRankPrefix(effectiveRank);
 
@@ -3798,13 +3802,13 @@ async function calculateAndCreateCommissions(tx, context) {
       const selfRate = getPolicyRate(selfRuleKey);
       if (selfRate) {
         await createCommissionRecord({
-          receiver: orderer,
+          receiver: selfRecipient,
           role: 'SELF',
           ruleKey: selfRuleKey,
           rateSnapshot: selfRate,
           basePoints: orderTotalCP,
           type: 'SELF',
-          metadata: { isSelf: true, rank: effectiveRank },
+          metadata: { isSelf: true, rank: effectiveRank, orderedBy: orderer?.userId },
         });
       }
     }
@@ -4216,11 +4220,12 @@ async function executeOrderSettlement(orderId, options = {}) {
     const orderer = order.orderer || (order.ordererUserId ? await tx.user.findUnique({ where: { id: order.ordererUserId } }) : null);
     const customer = order.customer;
     const qualifyingMember = customer.linkedUser || null;
-    // CANONICAL isSelf: buyer IS orderer AND buyer is system participant.
-    // Non-participant buyers who self-checkout = CUSTOMER_PURCHASE (Direct Customer),
-    // not SELF_PURCHASE. SELF commission only for CTV members.
+    // buyerIsOrderer = true when CTV orders for themselves
     const buyerIsOrderer = !!(qualifyingMember && orderer && qualifyingMember.id === orderer.id);
-    const isSelf = buyerIsOrderer && !!qualifyingMember.isSystemParticipant;
+    // isSelf: TRUE when the CUSTOMER is linked to a CTV participant
+    // SELF commission goes to the customer's linked CTV, regardless of who placed the order
+    // E.g., CTV-A orders for CTV-B (Đại sứ 02) → CTV-B gets SELF 20%
+    const isSelf = !!(qualifyingMember && qualifyingMember.isSystemParticipant);
 
     let directSponsor = customer.sponsorUser || null;
     if (!directSponsor && customer.sponsorUserId) {
