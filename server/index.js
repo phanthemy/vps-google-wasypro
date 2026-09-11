@@ -2483,7 +2483,11 @@ app.post('/api/admin/reset-orders', authenticateToken, async (req, res) => {
     const allU = await prisma.user.findMany({ select: { id: true } });
     for (const u of allU) {
       try {
-        await prisma.user.update({ where: { id: u.id }, data: { qualifyingPoints: 0, sPoints: 0, totalMachinesBought: 0, wholesaleEligible: false } });
+        await prisma.user.update({ where: { id: u.id }, data: { 
+            qualifyingPoints: 0, sPoints: 0, totalMachinesBought: 0, wholesaleEligible: false,
+            rank: null, rankStatus: null, rankAchievedAt: null, rankActivationMethod: null, rankActivatedBy: null,
+            tier: 'NONE', businessId: null
+          } });
       } catch(e) {}
     }
     r.usersPointsReset = allU.length;
