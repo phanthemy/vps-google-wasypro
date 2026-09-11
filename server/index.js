@@ -423,18 +423,24 @@ app.post('/api/auth/register', authLimiter, async (req, res) => {
     // Auto-create linked Customer if joining system at registration
     if (willJoinSystem) {
       try {
+        // sponsorUserId = parent (người giới thiệu), NOT self
+        let regSponsorId = null;
+        if (newUser.parentId) {
+          const parentUser = await prisma.user.findFirst({ where: { userId: newUser.parentId } });
+          if (parentUser) regSponsorId = parentUser.id;
+        }
         await prisma.customer.create({
           data: {
             fullName,
             phone,
             sourceCtvId: generatedId,
-            sponsorUserId: newUser.id,
+            sponsorUserId: regSponsorId,
             linkedUserId: newUser.id,
             status: 'NEW',
             expiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
           }
         });
-        console.log(`[REGISTER] Created self-linked Customer for ${generatedId}`);
+        console.log(`[REGISTER] Created self-linked Customer for ${generatedId} (sponsor: ${newUser.parentId || 'NONE'})`);
       } catch (e) { console.error('[REGISTER] Customer create error:', e.message); }
     }
 
@@ -501,16 +507,17 @@ app.post('/api/users/me/join-system', authenticateToken, async (req, res) => {
       if (linkedCustomer) {
         await prisma.customer.update({
           where: { id: linkedCustomer.id },
-          data: { linkedUserId: user.id, sponsorUserId: user.id }
+          data: { linkedUserId: user.id, sponsorUserId: user.parentId ? (await prisma.user.findFirst({ where: { userId: user.parentId } }))?.id || null : null }
         });
         console.log(`[JOIN-SYSTEM] Linked existing Customer ${linkedCustomer.id} to ${user.userId}`);
       } else {
+        const joinSponsor = user.parentId ? (await prisma.user.findFirst({ where: { userId: user.parentId } })) : null;
         linkedCustomer = await prisma.customer.create({
           data: {
             fullName: user.fullName,
             phone: user.phone,
             sourceCtvId: user.userId,
-            sponsorUserId: user.id,
+            sponsorUserId: joinSponsor?.id || null,
             linkedUserId: user.id,
             status: 'NEW',
             expiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
@@ -2155,12 +2162,13 @@ app.post('/api/orders', authenticateToken, async (req, res) => {
           return res.status(400).json({ success: false, error: 'NOT_PARTICIPANT',
             message: 'Bạn chưa tham gia chương trình CTV. Vui lòng tham gia trước.' });
         }
+        const orderSponsor = ordererUser.parentId ? (await prisma.user.findFirst({ where: { userId: ordererUser.parentId } })) : null;
         customer = await prisma.customer.create({
           data: {
             fullName: ordererUser.fullName,
             phone: ordererUser.phone,
             sourceCtvId: ordererUser.userId,
-            sponsorUserId: ordererUser.id,
+            sponsorUserId: orderSponsor?.id || null,
             linkedUserId: ordererUser.id,
             status: 'NEW',
             expiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
@@ -4022,6 +4030,11 @@ async function executeOrderSettlement(orderId, options = {}) {
     let directSponsor = customer.sponsorUser || null;
     if (!directSponsor && customer.sponsorUserId) {
       directSponsor = await tx.user.findUnique({ where: { id: customer.sponsorUserId } });
+    }
+    // SAFETY: Prevent self-commission — sponsor cannot be the buyer themselves
+    if (directSponsor && orderer && directSponsor.id === orderer.id) {
+      console.log('[SETTLEMENT] Blocked self-sponsor:', orderer.userId, '— set directSponsor to null');
+      directSponsor = null;
     }
 
     // 3. S-Points & Qualifying Points
