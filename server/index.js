@@ -3594,7 +3594,10 @@ async function calculateAndCreateCommissions(tx, context) {
   // BOSS RULE: SELF requires priorBusinessId (user had BID BEFORE this order).
   // Order that crosses 5000 CP threshold → promoted AFTER → NO SELF on that order.
   // Next order after promotion → SELF eligible.
-  if (isSelf && orderer && priorBusinessId) {
+  // SELF: only for orders PLACED AFTER user earned BID
+  // If order was placed before BID was assigned → no SELF (regardless of approval order)
+  const orderPlacedBeforeBid = orderer && orderer.rankAchievedAt && order.createdAt < orderer.rankAchievedAt;
+  if (isSelf && orderer && priorBusinessId && !orderPlacedBeforeBid) {
     const effectiveRank = priorRank || orderer.rank;
     const rankPrefix = normalizeRankPrefix(effectiveRank);
 
