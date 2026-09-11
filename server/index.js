@@ -2542,7 +2542,7 @@ app.post('/api/admin/reset-ctv', authenticateToken, async (req, res) => {
           data: {
             qualifyingPoints: 0, sPoints: 0, rank: null, rankStatus: null, rankAchievedAt: null,
             rankActivationMethod: null, rankActivatedBy: null, tier: 'NONE',
-            isSystemParticipant: false, participantAt: null, businessId: null,
+            businessId: null, // GIỮ isSystemParticipant=true — CTV vẫn là CTV sau reset
             totalMachinesBought: 0, wholesaleEligible: false, parentId: null,
           }
         });
@@ -2657,7 +2657,7 @@ app.post('/api/admin/factory-reset', authenticateToken, async (req, res) => {
             rank: null, rankStatus: null, rankAchievedAt: null,
             rankActivationMethod: null, rankActivatedBy: null,
             totalMachinesBought: 0, wholesaleEligible: false,
-            isSystemParticipant: false, participantAt: null, businessId: null,
+            businessId: null, // GIỮ isSystemParticipant=true — CTV vẫn là CTV sau reset
             parentId: null,
           }
         });
