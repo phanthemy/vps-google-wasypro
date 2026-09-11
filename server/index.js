@@ -1754,6 +1754,72 @@ app.post('/api/admin/users/:id/reset-password', authenticateToken, requireRole([
 });
 
 // UPDATE USER NOTE (Admin/Accountant)
+
+/**
+ * DELETE /api/admin/users/:userId — Xóa hoàn toàn 1 user (CTV/thành viên)
+ * Xóa tất cả data liên quan: commissions, orders, customers, points, rank
+ * Admin only.
+ */
+app.delete('/api/admin/users/:userId', authenticateToken, requireRole(['admin']), async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const user = await prisma.user.findFirst({ where: { OR: [{ userId }, { id: userId }] } });
+    if (!user) return res.status(404).json({ success: false, message: 'User không tồn tại.' });
+    if (user.role === 'admin') return res.status(400).json({ success: false, message: 'Không thể xóa tài khoản admin.' });
+
+    console.log('[DELETE USER]', user.userId, user.fullName, 'by', req.user.id);
+    const r = {};
+
+    // 1. Delete commissions where user is receiver
+    try { r.commissionsReceived = (await prisma.commission.deleteMany({ where: { receiverId: user.userId } })).count; } catch(e) { r.commissionsReceived = 0; }
+
+    // 2. Delete commissions on user's orders
+    const userOrders = await prisma.order.findMany({ where: { ordererUserId: user.id }, select: { id: true } });
+    const orderIds = userOrders.map(o => o.id);
+    if (orderIds.length > 0) {
+      try { r.commissionsOnOrders = (await prisma.commission.deleteMany({ where: { orderId: { in: orderIds } } })).count; } catch(e) { r.commissionsOnOrders = 0; }
+      try { r.commissionProcessing = (await prisma.commissionProcessing.deleteMany({ where: { orderId: { in: orderIds } } })).count; } catch(e) { r.commissionProcessing = 0; }
+      try { r.sPointTx = (await prisma.sPointTransaction.deleteMany({ where: { orderId: { in: orderIds } } })).count; } catch(e) { r.sPointTx = 0; }
+    }
+
+    // 3. Delete user's SPoint transactions (non-order linked)
+    try { r.sPointTxUser = (await prisma.sPointTransaction.deleteMany({ where: { userId: user.userId } })).count; } catch(e) { r.sPointTxUser = 0; }
+
+    // 4. Delete order items then orders
+    if (orderIds.length > 0) {
+      try { r.orderItems = (await prisma.orderItem.deleteMany({ where: { orderId: { in: orderIds } } })).count; } catch(e) { r.orderItems = 0; }
+      try { r.orders = (await prisma.order.deleteMany({ where: { id: { in: orderIds } } })).count; } catch(e) { r.orders = 0; }
+    }
+
+    // 5. Delete customer audit logs + customers linked to this user
+    const userCustomers = await prisma.customer.findMany({ where: { OR: [{ linkedUserId: user.id }, { sponsorUserId: user.id }] }, select: { id: true } });
+    const custIds = userCustomers.map(c => c.id);
+    if (custIds.length > 0) {
+      try { r.customerAuditLog = (await prisma.customerAuditLog.deleteMany({ where: { customerId: { in: custIds } } })).count; } catch(e) { r.customerAuditLog = 0; }
+      // Unlink sponsor from other customers (don't delete them)
+      try { r.sponsorUnlinked = (await prisma.customer.updateMany({ where: { sponsorUserId: user.id }, data: { sponsorUserId: null } })).count; } catch(e) { r.sponsorUnlinked = 0; }
+      // Delete self-linked customers
+      try { r.customers = (await prisma.customer.deleteMany({ where: { linkedUserId: user.id } })).count; } catch(e) { r.customers = 0; }
+    }
+
+    // 6. Delete rank history
+    try { r.rankHistory = (await prisma.rankHistory.deleteMany({ where: { userId: user.userId } })).count; } catch(e) { r.rankHistory = 0; }
+
+    // 7. Unlink children (set parentId = null for downlines)
+    try { r.childrenUnlinked = (await prisma.user.updateMany({ where: { parentId: user.userId }, data: { parentId: null } })).count; } catch(e) { r.childrenUnlinked = 0; }
+
+    // 8. Delete the user
+    try { await prisma.user.delete({ where: { id: user.id } }); r.userDeleted = true; } catch(e) { r.userDeleted = 'FAILED: ' + e.message; }
+
+    console.log('[DELETE USER] Done:', JSON.stringify(r));
+    res.json({ success: true, summary: r });
+  } catch(e) {
+    console.error('[DELETE USER]', e);
+    res.status(500).json({ success: false, message: e.message });
+  }
+});
+
+
 app.put('/api/users/:id/note', authenticateToken, requireRole(['admin', 'accountant']), async (req, res) => {
   try {
     const { note } = req.body;
