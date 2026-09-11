@@ -78,7 +78,7 @@ export default function CommissionHistoryView({ currentUser, setActiveTab }) {
                       </td>
                       <td className="py-3.5 px-3 text-center">
                         {c.rateSnapshot ? (
-                          <span className="text-green-400 font-semibold">{c.rateSnapshot}%</span>
+                          <span className="text-green-400 font-semibold">{(c.rateSnapshot * 100).toFixed(0)}%</span>
                         ) : (
                           <span className="text-muted">-</span>
                         )}
