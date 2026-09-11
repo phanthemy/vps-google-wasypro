@@ -2316,7 +2316,7 @@ app.put('/api/admin/orders/:id/status', authenticateToken, async (req, res) => {
       return res.status(403).json({ success: false, message: 'Không có quyền.' });
     }
     const { status } = req.body;
-    const validStatuses = ['NEW', 'CONFIRMED', 'SHIPPING', 'COMPLETED', 'CANCELLED'];
+    const validStatuses = ['NEW', 'DEPOSIT', 'CONFIRMED', 'SHIPPING', 'COMPLETED', 'CANCELLED'];
     if (!validStatuses.includes(status)) {
       return res.status(400).json({ success: false, message: 'Trạng thái không hợp lệ.' });
     }
@@ -2328,8 +2328,20 @@ app.put('/api/admin/orders/:id/status', authenticateToken, async (req, res) => {
       return res.status(400).json({ success: false, message: 'Đơn đã hủy, không thể thay đổi.' });
     }
 
-    await prisma.order.update({ where: { id: req.params.id }, data: { status } });
-    console.log('[ORDER STATUS]', req.params.id, order.status, '→', status);
+    // Build update data — include deposit info if transitioning to DEPOSIT
+    const updateData = { status };
+    if (status === 'DEPOSIT') {
+      const { depositAmount, depositNote } = req.body;
+      if (depositAmount && Number(depositAmount) > 0) {
+        updateData.depositAmount = Number(depositAmount);
+        updateData.depositAt = new Date();
+        if (depositNote) updateData.depositNote = depositNote;
+      }
+    }
+
+    await prisma.order.update({ where: { id: req.params.id }, data: updateData });
+    console.log('[ORDER STATUS]', req.params.id, order.status, '→', status, 
+      status === 'DEPOSIT' ? `(deposit: ${updateData.depositAmount || 0})` : '');
 
     let settlementResult = null;
     let reversalResult = null;

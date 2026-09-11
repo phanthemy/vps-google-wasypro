@@ -152,6 +152,11 @@ model Order {
   // Period Lifecycle: gắn order với kỳ hoa hồng
   periodId    String?  // null = pre-period (legacy data)
 
+  // Deposit (Đặt cọc)
+  depositAmount Float?    @default(0)
+  depositAt     DateTime?
+  depositNote   String?
+
   customer    Customer    @relation(fields: [customerId], references: [id])
   orderer     User?       @relation("OrderCreator", fields: [ordererUserId], references: [id])
   period      CommissionPeriod? @relation(fields: [periodId], references: [id])

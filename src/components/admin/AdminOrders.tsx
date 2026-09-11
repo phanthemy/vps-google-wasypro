@@ -24,6 +24,9 @@ interface RealOrder {
   purchaseType: string;
   isSelfBuy: boolean;
   ordererUserId?: string | null;
+  depositAmount?: number;
+  depositAt?: string;
+  depositNote?: string;
   orderer?: { userId: string; fullName: string; phone: string; role: string } | null;
   customer: {
     fullName: string;
@@ -60,8 +63,11 @@ interface WebsiteOrder {
 // ============ STATUS CONFIG ============
 const CTV_STATUS_OPTS = [
   { value: 'all',       label: 'Tất Cả',       bg: 'bg-slate-100',   text: 'text-slate-700' },
+  { value: 'NEW',       label: 'Mới',           bg: 'bg-blue-100',    text: 'text-blue-700' },
+  { value: 'DEPOSIT',   label: 'Đặt Cọc',      bg: 'bg-orange-100',  text: 'text-orange-700' },
+  { value: 'CONFIRMED', label: 'Đã Xác Nhận',  bg: 'bg-amber-100',   text: 'text-amber-700' },
+  { value: 'SHIPPING',  label: 'Đang Giao',     bg: 'bg-purple-100',  text: 'text-purple-700' },
   { value: 'COMPLETED', label: 'Hoàn Thành',   bg: 'bg-emerald-100', text: 'text-emerald-700' },
-  { value: 'DEPOSIT',   label: 'Đặt Cọc',      bg: 'bg-amber-100',   text: 'text-amber-700' },
   { value: 'CANCELLED', label: 'Đã Hủy',       bg: 'bg-rose-100',    text: 'text-rose-700' },
 ];
 
@@ -161,8 +167,8 @@ export const AdminOrders: React.FC = () => {
     } catch (_) {}
   };
 
-  // Update CTV order status
-  const updateCtvOrderStatus = async (id: string, newStatus: string) => {
+  // Update CTV order status (with deposit support)
+  const updateCtvOrderStatus = async (id: string, newStatus: string, extraData: Record<string, any> = {}) => {
     try {
       const res = await fetch(`/api/admin/orders/${id}/status`, {
         method: 'PUT',
@@ -171,10 +177,10 @@ export const AdminOrders: React.FC = () => {
           'Content-Type': 'application/json',
           'X-CSRF-Token': (document.cookie.match(/(?:^|;\s*)csrf_token=([^;]*)/) || [])[1] || '',
         },
-        body: JSON.stringify({ status: newStatus }),
+        body: JSON.stringify({ status: newStatus, ...extraData }),
       });
       if (res.ok) {
-        setCtvOrders(prev => prev.map(o => o.id === id ? { ...o, status: newStatus } : o));
+        setCtvOrders(prev => prev.map(o => o.id === id ? { ...o, status: newStatus, ...extraData } : o));
       } else {
         const err = await res.json().catch(() => ({}));
         alert(err.message || 'Không thể cập nhật trạng thái');
@@ -649,8 +655,16 @@ export const AdminOrders: React.FC = () => {
                                   value={order.status}
                                   onChange={e => {
                                     e.stopPropagation();
-                                    if (window.confirm(`Đổi trạng thái → ${e.target.value}?`)) {
-                                      updateCtvOrderStatus(order.id, e.target.value);
+                                    const newVal = e.target.value;
+                                    if (newVal === 'DEPOSIT') {
+                                      const amtStr = window.prompt('Nhập số tiền đặt cọc (VNĐ):', '');
+                                      if (!amtStr) { e.target.value = order.status; return; }
+                                      const amt = parseInt(amtStr.replace(/[^0-9]/g, ''), 10);
+                                      if (!amt || amt <= 0) { alert('Số tiền không hợp lệ'); e.target.value = order.status; return; }
+                                      const note = window.prompt('Ghi chú cọc (tùy chọn):', '') || '';
+                                      updateCtvOrderStatus(order.id, 'DEPOSIT', { depositAmount: amt, depositNote: note });
+                                    } else if (window.confirm(`Đổi trạng thái → ${newVal}?`)) {
+                                      updateCtvOrderStatus(order.id, newVal);
                                     } else {
                                       e.target.value = order.status;
                                     }
@@ -668,6 +682,23 @@ export const AdminOrders: React.FC = () => {
                           {isExpanded && (
                             <tr className="bg-slate-50/50">
                               <td colSpan={7} className="py-4 px-6">
+                                {/* DEPOSIT INFO */}
+                                {(order.depositAmount > 0 || order.status === 'DEPOSIT') && (
+                                  <div className="bg-orange-50 border border-orange-200 rounded-xl p-3 mb-4 flex items-center gap-3">
+                                    <div className="text-2xl">💰</div>
+                                    <div>
+                                      <div className="text-xs font-bold text-orange-700 uppercase">Đặt Cọc</div>
+                                      <div className="text-base font-extrabold text-orange-800">
+                                        {new Intl.NumberFormat('vi-VN').format(order.depositAmount || 0)}đ
+                                        <span className="text-xs font-normal text-orange-500 ml-2">
+                                          / {new Intl.NumberFormat('vi-VN').format(order.totalAmount)}đ tổng
+                                        </span>
+                                      </div>
+                                      {order.depositNote && <div className="text-[11px] text-orange-600 mt-0.5">📝 {order.depositNote}</div>}
+                                      {order.depositAt && <div className="text-[10px] text-orange-400 mt-0.5">⏰ {new Date(order.depositAt).toLocaleString('vi-VN')}</div>}
+                                    </div>
+                                  </div>
+                                )}
                                 {/* ORDER AUDIT INFO */}
                                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
                                   <div className="bg-white rounded-xl p-3 border border-slate-100">
