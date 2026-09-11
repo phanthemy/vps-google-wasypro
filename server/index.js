@@ -2479,6 +2479,14 @@ app.post('/api/admin/reset-orders', authenticateToken, async (req, res) => {
     try { r.sPointTx = (await prisma.sPointTransaction.deleteMany({})).count; } catch(e) { r.sPointTx = 0; }
     try { r.rankHistory = (await prisma.rankHistory.deleteMany({})).count; } catch(e) { r.rankHistory = 0; }
     
+    // Clean audit + period data + reset BID sequence
+    try { r.customerAuditLog = (await prisma.customerAuditLog.deleteMany({})).count; } catch(e) { r.customerAuditLog = 0; }
+    try { r.periodCloseAudit = (await prisma.periodCloseAudit.deleteMany({})).count; } catch(e) { r.periodCloseAudit = 0; }
+    try { r.periodPolicyAudit = (await prisma.periodPolicyAuditLog.deleteMany({})).count; } catch(e) { r.periodPolicyAudit = 0; }
+    try { r.periodPolicyConfig = (await prisma.periodPolicyConfig.deleteMany({})).count; } catch(e) { r.periodPolicyConfig = 0; }
+    try { r.commissionPeriods = (await prisma.commissionPeriod.deleteMany({})).count; } catch(e) { r.commissionPeriods = 0; }
+    try { await prisma.businessIdSequence.update({ where: { id: 1 }, data: { nextVal: 10001 } }); r.bidSequenceReset = true; } catch(e) { r.bidSequenceReset = false; }
+    
     // Reverse QP/SP on all users
     const allU = await prisma.user.findMany({ select: { id: true } });
     for (const u of allU) {
@@ -3618,8 +3626,9 @@ async function calculateAndCreateCommissions(tx, context) {
       // - businessId = null (prior to this order)
       // - orderTotalCP > 0
       // - priorQP + orderTotalCP >= threshold
-      const isSplitEligible = !isSelf &&
-        qualifyingMember &&
+      // SPLIT applies to ALL purchases (self or customer) when crossing threshold
+      // Self-buy crossing threshold: sponsor gets SPLIT (qualifying=20% + excess=10%)
+      const isSplitEligible = qualifyingMember &&
         isParticipant &&
         !priorBusinessId &&
         orderTotalCP > 0 &&
