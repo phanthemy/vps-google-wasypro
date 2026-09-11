@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ShoppingCart, Trash2, Package, RefreshCw, Plus } from 'lucide-react';
-import CreateOrderModal from './CreateOrderModal';
+import { ShoppingCart, Trash2, Package, RefreshCw } from 'lucide-react';
 
 export default function OrdersView({ currentUser }) {
   const [orders, setOrders] = useState([]);
@@ -12,7 +11,6 @@ export default function OrdersView({ currentUser }) {
   const [exactDate, setExactDate] = useState(new Date().toISOString().slice(0, 10));
   const [searchQuery, setSearchQuery] = useState('');
   const [orderType, setOrderType] = useState('all');
-  const [showCreateModal, setShowCreateModal] = useState(false);
 
   const isAdmin = currentUser?.role === 'admin' || currentUser?.role === 'accountant';
   const isParticipant = currentUser?.isSystemParticipant;
@@ -154,17 +152,15 @@ export default function OrdersView({ currentUser }) {
       return true;
   });
 
-  // Separate self-orders (I bought for myself) vs orders-for-others (I bought for someone else)
+  // Separate self-orders vs orders-for-others
   const myUserId = currentUser?.id || currentUser?.userId;
   const selfOrders = filteredOrders.filter(o => {
-    // Self-order: customer is ME (linkedUserId matches my user record id)
     const custLinkedId = o.customer?.linkedUserId || o.customer?.linkedUser?.id;
     const custLinkedUserId = o.customer?.linkedUser?.userId;
     return custLinkedId === myUserId || custLinkedUserId === myUserId || 
            o.customer?.fullName === currentUser?.fullName;
   });
   const ordersForOthers = filteredOrders.filter(o => !selfOrders.includes(o));
-  
   const totalOrders = selfOrders.length;
   const totalRevenue = selfOrders.reduce((acc, o) => acc + (o.totalAmount || 0), 0);
   const totalItemsSold = selfOrders.reduce((acc, o) => acc + (o.items?.reduce((sum, item) => sum + (item.qty || 1), 0) || 0), 0);
@@ -195,21 +191,6 @@ export default function OrdersView({ currentUser }) {
           <div className="flex-col gap-4 mb-2">
              <div className="flex justify-between items-center">
                 <h2 className="text-xl font-bold text-primary flex items-center gap-2"><ShoppingCart className="text-blue-500"/> Đơn Hàng Của Tôi</h2>
-                {isParticipant && (
-                  <button
-                    onClick={() => setShowCreateModal(true)}
-                    className="hover-scale"
-                    style={{
-                      display: 'flex', alignItems: 'center', gap: '6px',
-                      padding: '8px 16px', borderRadius: '12px',
-                      background: '#6366f1', color: 'white',
-                      fontWeight: 700, fontSize: '0.8rem',
-                      border: 'none', cursor: 'pointer',
-                    }}
-                  >
-                    <Plus size={16} /> Tạo Đơn
-                  </button>
-                )}
                 <button onClick={loadOrders} className="btn-icon hover-scale" title="Làm mới" style={{ padding: '8px', borderRadius: '50%' }}>
                   <RefreshCw size={18} />
                 </button>
@@ -320,14 +301,6 @@ export default function OrdersView({ currentUser }) {
               ))}
             </div>
           )}
-          {showCreateModal && (
-            <CreateOrderModal
-              currentUser={currentUser}
-              onClose={() => setShowCreateModal(false)}
-              onSuccess={() => { setShowCreateModal(false); loadOrders(); }}
-            />
-          )}
-
        </div>
     </div>
   )
