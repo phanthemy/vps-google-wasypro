@@ -154,7 +154,7 @@ model Order {
 
   // Deposit (Đặt cọc)
   depositAmount Float?    @default(0)
-  depositAt     DateTime?
+  depositAt     String?
   depositNote   String?
 
   customer    Customer    @relation(fields: [customerId], references: [id])

@@ -2328,13 +2328,29 @@ app.put('/api/admin/orders/:id/status', authenticateToken, async (req, res) => {
       return res.status(400).json({ success: false, message: 'Đơn đã hủy, không thể thay đổi.' });
     }
 
+    // Forward-only: cannot go backward (except CANCELLED which can come from any status)
+    if (status !== 'CANCELLED') {
+      const ORDER_FLOW = ['NEW', 'DEPOSIT', 'CONFIRMED', 'SHIPPING', 'COMPLETED'];
+      const currentIdx = ORDER_FLOW.indexOf(order.status);
+      const targetIdx = ORDER_FLOW.indexOf(status);
+      // Allow skipping (e.g. NEW → CONFIRMED), but not going backward
+      if (currentIdx >= 0 && targetIdx >= 0 && targetIdx <= currentIdx) {
+        return res.status(400).json({ success: false, 
+          message: `Không thể chuyển từ ${order.status} về ${status}. Chỉ được chuyển tiến hoặc hủy.` });
+      }
+    }
+
+    if (order.status === 'COMPLETED' && status !== 'CANCELLED') {
+      return res.status(400).json({ success: false, message: 'Đơn đã hoàn thành. Chỉ có thể hủy.' });
+    }
+
     // Build update data — include deposit info if transitioning to DEPOSIT
     const updateData = { status };
     if (status === 'DEPOSIT') {
       const { depositAmount, depositNote } = req.body;
       if (depositAmount && Number(depositAmount) > 0) {
         updateData.depositAmount = Number(depositAmount);
-        updateData.depositAt = new Date();
+        updateData.depositAt = new Date().toISOString();
         if (depositNote) updateData.depositNote = depositNote;
       }
     }
