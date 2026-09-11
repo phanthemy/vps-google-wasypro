@@ -3604,7 +3604,10 @@ async function calculateAndCreateCommissions(tx, context) {
   // -------------------------------------------------------------
   // DIRECT receiver = Customer.sponsorUserId (NEVER Orderer.sponsorUserId)
   // Only applies if directSponsor exists
-  if (!isSelf && directSponsor) {
+  // DIRECT commission: sponsor gets commission when their downline buys
+  // Applies to BOTH self-purchase AND customer-purchase
+  // For self-purchase: directSponsor = customer.sponsorUser (same as orderer's sponsor)
+  if (directSponsor) {
     const sponsorRank = directSponsor.rank || (directSponsor.role === 'ctv' ? 'AMBASSADOR' : null);
     const sponsorPrefix = normalizeRankPrefix(sponsorRank);
     if (sponsorPrefix) {
@@ -3721,7 +3724,11 @@ async function calculateAndCreateCommissions(tx, context) {
   // Áp dụng cho MỌI trường hợp (tự mua hoặc bán cho khách)
   // KHÔNG skip sponsor chưa có businessId
 
-  const memberForUpstream = isSelf ? orderer : qualifyingMember;
+  // For F1/F2: traverse upstream from the SPONSOR (not the buyer)
+  // This prevents sponsor from getting BOTH DIRECT and F1
+  // Self-buy: Buyer → Sponsor (DIRECT) → Sponsor's Parent (F1) → Sponsor's Grandparent (F2)
+  // Customer: Buyer → Sponsor (DIRECT) → Sponsor's Parent (F1) → Sponsor's Grandparent (F2)
+  const memberForUpstream = directSponsor || (isSelf ? orderer : qualifyingMember);
 
   // F1/F2 GATE: Only fire upstream commission when the buyer/member is
   // a system participant WITH Business ID AT TIME OF ORDER (pre-order state).
