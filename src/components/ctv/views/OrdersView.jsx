@@ -154,9 +154,22 @@ export default function OrdersView({ currentUser }) {
       return true;
   });
 
-  const totalOrders = filteredOrders.length;
-  const totalRevenue = filteredOrders.reduce((acc, o) => acc + (o.totalAmount || 0), 0);
-  const totalItemsSold = filteredOrders.reduce((acc, o) => acc + (o.items?.reduce((sum, item) => sum + (item.qty || 1), 0) || 0), 0);
+  // Separate self-orders (I bought for myself) vs orders-for-others (I bought for someone else)
+  const myUserId = currentUser?.id || currentUser?.userId;
+  const selfOrders = filteredOrders.filter(o => {
+    // Self-order: customer is ME (linkedUserId matches my user record id)
+    const custLinkedId = o.customer?.linkedUserId || o.customer?.linkedUser?.id;
+    const custLinkedUserId = o.customer?.linkedUser?.userId;
+    return custLinkedId === myUserId || custLinkedUserId === myUserId || 
+           o.customer?.fullName === currentUser?.fullName;
+  });
+  const ordersForOthers = filteredOrders.filter(o => !selfOrders.includes(o));
+  
+  const totalOrders = selfOrders.length;
+  const totalRevenue = selfOrders.reduce((acc, o) => acc + (o.totalAmount || 0), 0);
+  const totalItemsSold = selfOrders.reduce((acc, o) => acc + (o.items?.reduce((sum, item) => sum + (item.qty || 1), 0) || 0), 0);
+  const ordersForOthersCount = ordersForOthers.length;
+  const ordersForOthersRevenue = ordersForOthers.reduce((acc, o) => acc + (o.totalAmount || 0), 0);
 
   const statusLabel = (status) => {
     const map = {
@@ -204,12 +217,14 @@ export default function OrdersView({ currentUser }) {
              
              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-2 mt-2">
                  <div className="card p-4 rounded-xl flex-col items-center justify-center text-center shadow-sm" style={{ background: '#eff6ff', color: '#1e40af', border: '1px solid #bfdbfe' }}>
-                     <div className="text-sm font-bold opacity-80 uppercase tracking-wider mb-1">Số Đơn Hàng</div>
+                     <div className="text-sm font-bold opacity-80 uppercase tracking-wider mb-1">Đơn Cá Nhân</div>
                      <div className="text-3xl font-black">{totalOrders}</div>
+                     {ordersForOthersCount > 0 && <div className="text-xs mt-1 opacity-70">+ {ordersForOthersCount} đơn cho khách</div>}
                  </div>
                  <div className="card p-4 rounded-xl flex-col items-center justify-center text-center shadow-sm" style={{ background: '#ecfdf5', color: '#065f46', border: '1px solid #a7f3d0' }}>
-                     <div className="text-sm font-bold opacity-80 uppercase tracking-wider mb-1">Tổng Giá Trị</div>
+                     <div className="text-sm font-bold opacity-80 uppercase tracking-wider mb-1">Doanh Số Cá Nhân</div>
                      <div className="text-2xl font-black">{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(totalRevenue)}</div>
+                     {ordersForOthersRevenue > 0 && <div className="text-xs mt-1 opacity-70">+ {new Intl.NumberFormat('vi-VN').format(ordersForOthersRevenue)}đ cho khách</div>}
                  </div>
                  <div className="card p-4 rounded-xl flex-col items-center justify-center text-center shadow-sm" style={{ background: '#f5f3ff', color: '#5b21b6', border: '1px solid #c4b5fd' }}>
                      <div className="text-sm font-bold opacity-80 uppercase tracking-wider mb-1">Sản Phẩm Đã Mua</div>
