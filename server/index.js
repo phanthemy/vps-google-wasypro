@@ -2380,6 +2380,109 @@ app.post('/api/orders', authenticateToken, async (req, res) => {
 });
 
 /**
+ * POST /api/ctv/customers — CTV creates a new customer
+ * If joinCTV=true → creates User + Customer (downline of CTV)
+ * If joinCTV=false → creates Customer only (regular customer of CTV)
+ */
+app.post('/api/ctv/customers', authenticateToken, async (req, res) => {
+  try {
+    const { fullName, phone, joinCTV } = req.body;
+    if (!fullName?.trim() || !phone?.trim()) {
+      return res.status(400).json({ success: false, message: 'Vui lòng nhập tên và SĐT.' });
+    }
+
+    const lookupId = req.user.userId || req.user.id;
+    const ctvUser = await prisma.user.findFirst({ where: { OR: [{ userId: lookupId }, { id: lookupId }] } });
+    if (!ctvUser) return res.status(404).json({ success: false, message: 'Không tìm thấy CTV.' });
+
+    // Check duplicate phone in Customer
+    const existingCustomer = await prisma.customer.findFirst({ where: { phone: phone.trim() } });
+    if (existingCustomer) {
+      return res.status(400).json({ success: false, message: 'SĐT này đã có trong hệ thống.', customer: existingCustomer });
+    }
+
+    let newUser = null;
+    let customer;
+
+    if (joinCTV) {
+      // Check duplicate phone in User
+      const existingUser = await prisma.user.findUnique({ where: { phone: phone.trim() } });
+      if (existingUser) {
+        return res.status(400).json({ success: false, message: 'SĐT này đã đăng ký tài khoản.' });
+      }
+
+      // Generate userId
+      let generatedId = '', isUnique = false;
+      while (!isUnique) {
+        generatedId = 'U' + Math.floor(100 + Math.random() * 900);
+        const check = await prisma.user.findUnique({ where: { userId: generatedId } });
+        if (!check) isUnique = true;
+      }
+
+      // Create User (downline of CTV)
+      const bcrypt = require('bcryptjs');
+      const hashedPassword = await bcrypt.hash('123456', 10);
+      newUser = await prisma.user.create({
+        data: {
+          userId: generatedId,
+          fullName: fullName.trim(),
+          phone: phone.trim(),
+          password: hashedPassword,
+          tier: 'NONE',
+          role: 'ctv',
+          parentId: ctvUser.userId,
+          isSystemParticipant: true,
+          participantAt: new Date(),
+          qualifyingPoints: 0,
+          sPoints: 0,
+        }
+      });
+      console.log('[CTV CREATE CUSTOMER] Created User', generatedId, 'as downline of', ctvUser.userId);
+
+      // Create Customer (linked to new user, sponsored by CTV)
+      customer = await prisma.customer.create({
+        data: {
+          fullName: fullName.trim(),
+          phone: phone.trim(),
+          sourceCtvId: ctvUser.userId,
+          sponsorUserId: ctvUser.id,
+          linkedUserId: newUser.id,
+          status: 'NEW',
+          expiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
+        }
+      });
+      console.log('[CTV CREATE CUSTOMER] Created CTV Customer', customer.id, 'linked to', generatedId);
+    } else {
+      // Create Customer only (not joining CTV system)
+      customer = await prisma.customer.create({
+        data: {
+          fullName: fullName.trim(),
+          phone: phone.trim(),
+          sourceCtvId: ctvUser.userId,
+          sponsorUserId: ctvUser.id,
+          linkedUserId: null,
+          status: 'NEW',
+          expiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
+        }
+      });
+      console.log('[CTV CREATE CUSTOMER] Created regular Customer', customer.id, 'for CTV', ctvUser.userId);
+    }
+
+    res.status(201).json({
+      success: true,
+      customer,
+      user: newUser ? { userId: newUser.userId, fullName: newUser.fullName } : null,
+      message: joinCTV
+        ? 'Đã tạo khách hàng + tài khoản CTV. Mật khẩu mặc định: 123456'
+        : 'Đã tạo khách hàng thành công.',
+    });
+  } catch(e) {
+    console.error('[CTV CREATE CUSTOMER]', e);
+    res.status(500).json({ success: false, message: e.message });
+  }
+});
+
+/**
  * PUT /api/admin/orders/:id/status
  * Admin — update CTV Order status + trigger settlement/reversal
  * Same lifecycle as Website Orders: NEW → CONFIRMED → SHIPPING → COMPLETED | CANCELLED

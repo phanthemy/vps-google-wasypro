@@ -11,6 +11,11 @@ export default function CreateOrderModal({ currentUser, onClose, onSuccess }) {
   const [purchaseSubject, setPurchaseSubject] = useState('SELF');
   const [customers, setCustomers] = useState([]);
   const [selectedCustomer, setSelectedCustomer] = useState(null);
+  const [showNewCustomerForm, setShowNewCustomerForm] = useState(false);
+  const [newCustName, setNewCustName] = useState('');
+  const [newCustPhone, setNewCustPhone] = useState('');
+  const [newCustJoinCTV, setNewCustJoinCTV] = useState(false);
+  const [creatingCustomer, setCreatingCustomer] = useState(false);
   const [products, setProducts] = useState([]);
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [qty, setQty] = useState(1);
@@ -174,7 +179,86 @@ export default function CreateOrderModal({ currentUser, onClose, onSuccess }) {
               ) : (
                 <div className="mt-2 max-h-40 overflow-y-auto rounded-xl" style={{ border: '1px solid #e2e8f0' }}>
                   {filteredCustomers.length === 0 ? (
-                    <div className="p-3 text-center text-sm" style={{ color: '#94a3b8' }}>Không tìm thấy khách hàng</div>
+                    <div className="p-3 text-center space-y-3">
+                      <div className="text-sm" style={{ color: '#94a3b8' }}>Không tìm thấy khách hàng</div>
+                      {!showNewCustomerForm ? (
+                        <button
+                          onClick={() => { setShowNewCustomerForm(true); setNewCustName(customerSearch); }}
+                          className="px-4 py-2 rounded-xl text-sm font-bold transition-all"
+                          style={{ background: '#6366f1', color: 'white' }}
+                        >
+                          + Tạo Khách Mới
+                        </button>
+                      ) : (
+                        <div className="text-left space-y-2 p-3 rounded-xl" style={{ background: '#f8fafc', border: '1px solid #e2e8f0' }}>
+                          <div className="text-xs font-bold uppercase" style={{ color: '#6366f1' }}>Tạo Khách Hàng Mới</div>
+                          <input
+                            type="text"
+                            placeholder="Họ tên khách"
+                            value={newCustName}
+                            onChange={e => setNewCustName(e.target.value)}
+                            className="w-full px-3 py-2 rounded-lg text-sm"
+                            style={{ border: '1px solid #e2e8f0' }}
+                          />
+                          <input
+                            type="tel"
+                            placeholder="Số điện thoại"
+                            value={newCustPhone}
+                            onChange={e => setNewCustPhone(e.target.value)}
+                            className="w-full px-3 py-2 rounded-lg text-sm"
+                            style={{ border: '1px solid #e2e8f0' }}
+                          />
+                          <label className="flex items-center gap-2 text-sm cursor-pointer py-1">
+                            <input
+                              type="checkbox"
+                              checked={newCustJoinCTV}
+                              onChange={e => setNewCustJoinCTV(e.target.checked)}
+                              className="w-4 h-4 accent-indigo-500"
+                            />
+                            <span style={{ color: '#475569' }}>Tham gia CTV (tạo tài khoản đối tác)</span>
+                          </label>
+                          <div className="flex gap-2">
+                            <button
+                              disabled={creatingCustomer || !newCustName.trim() || !newCustPhone.trim()}
+                              onClick={async () => {
+                                setCreatingCustomer(true);
+                                try {
+                                  const csrf = document.cookie.match(/csrf_token=([^;]*)/)?.[1] || '';
+                                  const r = await fetch('/api/ctv/customers', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrf },
+                                    credentials: 'include',
+                                    body: JSON.stringify({ fullName: newCustName.trim(), phone: newCustPhone.trim(), joinCTV: newCustJoinCTV }),
+                                  }).then(r => r.json());
+                                  if (r.success) {
+                                    setSelectedCustomer(r.customer);
+                                    setShowNewCustomerForm(false);
+                                    setNewCustName(''); setNewCustPhone(''); setNewCustJoinCTV(false);
+                                    setCustomerSearch('');
+                                    // Refresh customer list
+                                    const listRes = await fetch('/api/customers', { credentials: 'include' }).then(r => r.json());
+                                    if (listRes.success) setCustomers(listRes.data);
+                                    alert(r.message + (r.user ? '\nUser ID: ' + r.user.userId : ''));
+                                  } else { alert('Lỗi: ' + r.message); }
+                                } catch(e) { alert('Lỗi kết nối'); }
+                                setCreatingCustomer(false);
+                              }}
+                              className="flex-1 py-2 rounded-lg text-sm font-bold text-white transition-all"
+                              style={{ background: creatingCustomer || !newCustName.trim() || !newCustPhone.trim() ? '#cbd5e1' : '#10b981' }}
+                            >
+                              {creatingCustomer ? '⏳ Đang tạo...' : '✅ Tạo'}
+                            </button>
+                            <button
+                              onClick={() => setShowNewCustomerForm(false)}
+                              className="px-4 py-2 rounded-lg text-sm font-bold"
+                              style={{ background: '#f1f5f9', color: '#64748b' }}
+                            >
+                              Hủy
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   ) : filteredCustomers.map(c => (
                     <button
                       key={c.id}
