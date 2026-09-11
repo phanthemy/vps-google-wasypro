@@ -4212,9 +4212,11 @@ async function executeOrderSettlement(orderId, options = {}) {
     if (!directSponsor && customer.sponsorUserId) {
       directSponsor = await tx.user.findUnique({ where: { id: customer.sponsorUserId } });
     }
-    // SAFETY: Prevent self-commission — sponsor cannot be the buyer themselves
-    if (directSponsor && orderer && directSponsor.id === orderer.id) {
-      console.log('[SETTLEMENT] Blocked self-sponsor:', orderer.userId, '— set directSponsor to null');
+    // SAFETY: Prevent self-commission on SELF-BUY only
+    // When CTV sells to their customer (CUSTOMER_PURCHASE), CTV IS the sponsor — correct behavior
+    // Only block when CTV is buying for THEMSELVES and sponsor = themselves
+    if (isSelf && directSponsor && orderer && directSponsor.id === orderer.id) {
+      console.log('[SETTLEMENT] Blocked self-sponsor on SELF_BUY:', orderer.userId, '— set directSponsor to null');
       directSponsor = null;
     }
 
