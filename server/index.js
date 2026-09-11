@@ -1860,11 +1860,19 @@ app.get('/api/tree', authenticateToken, async (req, res) => {
 
     const userMap = {};
     users.forEach(u => {
+      // totalSales = only self-purchases (customer linked to THIS user's db id)
+      // NOT all orders placed through this CTV's customers (which includes downline orders)
+      const selfCustomer = u.customers.find(c => c.linkedUserId === u.id);
+      const selfSales = selfCustomer 
+        ? selfCustomer.orders.reduce((sum, o) => sum + o.totalAmount, 0)
+        : 0;
       userMap[u.userId] = {
         id: u.userId,
         name: u.fullName,
         tier: u.tier,
-        totalSales: u.customers.reduce((acc, c) => acc + c.orders.reduce((sum, o) => sum + o.totalAmount, 0), 0),
+        rank: u.rank,
+        businessId: u.businessId,
+        totalSales: selfSales,
         children: []
       };
     });
