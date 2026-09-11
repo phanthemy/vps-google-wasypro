@@ -27,9 +27,10 @@ export const ContactModal: React.FC<ContactModalProps> = ({
     fetch('/api/auth/me', { credentials: 'include' })
       .then(r => r.json())
       .then(d => {
-        if (d.success && d.user && d.user.rank && d.user.isSystemParticipant) {
+        const u = d.user || d.data;
+        if (d.success && u && u.rank && u.isSystemParticipant) {
           setIsCtvWithRank(true);
-          const r = (d.user.rank || '').toUpperCase();
+          const r = (u.rank || '').toUpperCase();
           setCtvRankLabel(r === 'DIRECTOR' ? 'Giám Đốc' : r === 'MANAGER' ? 'Quản Lý' : 'Đại Sứ');
         } else {
           setIsCtvWithRank(false);
