@@ -193,11 +193,13 @@ export const AdminOrders: React.FC = () => {
     fetchWebOrders();
   }, []);
 
-  // Reset filters when switching tabs
+  // Reset filters + RE-FETCH data when switching tabs
   useEffect(() => {
     setStatusFilter('all');
     setSearchQuery('');
     setExpandedId(null);
+    fetchCtvOrders();
+    fetchWebOrders();
   }, [activeTab]);
 
   // ============ FILTERED DATA ============
