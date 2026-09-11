@@ -161,6 +161,27 @@ export const AdminOrders: React.FC = () => {
     } catch (_) {}
   };
 
+  // Update CTV order status
+  const updateCtvOrderStatus = async (id: string, newStatus: string) => {
+    try {
+      const res = await fetch(`/api/admin/orders/${id}/status`, {
+        method: 'PUT',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-Token': (document.cookie.match(/(?:^|;\s*)csrf_token=([^;]*)/) || [])[1] || '',
+        },
+        body: JSON.stringify({ status: newStatus }),
+      });
+      if (res.ok) {
+        setCtvOrders(prev => prev.map(o => o.id === id ? { ...o, status: newStatus } : o));
+      } else {
+        const err = await res.json().catch(() => ({}));
+        alert(err.message || 'Không thể cập nhật trạng thái');
+      }
+    } catch (_) {}
+  };
+
   useEffect(() => {
     fetchCtvOrders();
     fetchWebOrders();
@@ -621,7 +642,25 @@ export const AdminOrders: React.FC = () => {
                             </td>
                             <td className="py-3 px-4 text-right">
                               <div className="flex items-center justify-end gap-1">
+                                {order.status === 'CANCELLED' ? (
                                 <span className={`px-3 py-1 text-xs font-bold rounded-xl ${st.bg} ${st.text}`}>{st.label}</span>
+                              ) : (
+                                <select
+                                  value={order.status}
+                                  onChange={e => {
+                                    e.stopPropagation();
+                                    if (window.confirm(`Đổi trạng thái → ${e.target.value}?`)) {
+                                      updateCtvOrderStatus(order.id, e.target.value);
+                                    } else {
+                                      e.target.value = order.status;
+                                    }
+                                  }}
+                                  onClick={e => e.stopPropagation()}
+                                  className={`px-2 py-1 text-xs font-bold rounded-xl border-0 cursor-pointer ${st.bg} ${st.text} focus:ring-2 focus:ring-purple-400`}
+                                >
+                                  {CTV_STATUS_OPTS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+                                </select>
+                              )}
                                 {isExpanded ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
                               </div>
                             </td>
