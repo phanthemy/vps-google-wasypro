@@ -2457,6 +2457,15 @@ app.put('/api/admin/orders/:id/status', authenticateToken, async (req, res) => {
       }
     }
 
+    // SYNC: If this CTV order is a shadow of a WebsiteOrder, sync status back
+    try {
+      const linkedWO = await prisma.websiteOrder.findFirst({ where: { shadowOrderId: req.params.id } });
+      if (linkedWO && linkedWO.status !== status) {
+        await prisma.websiteOrder.update({ where: { id: linkedWO.id }, data: { status } });
+        console.log('[ORDER SYNC] CTV Order', req.params.id, '→ WebsiteOrder', linkedWO.id, '= status:', status);
+      }
+    } catch(syncErr) { console.error('[ORDER SYNC] CTV→Website sync error:', syncErr.message); }
+
     res.json({
       success: true,
       settlement: settlementResult ? { commissions: settlementResult.createdCommissions?.length || 0 } : null,
