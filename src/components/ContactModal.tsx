@@ -20,10 +20,12 @@ export const ContactModal: React.FC<ContactModalProps> = ({
   const isOrderMode = !!selectedProduct;
 
   // CHECK: If logged-in user is CTV with rank → block website order, redirect to CTV Portal
+  const [ctvCheckDone, setCtvCheckDone] = React.useState(false);
   const [isCtvWithRank, setIsCtvWithRank] = React.useState(false);
   const [ctvRankLabel, setCtvRankLabel] = React.useState('');
   React.useEffect(() => {
-    if (!isOpen || !isOrderMode) return;
+    if (!isOpen || !isOrderMode) { setCtvCheckDone(true); return; }
+    setCtvCheckDone(false);
     fetch('/api/auth/me', { credentials: 'include' })
       .then(r => r.json())
       .then(d => {
@@ -36,8 +38,21 @@ export const ContactModal: React.FC<ContactModalProps> = ({
           setIsCtvWithRank(false);
         }
       })
-      .catch(() => setIsCtvWithRank(false));
+      .catch(() => setIsCtvWithRank(false))
+      .finally(() => setCtvCheckDone(true));
   }, [isOpen, isOrderMode]);
+
+  // Wait for CTV check before rendering anything
+  if (isOrderMode && !ctvCheckDone) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/70 backdrop-blur-md">
+        <div className="bg-white rounded-2xl p-8 text-center">
+          <div className="w-8 h-8 border-4 border-green-500 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
+          <p className="text-sm text-slate-500">Đang kiểm tra...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (isOrderMode && isCtvWithRank) {
     return (
