@@ -2874,6 +2874,8 @@ app.post('/api/admin/factory-reset', authenticateToken, async (req, res) => {
 
     // ── Sequences ──
     try { r.businessIdSeq = (await prisma.businessIdSequence.deleteMany({})).count; } catch(e) { r.businessIdSeq = 0; }
+    // P0-4 FIX: Re-seed BusinessIdSequence after delete
+    try { await prisma.businessIdSequence.create({ data: { id: 1, nextVal: 10001 } }); r.bidReseeded = true; } catch(e) { r.bidReseeded = false; }
 
     console.log('[FACTORY RESET] ✅ Done', JSON.stringify(r));
     res.json({ success: true, summary: r });
@@ -4335,9 +4337,10 @@ async function executeOrderSettlement(orderId, options = {}) {
         const currentSeqVal = seq ? seq.nextVal : 10001;
         allocatedBusinessId = 'WK-' + currentSeqVal;
 
-        await tx.businessIdSequence.update({
+        await tx.businessIdSequence.upsert({
           where: { id: 1 },
-          data: { nextVal: currentSeqVal + 1 },
+          update: { nextVal: currentSeqVal + 1 },
+          create: { id: 1, nextVal: currentSeqVal + 1 },
         });
 
         userUpdateData.businessId = allocatedBusinessId;
