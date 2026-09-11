@@ -4220,21 +4220,22 @@ async function executeOrderSettlement(orderId, options = {}) {
     const orderer = order.orderer || (order.ordererUserId ? await tx.user.findUnique({ where: { id: order.ordererUserId } }) : null);
     const customer = order.customer;
     const qualifyingMember = customer.linkedUser || null;
-    // buyerIsOrderer = true when CTV orders for themselves
-    const buyerIsOrderer = !!(qualifyingMember && orderer && qualifyingMember.id === orderer.id);
-    // isSelf: TRUE when the CUSTOMER is linked to a CTV participant
-    // SELF commission goes to the customer's linked CTV, regardless of who placed the order
-    // E.g., CTV-A orders for CTV-B (Đại sứ 02) → CTV-B gets SELF 20%
-    const isSelf = !!(qualifyingMember && qualifyingMember.isSystemParticipant);
+    // buyerIsSelf = orderer IS the customer (same person, buying for themselves)
+    const buyerIsSelf = !!(qualifyingMember && orderer && qualifyingMember.id === orderer.id);
+    // customerIsCTV = the CUSTOMER (recipient) is a CTV participant with potential SELF eligibility
+    // Used for SELF commission: CTV-A orders for CTV-B → CTV-B gets SELF
+    const customerIsCTV = !!(qualifyingMember && qualifyingMember.isSystemParticipant);
+    // Legacy compat: isSelf = customerIsCTV for SELF block usage
+    const isSelf = customerIsCTV;
 
     let directSponsor = customer.sponsorUser || null;
     if (!directSponsor && customer.sponsorUserId) {
       directSponsor = await tx.user.findUnique({ where: { id: customer.sponsorUserId } });
     }
-    // SAFETY: Prevent self-commission on SELF-BUY only
-    // When CTV sells to their customer (CUSTOMER_PURCHASE), CTV IS the sponsor — correct behavior
-    // Only block when CTV is buying for THEMSELVES and sponsor = themselves
-    if (isSelf && directSponsor && orderer && directSponsor.id === orderer.id) {
+    // SAFETY: Prevent self-commission on SELF-BUY only (orderer = customer = sponsor)
+    // When CTV sells to someone else (even another CTV), CTV IS the sponsor — correct
+    // Only block when CTV buys for THEMSELVES and sponsor = themselves
+    if (buyerIsSelf && directSponsor && orderer && directSponsor.id === orderer.id) {
       console.log('[SETTLEMENT] Blocked self-sponsor on SELF_BUY:', orderer.userId, '— set directSponsor to null');
       directSponsor = null;
     }
