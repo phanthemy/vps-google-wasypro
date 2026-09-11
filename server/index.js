@@ -1858,11 +1858,18 @@ app.get('/api/tree', authenticateToken, async (req, res) => {
       }
     });
 
+    // Fetch self-linked customers separately (sourceCtvId may differ from userId)
+    const userDbIds = users.map(u => u.id);
+    const selfLinkedCustomers = await prisma.customer.findMany({
+      where: { linkedUserId: { in: userDbIds } },
+      include: { orders: { where: { status: 'COMPLETED' }, select: { totalAmount: true } } }
+    });
+    const selfCustMap = {};
+    selfLinkedCustomers.forEach(c => { if (c.linkedUserId) selfCustMap[c.linkedUserId] = c; });
+
     const userMap = {};
     users.forEach(u => {
-      // totalSales = only self-purchases (customer linked to THIS user's db id)
-      // NOT all orders placed through this CTV's customers (which includes downline orders)
-      const selfCustomer = u.customers.find(c => c.linkedUserId === u.id);
+      const selfCustomer = selfCustMap[u.id];
       const selfSales = selfCustomer 
         ? selfCustomer.orders.reduce((sum, o) => sum + o.totalAmount, 0)
         : 0;
