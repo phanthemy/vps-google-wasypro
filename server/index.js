@@ -3807,7 +3807,7 @@ async function calculateAndCreateCommissions(tx, context) {
   // If order was placed before BID was assigned → no SELF (regardless of approval order)
   // (orderPlacedBeforeBid moved into SELF block below for selfRecipient)
   const selfRecipient = qualifyingMember || orderer;
-  const selfRecipientBID = qualifyingMember ? priorBusinessId || qualifyingMember.businessId : priorBusinessId;
+  const selfRecipientBID = priorBusinessId;
   const selfRecipientRankAchievedAt = selfRecipient ? selfRecipient.rankAchievedAt : null;
   const orderPlacedBeforeSelfBid = selfRecipientRankAchievedAt && order.createdAt < selfRecipientRankAchievedAt;
   if (isSelf && selfRecipient && selfRecipientBID && !orderPlacedBeforeSelfBid) {
@@ -3855,6 +3855,7 @@ async function calculateAndCreateCommissions(tx, context) {
       const isSplitEligible = qualifyingMember &&
         isParticipant &&
         !priorBusinessId &&
+        priorQP < threshold &&
         orderTotalCP > 0 &&
         (priorQP + orderTotalCP >= threshold);
 
