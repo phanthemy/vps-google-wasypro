@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, ShoppingBag, PhoneCall, User, Phone, MapPin, MessageSquare, Send, ShieldCheck, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { Product } from '../types/schema';
 
@@ -15,15 +15,38 @@ export const ContactModal: React.FC<ContactModalProps> = ({
   selectedProduct,
   onSuccessToast,
 }) => {
-  if (!isOpen) return null;
-
   const isOrderMode = !!selectedProduct;
 
   // CHECK: If logged-in user is CTV with rank → block website order, redirect to CTV Portal
-  const [ctvCheckDone, setCtvCheckDone] = React.useState(false);
-  const [isCtvWithRank, setIsCtvWithRank] = React.useState(false);
-  const [ctvRankLabel, setCtvRankLabel] = React.useState('');
-  React.useEffect(() => {
+  const [ctvCheckDone, setCtvCheckDone] = useState(false);
+  const [isCtvWithRank, setIsCtvWithRank] = useState(false);
+  const [ctvRankLabel, setCtvRankLabel] = useState('');
+
+  const [formData, setFormData] = useState({
+    name: '',
+    phone: '',
+    email: '',
+    address: '',
+    message: selectedProduct ? '' : 'Tôi muốn đăng ký tư vấn máy lọc nước Hydrogen ion kiềm tận nơi.',
+    qty: 1,
+  });
+
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Reset/sync form data when modal opens or selectedProduct changes
+  useEffect(() => {
+    if (isOpen) {
+      setError(null);
+      setFormData(prev => ({
+        ...prev,
+        qty: 1,
+        message: selectedProduct ? '' : 'Tôi muốn đăng ký tư vấn máy lọc nước Hydrogen ion kiềm tận nơi.',
+      }));
+    }
+  }, [isOpen, selectedProduct]);
+
+  useEffect(() => {
     if (!isOpen || !isOrderMode) { setCtvCheckDone(true); return; }
     setCtvCheckDone(false);
     fetch('/api/auth/me', { credentials: 'include' })
@@ -41,6 +64,9 @@ export const ContactModal: React.FC<ContactModalProps> = ({
       .catch(() => setIsCtvWithRank(false))
       .finally(() => setCtvCheckDone(true));
   }, [isOpen, isOrderMode]);
+
+  // ALL EARLY RETURNS MUST HAPPEN AFTER ALL HOOKS
+  if (!isOpen) return null;
 
   // Wait for CTV check before rendering anything
   if (isOrderMode && !ctvCheckDone) {
@@ -83,18 +109,6 @@ export const ContactModal: React.FC<ContactModalProps> = ({
       </div>
     );
   }
-
-  const [formData, setFormData] = useState({
-    name: '',
-    phone: '',
-    email: '',
-    address: '',
-    message: selectedProduct ? '' : 'Tôi muốn đăng ký tư vấn máy lọc nước Hydrogen ion kiềm tận nơi.',
-    qty: 1,
-  });
-
-  const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [error, setError] = useState<string | null>(null);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });

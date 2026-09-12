@@ -17,20 +17,11 @@ const isVideo = (url: string) => /\.(mp4|webm|ogg|mov)$/i.test(url);
 export const ProductQuickViewModal: React.FC<ProductQuickViewModalProps> = ({
   product, onClose, onOrder, onCallHotline,
 }) => {
-  if (!product) return null;
-
-  // Build media list (images + videos)
-  const galleryUrls = (product.gallery || []).map((g: any) => typeof g === 'string' ? g : g?.url).filter(Boolean);
-  const mainImg = (product.image && product.image.startsWith('/uploads')) ? product.image : (galleryUrls[0] || product.image);
-  const allMedia = [mainImg, ...galleryUrls.filter((u: string) => u !== mainImg)].filter(Boolean);
-
   const [activeIndex, setActiveIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [touchStart, setTouchStart] = useState(0);
   const videoRef = useRef<HTMLVideoElement>(null);
   const thumbnailsRef = useRef<HTMLDivElement>(null);
-
-  const activeUrl = allMedia[activeIndex] || '';
 
   // Reset index when product changes
   useEffect(() => { setActiveIndex(0); setIsPlaying(false); }, [product?.id]);
@@ -42,6 +33,14 @@ export const ProductQuickViewModal: React.FC<ProductQuickViewModalProps> = ({
       if (thumb) thumb.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
     }
   }, [activeIndex]);
+
+  if (!product) return null;
+
+  // Build media list (images + videos)
+  const galleryUrls = (product.gallery || []).map((g: any) => typeof g === 'string' ? g : g?.url).filter(Boolean);
+  const mainImg = (product.image && product.image.startsWith('/uploads')) ? product.image : (galleryUrls[0] || product.image);
+  const allMedia = [mainImg, ...galleryUrls.filter((u: string) => u !== mainImg)].filter(Boolean);
+  const activeUrl = allMedia[activeIndex] || '';
 
   const goNext = () => setActiveIndex(i => (i + 1) % allMedia.length);
   const goPrev = () => setActiveIndex(i => (i - 1 + allMedia.length) % allMedia.length);
