@@ -7,25 +7,21 @@
 | Key | Value |
 |-----|-------|
 | **Status** | IN_PROGRESS |
-| **Last Session** | 2026-09-10 |
+| **Last Session** | 2026-09-12 |
 | **Branch** | main |
-| **Last Commit** | 4ff2849 |
+| **Last Commit** | 70e077d |
 | **Source of Truth** | Oracle VPS (149.118.62.155) |
 | **Working Dir** | /var/www/wasypro |
 
 ## Active Tasks
 
 ### ✅ Completed This Session
-- [x] Fix white blank screen on Order modal (React Rules of Hooks violation in ContactModal & ProductQuickViewModal) + Add ErrorBoundary
-- [x] Order classification fix (shadowOrderId + isCtvOrder)
-- [x] Deferred settlement workflow
-- [x] Admin dual-tab order management
-- [x] Retroactive shadow status sync
-- [x] Unified lifecycle (CTV Portal = NEW)
-- [x] Single source of truth architecture
-- [x] Tab rename (Quản lý đơn Website / Theo dõi hoa hồng CTV)
-- [x] 4-case verification PASS
-- [x] Admin Reset Test Data button
+- [x] Sửa triệt để lỗi sập trắng trang khi bấm "MUA NGAY" (React Rules of Hooks violation trong ContactModal.tsx & ProductQuickViewModal.tsx) + Tích hợp ErrorBoundary.tsx
+- [x] Kiểm thử E2E giao diện thực tế qua Chrome DevTools Protocol (CDP) trên Edge headless (PASS, 0 uncaught errors)
+- [x] Audit chi tiết 13 câu hỏi nghiệp vụ Commission Case 4 (Orderer vs Customer, DIRECT_NO_ID, BID lifecycle, v.v.)
+- [x] Gia cố logic pre-BID threshold-crossing (selfRecipientBID = priorBusinessId, priorQP < threshold) trong `server/index.js`
+- [x] Viết và chạy thành công test suite thực tế `test_threshold_4000_500_1000.cjs` trên Oracle VPS: 4.000 + 500 + 1.000 CP => 800 + 100 + 150 = 1.050 CP chuẩn xác 100%
+- [x] Reload backend PM2 trên VPS và đồng bộ commit `70e077d` lên GitHub repo
 
 ### ⏳ Pending (Boss Review)
 - [ ] Boss manual testing 4 cases
