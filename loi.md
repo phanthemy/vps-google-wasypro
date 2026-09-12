@@ -16,6 +16,7 @@
 
 | # | Thời gian | Sub-Agent | Mô tả lỗi | Cách fix |
 |---|-----------|-----------|-----------|----------|
+| 1 | 2026-09-12 12:05 | Frontend Developer | Giao diện đặt hàng bị trắng trang khi bấm "MUA NGAY" / Đặt hàng do vi phạm React Rules of Hooks (early return đặt trước useState/useEffect trong ContactModal và ProductQuickViewModal) | Di chuyển toàn bộ Hooks lên đầu component trước mọi return có điều kiện + bổ sung ErrorBoundary cho toàn app |
 
 ---
 

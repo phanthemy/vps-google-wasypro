@@ -9,13 +9,14 @@
 | **Status** | IN_PROGRESS |
 | **Last Session** | 2026-09-10 |
 | **Branch** | main |
-| **Last Commit** | 5432203 |
+| **Last Commit** | 4ff2849 |
 | **Source of Truth** | Oracle VPS (149.118.62.155) |
 | **Working Dir** | /var/www/wasypro |
 
 ## Active Tasks
 
 ### ✅ Completed This Session
+- [x] Fix white blank screen on Order modal (React Rules of Hooks violation in ContactModal & ProductQuickViewModal) + Add ErrorBoundary
 - [x] Order classification fix (shadowOrderId + isCtvOrder)
 - [x] Deferred settlement workflow
 - [x] Admin dual-tab order management
