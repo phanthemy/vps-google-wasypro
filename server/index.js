@@ -3160,7 +3160,7 @@ app.get('/api/admin/ctv', authenticateToken, requireRole(['admin', 'accountant']
       orderBy: { createdAt: 'desc' },
       include: {
         parent: { select: { userId: true, fullName: true } },
-        customers: { select: { id: true } },
+        customers: { where: { linkedUserId: null }, select: { id: true } },
         commissions: {
           where: { status: { in: ['PENDING', 'PAID'] } },
           select: { earnedMoney: true, earnedPoints: true, status: true, periodId: true }
