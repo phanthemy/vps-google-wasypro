@@ -3775,7 +3775,7 @@ async function calculateAndCreateCommissions(tx, context) {
         receiverId: receiver.userId,
         amount: earnedMoney,
         type: type || 'DIRECT',
-        status: 'PENDING',
+        status: 'PAID',
         rateSnapshot,
         rankSnapshot: receiver.rank || null,
         baseAmount: Math.round(basePoints * 1000),
