@@ -1,7 +1,23 @@
 # 📘 WASYPRO — Nghiệp Vụ Cốt Lõi & Lỗi Đã Fix
 
-> **Cập nhật:** 11/09/2026 10:08
+> **Cập nhật:** 14/09/2026 13:40
 > **Mục đích:** Source of truth cho AI — đọc file này TRƯỚC khi sửa bất kỳ gì.
+
+---
+
+## ⚠️ AI AGENT — BẮT BUỘC ĐỌC KHI BẮT ĐẦU PHIÊN
+
+> **TRƯỚC KHI LÀM BẤT CỨ GÌ**, kể cả khi user gõ "bắt đầu phiên" hay bất kỳ yêu cầu nào:
+> 1. Đọc toàn bộ file này (`memory.md`)
+> 2. Đọc `loi.md`
+> 3. Xác nhận với user: danh sách lỗi còn tồn đọng + tính năng đã làm
+> 4. CHỈ SAU ĐÓ mới nhận và thực hiện yêu cầu mới
+
+**KHÔNG được bỏ qua bước này dù user không nhắc.**
+
+---
+
+
 
 ---
 
