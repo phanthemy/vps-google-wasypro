@@ -1,6 +1,6 @@
 # 📘 WASYPRO — Nghiệp Vụ Cốt Lõi & Lỗi Đã Fix
 
-> **Cập nhật:** 14/09/2026 13:40
+> **Cập nhật:** 14/09/2026 16:00
 > **Mục đích:** Source of truth cho AI — đọc file này TRƯỚC khi sửa bất kỳ gì.
 
 ---
@@ -112,7 +112,46 @@ Khi CTV tham gia, hệ thống tạo Customer record:
 
 ---
 
-## II. TẤT CẢ LỖI ĐÃ FIX HÔM NAY (11/09/2026)
+---
+
+## II. BUSINESS RULES ĐÃ CHỐT — REFERRAL / SPONSOR (14/09/2026)
+
+### Quy tắc hình thành quan hệ bảo trợ:
+
+1. **Đăng ký với refCode của A** → `parentId = A.userId` ngay tại đăng ký — không cần xác nhận riêng
+2. **Direct Customer NO ID**: user có `parentId = A`, chưa `isSystemParticipant`, chưa BID → A nhận `DIRECT_NO_ID 20%` khi user mua hàng
+3. **`isSystemParticipant`** chỉ xác định đã tham gia CTV hay chưa — KHÔNG dùng để xác định thuộc sponsor hay không
+4. **Không cho phép thay đổi sponsor qua URL**: user đã có `parentId = null` → vào referral link của A → `parentId` KHÔNG đổi
+5. **Website order commission bridge** — điều kiện `(sponsorUserId || authedUser.isSystemParticipant)` là ĐÚNG:
+   - `sponsorUserId = authedUser.parentId` (từ DB, không từ URL)
+   - User có `parentId = A` → bridge fire → A nhận DIRECT_NO_ID → ĐÚNG
+   - User có `parentId = null` + không phải CTV → không fire → ĐÚNG
+
+### Commission status (14/09/2026):
+- Commission tạo ra với `status: 'PAID'` ngay khi settlement — KHÔNG có bước Admin duyệt thủ công
+
+---
+
+## III. LỖI ĐÃ FIX — PHIÊN 14/09/2026
+
+### Bug 11: Cột KHÁCH hiển thị sai (14/09)
+- **Commit**: `14e064d`
+- **Root cause**: `GET /api/admin/ctv` đếm cả Customer self-linked (CTV tự liên kết)
+- **Fix**: Thêm `where: { linkedUserId: null }` để loại self-linked
+
+### Bug 12: Commission PENDING thay vì PAID (14/09)
+- **Commit**: `ce5e809`
+- **Root cause**: `calculateAndCreateCommissions` tạo `status: 'PENDING'`
+- **Fix**: Đổi thành `status: 'PAID'` — không có bước Admin duyệt thủ công theo business rule
+
+### Feature: Nút "Tạo Khách Mới" luôn hiển thị (14/09)
+- **Commit**: `0849507`
+- **Root cause**: Nút chỉ hiện khi `filteredCustomers.length === 0` → Quản Lý / Giám Đốc có downline → nút ẩn
+- **Fix**: Tách nút ra khỏi điều kiện, luôn hiện song song với danh sách khách
+
+---
+
+## IV. LỖI ĐÃ FIX — PHIÊN 11/09/2026
 
 ### Bug 1: Sponsor nhận F1 thay vì DIRECT khi CTV tự mua
 - **Commit**: `e65c843`
@@ -156,7 +195,7 @@ Khi CTV tham gia, hệ thống tạo Customer record:
 
 ---
 
-## III. FILES QUAN TRỌNG
+## V. FILES QUAN TRỌNG
 
 | File | Chức năng | Lines |
 |---|---|---|
@@ -169,7 +208,7 @@ Khi CTV tham gia, hệ thống tạo Customer record:
 
 ---
 
-## IV. KHÔNG BAO GIỜ LÀM
+## VI. KHÔNG BAO GIỜ LÀM
 
 1. ❌ KHÔNG gán `sponsorUserId = user.id` (self-sponsor)
 2. ❌ KHÔNG set `isSystemParticipant = false` trong reset-ctv/reset-orders
@@ -178,3 +217,30 @@ Khi CTV tham gia, hệ thống tạo Customer record:
 5. ❌ KHÔNG chạy `prisma db push` trên SQLite — dùng `better-sqlite3`
 6. ❌ KHÔNG cho SELF commission trên đơn đặt TRƯỚC khi có BID
 7. ❌ KHÔNG inline phức tạp JS trong SSH — viết .cjs file, SCP lên VPS
+8. ❌ KHÔNG kết luận P1 bug khi chưa đọc kỹ business rule — audit trước, kết luận sau
+9. ❌ KHÔNG xóa `sponsorUserId` khỏi điều kiện bridge — đây là đúng theo business rule
+
+---
+
+## VII. PRODUCTION RISKS CÒN TỒN TẠI (14/09/2026)
+
+| # | Mức | Vấn đề | Ghi chú |
+|---|-----|---------|---------|
+| 1 | 🟡 P2 | `app.wasypro.com` standalone `OrderModal.jsx` sai payload (`ctvBuyerId` thay vì `purchaseSubject`) → 400 error | Chưa fix |
+| 2 | 🟡 P2 | Policy key `MANAGER_F1_SELL_TO_CUSTOMER_NO_ID` có trong DB nhưng engine không dùng | Data dư, gây nhầm lẫn |
+
+**Backup baseline:** `backup_14.09.2026` tại `/var/www/wasypro/backups/backup_14.09.2026/` — 279MB — commit `08495070`
+
+---
+
+## VIII. TRẠNG THÁI DB (tại backup 14/09/2026)
+
+| Table | Rows |
+|-------|------|
+| User | 34 |
+| Customer | 31 |
+| Order | 35 |
+| Commission | 31 (tất cả PAID) |
+| Product | 10 |
+| SystemPolicyConfig | 18 keys (v1.4.0) |
+| BusinessIdSequence | nextVal: 10007 |

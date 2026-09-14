@@ -185,3 +185,23 @@ useEffect(() => {
 > - Template literals  
 > - Destructuring patterns
 > - Object literals trong function params
+
+---
+
+## [14/09/2026] Audit P1 — Chốt Business Rule Referral/Sponsor
+
+**Kết luận:** P1 trong báo cáo audit ban đầu là SAI. Code hiện tại ĐÚNG.
+
+### Business Rule đã chốt (Boss confirmed 14/09/2026 15:54):
+1. User đăng ký với refCode của A → parentId = A.userId → quan hệ trực tiếp hình thành ngay, không cần bước xác nhận.
+2. User đó chưa isSystemParticipant + chưa BID = Direct Customer NO ID → A nhận DIRECT_NO_ID 20%.
+3. isSystemParticipant chỉ xác định đã tham gia CTV hay chưa, KHÔNG dùng để xác định thuộc sponsor hay không.
+4. User đã tồn tại parentId=null truy cập referral link của A → parentId KHÔNG đổi.
+
+### Code điều kiện bridge (ĐÚNG):
+`
+if (authedUser && (sponsorUserId || authedUser.isSystemParticipant) && cpSnapshot > 0)
+`
+- sponsorUserId = authedUser.parentId (luôn từ DB, không từ URL)
+- parentId=null + isSystemParticipant=false → bridge không fire → đúng
+- parentId=A + bất kỳ isSystemParticipant → bridge fire → A nhận DIRECT_NO_ID → đúng
