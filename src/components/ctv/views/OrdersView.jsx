@@ -53,6 +53,8 @@ export default function OrdersView({ currentUser }) {
                 }],
                 commissions: [],
                 totalCommissionPoints: wo.commissionPoints || 0,
+                shippingAddress: wo.address,
+                recipientPhone: wo.customerPhone,
               });
             });
           }
@@ -297,6 +299,20 @@ export default function OrdersView({ currentUser }) {
                     })}
                   </div>
                   
+                  {order.shippingAddress && (
+                    <div className="mt-2.5 p-2.5 rounded-xl bg-sky-50/70 border border-sky-100 text-xs text-slate-700">
+                      <div className="flex items-start gap-1.5 font-medium text-sky-900">
+                        <span className="text-sky-600 shrink-0">📍</span>
+                        <span><strong>Giao đến:</strong> {order.shippingAddress}</span>
+                      </div>
+                      <div className="flex items-center gap-3 text-slate-500 text-[11px] pl-4 mt-1 flex-wrap">
+                        {order.recipientPhone && <span>SĐT người nhận: <strong className="text-slate-700">{order.recipientPhone}</strong></span>}
+                        {order.recipientEmail && <span>Email: {order.recipientEmail}</span>}
+                        {order.contactHotline && <span>Hotline: {order.contactHotline}</span>}
+                      </div>
+                    </div>
+                  )}
+
                   <div className="flex justify-between items-center mt-3 pt-2" style={{ borderTop: '1px solid #e2e8f0' }}>
                     <div className="text-sm" style={{ color: '#64748b' }}>
                       {order.customer?.fullName && <span className="font-medium">{order.customer.fullName}</span>}

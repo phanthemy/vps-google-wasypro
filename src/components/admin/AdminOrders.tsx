@@ -27,6 +27,10 @@ interface RealOrder {
   depositAmount?: number;
   depositAt?: string;
   depositNote?: string;
+  shippingAddress?: string;
+  recipientPhone?: string;
+  recipientEmail?: string;
+  contactHotline?: string;
   orderer?: { userId: string; fullName: string; phone: string; role: string } | null;
   customer: {
     fullName: string;
@@ -621,6 +625,11 @@ export const AdminOrders: React.FC = () => {
                             <td className="py-3 px-4">
                               <div className="font-bold text-slate-800">{order.customer?.fullName || '—'}</div>
                               <div className="text-[11px] text-slate-400 mt-0.5">{order.customer?.phone}</div>
+                              {order.shippingAddress && (
+                                <div className="text-[11px] text-sky-700 mt-1 line-clamp-2 font-medium" title={order.shippingAddress}>
+                                  📍 {order.shippingAddress}
+                                </div>
+                              )}
                             </td>
                             <td className="py-3 px-4">
                               <div className="flex items-start gap-1.5">
@@ -701,6 +710,32 @@ export const AdminOrders: React.FC = () => {
                                     </div>
                                   </div>
                                 )}
+                                {/* SHIPPING INFO */}
+                                {order.shippingAddress && (
+                                  <div className="bg-sky-50 border border-sky-200 rounded-xl p-3 mb-4 flex items-start gap-3">
+                                    <div className="text-xl mt-0.5">🚚</div>
+                                    <div className="flex-1">
+                                      <div className="text-xs font-bold text-sky-800 uppercase flex items-center gap-2">
+                                        Thông Tin Giao Hàng
+                                      </div>
+                                      <div className="text-xs font-bold text-slate-800 mt-1">
+                                        📍 Địa chỉ: <span className="font-normal">{order.shippingAddress}</span>
+                                      </div>
+                                      <div className="flex flex-wrap gap-4 text-xs text-slate-600 mt-1">
+                                        {order.recipientPhone && (
+                                          <div>📞 SĐT người nhận: <strong className="text-slate-800">{order.recipientPhone}</strong></div>
+                                        )}
+                                        {order.recipientEmail && (
+                                          <div>✉️ Email: <span>{order.recipientEmail}</span></div>
+                                        )}
+                                        {order.contactHotline && (
+                                          <div>☎️ Hotline: <span>{order.contactHotline}</span></div>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </div>
+                                )}
+
                                 {/* ORDER AUDIT INFO */}
                                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
                                   <div className="bg-white rounded-xl p-3 border border-slate-100">
