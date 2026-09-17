@@ -28,6 +28,11 @@ export default function SettingsView({ currentUser: initialUser }) {
     : isParticipant ? 'Đối Tác Kinh Doanh'
     : 'Khách Hàng';
 
+function getCsrfToken() {
+  const m = document.cookie.match(/(?:^|;\s*)csrf_token=([^;]*)/);
+  return m ? m[1] : '';
+}
+
   // ─── Avatar handlers ───────────────────────────────────────────────────
   const handleAvatarChange = async (e) => {
     const file = e.target.files?.[0];
@@ -49,9 +54,14 @@ export default function SettingsView({ currentUser: initialUser }) {
     formData.append('avatar', file);
 
     try {
+      const headers = {};
+      const csrf = getCsrfToken();
+      if (csrf) headers['X-CSRF-Token'] = csrf;
+
       const res = await fetch('/api/users/me/avatar', {
         method: 'POST',
         credentials: 'include',
+        headers,
         body: formData,
       });
       const data = await res.json();
@@ -73,7 +83,15 @@ export default function SettingsView({ currentUser: initialUser }) {
     if (!window.confirm('Xoá ảnh đại diện hiện tại?')) return;
     setAvatarLoading(true);
     try {
-      const res = await fetch('/api/users/me/avatar', { method: 'DELETE', credentials: 'include' });
+      const headers = {};
+      const csrf = getCsrfToken();
+      if (csrf) headers['X-CSRF-Token'] = csrf;
+
+      const res = await fetch('/api/users/me/avatar', {
+        method: 'DELETE',
+        credentials: 'include',
+        headers,
+      });
       const data = await res.json();
       if (data.success) {
         setUser(prev => ({ ...prev, avatarUrl: null }));

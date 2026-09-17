@@ -69,7 +69,8 @@ const csrfProtection = (req, res, next) => {
     req.path === '/api/auth/register' ||
     req.path === '/api/orders/website' ||   // Public order form
     req.path === '/api/leads' ||              // Public consultation form — accepts guest + logged-in users
-    req.path === '/api/users/me/join-system' // CTV portal — same-origin cookie POST
+    req.path === '/api/users/me/join-system' || // CTV portal — same-origin cookie POST
+    req.path === '/api/users/me/avatar'       // CTV portal avatar upload
   ) {
     return next();
   }
@@ -352,6 +353,7 @@ app.get('/api/auth/me', authenticateToken, async (req, res) => {
         businessId: user.businessId ?? null,
         rank: user.rank ?? null,
         rankStatus: user.rankStatus ?? null,
+        avatarUrl: user.avatarUrl ?? null,
       }
     });
   } catch (err) {
