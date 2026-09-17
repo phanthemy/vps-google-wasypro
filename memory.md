@@ -244,3 +244,11 @@ Khi CTV tham gia, hệ thống tạo Customer record:
 | Product | 10 |
 | SystemPolicyConfig | 18 keys (v1.4.0) |
 | BusinessIdSequence | nextVal: 10007 |
+
+---
+
+## IX. PHIÊN 14/09/2026 (CHIỀU) — WATER KING GROUP EXPANSION
+
+### Việc đã làm:
+1. **Audit toàn diện hệ thống** — báo cáo đầy đủ 7 module, 80+ API endpoints
+2. **Backup baseline** ackup_14.09.2026 — 279MB tại /var/www/wasypro/backups/backup_14.09.2026/ — commit 

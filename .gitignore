@@ -21,3 +21,6 @@ server/test.db
 server/dev.db
 server/dev_backup_*.db
 database_backup.sql
+
+# Local backups (stored on VPS only, too large for GitHub)
+backups/
