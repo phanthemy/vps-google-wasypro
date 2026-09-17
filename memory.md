@@ -274,3 +274,11 @@ Khi CTV tham gia, hệ thống tạo Customer record:
 - Đã chạy Puppeteer headless browser trực tiếp trên VPS, đăng nhập tài khoản CTV thật, chụp ảnh xác thực toàn bộ luồng:
   - Menu \THÊM ▾\ -> \Thông Tin Tài Khoản\ (hiển thị Avatar Upload + Badge Giám Đốc vàng).
   - Tab \ĐƠN HÀNG\ -> \+ Tạo Đơn\ -> Chọn sản phẩm -> Hiển thị khối \THÔNG TIN GIAO HÀNG\ với đầy đủ các trường nhập liệu.
+
+### 3. Cập nhật Sơ Đồ Tuyến Dưới (17/09 Tối):
+- Đổi tiêu đề banner: **SƠ ĐỒ TUYẾN DƯỚI** (gọn gàng, loại bỏ subtitle cũ).
+- Cập nhật màu sắc cấp bậc trong sơ đồ cây (\TreeNode.jsx\):
+  - 🥇 **Giám Đốc**: Icon 🥇, viền trái vàng cam (#f59e0b), nền vàng nhạt (#fffbeb), text vàng kim (#78350f).
+  - 🥈 **Quản Lý**: Icon 🥈, viền trái xám bạc (#9ca3af), nền bạc (#f3f4f6), text xám bạc (#374151).
+  - 🥉 **Đại Sứ**: Icon 🥉, viền trái đồng (#d97706), nền đồng nhạt (#fef3c7), text đồng (#92400e).
+- Build production & reload PM2 thành công (commit \df3d127\).
