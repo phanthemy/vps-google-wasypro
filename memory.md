@@ -252,3 +252,25 @@ Khi CTV tham gia, hệ thống tạo Customer record:
 ### Việc đã làm:
 1. **Audit toàn diện hệ thống** — báo cáo đầy đủ 7 module, 80+ API endpoints
 2. **Backup baseline** ackup_14.09.2026 — 279MB tại /var/www/wasypro/backups/backup_14.09.2026/ — commit 
+
+---
+
+## X. PHIÊN 17/09/2026 — CẬP NHẬT MÀU RANK, AVATAR UPLOAD & SHIPPING FORM
+
+### 1. Tính năng hoàn thành:
+1. **RankBadge Màu Sắc**:
+   - 🥉 Đại Sứ: Màu Đồng (#CD7F32 / bg #fef3c7 / border #d97706)
+   - 🥈 Quản Lý: Màu Bạc (#A8A9AD / bg #f3f4f6 / border #9ca3af)
+   - 🥇 Giám Đốc: Màu Vàng Kim (#FFD700 / bg #fffbeb / border #f59e0b)
+2. **Avatar Upload cho CTV**:
+   - Thêm cột \vatarUrl TEXT\ vào bảng User qua SQLite ALTER TABLE & Prisma schema.
+   - Thêm API \POST /api/users/me/avatar\ & \DELETE /api/users/me/avatar\ (multer + sharp, convert webp 300x300, lưu tại \/public/uploads/avatars/\).
+   - Cập nhật \SettingsView.jsx\ có UI tải ảnh, icon Camera, nút xóa ảnh (chỉ tài khoản \isSystemParticipant\ mới thấy).
+3. **Form Đặt Hàng - Thông Tin Giao Hàng**:
+   - Thêm các cột: \shippingAddress\, \ecipientPhone\, \ecipientEmail\, \contactHotline\ vào bảng \Order\.
+   - Cập nhật \CreateOrderModal.jsx\ và API \POST /api/orders\ tiếp nhận & validate thông tin giao hàng (SĐT & Địa chỉ bắt buộc).
+
+### 2. Kiểm thử tự động (Browser UAT):
+- Đã chạy Puppeteer headless browser trực tiếp trên VPS, đăng nhập tài khoản CTV thật, chụp ảnh xác thực toàn bộ luồng:
+  - Menu \THÊM ▾\ -> \Thông Tin Tài Khoản\ (hiển thị Avatar Upload + Badge Giám Đốc vàng).
+  - Tab \ĐƠN HÀNG\ -> \+ Tạo Đơn\ -> Chọn sản phẩm -> Hiển thị khối \THÔNG TIN GIAO HÀNG\ với đầy đủ các trường nhập liệu.
