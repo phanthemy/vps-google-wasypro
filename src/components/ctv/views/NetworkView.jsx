@@ -30,11 +30,11 @@ export default function NetworkView({ refreshKey, currentUser }) {
       .finally(() => setLoading(false));
   }, [refreshKey, currentUser]);
 
-  if (loading) return <div className="text-muted p-4">Đang tải biểu đồ mạng lưới...</div>;
+  if (loading) return <div className="text-muted p-4">Đang tải sơ đồ tuyến dưới...</div>;
 
   return (
-    <div className="flex-col gap-6">
-      <PageHeader title="Sơ đồ Cây 3 Cấp Nhóm" subtitle="Dữ liệu phân nhánh trực tiếp từ hệ thống." />
+    <div className="flex flex-col gap-6">
+      <PageHeader title="SƠ ĐỒ TUYẾN DƯỚI" />
       
       <div className="card glass-panel flex flex-col network-tree-card" style={{ overflowX: 'auto', paddingBottom: '20px', alignItems: 'flex-start' }}>
         <div className="tree-container flex" style={{ minWidth: 'min-content', padding: '0 20px' }}>
@@ -48,19 +48,14 @@ export default function NetworkView({ refreshKey, currentUser }) {
       <style>{`
         .tree-node {
           border-radius: 12px;
-          background: rgba(255, 255, 255, 0.95);
           backdrop-filter: blur(10px);
           box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
           transition: transform 0.2s, box-shadow 0.2s;
-          border: 1px solid rgba(255,255,255,0.6);
         }
         .tree-node:hover {
           transform: translateY(-4px);
           box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
         }
-        .diamond-node { border-left: 4px solid var(--accent-diamond); background: #F0F9FF; }
-        .gold-node { border-left: 4px solid var(--accent-gold); background: #FFFBEB; }
-        .silver-node { border-left: 4px solid #94A3B8; background: #F8FAFC; }
       `}</style>
     </div>
   );
