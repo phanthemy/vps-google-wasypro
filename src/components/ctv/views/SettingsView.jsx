@@ -1,20 +1,19 @@
-import React, { useState, useEffect } from 'react';
-import { ShieldCheck, User, Award, Star, CheckCircle, AlertCircle, Sparkles } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { ShieldCheck, User, Award, Star, CheckCircle, AlertCircle, Camera, Trash2, Upload } from 'lucide-react';
 import RankBadge from '../components/common/RankBadge.jsx';
 import AmbassadorProgressCard from '../components/common/AmbassadorProgressCard.jsx';
 
 export default function SettingsView({ currentUser: initialUser }) {
   const [user, setUser] = useState(initialUser);
+  const [avatarLoading, setAvatarLoading] = useState(false);
+  const [avatarMsg, setAvatarMsg] = useState(null);
+  const fileInputRef = useRef(null);
 
-  // Fetch fresh data from /api/auth/me to ensure real-time accuracy
+  // Fetch fresh data
   useEffect(() => {
     fetch('/api/auth/me', { credentials: 'include' })
       .then(r => r.json())
-      .then(res => {
-        if (res.success && res.data) {
-          setUser(prev => ({ ...prev, ...res.data }));
-        }
-      })
+      .then(res => { if (res.success && res.data) setUser(prev => ({ ...prev, ...res.data })); })
       .catch(() => {});
   }, []);
 
@@ -24,14 +23,70 @@ export default function SettingsView({ currentUser: initialUser }) {
   const isParticipant = !!currentUser.isSystemParticipant;
   const qp = currentUser.qualifyingPoints || 0;
 
-  // Clean Vietnamese role label
-  const roleText = currentUser.role === 'admin'
-    ? 'Quản Trị Viên'
-    : currentUser.role === 'accountant'
-    ? 'Kế Toán'
-    : isParticipant
-    ? 'Đối Tác Kinh Doanh'
+  const roleText = currentUser.role === 'admin' ? 'Quản Trị Viên'
+    : currentUser.role === 'accountant' ? 'Kế Toán'
+    : isParticipant ? 'Đối Tác Kinh Doanh'
     : 'Khách Hàng';
+
+  // ─── Avatar handlers ───────────────────────────────────────────────────
+  const handleAvatarChange = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      setAvatarMsg({ type: 'error', text: 'Chỉ chấp nhận file ảnh (jpg, png, webp).' });
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setAvatarMsg({ type: 'error', text: 'File ảnh tối đa 5MB.' });
+      return;
+    }
+
+    setAvatarLoading(true);
+    setAvatarMsg(null);
+
+    const formData = new FormData();
+    formData.append('avatar', file);
+
+    try {
+      const res = await fetch('/api/users/me/avatar', {
+        method: 'POST',
+        credentials: 'include',
+        body: formData,
+      });
+      const data = await res.json();
+      if (data.success) {
+        setUser(prev => ({ ...prev, avatarUrl: data.avatarUrl }));
+        setAvatarMsg({ type: 'success', text: 'Cập nhật ảnh đại diện thành công!' });
+      } else {
+        setAvatarMsg({ type: 'error', text: data.message || 'Lỗi upload ảnh.' });
+      }
+    } catch {
+      setAvatarMsg({ type: 'error', text: 'Không thể kết nối máy chủ.' });
+    } finally {
+      setAvatarLoading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  const handleRemoveAvatar = async () => {
+    if (!window.confirm('Xoá ảnh đại diện hiện tại?')) return;
+    setAvatarLoading(true);
+    try {
+      const res = await fetch('/api/users/me/avatar', { method: 'DELETE', credentials: 'include' });
+      const data = await res.json();
+      if (data.success) {
+        setUser(prev => ({ ...prev, avatarUrl: null }));
+        setAvatarMsg({ type: 'success', text: 'Đã xoá ảnh đại diện.' });
+      }
+    } catch {
+      setAvatarMsg({ type: 'error', text: 'Lỗi kết nối.' });
+    } finally {
+      setAvatarLoading(false);
+    }
+  };
+
+  const initials = (currentUser.fullName || 'U')[0].toUpperCase();
 
   return (
     <div className="flex flex-col gap-6 max-w-2xl mx-auto w-full p-4 font-sans animate-fade-in">
@@ -42,12 +97,78 @@ export default function SettingsView({ currentUser: initialUser }) {
 
       {/* Profile card */}
       <div className="glass-panel p-6 rounded-2xl flex flex-col gap-5 border border-gray-100 bg-white shadow-sm">
-        <div className="flex items-center gap-4">
-          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary to-accent flex items-center justify-center text-2xl font-black text-white shadow-md">
-            {(currentUser.fullName || 'U')[0].toUpperCase()}
+        <div className="flex items-start gap-5">
+
+          {/* Avatar section */}
+          <div className="flex flex-col items-center gap-2 shrink-0">
+            {/* Avatar circle */}
+            <div className="relative w-20 h-20">
+              {currentUser.avatarUrl ? (
+                <img
+                  src={currentUser.avatarUrl}
+                  alt="Ảnh đại diện"
+                  className="w-20 h-20 rounded-2xl object-cover shadow-md border-2 border-gray-200"
+                />
+              ) : (
+                <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-primary to-accent flex items-center justify-center text-3xl font-black text-white shadow-md">
+                  {initials}
+                </div>
+              )}
+              {/* Camera overlay button */}
+              {isParticipant && (
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={avatarLoading}
+                  className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-primary text-white flex items-center justify-center shadow-md hover:bg-primary/90 transition-colors"
+                  title="Đổi ảnh đại diện"
+                >
+                  {avatarLoading ? (
+                    <svg className="animate-spin w-3.5 h-3.5" viewBox="0 0 24 24" fill="none">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+                    </svg>
+                  ) : (
+                    <Camera size={13} />
+                  )}
+                </button>
+              )}
+            </div>
+
+            {/* Remove button */}
+            {isParticipant && currentUser.avatarUrl && (
+              <button
+                onClick={handleRemoveAvatar}
+                disabled={avatarLoading}
+                className="flex items-center gap-1 text-[11px] text-red-500 hover:text-red-700 font-medium transition-colors"
+              >
+                <Trash2 size={11} /> Xoá ảnh
+              </button>
+            )}
+
+            {/* Upload hint for participants without avatar */}
+            {isParticipant && !currentUser.avatarUrl && (
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={avatarLoading}
+                className="flex items-center gap-1 text-[11px] text-primary hover:text-primary/80 font-medium transition-colors"
+              >
+                <Upload size={11} /> Tải ảnh lên
+              </button>
+            )}
+
+            {/* Hidden file input */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleAvatarChange}
+            />
           </div>
-          <div>
-            <div className="text-xl font-extrabold text-primary">{currentUser.fullName || '—'}</div>
+
+          {/* User info */}
+          <div className="flex-1 min-w-0">
+            <div className="text-xl font-extrabold text-primary truncate">{currentUser.fullName || '—'}</div>
             <div className="text-sm font-medium text-secondary">{currentUser.phone || '—'}</div>
             <div className="text-xs font-mono text-muted mt-1 bg-gray-100 px-2 py-0.5 rounded inline-block">
               ID: {currentUser.id || currentUser.userId}
@@ -55,20 +176,25 @@ export default function SettingsView({ currentUser: initialUser }) {
           </div>
         </div>
 
+        {/* Avatar status message */}
+        {avatarMsg && (
+          <div className={`text-xs font-semibold px-3 py-2 rounded-lg ${
+            avatarMsg.type === 'success'
+              ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+              : 'bg-red-50 text-red-700 border border-red-200'
+          }`}>
+            {avatarMsg.text}
+          </div>
+        )}
+
+        {/* Stats grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 mt-1">
           {/* Cấp Bậc */}
           <div className="bg-gray-50/80 border border-gray-200/60 rounded-xl p-3.5 flex flex-col justify-between">
             <div className="text-[11px] font-bold text-secondary uppercase tracking-wider mb-2 flex items-center gap-1.5">
               <Award size={14} className="text-primary" /> Cấp Bậc
             </div>
-            <div>
-              <RankBadge 
-                tier={currentUser.tier} 
-                rank={currentUser.rank} 
-                isSystemParticipant={isParticipant} 
-                size="md" 
-              />
-            </div>
+            <RankBadge tier={currentUser.tier} rank={currentUser.rank} isSystemParticipant={isParticipant} size="md" />
           </div>
 
           {/* Vai Trò */}
@@ -76,9 +202,7 @@ export default function SettingsView({ currentUser: initialUser }) {
             <div className="text-[11px] font-bold text-secondary uppercase tracking-wider mb-2 flex items-center gap-1.5">
               <ShieldCheck size={14} className="text-primary" /> Vai Trò
             </div>
-            <div className="font-extrabold text-primary text-sm">
-              {roleText}
-            </div>
+            <div className="font-extrabold text-primary text-sm">{roleText}</div>
           </div>
 
           {/* Business ID */}
@@ -92,9 +216,7 @@ export default function SettingsView({ currentUser: initialUser }) {
                   {currentUser.businessId}
                 </span>
               ) : (
-                <span className="text-xs font-semibold text-amber-600 italic">
-                  Chưa cấp (Cần đạt 5.000 CP)
-                </span>
+                <span className="text-xs font-semibold text-amber-600 italic">Chưa cấp (Cần đạt 5.000 CP)</span>
               )}
             </div>
           </div>
@@ -111,7 +233,7 @@ export default function SettingsView({ currentUser: initialUser }) {
         </div>
       </div>
 
-      {/* Trạng thái tham gia hệ thống */}
+      {/* Trạng thái tham gia */}
       <div className="glass-panel p-5 rounded-2xl border border-gray-100 bg-white shadow-sm">
         <div className="text-xs font-bold text-secondary uppercase tracking-wider mb-3">
           Trạng Thái Tham Gia Hệ Thống Đối Tác
@@ -144,7 +266,7 @@ export default function SettingsView({ currentUser: initialUser }) {
         )}
       </div>
 
-      {/* Tiến độ cấp bậc Phase 2C */}
+      {/* Tiến độ cấp bậc */}
       <div className="space-y-2">
         <div className="text-xs font-bold text-secondary uppercase tracking-wider px-1">
           Tiến Trình Cấp Bậc

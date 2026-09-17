@@ -24,6 +24,11 @@ export default function CreateOrderModal({ currentUser, onClose, onSuccess }) {
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(false);
   const [customerSearch, setCustomerSearch] = useState('');
+  // Shipping info
+  const [shippingAddress, setShippingAddress] = useState('');
+  const [recipientPhone, setRecipientPhone] = useState('');
+  const [recipientEmail, setRecipientEmail] = useState('');
+  const [contactHotline, setContactHotline] = useState('');
 
   // Load products
   useEffect(() => {
@@ -62,9 +67,25 @@ export default function CreateOrderModal({ currentUser, onClose, onSuccess }) {
     setSubmitting(true);
     setError(null);
     try {
+      // Validate shipping fields
+      if (!recipientPhone.trim()) {
+        setError('Vui lòng nhập số điện thoại người nhận.');
+        setSubmitting(false);
+        return;
+      }
+      if (!shippingAddress.trim()) {
+        setError('Vui lòng nhập địa chỉ giao hàng.');
+        setSubmitting(false);
+        return;
+      }
+
       const body = {
         purchaseSubject,
         items: [{ productId: selectedProduct.id, qty }],
+        shippingAddress: shippingAddress.trim(),
+        recipientPhone: recipientPhone.trim(),
+        recipientEmail: recipientEmail.trim() || null,
+        contactHotline: contactHotline.trim() || null,
       };
       if (purchaseSubject === 'CUSTOMER' && selectedCustomer) {
         body.customerId = selectedCustomer.id;
@@ -389,6 +410,75 @@ export default function CreateOrderModal({ currentUser, onClose, onSuccess }) {
                     <span className="font-bold" style={{ color: '#d97706' }}>+{totalCP} CP</span>
                   </div>
                 )}
+              </div>
+            </div>
+          )}
+
+
+          {/* SHIPPING SECTION */}
+          {selectedProduct && (purchaseSubject === 'SELF' || selectedCustomer) && (
+            <div className="rounded-xl p-4" style={{ background: '#f0f9ff', border: '1.5px solid #bae6fd' }}>
+              <div className="text-xs font-bold uppercase tracking-wider mb-3 flex items-center gap-1.5" style={{ color: '#0369a1' }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                Thông Tin Giao Hàng
+              </div>
+              <div className="space-y-3">
+                {/* SĐT người nhận — bắt buộc */}
+                <div>
+                  <label className="block text-xs font-semibold mb-1" style={{ color: '#0369a1' }}>
+                    Số Điện Thoại Người Nhận <span style={{ color: '#ef4444' }}>*</span>
+                  </label>
+                  <input
+                    type="tel"
+                    value={recipientPhone}
+                    onChange={e => setRecipientPhone(e.target.value)}
+                    placeholder="09xxxxxxxx"
+                    className="w-full rounded-lg px-3 py-2 text-sm font-medium outline-none"
+                    style={{ border: '1.5px solid #7dd3fc', background: '#fff', color: '#0c4a6e' }}
+                  />
+                </div>
+                {/* Địa chỉ — bắt buộc */}
+                <div>
+                  <label className="block text-xs font-semibold mb-1" style={{ color: '#0369a1' }}>
+                    Địa Chỉ Giao Hàng <span style={{ color: '#ef4444' }}>*</span>
+                  </label>
+                  <textarea
+                    value={shippingAddress}
+                    onChange={e => setShippingAddress(e.target.value)}
+                    placeholder="Số nhà, đường, phường/xã, quận/huyện, tỉnh/thành"
+                    rows={2}
+                    className="w-full rounded-lg px-3 py-2 text-sm font-medium outline-none resize-none"
+                    style={{ border: '1.5px solid #7dd3fc', background: '#fff', color: '#0c4a6e' }}
+                  />
+                </div>
+                {/* Email — tùy chọn */}
+                <div>
+                  <label className="block text-xs font-semibold mb-1" style={{ color: '#64748b' }}>
+                    Email <span style={{ color: '#94a3b8' }}>(tuỳ chọn)</span>
+                  </label>
+                  <input
+                    type="email"
+                    value={recipientEmail}
+                    onChange={e => setRecipientEmail(e.target.value)}
+                    placeholder="email@example.com"
+                    className="w-full rounded-lg px-3 py-2 text-sm font-medium outline-none"
+                    style={{ border: '1px solid #e2e8f0', background: '#fff', color: '#1e293b' }}
+                  />
+                </div>
+                {/* Hotline — tùy chọn */}
+                <div>
+                  <label className="block text-xs font-semibold mb-1" style={{ color: '#64748b' }}>
+                    Hotline Liên Hệ <span style={{ color: '#94a3b8' }}>(tuỳ chọn)</span>
+                  </label>
+                  <input
+                    type="tel"
+                    value={contactHotline}
+                    onChange={e => setContactHotline(e.target.value)}
+                    placeholder="Hotline nếu có"
+                    className="w-full rounded-lg px-3 py-2 text-sm font-medium outline-none"
+                    style={{ border: '1px solid #e2e8f0', background: '#fff', color: '#1e293b' }}
+                  />
+                </div>
               </div>
             </div>
           )}

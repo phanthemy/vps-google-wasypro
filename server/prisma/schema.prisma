@@ -25,6 +25,7 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   note      String?
+  avatarUrl String?   // URL ảnh đại diện CTV
 
   // Phase 2A: Foundation rank & S-Points fields
   rank              String?   // AMBASSADOR, SALES_MANAGER, SALES_DIRECTOR, EXEC_OPERATIONS, EXEC_PROVINCE, EXEC_STRATEGIC
@@ -156,6 +157,12 @@ model Order {
   depositAmount Float?    @default(0)
   depositAt     String?
   depositNote   String?
+
+  // Shipping info (thông tin giao hàng)
+  shippingAddress String?  // Địa chỉ giao hàng (bắt buộc khi giao)
+  recipientPhone  String?  // SĐT người nhận (bắt buộc)
+  recipientEmail  String?  // Email người nhận (tùy chọn)
+  contactHotline  String?  // Hotline liên hệ (tùy chọn)
 
   customer    Customer    @relation(fields: [customerId], references: [id])
   orderer     User?       @relation("OrderCreator", fields: [ordererUserId], references: [id])

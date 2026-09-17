@@ -321,6 +321,7 @@ app.post('/api/auth/login', authLimiter, async (req, res) => {
         businessId: user.businessId ?? null,
         rank: user.rank ?? null,
         rankStatus: user.rankStatus ?? null,
+        avatarUrl: user.avatarUrl ?? null,
       }
     });
   } catch (error) {
@@ -363,6 +364,80 @@ app.post('/api/auth/logout', (req, res) => {
   res.clearCookie('auth_token', { path: '/' });
   res.clearCookie('csrf_token', { path: '/' });
   res.json({ success: true, message: 'Đã đăng xuất thành công.' });
+});
+
+
+// ─── AVATAR UPLOAD ────────────────────────────────────────────────────────────
+const multer = require('multer');
+const sharp = require('sharp');
+const avatarUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    if (!file.mimetype.startsWith('image/')) return cb(new Error('Chỉ chấp nhận file ảnh.'));
+    cb(null, true);
+  },
+});
+app.use('/api/users/me/avatar', (req, res, next) => {
+  // Allow multipart for avatar endpoints — skip CSRF check for file upload
+  if (['POST','DELETE'].includes(req.method)) return next();
+  next();
+});
+
+// POST /api/users/me/avatar — Upload ảnh đại diện (chỉ CTV isSystemParticipant)
+app.post('/api/users/me/avatar', authenticateToken, avatarUpload.single('avatar'), async (req, res) => {
+  try {
+    const lookupId = req.user.userId || req.user.id;
+    const user = await prisma.user.findFirst({ where: { OR: [{ userId: lookupId }, { id: lookupId }] } });
+    if (!user) return res.status(404).json({ success: false, message: 'Người dùng không tồn tại.' });
+    if (!user.isSystemParticipant) {
+      return res.status(403).json({ success: false, message: 'Chỉ CTV đã tham gia hệ thống mới có thể cài ảnh đại diện.' });
+    }
+    if (!req.file) return res.status(400).json({ success: false, message: 'Vui lòng chọn file ảnh.' });
+
+    const avatarsDir = path.join(__dirname, '../public/uploads/avatars');
+    if (!fs.existsSync(avatarsDir)) fs.mkdirSync(avatarsDir, { recursive: true });
+
+    const filename = `${user.userId}_${Date.now()}.webp`;
+    const outputPath = path.join(avatarsDir, filename);
+
+    await sharp(req.file.buffer)
+      .resize(300, 300, { fit: 'cover', position: 'center' })
+      .webp({ quality: 85 })
+      .toFile(outputPath);
+
+    const avatarUrl = `/uploads/avatars/${filename}`;
+
+    // Xóa ảnh cũ nếu có
+    if (user.avatarUrl) {
+      const oldPath = path.join(__dirname, '..', 'public', user.avatarUrl);
+      if (fs.existsSync(oldPath)) { try { fs.unlinkSync(oldPath); } catch (_) {} }
+    }
+
+    await prisma.user.update({ where: { userId: user.userId }, data: { avatarUrl } });
+    console.log(`[AVATAR] ${user.userId} → ${filename}`);
+    res.json({ success: true, avatarUrl, message: 'Cập nhật ảnh đại diện thành công.' });
+  } catch (err) {
+    console.error('[AVATAR]', err.message);
+    res.status(500).json({ success: false, message: err.message || 'Lỗi máy chủ.' });
+  }
+});
+
+// DELETE /api/users/me/avatar — Xóa ảnh đại diện
+app.delete('/api/users/me/avatar', authenticateToken, async (req, res) => {
+  try {
+    const lookupId = req.user.userId || req.user.id;
+    const user = await prisma.user.findFirst({ where: { OR: [{ userId: lookupId }, { id: lookupId }] } });
+    if (!user) return res.status(404).json({ success: false, message: 'Không tìm thấy.' });
+    if (user.avatarUrl) {
+      const oldPath = path.join(__dirname, '..', 'public', user.avatarUrl);
+      if (fs.existsSync(oldPath)) { try { fs.unlinkSync(oldPath); } catch (_) {} }
+    }
+    await prisma.user.update({ where: { userId: user.userId }, data: { avatarUrl: null } });
+    res.json({ success: true, message: 'Đã xóa ảnh đại diện.' });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Lỗi máy chủ.' });
+  }
 });
 
 // ─── SELF REGISTRATION (public — no auth required) ───────────────────────────
@@ -2227,7 +2302,7 @@ app.post('/api/orders', authenticateToken, async (req, res) => {
     // purchaseSubject from client is INTENT only. Backend validates and computes truth.
     // Refs: PHASE 2D SPEC v1
 
-    let { customerId, purchaseSubject, items } = req.body;
+    let { customerId, purchaseSubject, items, shippingAddress, recipientPhone, recipientEmail, contactHotline } = req.body;
 
     if (!items || !Array.isArray(items) || items.length === 0) {
       return res.status(400).json({ success: false, message: 'Đơn hàng phải có ít nhất một sản phẩm/dịch vụ.' });
@@ -2377,7 +2452,11 @@ app.post('/api/orders', authenticateToken, async (req, res) => {
         isSelfBuy: isSelf,
         purchaseType,
         ordererUserId,
-        periodId: orderPeriodId, // Period Lifecycle
+        periodId: orderPeriodId,
+        shippingAddress: shippingAddress || null,
+        recipientPhone: recipientPhone || null,
+        recipientEmail: recipientEmail || null,
+        contactHotline: contactHotline || null, // Period Lifecycle
         items: {
           create: itemsData.map(i => ({
             serviceId: i.serviceId,
