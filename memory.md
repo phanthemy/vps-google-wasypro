@@ -282,3 +282,19 @@ Khi CTV tham gia, hệ thống tạo Customer record:
   - 🥈 **Quản Lý**: Icon 🥈, viền trái xám bạc (#9ca3af), nền bạc (#f3f4f6), text xám bạc (#374151).
   - 🥉 **Đại Sứ**: Icon 🥉, viền trái đồng (#d97706), nền đồng nhạt (#fef3c7), text đồng (#92400e).
 - Build production & reload PM2 thành công (commit \df3d127\).
+
+### 4. Giao diện Mobile Sơ Đồ Tuyến Dưới (17/09 Tối):
+- **Vấn đề**: Trên màn hình điện thoại (mobile), sơ đồ cây phân nhánh ngang bị tràn màn hình, khó xem.
+- **Giải pháp triển khai**:
+  - Tạo component \HierarchyListView.jsx\ hiển thị dạng **Danh Sách Dọc (Accordion)**:
+    - Thẻ tóm tắt: Tổng thành viên toàn nhóm + Doanh số nhóm.
+    - Thanh tìm kiếm đối tác theo tên/mã WK/ID nhanh chóng.
+    - Phân cấp thụt lề theo tầng, viền màu chuẩn cấp bậc (Vàng/Bạc/Đồng), mở/thu gọn tuyến dưới mượt mà.
+  - Tích hợp bộ chuyển đổi chế độ xem kép trong \NetworkView.jsx\:
+    - \📱 Danh Sách Gọn\: Tối ưu mặc định cho Mobile, không cần cuộn ngang.
+    - \🌳 Sơ Đồ Cây\: Dạng đồ họa cây phân nhánh cho Desktop (hoặc người dùng mobile muốn xem toàn cảnh).
+  - Tự động nhận diện thiết bị (\window.innerWidth < 768\) để chọn chế độ phù hợp nhất.
+- **Kiểm thử thực tế (Puppeteer headless)**:
+  - Test trên Mobile viewport (390x844): \/tmp/mobile_view1_list.png\ & \/tmp/mobile_view2_tree.png\ PASSED.
+  - Test trên Desktop viewport (1280x900): \/tmp/desktop_view_tree.png\ PASSED.
+- Commit & push GitHub: \5479edc\.
