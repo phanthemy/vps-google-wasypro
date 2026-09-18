@@ -318,3 +318,18 @@ Khi CTV tham gia, hệ thống tạo Customer record:
   - Tạo đơn hàng website thành công: ID \cmu69r7vl00007xskrmbcc9sf\ (Khách: Trần Thị Mai, Địa chỉ: Tòa Landmark Plus, 208 Nguyễn Hữu Cảnh...).
   - Chụp ảnh xác thực Admin Portal: \/tmp/admin_website_orders_expanded.png\ hiển thị khối THÔNG TIN GIAO HÀNG chuẩn xác khi bấm mở rộng dòng đơn hàng.
 - Commit & push GitHub: \b9bb3ef\.
+
+### 6. Cập Nhật Business Rule Ngưỡng 5.000 CP / Đại Sứ (18/09 Chiều):
+- **Bối cảnh**: Boss yêu cầu thay đổi DUY NHẤT logic ngưỡng 5.000 CP / phong hàm ĐẠI SỨ trong Commission Engine (server/index.js).
+- **Nội dung thay đổi**:
+  - Loại bỏ hoàn toàn cơ chế chia tách đơn (SPLIT) khi đơn hàng chạm/vượt ngưỡng 5.000 CP (isSplitEligible).
+  - Đơn làm thành viên A chạm/vượt 5.000 CP được tính dựa trên trạng thái Pre-Order: A chưa có Business ID -> Sponsor F0 nhận trọn vẹn DIRECT_NO_ID = 20% trên TOÀN BỘ CP của đơn hiện tại.
+  - Tuyệt đối không tạo bản ghi hoa hồng loại SPLIT, không áp dụng 10% phần vượt ngưỡng cho đơn này.
+  - Thành viên A không nhận hoa hồng tự mua (SELF) trên chính đơn làm A chạm/vượt 5.000 CP.
+  - Sau khi settlement đơn hoàn tất thành công: A mới chính thức được phong hàm AMBASSADOR và được cấp mã Business ID (WK-xxxxx).
+  - Các đơn hàng kích hoạt sau đó mới áp dụng quyền lợi của AMBASSADOR (A hưởng SELF 20%, F0 hưởng DIRECT_WITH_ID 10%).
+- **Kiểm thử hồi quy (Regression Test)**:
+  - Viết suite kiểm thử tự động độc lập chạy trực tiếp trên database:
+    + **Case 1 (Threshold Large Order)**: priorQP = 4.000, đơn 8.000 CP -> F0 nhận full 20% = 1.600 CP (1.600.000 VNĐ), ZERO SPLIT, A không nhận SELF, sau settlement A đạt AMBASSADOR + BID WK-10034 (QP = 12.000). PASSED.
+    + **Case 2 (Threshold Very Large Order)**: priorQP = 4.900, đơn 9.000 CP -> F0 nhận full 20% = 1.800 CP (1.800.000 VNĐ), ZERO SPLIT, B không nhận SELF, sau settlement B đạt AMBASSADOR + BID WK-10035 (QP = 13.900). PASSED.
+    + **Case 3 (After Ambassador)**: Đơn tiếp theo A tự mua 1.000 CP -> A nhận SELF 20% = 200 CP (200.000 VNĐ), F0 nhận DIRECT_WITH_ID 10% = 100 CP (100.000 VNĐ). PASSED.

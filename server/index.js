@@ -3924,104 +3924,45 @@ async function calculateAndCreateCommissions(tx, context) {
     const sponsorRank = directSponsor.rank || (directSponsor.role === 'ctv' ? 'AMBASSADOR' : null);
     const sponsorPrefix = normalizeRankPrefix(sponsorRank);
     if (sponsorPrefix) {
-      // Check SPLIT conditions:
-      // - CUSTOMER_PURCHASE (!isSelf)
-      // - qualifyingMember != null
-      // - isSystemParticipant = true
-      // - businessId = null (prior to this order)
-      // - orderTotalCP > 0
-      // - priorQP + orderTotalCP >= threshold
-      // SPLIT applies to ALL purchases (self or customer) when crossing threshold
-      // Self-buy crossing threshold: sponsor gets SPLIT (qualifying=20% + excess=10%)
-      const isSplitEligible = qualifyingMember &&
-        isParticipant &&
-        !priorBusinessId &&
-        priorQP < threshold &&
-        orderTotalCP > 0 &&
-        (priorQP + orderTotalCP >= threshold);
+      // DIRECT COMMISSION
+      // BOSS RULE (2026-09-18):
+      // - Nếu tại thời điểm settlement đơn hiện tại A chưa có BID (kể cả đơn chạm/vượt 5.000 CP):
+      //   F0 nhận DIRECT_NO_ID = 20% trên TOÀN BỘ CP của đơn hiện tại.
+      //   Không split CP theo mốc 5.000, không có phần 10% cho phần vượt ngưỡng, không tạo type SPLIT.
+      // - Nếu A đã có BID trước đơn hiện tại:
+      //   F0 nhận DIRECT_WITH_ID = 10% trên TOÀN BỘ CP của đơn hiện tại.
+      const hasId = Boolean(qualifyingMember && priorBusinessId);
 
-      if (isSplitEligible) {
-        // SPLIT replaces DIRECT_NO_ID completely (NO DIRECT_NO_ID created!)
-        const qualifyingPart = Math.max(0, threshold - priorQP);
-        const excessPart = Math.max(0, orderTotalCP - qualifyingPart);
-
-        // Rates:
-        // qualifying rate: 20% (Ambassador), or sponsor's DIRECT_NO_ID
-        // excess rate: 10% (Ambassador/Manager/Director), or sponsor's DIRECT_WITH_ID
-        const qualifyingRate = getPolicyRate(sponsorPrefix + '_QUALIFYING_SPLIT') || getPolicyRate(sponsorPrefix + '_DIRECT_NO_ID') || 0.20;
-        const excessRate = getPolicyRate(sponsorPrefix + '_EXCESS_SPLIT') || getPolicyRate(sponsorPrefix + '_DIRECT_WITH_ID') || 0.10;
-
-        if (qualifyingPart > 0) {
+      if (hasId) {
+        // Customer / Member đã có Business ID trước đơn này -> DIRECT_WITH_ID (10%)
+        const directRuleKey = sponsorPrefix + '_DIRECT_WITH_ID';
+        const directRate = getPolicyRate(directRuleKey);
+        if (directRate) {
           await createCommissionRecord({
             receiver: directSponsor,
             role: 'DIRECT_SPONSOR',
-            ruleKey: sponsorPrefix + '_QUALIFYING_SPLIT',
-            rateSnapshot: qualifyingRate,
-            basePoints: qualifyingPart,
-            type: 'SPLIT',
-            metadata: {
-              splitType: 'QUALIFYING',
-              threshold,
-              priorQP,
-              qualifyingPart,
-            }
-          });
-        }
-
-        if (excessPart > 0) {
-          await createCommissionRecord({
-            receiver: directSponsor,
-            role: 'DIRECT_SPONSOR',
-            ruleKey: sponsorPrefix + '_EXCESS_SPLIT',
-            rateSnapshot: excessRate,
-            basePoints: excessPart,
-            type: 'SPLIT',
-            metadata: {
-              splitType: 'EXCESS',
-              threshold,
-              priorQP,
-              excessPart,
-            }
+            ruleKey: directRuleKey,
+            rateSnapshot: directRate,
+            basePoints: orderTotalCP,
+            type: 'DIRECT',
+            metadata: { hasId: true },
           });
         }
       } else {
-        // NON-SPLIT: Either DIRECT_WITH_ID or DIRECT_NO_ID
-        // BOSS RULE: Use priorBusinessId only (PRE-ORDER state). No post-promotion fallback.
-        const hasId = qualifyingMember && priorBusinessId;
-
-        if (hasId) {
-          // Customer has ID -> DIRECT_WITH_ID
-          const directRuleKey = sponsorPrefix + '_DIRECT_WITH_ID';
-          const directRate = getPolicyRate(directRuleKey);
-          if (directRate) {
-            await createCommissionRecord({
-              receiver: directSponsor,
-              role: 'DIRECT_SPONSOR',
-              ruleKey: directRuleKey,
-              rateSnapshot: directRate,
-              basePoints: orderTotalCP,
-              type: 'DIRECT',
-              metadata: { hasId: true },
-            });
-          }
-        } else {
-          // Customer has NO ID:
-          // - either retail customer (qualifyingMember == null)
-          // - or not system participant
-          // - or system participant who did not cross threshold (priorQP + orderTotalCP < threshold)
-          const directRuleKey = sponsorPrefix + '_DIRECT_NO_ID';
-          const directRate = getPolicyRate(directRuleKey);
-          if (directRate) {
-            await createCommissionRecord({
-              receiver: directSponsor,
-              role: 'DIRECT_SPONSOR',
-              ruleKey: directRuleKey,
-              rateSnapshot: directRate,
-              basePoints: orderTotalCP,
-              type: 'DIRECT',
-              metadata: { hasId: false },
-            });
-          }
+        // Customer / Member chưa có Business ID trước đơn này -> DIRECT_NO_ID (20%)
+        // Áp dụng cho cả retail customer lẫn thành viên chạm/vượt ngưỡng 5.000 CP
+        const directRuleKey = sponsorPrefix + '_DIRECT_NO_ID';
+        const directRate = getPolicyRate(directRuleKey);
+        if (directRate) {
+          await createCommissionRecord({
+            receiver: directSponsor,
+            role: 'DIRECT_SPONSOR',
+            ruleKey: directRuleKey,
+            rateSnapshot: directRate,
+            basePoints: orderTotalCP,
+            type: 'DIRECT',
+            metadata: { hasId: false },
+          });
         }
       }
     }
