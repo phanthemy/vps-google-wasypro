@@ -298,3 +298,23 @@ Khi CTV tham gia, hệ thống tạo Customer record:
   - Test trên Mobile viewport (390x844): \/tmp/mobile_view1_list.png\ & \/tmp/mobile_view2_tree.png\ PASSED.
   - Test trên Desktop viewport (1280x900): \/tmp/desktop_view_tree.png\ PASSED.
 - Commit & push GitHub: \5479edc\.
+
+### 5. Đồng Bộ Thông Tin Giao Hàng Cho Đơn Hàng Website (18/09 Sáng):
+- **Vấn đề**: Trước đây, thông tin giao nhận chi tiết (địa chỉ đầy đủ, SĐT người nhận, Email, Hotline) chỉ áp dụng cho đơn hàng CTV. Đơn hàng Website (wasypro.com) chỉ lưu địa chỉ ngắn và không có khối THÔNG TIN GIAO HÀNG mở rộng trong Admin Portal (như phản ánh của Boss qua ảnh đối chiếu Đơn CTV vs Đơn Website).
+- **Giải pháp triển khai**:
+  - **Database**: Bổ sung các cột \shippingAddress\, \recipientPhone\, \recipientEmail\, \contactHotline\ vào bảng \WebsiteOrder\ (SQLite + Prisma schema).
+  - **Form Đặt Hàng Website (\ContactModal.tsx\)**:
+    - Bắt buộc nhập địa chỉ giao hàng đầy đủ khi đặt mua sản phẩm (\isOrderMode\).
+    - Bổ sung trường nhập Email (tùy chọn) và Hotline / SĐT dự phòng (tùy chọn).
+    - Validate số điện thoại và địa chỉ giao hàng trước khi submit.
+  - **Backend API (\server/index.js\)**:
+    - Tiếp nhận và lưu đầy đủ \shippingAddress\, \recipientPhone\, \recipientEmail\, \contactHotline\ vào \WebsiteOrder\.
+    - Khi tạo \shadowOrder\ (để trả hoa hồng hệ thống), đồng bộ toàn bộ thông tin giao hàng này sang bảng \Order\.
+  - **Admin Portal (\AdminOrders.tsx\)**:
+    - Thêm state \expandedWebId\ cho tab **Đơn Hàng Website**.
+    - Hiển thị địa chỉ giao hàng nổi bật màu xanh biển (\📍\) dưới tên khách hàng.
+    - Cho phép click vào từng dòng đơn hàng website để mở rộng khối **🚚 THÔNG TIN GIAO HÀNG** (Địa chỉ chi tiết, SĐT người nhận, Email, Hotline, Ghi chú) đồng bộ chuẩn 100% y hệt như tab Đơn Hàng CTV.
+- **Kiểm thử thực tế (Puppeteer)**:
+  - Tạo đơn hàng website thành công: ID \cmu69r7vl00007xskrmbcc9sf\ (Khách: Trần Thị Mai, Địa chỉ: Tòa Landmark Plus, 208 Nguyễn Hữu Cảnh...).
+  - Chụp ảnh xác thực Admin Portal: \/tmp/admin_website_orders_expanded.png\ hiển thị khối THÔNG TIN GIAO HÀNG chuẩn xác khi bấm mở rộng dòng đơn hàng.
+- Commit & push GitHub: \b9bb3ef\.
