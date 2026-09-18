@@ -52,8 +52,8 @@ export default function UserModal({ userList, editingUser, onClose, onSuccess })
             <label className="text-sm font-bold">Cấp Bậc</label>
             <select className="input-field" value={formData.tier} onChange={e => setFormData({...formData, tier: e.target.value})}>
               <option value="SILVER">Đại sứ KD (Silver)</option>
-              <option value="GOLD">Quản lý PT (Gold)</option>
-              <option value="DIAMOND">Giám đốc PT (Diamond)</option>
+              <option value="GOLD">Trưởng nhóm (Gold)</option>
+              <option value="DIAMOND">Quản lý (Diamond)</option>
             </select>
           </div>
           <div className="flex-col gap-1">
@@ -61,7 +61,7 @@ export default function UserModal({ userList, editingUser, onClose, onSuccess })
             <select className="input-field" value={formData.parentId} onChange={e => setFormData({...formData, parentId: e.target.value})}>
               <option value="">-- Trực tiếp Công ty --</option>
               {selectableParents.map(u => (
-                <option key={u.id} value={u.id}>{u.name} ({u.tier === 'DIAMOND' ? 'Giám đốc PT' : u.tier === 'GOLD' ? 'Quản lý PT' : 'Đại sứ KD'})</option>
+                <option key={u.id} value={u.id}>{u.name} ({u.tier === 'DIAMOND' ? 'Quản lý' : u.tier === 'GOLD' ? 'Trưởng nhóm' : 'Đại sứ'})</option>
               ))}
             </select>
           </div>

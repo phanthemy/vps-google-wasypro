@@ -112,7 +112,7 @@ export default function DashboardView({ refreshKey, currentUser, setActiveTab })
               <Crown size={26} />
             </div>
             <div className="stat-info">
-              <div className="stat-label">Giám đốc</div>
+              <div className="stat-label">Quản lý</div>
               <div className="stat-value">{data.totalDiamond} <span className="text-xs text-secondary font-normal">Thành viên</span></div>
             </div>
           </div>
@@ -122,7 +122,7 @@ export default function DashboardView({ refreshKey, currentUser, setActiveTab })
               <Award size={26} />
             </div>
             <div className="stat-info">
-              <div className="stat-label">Quản lý</div>
+              <div className="stat-label">Trưởng nhóm</div>
               <div className="stat-value">{data.totalGold} <span className="text-xs text-secondary font-normal">Thành viên</span></div>
             </div>
           </div>

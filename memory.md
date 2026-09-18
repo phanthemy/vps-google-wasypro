@@ -333,3 +333,24 @@ Khi CTV tham gia, hệ thống tạo Customer record:
     + **Case 1 (Threshold Large Order)**: priorQP = 4.000, đơn 8.000 CP -> F0 nhận full 20% = 1.600 CP (1.600.000 VNĐ), ZERO SPLIT, A không nhận SELF, sau settlement A đạt AMBASSADOR + BID WK-10034 (QP = 12.000). PASSED.
     + **Case 2 (Threshold Very Large Order)**: priorQP = 4.900, đơn 9.000 CP -> F0 nhận full 20% = 1.800 CP (1.800.000 VNĐ), ZERO SPLIT, B không nhận SELF, sau settlement B đạt AMBASSADOR + BID WK-10035 (QP = 13.900). PASSED.
     + **Case 3 (After Ambassador)**: Đơn tiếp theo A tự mua 1.000 CP -> A nhận SELF 20% = 200 CP (200.000 VNĐ), F0 nhận DIRECT_WITH_ID 10% = 100 CP (100.000 VNĐ). PASSED.
+
+### 7. Cập Nhật Nhãn Cấp Bậc (Display Labels) & Nâng Cấp Giao Diện Sơ Đồ Cây Desktop (18/09):
+- **Đổi nhãn hiển thị cấp bậc (Business Rank Display Labels)**:
+  - AMBASSADOR -> "Đại sứ"
+  - MANAGER -> "Trưởng nhóm"
+  - DIRECTOR -> "Quản lý"
+  - Tuân thủ nghiêm ngặt 100%: GIỮ NGUYÊN giá trị Enum, Database, API contract, logic tính hoa hồng, rank progression, Sponsor Tree, Business ID và các nhãn quản trị chung không liên quan đến Rank.
+  - Cập nhật đồng bộ trên toàn hệ thống: RankBadge, CTVPortalContainer, DashboardView, RankView, UsersView, CustomersView, UserModal, AdminCTVManagement, AdminPolicyConfig, AdminPeriodDetail, AmbassadorProgressCard, ContactModal, server/index.js (mô tả kỳ chính sách và thông báo tiến độ thăng hạng).
+- **Nâng cấp giao diện Sơ Đồ Cây (Org Chart) Desktop**:
+  - Khắc phục triệt để lỗi thẻ root tràn 100% màn hình, lỗi chữ dính chùm "TRƯỞNG NHÓMWK-10007", lỗi tràn/cắt xén văn bản ("i sứ 01", ".000.000đ") và đường nối connector bị lệch.
+  - Thiết kế lại `TreeNode.jsx`:
+    + Cố định kích thước thẻ chuẩn `width: 220px` cho mọi cấp bậc.
+    + Tách biệt rõ ràng huy hiệu cấp bậc và mã đối tác (Business ID) bằng flex layout.
+    + Vẽ đường nối phân nhánh chính xác bằng CSS vertical stem & horizontal crossbar căn chỉnh theo tâm thẻ.
+    + Bổ sung nút thu gọn/mở rộng nhánh con (`Thu gọn ^` / `Xem n nhánh v`).
+  - Nâng cấp `NetworkView.jsx`:
+    + Bổ sung thanh điều khiển thu phóng chuyên nghiệp: Zoom Out (-), tỷ lệ %, Zoom In (+), Reset 100%.
+    + Thanh chú thích cấp bậc trực quan (👑 Quản lý, 🛡️ Trưởng nhóm, ⭐ Đại sứ).
+    + Căn giữa sơ đồ mượt mà trên desktop với container `min-w-max`.
+  - Cấu hình API fallback proxy trong `server.cjs` chuyển tiếp an toàn các route `/api/*` về backend port 3011.
+  - Đã kiểm thử giao diện thực tế bằng headless browser (Puppeteer CDP), chụp ảnh lưu trữ xác nhận sơ đồ cây hiển thị cực kỳ đẹp mắt, cân đối và chuẩn xác.

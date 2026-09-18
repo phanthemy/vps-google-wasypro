@@ -68,9 +68,9 @@ interface Commission {
 
 // ── Constants ──────────────────────────────────────────────────
 const GROUPS: { id: string; label: string; keys: string[] }[] = [
-  { id: 'AMBASSADOR', label: 'Đại Sứ', keys: ['AMBASSADOR_SELF_BUY', 'AMBASSADOR_DIRECT_NO_ID', 'AMBASSADOR_DIRECT_WITH_ID', 'AMBASSADOR_THRESHOLD'] },
-  { id: 'MANAGER',   label: 'Quản Lý', keys: ['MANAGER_SELF_BUY', 'MANAGER_DIRECT_NO_ID', 'MANAGER_DIRECT_WITH_ID', 'MANAGER_F1_PURCHASE', 'MANAGER_F2_PURCHASE', 'MANAGER_F1_SELL_TO_CUSTOMER_NO_ID'] },
-  { id: 'DIRECTOR',  label: 'Giám Đốc', keys: ['DIRECTOR_SELF_BUY', 'DIRECTOR_DIRECT_NO_ID', 'DIRECTOR_DIRECT_WITH_ID', 'DIRECTOR_F1', 'DIRECTOR_F2'] },
+  { id: 'AMBASSADOR', label: 'Đại sứ', keys: ['AMBASSADOR_SELF_BUY', 'AMBASSADOR_DIRECT_NO_ID', 'AMBASSADOR_DIRECT_WITH_ID', 'AMBASSADOR_THRESHOLD'] },
+  { id: 'MANAGER',   label: 'Trưởng nhóm', keys: ['MANAGER_SELF_BUY', 'MANAGER_DIRECT_NO_ID', 'MANAGER_DIRECT_WITH_ID', 'MANAGER_F1_PURCHASE', 'MANAGER_F2_PURCHASE', 'MANAGER_F1_SELL_TO_CUSTOMER_NO_ID'] },
+  { id: 'DIRECTOR',  label: 'Quản lý', keys: ['DIRECTOR_SELF_BUY', 'DIRECTOR_DIRECT_NO_ID', 'DIRECTOR_DIRECT_WITH_ID', 'DIRECTOR_F1', 'DIRECTOR_F2'] },
 ];
 
 const THRESHOLD_KEYS = new Set(['AMBASSADOR_THRESHOLD']);
@@ -418,7 +418,7 @@ export default function AdminPeriodDetail({ periodId, onBack }: AdminPeriodDetai
                   <tr key={c.id} className="border-b border-slate-100 hover:bg-sky-50/40 transition-colors">
                     <td className="py-2 px-3">
                       <div className="font-medium">{c.receiver?.fullName}</div>
-                      <div className="text-xs text-slate-500">{c.receiver?.userId} · {c.receiver?.rank}</div>
+                      <div className="text-xs text-slate-500">{c.receiver?.userId} · {c.receiver?.rank === 'DIRECTOR' ? 'Quản lý' : c.receiver?.rank === 'MANAGER' ? 'Trưởng nhóm' : c.receiver?.rank === 'AMBASSADOR' ? 'Đại sứ' : c.receiver?.rank}</div>
                     </td>
                     <td className="py-2 px-3">
                       <div className="text-xs font-mono text-sky-700">{c.ruleKey || c.type}</div>

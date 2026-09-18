@@ -25,17 +25,17 @@ interface AuditEntry {
 const GROUPS: { id: string; label: string; keys: string[] }[] = [
   {
     id: 'AMBASSADOR',
-    label: 'Đại Sứ Kinh Doanh',
+    label: 'Đại sứ',
     keys: ['AMBASSADOR_SELF_BUY','AMBASSADOR_DIRECT_NO_ID','AMBASSADOR_DIRECT_WITH_ID','AMBASSADOR_THRESHOLD'],
   },
   {
     id: 'MANAGER',
-    label: 'Quản Lý',
+    label: 'Trưởng nhóm',
     keys: ['MANAGER_SELF_BUY','MANAGER_DIRECT_NO_ID','MANAGER_DIRECT_WITH_ID','MANAGER_F1_PURCHASE','MANAGER_F2_PURCHASE','MANAGER_F1_SELL_TO_CUSTOMER_NO_ID'],
   },
   {
     id: 'DIRECTOR',
-    label: 'Giám Đốc',
+    label: 'Quản lý',
     keys: ['DIRECTOR_SELF_BUY','DIRECTOR_DIRECT_NO_ID','DIRECTOR_DIRECT_WITH_ID','DIRECTOR_F1','DIRECTOR_F2'],
   },
   {
@@ -46,21 +46,21 @@ const GROUPS: { id: string; label: string; keys: string[] }[] = [
 ];
 
 const KEY_LABELS: Record<string, string> = {
-  AMBASSADOR_SELF_BUY: 'Đại Sứ — Tự mua',
-  AMBASSADOR_DIRECT_NO_ID: 'Đại Sứ — Bán cho khách chưa có ID',
-  AMBASSADOR_DIRECT_WITH_ID: 'Đại Sứ — Bán cho khách đã có ID',
+  AMBASSADOR_SELF_BUY: 'Đại sứ — Tự mua',
+  AMBASSADOR_DIRECT_NO_ID: 'Đại sứ — Bán cho khách chưa có ID',
+  AMBASSADOR_DIRECT_WITH_ID: 'Đại sứ — Bán cho khách đã có ID',
   AMBASSADOR_THRESHOLD: 'Ngưỡng điểm tích lũy (Qualifying Points)',
-  MANAGER_SELF_BUY: 'Quản Lý — Tự mua',
-  MANAGER_DIRECT_NO_ID: 'Quản Lý — Bán cho khách chưa có ID',
-  MANAGER_DIRECT_WITH_ID: 'Quản Lý — Bán cho khách đã có ID',
-  MANAGER_F1_PURCHASE: 'Quản Lý — F1 tự mua',
-  MANAGER_F2_PURCHASE: 'Quản Lý — F2 tự mua',
-  MANAGER_F1_SELL_TO_CUSTOMER_NO_ID: 'Quản Lý — Khi F1 bán cho khách mới chưa ID (5%)',
-  DIRECTOR_SELF_BUY: 'Giám Đốc — Tự mua',
-  DIRECTOR_DIRECT_NO_ID: 'Giám Đốc — Bán cho khách chưa có ID',
-  DIRECTOR_DIRECT_WITH_ID: 'Giám Đốc — Bán cho khách đã có ID',
-  DIRECTOR_F1: 'Giám Đốc — Upstream từ F1 (D1)',
-  DIRECTOR_F2: 'Giám Đốc — Upstream từ F2 (D2)',
+  MANAGER_SELF_BUY: 'Trưởng nhóm — Tự mua',
+  MANAGER_DIRECT_NO_ID: 'Trưởng nhóm — Bán cho khách chưa có ID',
+  MANAGER_DIRECT_WITH_ID: 'Trưởng nhóm — Bán cho khách đã có ID',
+  MANAGER_F1_PURCHASE: 'Trưởng nhóm — F1 tự mua',
+  MANAGER_F2_PURCHASE: 'Trưởng nhóm — F2 tự mua',
+  MANAGER_F1_SELL_TO_CUSTOMER_NO_ID: 'Trưởng nhóm — Khi F1 bán cho khách mới chưa ID (5%)',
+  DIRECTOR_SELF_BUY: 'Quản lý — Tự mua',
+  DIRECTOR_DIRECT_NO_ID: 'Quản lý — Bán cho khách chưa có ID',
+  DIRECTOR_DIRECT_WITH_ID: 'Quản lý — Bán cho khách đã có ID',
+  DIRECTOR_F1: 'Quản lý — Upstream từ F1 (D1)',
+  DIRECTOR_F2: 'Quản lý — Upstream từ F2 (D2)',
   POLICY_VERSION: 'Phiên bản Policy (tự động)',
 };
 

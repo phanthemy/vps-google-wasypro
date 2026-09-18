@@ -2,25 +2,28 @@ import React from 'react';
 
 /**
  * RANK CONFIG — Water King Group
- * Màu sắc theo cấp bậc: Đồng / Bạc / Vàng
+ * Cấp bậc đối tác kinh doanh:
+ * AMBASSADOR -> Đại sứ
+ * MANAGER    -> Trưởng nhóm
+ * DIRECTOR   -> Quản lý
  */
 const RANK_CONFIG = {
   AMBASSADOR: {
-    label: 'Đại Sứ',
+    label: 'Đại sứ',
     color: '#92400e',
     bg: '#fef3c7',
     border: '#d97706',
     icon: '🥉',
   },
   MANAGER: {
-    label: 'Quản Lý',
+    label: 'Trưởng nhóm',
     color: '#374151',
     bg: '#f3f4f6',
     border: '#9ca3af',
     icon: '🥈',
   },
   DIRECTOR: {
-    label: 'Giám Đốc',
+    label: 'Quản lý',
     color: '#78350f',
     bg: '#fffbeb',
     border: '#f59e0b',
@@ -48,6 +51,18 @@ RANK_CONFIG.SALES_DIRECTOR = RANK_CONFIG.DIRECTOR;
 RANK_CONFIG.GOLD           = RANK_CONFIG.MANAGER;
 RANK_CONFIG.DIAMOND        = RANK_CONFIG.DIRECTOR;
 RANK_CONFIG.SILVER         = RANK_CONFIG.AMBASSADOR;
+
+/**
+ * Helper Single Source of Truth cho Display Label
+ */
+export function getRankDisplayLabel(rank) {
+  if (!rank) return '';
+  const r = String(rank).toUpperCase().trim();
+  if (r === 'DIRECTOR' || r === 'SALES_DIRECTOR' || r === 'DIAMOND') return 'Quản lý';
+  if (r === 'MANAGER' || r === 'SALES_MANAGER' || r === 'GOLD') return 'Trưởng nhóm';
+  if (r === 'AMBASSADOR' || r === 'SILVER') return 'Đại sứ';
+  return 'Thành viên';
+}
 
 /**
  * RankBadge — hiển thị cấp bậc với màu Đồng/Bạc/Vàng

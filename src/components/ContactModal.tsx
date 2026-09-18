@@ -57,7 +57,7 @@ export const ContactModal: React.FC<ContactModalProps> = ({
         if (d.success && u && u.rank && u.isSystemParticipant) {
           setIsCtvWithRank(true);
           const r = (u.rank || '').toUpperCase();
-          setCtvRankLabel(r === 'DIRECTOR' ? 'Giám Đốc' : r === 'MANAGER' ? 'Quản Lý' : 'Đại Sứ');
+          setCtvRankLabel(r === 'DIRECTOR' ? 'Quản lý' : r === 'MANAGER' ? 'Trưởng nhóm' : 'Đại sứ');
         } else {
           setIsCtvWithRank(false);
         }

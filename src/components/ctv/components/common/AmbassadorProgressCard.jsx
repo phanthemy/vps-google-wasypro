@@ -56,7 +56,7 @@ export default function AmbassadorProgressCard({ userId }) {
                 Cấp bậc cao nhất
               </span>
             </div>
-            <h3 className="text-base font-bold text-amber-300 mt-0.5">Giám Đốc Kinh Doanh</h3>
+            <h3 className="text-base font-bold text-amber-300 mt-0.5">Quản Lý</h3>
           </div>
         </div>
         <p className="text-xs text-secondary leading-relaxed">
@@ -72,21 +72,21 @@ export default function AmbassadorProgressCard({ userId }) {
       case 'AMBASSADOR':
         return {
           icon: <Shield size={18} className="text-emerald-400" />,
-          title: 'Tiến trình thăng cấp Quản Lý (Manager)',
-          sub: 'Quy chế: 5 thành viên F1 trực tiếp đạt chuẩn Đại Sứ (có Business ID)',
-          targetLabel: 'F1 Đại Sứ',
+          title: 'Tiến trình thăng cấp Trưởng nhóm (Manager)',
+          sub: 'Quy chế: 5 thành viên F1 trực tiếp đạt chuẩn Đại sứ (có Business ID)',
+          targetLabel: 'F1 Đại sứ',
           barColor: 'from-emerald-600 to-teal-400',
-          nextName: 'Quản Lý'
+          nextName: 'Trưởng nhóm'
         };
       case 'MANAGER':
       case 'SALES_MANAGER':
         return {
           icon: <Crown size={18} className="text-rose-400" />,
-          title: 'Tiến trình thăng cấp Giám Đốc (Director)',
-          sub: 'Quy chế: 5 thành viên F1 trực tiếp đạt chuẩn Quản Lý (có Business ID)',
-          targetLabel: 'F1 Quản Lý',
+          title: 'Tiến trình thăng cấp Quản lý (Director)',
+          sub: 'Quy chế: 5 thành viên F1 trực tiếp đạt chuẩn Trưởng nhóm (có Business ID)',
+          targetLabel: 'F1 Trưởng nhóm',
           barColor: 'from-rose-600 to-amber-400',
-          nextName: 'Giám Đốc'
+          nextName: 'Quản lý'
         };
       default: // CUSTOMER
         return {
@@ -168,7 +168,7 @@ export default function AmbassadorProgressCard({ userId }) {
                     <p className="text-[10px] text-secondary font-mono">ID: {f1.businessId || f1.userId}</p>
                   </div>
                   <span className="text-[10px] px-2 py-0.5 rounded-full bg-purple-500/10 border border-purple-500/30 text-purple-300 font-medium">
-                    {f1.rank || 'Đại Sứ'}
+                    {f1.rank === 'DIRECTOR' ? 'Quản lý' : f1.rank === 'MANAGER' ? 'Trưởng nhóm' : 'Đại sứ'}
                   </span>
                 </div>
               ))}

@@ -859,17 +859,17 @@ const PERIOD_POLICY_KEYS = [
   { key: 'AMBASSADOR_F1',                   description: 'Đại Sứ — Upstream từ F1 (D1) (10%)' },
   { key: 'AMBASSADOR_F2',                   description: 'Đại Sứ — Upstream từ F2 (D2) (5%)' },
   { key: 'AMBASSADOR_THRESHOLD',             description: 'Ngưỡng điểm tích lũy (Qualifying Points)' },
-  { key: 'MANAGER_SELF_BUY',                 description: 'Quản Lý — Tự mua' },
-  { key: 'MANAGER_DIRECT_NO_ID',             description: 'Quản Lý — Bán cho khách chưa có ID' },
-  { key: 'MANAGER_DIRECT_WITH_ID',           description: 'Quản Lý — Bán cho khách đã có ID' },
-  { key: 'MANAGER_F1_PURCHASE',              description: 'Quản Lý — F1 tự mua' },
-  { key: 'MANAGER_F2_PURCHASE',              description: 'Quản Lý — F2 tự mua' },
-  { key: 'MANAGER_F1_SELL_TO_CUSTOMER_NO_ID', description: 'Quản Lý — Khi F1 bán cho khách mới chưa ID (5%)' },
-  { key: 'DIRECTOR_SELF_BUY',                description: 'Giám Đốc — Tự mua' },
-  { key: 'DIRECTOR_DIRECT_NO_ID',            description: 'Giám Đốc — Bán cho khách chưa có ID' },
-  { key: 'DIRECTOR_DIRECT_WITH_ID',          description: 'Giám Đốc — Bán cho khách đã có ID' },
-  { key: 'DIRECTOR_F1',                      description: 'Giám Đốc — F1 (D1)' },
-  { key: 'DIRECTOR_F2',                      description: 'Giám Đốc — F2 (D2)' },
+  { key: 'MANAGER_SELF_BUY',                 description: 'Trưởng nhóm — Tự mua' },
+  { key: 'MANAGER_DIRECT_NO_ID',             description: 'Trưởng nhóm — Bán cho khách chưa có ID' },
+  { key: 'MANAGER_DIRECT_WITH_ID',           description: 'Trưởng nhóm — Bán cho khách đã có ID' },
+  { key: 'MANAGER_F1_PURCHASE',              description: 'Trưởng nhóm — F1 tự mua' },
+  { key: 'MANAGER_F2_PURCHASE',              description: 'Trưởng nhóm — F2 tự mua' },
+  { key: 'MANAGER_F1_SELL_TO_CUSTOMER_NO_ID', description: 'Trưởng nhóm — Khi F1 bán cho khách mới chưa ID (5%)' },
+  { key: 'DIRECTOR_SELF_BUY',                description: 'Quản lý — Tự mua' },
+  { key: 'DIRECTOR_DIRECT_NO_ID',            description: 'Quản lý — Bán cho khách chưa có ID' },
+  { key: 'DIRECTOR_DIRECT_WITH_ID',          description: 'Quản lý — Bán cho khách đã có ID' },
+  { key: 'DIRECTOR_F1',                      description: 'Quản lý — F1 (D1)' },
+  { key: 'DIRECTOR_F2',                      description: 'Quản lý — F2 (D2)' },
 ];
 
 const PERIOD_THRESHOLD_KEYS = new Set(['AMBASSADOR_THRESHOLD']);
@@ -4728,9 +4728,9 @@ app.get('/api/rank/promotion-progress/:userId', authenticateToken, async (req, r
           progress: Math.min(100, Math.round((count / target) * 100)),
           current: count,
           target: target,
-          unit: 'F1 Đại Sứ',
+          unit: 'F1 Đại sứ',
           f1List: f1Ambassadors,
-          description: 'Cần đủ 5 thành viên F1 trực tiếp đạt cấp Đại Sứ (có Business ID) để tự động lên Quản Lý'
+          description: 'Cần đủ 5 thành viên F1 trực tiếp đạt cấp Đại sứ (có Business ID) để tự động lên Trưởng nhóm'
         }
       });
     }
@@ -4756,9 +4756,9 @@ app.get('/api/rank/promotion-progress/:userId', authenticateToken, async (req, r
           progress: Math.min(100, Math.round((count / target) * 100)),
           current: count,
           target: target,
-          unit: 'F1 Quản Lý',
+          unit: 'F1 Trưởng nhóm',
           f1List: f1Managers,
-          description: 'Cần đủ 5 thành viên F1 trực tiếp đạt cấp Quản Lý (có Business ID) để tự động lên Giám Đốc'
+          description: 'Cần đủ 5 thành viên F1 trực tiếp đạt cấp Trưởng nhóm (có Business ID) để tự động lên Quản lý'
         }
       });
     }
@@ -4774,7 +4774,7 @@ app.get('/api/rank/promotion-progress/:userId', authenticateToken, async (req, r
           current: 5,
           target: 5,
           unit: '',
-          description: 'Bạn đã đạt cấp bậc cao nhất: Giám Đốc Kinh Doanh 👑'
+          description: 'Bạn đã đạt cấp bậc cao nhất: Quản lý 👑'
         }
       });
     }

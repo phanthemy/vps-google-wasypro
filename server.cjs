@@ -345,6 +345,15 @@ app.put('/api/admin/change-password', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// Proxy unhandled /api requests to backend port 3011
+const { createProxyMiddleware, fixRequestBody } = require('http-proxy-middleware');
+app.use('/api', createProxyMiddleware({
+  target: 'http://127.0.0.1:3011',
+  changeOrigin: true,
+  pathRewrite: { '^/': '/api/' },
+  onProxyReq: fixRequestBody
+}));
+
 // SPA fallback - must be LAST
 app.get('*', (req, res) => {
   res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');

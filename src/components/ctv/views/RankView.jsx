@@ -110,7 +110,7 @@ export default function RankView({ currentUser }) {
     },
     {
       role: 'MANAGER',
-      title: 'Quản lý (Manager)',
+      title: 'Trưởng nhóm (Manager)',
       subtitle: 'Có đủ 5 thành viên F1 trực tiếp đạt chuẩn Đại Sứ',
       icon: <Shield className="w-5 h-5 text-emerald-600" />,
       headerBg: 'bg-emerald-50 border-emerald-200 text-emerald-900',
@@ -151,8 +151,8 @@ export default function RankView({ currentUser }) {
     },
     {
       role: 'DIRECTOR',
-      title: 'Giám đốc (Director)',
-      subtitle: 'Có đủ 5 thành viên F1 trực tiếp đạt chuẩn Quản Lý',
+      title: 'Quản lý (Director)',
+      subtitle: 'Có đủ 5 thành viên F1 trực tiếp đạt chuẩn Trưởng nhóm',
       icon: <Crown className="w-5 h-5 text-rose-600" />,
       headerBg: 'bg-rose-50 border-rose-200 text-rose-900',
       badgeBg: 'bg-rose-600 text-white',
@@ -257,7 +257,7 @@ export default function RankView({ currentUser }) {
           <div>
             <div className="flex items-center gap-2 text-sm font-extrabold text-slate-900 uppercase tracking-wide">
               <TrendingUp size={18} className="text-emerald-600" />
-              <span>Bảng Cơ Chế Hoa Hồng — {{ AMBASSADOR: 'ĐẠI SỨ (AMBASSADOR)', MANAGER: 'QUẢN LÝ (MANAGER)', DIRECTOR: 'GIÁM ĐỐC (DIRECTOR)' }[currentUser?.rank?.toUpperCase()] || 'Chưa xác định'}</span>
+              <span>Bảng Cơ Chế Hoa Hồng — {{ AMBASSADOR: 'ĐẠI SỨ (AMBASSADOR)', MANAGER: 'TRƯỞNG NHÓM (MANAGER)', DIRECTOR: 'QUẢN LÝ (DIRECTOR)' }[currentUser?.rank?.toUpperCase()] || 'Chưa xác định'}</span>
             </div>
             <p className="text-xs text-slate-500 mt-0.5">
               Cơ chế hoa hồng áp dụng cho cấp bậc hiện tại của bạn

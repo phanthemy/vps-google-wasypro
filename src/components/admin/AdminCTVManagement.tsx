@@ -58,11 +58,11 @@ interface CtvDetail {
 function RankBadge({ rank }: { rank?: string | null }) {
   if (!rank) return <span className="text-xs text-slate-400">—</span>;
   const map: Record<string, { label: string; cls: string }> = {
-    AMBASSADOR: { label: 'Đại Sứ', cls: 'bg-amber-100 text-amber-700' },
-    MANAGER: { label: 'Quản Lý', cls: 'bg-blue-100 text-blue-700' },
-    SALES_MANAGER: { label: 'Quản Lý', cls: 'bg-blue-100 text-blue-700' },
-    DIRECTOR: { label: 'Giám Đốc', cls: 'bg-purple-100 text-purple-700' },
-    SALES_DIRECTOR: { label: 'Giám Đốc', cls: 'bg-purple-100 text-purple-700' },
+    AMBASSADOR: { label: 'Đại sứ', cls: 'bg-amber-100 text-amber-700' },
+    MANAGER: { label: 'Trưởng nhóm', cls: 'bg-blue-100 text-blue-700' },
+    SALES_MANAGER: { label: 'Trưởng nhóm', cls: 'bg-blue-100 text-blue-700' },
+    DIRECTOR: { label: 'Quản lý', cls: 'bg-purple-100 text-purple-700' },
+    SALES_DIRECTOR: { label: 'Quản lý', cls: 'bg-purple-100 text-purple-700' },
   };
   const r = map[rank] ?? { label: rank, cls: 'bg-slate-100 text-slate-600' };
   return <span className={`text-[11px] font-bold px-2 py-0.5 rounded-lg ${r.cls}`}>{r.label}</span>;
@@ -211,9 +211,9 @@ export const AdminCTVManagement: React.FC = () => {
                   { icon: Star, label: 'S-Points', value: String(detail.ctv.sPoints) },
                   { icon: User, label: 'Cấp bậc', value: (() => {
                     const r = (detail.ctv.rank || '').toUpperCase();
-                    if (r === 'DIRECTOR' || r === 'SALES_DIRECTOR') return 'Giám Đốc';
-                    if (r === 'MANAGER' || r === 'SALES_MANAGER') return 'Quản Lý';
-                    if (r === 'AMBASSADOR') return 'Đại Sứ';
+                    if (r === 'DIRECTOR' || r === 'SALES_DIRECTOR') return 'Quản lý';
+                    if (r === 'MANAGER' || r === 'SALES_MANAGER') return 'Trưởng nhóm';
+                    if (r === 'AMBASSADOR') return 'Đại sứ';
                     if (detail.ctv.isSystemParticipant) return 'Thành Viên';
                     return 'Khách Hàng';
                   })() },
@@ -567,9 +567,9 @@ export const AdminCTVManagement: React.FC = () => {
           className="px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-ocean-500"
         >
           <option value="all">Tất cả cấp bậc</option>
-          <option value="AMBASSADOR">Đại Sứ</option>
-          <option value="MANAGER">Quản Lý</option>
-          <option value="DIRECTOR">Giám Đốc</option>
+          <option value="AMBASSADOR">Đại sứ</option>
+          <option value="MANAGER">Trưởng nhóm</option>
+          <option value="DIRECTOR">Quản lý</option>
         </select>
         {(search || rankFilter !== 'all') && (
           <button onClick={() => { setSearch(''); setRankFilter('all'); }} className="px-3 text-xs text-slate-500 hover:text-rose-600 flex items-center gap-1 font-semibold">

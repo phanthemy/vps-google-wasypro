@@ -100,8 +100,8 @@ export const CTVPortalContainer: React.FC<CTVPortalContainerProps> = ({
   // Rank Display Information
   const rankLabel = (() => {
     const r = (currentUser?.rank || '').toUpperCase();
-    if (r === 'DIRECTOR' || r === 'SALES_DIRECTOR') return '👑 Giám Đốc';
-    if (r === 'MANAGER' || r === 'SALES_MANAGER') return '🛡️ Quản Lý';
+    if (r === 'DIRECTOR' || r === 'SALES_DIRECTOR') return '👑 Quản Lý';
+    if (r === 'MANAGER' || r === 'SALES_MANAGER') return '🛡️ Trưởng Nhóm';
     if (r === 'AMBASSADOR') return '⭐ Đại Sứ';
     if (isAdmin) return '🔑 Quản Trị Viên';
     if (isAccountant) return '📊 Kế Toán';

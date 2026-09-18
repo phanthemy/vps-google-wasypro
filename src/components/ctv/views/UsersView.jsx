@@ -63,8 +63,8 @@ export default function UsersView({ refreshKey, onAddUser, onEditUser }) {
           <select className="input-field" value={roleFilter} onChange={e => { setRoleFilter(e.target.value); setCurrentPage(1); }} style={{ padding: '8px' }}>
             <option value="ALL">-- Tất cả Cấp Bậc --</option>
             <option value="AMBASSADOR">Đại sứ</option>
-            <option value="MANAGER">Quản lý</option>
-            <option value="DIRECTOR">Giám đốc</option>
+            <option value="MANAGER">Trưởng nhóm</option>
+            <option value="DIRECTOR">Quản lý</option>
           </select>
           <select className="input-field" value={timeFilter} onChange={e => setTimeFilter(e.target.value)} style={{ padding: '8px' }}>
             <option value="all">Toàn Thời Gian</option>

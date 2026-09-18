@@ -273,8 +273,8 @@ export default function CustomersView({ refreshKey, currentUser, onAddCustomer }
                 <label className="text-sm font-bold">Chọn Cấp Bậc Ban Đầu:</label>
                 <select className="input-field" value={promoteTier} onChange={e => setPromoteTier(e.target.value)} required>
                   <option value="SILVER">Đại sứ (Ambassador)</option>
-                  <option value="GOLD">Quản lý (Manager)</option>
-                  <option value="DIAMOND">Giám đốc (Director)</option>
+                  <option value="GOLD">Trưởng nhóm (Manager)</option>
+                  <option value="DIAMOND">Quản lý (Director)</option>
                 </select>
               </div>
               <div className="flex gap-2 justify-end mt-2">
