@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, ShoppingBag, PhoneCall, User, Phone, MapPin, MessageSquare, Send, ShieldCheck, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { X, ShoppingBag, PhoneCall, User, Phone, MapPin, MessageSquare, Send, ShieldCheck, AlertCircle, CheckCircle2, Mail } from 'lucide-react';
 import { Product } from '../types/schema';
 
 interface ContactModalProps {
@@ -26,6 +26,7 @@ export const ContactModal: React.FC<ContactModalProps> = ({
     name: '',
     phone: '',
     email: '',
+    hotline: '',
     address: '',
     message: selectedProduct ? '' : 'Tôi muốn đăng ký tư vấn máy lọc nước Hydrogen ion kiềm tận nơi.',
     qty: 1,
@@ -122,6 +123,7 @@ export const ContactModal: React.FC<ContactModalProps> = ({
     const phoneRegex = /^(0|\+84)[3|5|7|8|9][0-9]{8}$/;
     if (!formData.name.trim()) { setError('Vui lòng nhập họ và tên.'); return; }
     if (!formData.phone || !phoneRegex.test(formData.phone.trim())) { setError('Số điện thoại không đúng định dạng.'); return; }
+    if (isOrderMode && !formData.address.trim()) { setError('Vui lòng nhập địa chỉ giao hàng đầy đủ.'); return; }
 
     setIsLoading(true);
     try {
@@ -129,6 +131,10 @@ export const ContactModal: React.FC<ContactModalProps> = ({
         customerName: formData.name.trim(),
         customerPhone: formData.phone.trim(),
         address: formData.address.trim(),
+        shippingAddress: formData.address.trim(),
+        recipientPhone: formData.phone.trim(),
+        recipientEmail: formData.email.trim() || null,
+        contactHotline: formData.hotline.trim() || null,
         message: formData.message.trim(),
         type: isOrderMode ? 'ORDER' : 'CONSULTATION',
         productId: selectedProduct?.id || null,
@@ -233,9 +239,27 @@ export const ContactModal: React.FC<ContactModalProps> = ({
 
           <div className="space-y-1">
             <label className="text-[12px] font-bold text-gray-700 flex items-center gap-1 uppercase">
-              <MapPin className="w-3.5 h-3.5 text-primary" /> Địa chỉ giao hàng
+              <MapPin className="w-3.5 h-3.5 text-primary" /> Địa chỉ giao hàng {isOrderMode && <span className="text-red-500">*</span>}
             </label>
-            <input type="text" name="address" value={formData.address} onChange={handleChange} placeholder="Số nhà, đường, quận/huyện, tỉnh/TP..."
+            <input type="text" name="address" value={formData.address} onChange={handleChange} 
+              placeholder="Số nhà, đường, phường/xã, quận/huyện, tỉnh/thành..." 
+              required={isOrderMode}
+              className="w-full px-3 py-2.5 rounded-md bg-gray-50 border border-gray-200 text-[14px] focus:outline-none focus:ring-1 focus:ring-primary transition-all" />
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-[12px] font-bold text-gray-700 flex items-center gap-1 uppercase">
+              <Mail className="w-3.5 h-3.5 text-primary" /> Email <span className="text-gray-400 font-normal text-[11px]">(tùy chọn)</span>
+            </label>
+            <input type="email" name="email" value={formData.email} onChange={handleChange} placeholder="email@example.com"
+              className="w-full px-3 py-2.5 rounded-md bg-gray-50 border border-gray-200 text-[14px] focus:outline-none focus:ring-1 focus:ring-primary transition-all" />
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-[12px] font-bold text-gray-700 flex items-center gap-1 uppercase">
+              <PhoneCall className="w-3.5 h-3.5 text-primary" /> Hotline / Số dự phòng <span className="text-gray-400 font-normal text-[11px]">(tùy chọn)</span>
+            </label>
+            <input type="tel" name="hotline" value={formData.hotline} onChange={handleChange} placeholder="Hotline nếu có..."
               className="w-full px-3 py-2.5 rounded-md bg-gray-50 border border-gray-200 text-[14px] focus:outline-none focus:ring-1 focus:ring-primary transition-all" />
           </div>
 

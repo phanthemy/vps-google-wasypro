@@ -48,6 +48,10 @@ interface WebsiteOrder {
   customerName: string;
   customerPhone: string;
   address?: string;
+  shippingAddress?: string;
+  recipientPhone?: string;
+  recipientEmail?: string;
+  contactHotline?: string;
   message?: string;
   type: string;
   productId?: string;
@@ -59,7 +63,7 @@ interface WebsiteOrder {
   userId?: string | null;
   sponsorUserId?: string | null;
   commissionPoints: number;
-  qualifyingPointsAwarded: boolean;
+  qualifyingPointsAwarded: boolean;  isCtvOrder?: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -118,6 +122,7 @@ export const AdminOrders: React.FC = () => {
   const [ctvFilter, setCtvFilter] = useState('');
   const [purchaseFilter, setPurchaseFilter] = useState('all');
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [expandedWebId, setExpandedWebId] = useState<string | null>(null);
 
   // Fetch CTV orders
   const fetchCtvOrders = async () => {
@@ -389,70 +394,154 @@ export const AdminOrders: React.FC = () => {
                   <tbody className="divide-y divide-slate-100 text-sm">
                     {filteredWebOrders.map(order => {
                       const st = getStatusStyle(order.status, true);
+                      const isExpanded = expandedWebId === order.id;
+                      const displayAddr = order.shippingAddress || order.address;
+                      const displayPhone = order.recipientPhone || order.customerPhone;
                       return (
-                        <tr key={order.id} className="hover:bg-slate-50/80 transition-colors">
-                          <td className="py-3 px-4">
-                            <div className="font-bold text-slate-900 font-mono text-xs">{order.id.slice(0, 8).toUpperCase()}</div>
-                            <div className="text-[11px] text-slate-400 flex items-center gap-1 mt-0.5">
-                              <Clock className="w-3 h-3" />
-                              {new Date(order.createdAt).toLocaleString('vi-VN')}
-                            </div>
-                          </td>
-                          <td className="py-3 px-4">
-                            <div className="font-bold text-slate-800">{order.customerName}</div>
-                            <div className="text-[11px] text-slate-400 mt-0.5">{order.customerPhone}</div>
-                            {order.address && <div className="text-[10px] text-slate-400 mt-0.5 line-clamp-1">📍 {order.address}</div>}
-                          </td>
-                          <td className="py-3 px-4">
-                            <div className="font-semibold text-slate-700 text-xs line-clamp-2">{order.productTitle || '—'}</div>
-                          </td>
-                          <td className="py-3 px-4">
-                            <span className="font-bold text-slate-700">{order.qty}</span>
-                          </td>
-                          <td className="py-3 px-4">
-                            <div className="font-bold text-slate-900">
-                              {new Intl.NumberFormat('vi-VN').format(order.totalAmount)}đ
-                            </div>
-                          </td>
-                          <td className="py-3 px-4">
-                            {order.commissionPoints > 0 ? (
-                              <span className="text-[11px] font-bold text-cyan-700 bg-cyan-50 px-1.5 py-0.5 rounded">
-                                {order.commissionPoints}
-                              </span>
-                            ) : (
-                              <span className="text-slate-400 text-xs">—</span>
-                            )}
-                          </td>
-                          <td className="py-3 px-4">
-                            {order.userId ? (
-                              <div>
-                                <div className="text-[10px] font-bold text-purple-500 uppercase">Tài khoản</div>
-                                <div className="text-xs font-bold text-slate-800">{order.userId}</div>
-                                {order.sponsorUserId && (
-                                  <div className="text-[10px] text-emerald-600 mt-0.5">
-                                    Sponsor: {order.sponsorUserId}
+                        <React.Fragment key={order.id}>
+                          <tr 
+                            className="hover:bg-slate-50/80 transition-colors cursor-pointer"
+                            onClick={() => setExpandedWebId(isExpanded ? null : order.id)}
+                          >
+                            <td className="py-3 px-4">
+                              <div className="font-bold text-slate-900 font-mono text-xs">{order.id.slice(0, 8).toUpperCase()}</div>
+                              <div className="text-[11px] text-slate-400 flex items-center gap-1 mt-0.5">
+                                <Clock className="w-3 h-3" />
+                                {new Date(order.createdAt).toLocaleString('vi-VN')}
+                              </div>
+                            </td>
+                            <td className="py-3 px-4">
+                              <div className="font-bold text-slate-800">{order.customerName}</div>
+                              <div className="text-[11px] text-slate-400 mt-0.5">{displayPhone}</div>
+                              {displayAddr && (
+                                <div className="text-[11px] text-sky-700 mt-1 line-clamp-2 font-medium" title={displayAddr}>
+                                  📍 {displayAddr}
+                                </div>
+                              )}
+                            </td>
+                            <td className="py-3 px-4">
+                              <div className="font-semibold text-slate-700 text-xs line-clamp-2">{order.productTitle || '—'}</div>
+                            </td>
+                            <td className="py-3 px-4">
+                              <span className="font-bold text-slate-700">{order.qty}</span>
+                            </td>
+                            <td className="py-3 px-4">
+                              <div className="font-bold text-slate-900">
+                                {new Intl.NumberFormat('vi-VN').format(order.totalAmount)}đ
+                              </div>
+                            </td>
+                            <td className="py-3 px-4">
+                              {order.commissionPoints > 0 ? (
+                                <span className="text-[11px] font-bold text-cyan-700 bg-cyan-50 px-1.5 py-0.5 rounded">
+                                  {order.commissionPoints}
+                                </span>
+                              ) : (
+                                <span className="text-slate-400 text-xs">—</span>
+                              )}
+                            </td>
+                            <td className="py-3 px-4">
+                              {order.userId ? (
+                                <div>
+                                  <div className="text-[10px] font-bold text-purple-500 uppercase">Tài khoản</div>
+                                  <div className="text-xs font-bold text-slate-800">{order.userId}</div>
+                                  {order.sponsorUserId && (
+                                    <div className="text-[10px] text-emerald-600 mt-0.5">
+                                      Sponsor: {order.sponsorUserId}
+                                    </div>
+                                  )}
+                                </div>
+                              ) : (
+                                <div>
+                                  <div className="text-[10px] font-bold text-amber-500 uppercase">Khách vãng lai</div>
+                                  <div className="text-[10px] text-slate-400 mt-0.5">Không có tài khoản</div>
+                                </div>
+                              )}
+                            </td>
+                            <td className="py-3 px-4 text-right">
+                              <div className="flex items-center justify-end gap-1">
+                                <select
+                                  value={order.status}
+                                  onClick={e => e.stopPropagation()}
+                                  onChange={(e) => updateWebOrderStatus(order.id, e.target.value)}
+                                  className={`px-3 py-1 text-xs font-bold rounded-xl border-0 cursor-pointer ${st.bg} ${st.text} focus:outline-none focus:ring-2 focus:ring-blue-400`}
+                                >
+                                  {WEB_STATUS_OPTS.filter(s => s.value !== 'all').map(s => (
+                                    <option key={s.value} value={s.value}>{s.label}</option>
+                                  ))}
+                                </select>
+                                {isExpanded ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
+                              </div>
+                            </td>
+                          </tr>
+                          {isExpanded && (
+                            <tr className="bg-slate-50/50">
+                              <td colSpan={8} className="py-4 px-6">
+                                {/* SHIPPING INFO */}
+                                {displayAddr && (
+                                  <div className="bg-sky-50 border border-sky-200 rounded-xl p-3 mb-4 flex items-start gap-3">
+                                    <div className="text-xl mt-0.5">🚚</div>
+                                    <div className="flex-1">
+                                      <div className="text-xs font-bold text-sky-800 uppercase flex items-center gap-2">
+                                        Thông Tin Giao Hàng
+                                      </div>
+                                      <div className="text-xs font-bold text-slate-800 mt-1">
+                                        📍 Địa chỉ: <span className="font-normal">{displayAddr}</span>
+                                      </div>
+                                      <div className="flex flex-wrap gap-4 text-xs text-slate-600 mt-1">
+                                        <div>📞 SĐT người nhận: <strong className="text-slate-800">{displayPhone}</strong></div>
+                                        {order.recipientEmail && (
+                                          <div>✉️ Email: <span>{order.recipientEmail}</span></div>
+                                        )}
+                                        {order.contactHotline && (
+                                          <div>☎️ Hotline: <span>{order.contactHotline}</span></div>
+                                        )}
+                                      </div>
+                                      {order.message && (
+                                        <div className="text-xs text-slate-500 mt-1.5 pt-1.5 border-t border-sky-100">
+                                          📝 Ghi chú: {order.message}
+                                        </div>
+                                      )}
+                                    </div>
                                   </div>
                                 )}
-                              </div>
-                            ) : (
-                              <div>
-                                <div className="text-[10px] font-bold text-amber-500 uppercase">Khách vãng lai</div>
-                                <div className="text-[10px] text-slate-400 mt-0.5">Không có tài khoản</div>
-                              </div>
-                            )}
-                          </td>
-                          <td className="py-3 px-4 text-right">
-                            <select
-                              value={order.status}
-                              onChange={(e) => updateWebOrderStatus(order.id, e.target.value)}
-                              className={`px-3 py-1 text-xs font-bold rounded-xl border-0 cursor-pointer ${st.bg} ${st.text} focus:outline-none focus:ring-2 focus:ring-blue-400`}
-                            >
-                              {WEB_STATUS_OPTS.filter(s => s.value !== 'all').map(s => (
-                                <option key={s.value} value={s.value}>{s.label}</option>
-                              ))}
-                            </select>
-                          </td>
-                        </tr>
+
+                                {/* ORDER AUDIT / DETAILS */}
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                  <div className="bg-white rounded-xl p-3 border border-slate-100">
+                                    <div className="text-[10px] font-bold text-slate-400 uppercase">Loại Đơn</div>
+                                    <div className="text-xs font-extrabold mt-1 text-blue-700">
+                                      🌐 Đơn Website ({order.type})
+                                    </div>
+                                    <div className="text-[10px] text-slate-400 mt-0.5">isCtvOrder: {order.isCtvOrder ? 'true' : 'false'}</div>
+                                  </div>
+                                  <div className="bg-white rounded-xl p-3 border border-slate-100">
+                                    <div className="text-[10px] font-bold text-slate-400 uppercase">Khách Hàng</div>
+                                    <div className="text-xs font-extrabold text-slate-800 mt-1">{order.customerName}</div>
+                                    <div className="text-[10px] text-slate-500">{order.customerPhone}</div>
+                                  </div>
+                                  <div className="bg-white rounded-xl p-3 border border-purple-100">
+                                    <div className="text-[10px] font-bold text-purple-400 uppercase">Tài Khoản Liên Kết</div>
+                                    {order.userId ? (
+                                      <>
+                                        <div className="text-xs font-extrabold text-purple-800 mt-1">{order.userId}</div>
+                                        {order.sponsorUserId && <div className="text-[10px] text-emerald-600">Sponsor: {order.sponsorUserId}</div>}
+                                      </>
+                                    ) : (
+                                      <div className="text-xs text-amber-600 mt-1">Khách vãng lai</div>
+                                    )}
+                                  </div>
+                                  <div className="bg-white rounded-xl p-3 border border-slate-100">
+                                    <div className="text-[10px] font-bold text-slate-400 uppercase">Sản Phẩm & Đơn Giá</div>
+                                    <div className="text-xs font-extrabold text-slate-800 mt-1">{order.productTitle || '—'}</div>
+                                    <div className="text-[10px] text-slate-500">
+                                      {new Intl.NumberFormat('vi-VN').format(order.productPrice)}đ × {order.qty}
+                                    </div>
+                                  </div>
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                        </React.Fragment>
                       );
                     })}
                   </tbody>

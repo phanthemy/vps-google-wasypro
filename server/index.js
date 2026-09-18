@@ -5478,8 +5478,13 @@ app.put('/api/admin/website-orders/:id/status', authenticateToken, async (req, r
  */
 app.post('/api/orders/website', async (req, res) => {
   try {
-    const { customerName, customerPhone, address, message, type, productId, productTitle, productPrice, qty, refCode } = req.body;
-    if (!customerPhone) return res.status(400).json({ success: false, message: 'Vui lòng nhập số điện thoại.' });
+    const { customerName, customerPhone, address, shippingAddress, recipientPhone, recipientEmail, contactHotline, message, type, productId, productTitle, productPrice, qty, refCode } = req.body;
+    if (!customerPhone && !recipientPhone) return res.status(400).json({ success: false, message: 'Vui lòng nhập số điện thoại.' });
+
+    const finalAddress = (shippingAddress || address || '').trim();
+    const finalPhone = (recipientPhone || customerPhone || '').trim();
+    const finalEmail = (recipientEmail || '').trim() || null;
+    const finalHotline = (contactHotline || '').trim() || null;
 
     // Try to identify authenticated user from JWT cookie (optional — not required)
     let authedUser = null;
@@ -5517,8 +5522,12 @@ app.post('/api/orders/website', async (req, res) => {
     const websiteOrder = await prisma.websiteOrder.create({
       data: {
         customerName: customerName || (authedUser?.fullName) || 'Khách',
-        customerPhone: customerPhone.trim(),
-        address: address || '',
+        customerPhone: finalPhone,
+        address: finalAddress,
+        shippingAddress: finalAddress,
+        recipientPhone: finalPhone,
+        recipientEmail: finalEmail,
+        contactHotline: finalHotline,
         message: message || '',
         type: type || 'ORDER',
         productId: productId || null,
@@ -5626,6 +5635,10 @@ app.post('/api/orders/website', async (req, res) => {
             purchaseType: (authedUser.isSystemParticipant && customer.linkedUserId && customer.linkedUserId === authedUser.id) ? 'SELF_PURCHASE' : 'CUSTOMER_PURCHASE',
             ordererUserId: authedUser.id,
             periodId: openPeriod?.id || null,
+            shippingAddress: finalAddress || null,
+            recipientPhone: finalPhone || null,
+            recipientEmail: finalEmail || null,
+            contactHotline: finalHotline || null,
             items: {
               create: [{
                 productId: productId || null,

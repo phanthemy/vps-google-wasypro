@@ -281,6 +281,10 @@ model WebsiteOrder {
   customerName  String
   customerPhone String
   address       String?
+  shippingAddress String?
+  recipientPhone  String?
+  recipientEmail  String?
+  contactHotline  String?
   message       String?
   type          String   @default("ORDER") // ORDER, CONSULTATION
   productId     String?
