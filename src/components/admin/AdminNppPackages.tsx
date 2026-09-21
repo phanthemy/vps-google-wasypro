@@ -45,7 +45,7 @@ interface NppPackage {
   createdAt: string;
   updatedAt: string;
   items: NppPackageItem[];
-  _count?: { purchases: number };
+  _count?: { purchases: number; registrations: number };
 }
 
 interface ProductOption {
@@ -56,21 +56,14 @@ interface ProductOption {
   image: string | null;
 }
 
-interface PackageItemInput {
-  productId: string;
-  quantity: number;
-  note: string;
-}
-
 interface PackageFormData {
   code: string;
   name: string;
   description: string;
   grossPrice: string;
-  defaultDiscount: string;
+  discountPercent: string; // UI stores percentage (e.g. "35"), NOT BPS
   assignedRank: string;
   isActive: boolean;
-  items: PackageItemInput[];
   packageType: string;
   requiredQuantity: string;
 }
@@ -104,20 +97,23 @@ const RANK_OPTIONS = [
 ];
 
 function formatVND(value: number | string | null | undefined): string {
-  if (value === null || value === undefined) return '2014';
+  if (value === null || value === undefined) return '—';
   const num = typeof value === 'string' ? parseInt(value, 10) : value;
   if (isNaN(num)) return '0 ₫';
   return num.toLocaleString('vi-VN') + ' ₫';
 }
 
-function formatBPS(bps: number): string {
-  return (bps / 100).toFixed(bps % 100 === 0 ? 0 : 2) + '%';
+/** Convert BPS to display percentage string */
+function bpsToPercent(bps: number): string {
+  const pct = bps / 100;
+  return pct % 1 === 0 ? String(pct) : pct.toFixed(2);
 }
 
-function calcNetPrice(grossPrice: string, discountBps: string): number {
-  const gp = parseInt(grossPrice, 10) || 0;
-  const bps = parseInt(discountBps, 10) || 0;
-  return Math.floor(gp * (10000 - bps) / 10000);
+/** Convert percentage string to BPS integer */
+function percentToBps(pct: string): number {
+  const val = parseFloat(pct);
+  if (isNaN(val)) return 0;
+  return Math.round(val * 100);
 }
 
 // ─── API Functions ───────────────────────────────────────────────────────────
@@ -179,18 +175,9 @@ const nppApi = {
   },
 };
 
-const loadProducts = async (): Promise<ProductOption[]> => {
-  const res = await fetch('/api/products');
-  if (!res.ok) return [];
-  const data = await res.json();
-  const arr = Array.isArray(data) ? data : data.data || [];
-  return arr.map((p: any) => ({ id: p.id, slug: p.slug, title: p.title, price: p.price, image: p.image }));
-};
-
 // ─── Component ───────────────────────────────────────────────────────────────
 const AdminNppPackages: React.FC = () => {
   const [packages, setPackages] = useState<NppPackage[]>([]);
-  const [products, setProducts] = useState<ProductOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -203,12 +190,11 @@ const AdminNppPackages: React.FC = () => {
   const [modalError, setModalError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
-  // Form
+  // Form — discountPercent stores percentage (e.g. "35"), NOT BPS
   const emptyForm: PackageFormData = {
     code: '', name: '', description: '',
-    grossPrice: '', defaultDiscount: '0',
+    grossPrice: '', discountPercent: '0',
     assignedRank: 'AMBASSADOR', isActive: true,
-    items: [{ productId: '', quantity: 1, note: '' }],
     packageType: 'PRODUCT_COMBO',
     requiredQuantity: '',
   };
@@ -218,9 +204,8 @@ const AdminNppPackages: React.FC = () => {
     setLoading(true);
     setError(null);
     try {
-      const [pkgs, prods] = await Promise.all([nppApi.list(), loadProducts()]);
+      const pkgs = await nppApi.list();
       setPackages(pkgs);
-      setProducts(prods);
     } catch (err: any) {
       setError(err.message || 'Lỗi tải dữ liệu');
     } finally {
@@ -245,70 +230,68 @@ const AdminNppPackages: React.FC = () => {
     setIsFormOpen(true);
   };
 
-  // Open edit
+  // Open edit — convert BPS → percent for display
   const openEdit = (pkg: NppPackage) => {
     setEditingPkg(pkg);
     setForm({
       code: pkg.code,
       name: pkg.name,
       description: pkg.description || '',
-      grossPrice: String(pkg.grossPrice),
-      defaultDiscount: String(pkg.defaultDiscount),
+      grossPrice: pkg.grossPrice != null ? String(pkg.grossPrice) : '',
+      discountPercent: bpsToPercent(pkg.defaultDiscount),
       assignedRank: pkg.assignedRank,
       isActive: pkg.isActive,
-      packageType: (pkg as any).packageType || 'PRODUCT_COMBO',
-      requiredQuantity: (pkg as any).requiredQuantity ? String((pkg as any).requiredQuantity) : '',
-      items: pkg.items.length > 0
-        ? pkg.items.map(i => ({ productId: i.productId, quantity: i.quantity, note: i.note || '' }))
-        : [{ productId: '', quantity: 1, note: '' }],
+      packageType: pkg.packageType || 'PRODUCT_COMBO',
+      requiredQuantity: pkg.requiredQuantity ? String(pkg.requiredQuantity) : '',
     });
     setModalError(null);
     setIsFormOpen(true);
   };
 
-  // Add item row
-  const addItem = () => {
-    setForm(f => ({ ...f, items: [...f.items, { productId: '', quantity: 1, note: '' }] }));
-  };
-
-  // Remove item row
-  const removeItem = (index: number) => {
-    setForm(f => ({ ...f, items: f.items.filter((_, i) => i !== index) }));
-  };
-
-  // Update item field
-  const updateItem = (index: number, field: keyof PackageItemInput, value: string | number) => {
-    setForm(f => ({
-      ...f,
-      items: f.items.map((item, i) => i === index ? { ...item, [field]: value } : item),
-    }));
-  };
-
-  // Submit
+  // Submit — convert percent → BPS for backend
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setModalError(null);
     setSubmitting(true);
 
     try {
-      const body = {
+      // Frontend validation
+      if (!form.code.trim()) throw new Error('Mã gói là bắt buộc');
+      if (!form.name.trim()) throw new Error('Tên gói là bắt buộc');
+
+      if (form.packageType === 'CAPITAL') {
+        const gp = parseInt(form.grossPrice, 10);
+        if (!gp || gp <= 0) throw new Error('Gói vốn phải có giá (Giá gói > 0)');
+      }
+
+      if (form.packageType === 'PRODUCT_COMBO') {
+        const rq = parseInt(form.requiredQuantity, 10);
+        if (!rq || rq < 1) throw new Error('Combo phải có số lượng máy yêu cầu (≥ 1)');
+        const pct = parseFloat(form.discountPercent);
+        if (isNaN(pct) || pct < 0 || pct > 100) throw new Error('Chiết khấu phải từ 0% đến 100%');
+      }
+
+      const body: Record<string, any> = {
         code: form.code.trim(),
         name: form.name.trim(),
         description: form.description.trim() || null,
-        grossPrice: form.packageType === 'CAPITAL' ? form.grossPrice : null,
-        defaultDiscount: form.packageType === 'CAPITAL' ? 0 : (parseInt(form.defaultDiscount, 10) || 0),
         assignedRank: form.assignedRank,
         packageType: form.packageType,
-        requiredQuantity: form.packageType === 'PRODUCT_COMBO' ? (parseInt(form.requiredQuantity, 10) || null) : null,
         isActive: form.isActive,
-        items: form.items
-          .filter(i => i.productId)
-          .map(i => ({
-            productId: i.productId,
-            quantity: parseInt(String(i.quantity), 10) || 1,
-            note: i.note.trim() || null,
-          })),
       };
+
+      if (form.packageType === 'CAPITAL') {
+        body.grossPrice = form.grossPrice;
+        body.requiredQuantity = null;
+        body.defaultDiscount = 0;
+        body.items = [];
+      } else {
+        // PRODUCT_COMBO
+        body.grossPrice = null;
+        body.requiredQuantity = parseInt(form.requiredQuantity, 10);
+        body.defaultDiscount = percentToBps(form.discountPercent);
+        // No items — combo = buyer chooses any products
+      }
 
       if (editingPkg) {
         await nppApi.update(editingPkg.id, body);
@@ -359,12 +342,6 @@ const AdminNppPackages: React.FC = () => {
     setTimeout(() => setSuccessMsg(null), 3000);
   };
 
-  // Available products (not selected in other items)
-  const getAvailableProducts = (currentIndex: number): ProductOption[] => {
-    const selectedIds = new Set(form.items.filter((_, i) => i !== currentIndex).map(i => i.productId).filter(Boolean));
-    return products.filter(p => !selectedIds.has(p.id));
-  };
-
   // ─── Render ──────────────────────────────────────────────────────────────────
   if (loading) {
     return (
@@ -392,11 +369,11 @@ const AdminNppPackages: React.FC = () => {
             <ShoppingBag className="w-7 h-7 text-cyan-600" />
             Quản Lý Gói NPP
           </h1>
-          <p className="text-sm text-slate-500 mt-1">Tạo và quản lý các gói sản phẩm NPP</p>
+          <p className="text-sm text-slate-500 mt-1">Tạo và quản lý các gói NPP</p>
         </div>
         <button
           onClick={openCreate}
-          className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-cyan-600 to-ocean-600 text-white rounded-xl font-semibold text-sm hover:shadow-lg hover:shadow-cyan-500/20 transition-all"
+          className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-cyan-600 to-blue-600 text-white rounded-xl font-semibold text-sm hover:shadow-lg hover:shadow-cyan-500/20 transition-all"
         >
           <Plus className="w-4 h-4" /> Tạo Gói Mới
         </button>
@@ -439,55 +416,50 @@ const AdminNppPackages: React.FC = () => {
               <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
                 {/* Left */}
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-3 mb-2">
+                  <div className="flex items-center gap-2 flex-wrap mb-2">
                     <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${pkg.isActive ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
                       {pkg.isActive ? 'Đang hoạt động' : 'Đã tắt'}
                     </span>
-                    <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${(pkg as any).packageType === 'CAPITAL' ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'}`}>
-                      {(pkg as any).packageType === 'CAPITAL' ? '💰 CAPITAL' : `📦 COMBO ${(pkg as any).requiredQuantity || ''}`}
+                    <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${pkg.packageType === 'CAPITAL' ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'}`}>
+                      {pkg.packageType === 'CAPITAL' ? '💰 Gói vốn' : '📦 Combo sản phẩm'}
                     </span>
                     <span className="text-xs text-slate-400 font-mono">{pkg.code}</span>
                   </div>
                   <h3 className="text-lg font-bold text-slate-800 truncate">{pkg.name}</h3>
                   {pkg.description && <p className="text-sm text-slate-500 mt-1 line-clamp-2">{pkg.description}</p>}
 
-                  {/* Price info */}
+                  {/* Info — conditional by packageType */}
                   <div className="flex flex-wrap gap-4 mt-3 text-sm">
-                    <div>
-                      <span className="text-slate-400">Giá gốc: </span>
-                      <span className="font-bold text-slate-700">{pkg.grossPrice ? formatVND(pkg.grossPrice) : 'Tính theo SP'}</span>
-                    </div>
-                    <div>
-                      <span className="text-slate-400">Chiết khấu: </span>
-                      <span className="font-bold text-amber-600">{formatBPS(pkg.defaultDiscount)}</span>
-                    </div>
-                    <div>
-                      <span className="text-slate-400">Giá sau CK: </span>
-                      <span className="font-bold text-emerald-600">{formatVND(calcNetPrice(String(pkg.grossPrice), String(pkg.defaultDiscount)))}</span>
-                    </div>
+                    {pkg.packageType === 'CAPITAL' ? (
+                      <>
+                        <div>
+                          <span className="text-slate-400">Giá gói: </span>
+                          <span className="font-bold text-slate-700">{formatVND(pkg.grossPrice)}</span>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div>
+                          <span className="text-slate-400">Số lượng máy: </span>
+                          <span className="font-bold text-slate-700">{pkg.requiredQuantity || '—'} máy</span>
+                        </div>
+                        <div>
+                          <span className="text-slate-400">Chiết khấu: </span>
+                          <span className="font-bold text-amber-600">{bpsToPercent(pkg.defaultDiscount)}%</span>
+                        </div>
+                      </>
+                    )}
                     <div>
                       <span className="text-slate-400">Cấp bậc: </span>
                       <span className="font-bold text-cyan-600">{RANK_LABELS[pkg.assignedRank] || pkg.assignedRank}</span>
                     </div>
                   </div>
 
-                  {/* Items */}
-                  <div className="mt-3">
-                    <span className="text-xs font-semibold text-slate-400 uppercase">Sản phẩm ({pkg.items.length})</span>
-                    <div className="flex flex-wrap gap-2 mt-1">
-                      {pkg.items.map(item => (
-                        <span key={item.id} className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-slate-100 rounded-lg text-xs text-slate-600">
-                          <Package className="w-3 h-3" />
-                          {item.product?.title || item.productId} × {item.quantity}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Purchase count */}
-                  {pkg._count && pkg._count.purchases > 0 && (
-                    <div className="mt-2 text-xs text-slate-400">
-                      📦 {pkg._count.purchases} đơn hàng NPP
+                  {/* Purchase/Registration count */}
+                  {pkg._count && (pkg._count.purchases > 0 || pkg._count.registrations > 0) && (
+                    <div className="mt-2 flex gap-3 text-xs text-slate-400">
+                      {pkg._count.purchases > 0 && <span>📦 {pkg._count.purchases} đơn hàng</span>}
+                      {pkg._count.registrations > 0 && <span>📝 {pkg._count.registrations} đăng ký</span>}
                     </div>
                   )}
                 </div>
@@ -545,83 +517,142 @@ const AdminNppPackages: React.FC = () => {
                 </div>
               )}
 
-              {/* Row 1: Code + Name */}
+              {/* ═══ 1. PACKAGE TYPE — FIRST FIELD ═══ */}
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-2">Loại gói *</label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setForm(f => ({ ...f, packageType: 'CAPITAL', grossPrice: f.grossPrice, discountPercent: '0', requiredQuantity: '' }))}
+                    className={`flex flex-col items-center gap-1 py-3 px-4 rounded-xl border-2 text-sm font-semibold transition-all ${
+                      form.packageType === 'CAPITAL'
+                        ? 'border-amber-400 bg-amber-50 text-amber-700 shadow-sm'
+                        : 'border-slate-200 text-slate-500 hover:border-slate-300'
+                    }`}
+                  >
+                    <span className="text-lg">💰</span>
+                    <span>Gói vốn (CAPITAL)</span>
+                    <span className="text-[11px] font-normal text-slate-400">Đóng vốn cố định</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setForm(f => ({ ...f, packageType: 'PRODUCT_COMBO', grossPrice: '', discountPercent: f.discountPercent === '0' ? '' : f.discountPercent, requiredQuantity: f.requiredQuantity }))}
+                    className={`flex flex-col items-center gap-1 py-3 px-4 rounded-xl border-2 text-sm font-semibold transition-all ${
+                      form.packageType === 'PRODUCT_COMBO'
+                        ? 'border-blue-400 bg-blue-50 text-blue-700 shadow-sm'
+                        : 'border-slate-200 text-slate-500 hover:border-slate-300'
+                    }`}
+                  >
+                    <span className="text-lg">📦</span>
+                    <span>Combo sản phẩm</span>
+                    <span className="text-[11px] font-normal text-slate-400">Mua N máy bất kỳ</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* ═══ 2. Code + Name ═══ */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-1">Mã gói *</label>
                   <input
-                    type="text" required value={form.code}
+                    type="text"
+                    value={form.code}
                     onChange={e => setForm(f => ({ ...f, code: e.target.value }))}
                     placeholder="NPP-001"
                     className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                    required
                   />
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-1">Tên gói *</label>
                   <input
-                    type="text" required value={form.name}
+                    type="text"
+                    value={form.name}
                     onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-                    placeholder="Gói Đại sứ 5 máy"
+                    placeholder={form.packageType === 'CAPITAL' ? 'Gói NPP chiến lược' : 'Combo 5 máy'}
                     className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                    required
                   />
                 </div>
               </div>
 
-              {/* Description */}
+              {/* ═══ 3. Description ═══ */}
               <div>
                 <label className="block text-sm font-semibold text-slate-700 mb-1">Mô tả</label>
                 <textarea
                   value={form.description}
                   onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
-                  placeholder="Mô tả gói NPP..."
+                  placeholder={form.packageType === 'CAPITAL'
+                    ? 'Mô tả gói vốn...'
+                    : 'Mua bất kỳ 05 máy, cùng loại hoặc khác loại, được chiết khấu 35%.'
+                  }
                   rows={2}
                   className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-cyan-500 focus:border-transparent resize-none"
                 />
               </div>
 
-              {/* Row 2: Price + Discount */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* ═══ CAPITAL FIELDS ═══ */}
+              {form.packageType === 'CAPITAL' && (
                 <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-1">Giá gốc (VNĐ) *</label>
+                  <label className="block text-sm font-semibold text-slate-700 mb-1">Giá gói / Số tiền vốn (VNĐ) *</label>
                   <input
-                    type="text" required value={form.grossPrice}
+                    type="text"
+                    value={form.grossPrice}
                     onChange={e => {
-                      const val = e.target.value.replace(/[^0-9]/g, '');
-                      setForm(f => ({ ...f, grossPrice: val }));
+                      const raw = e.target.value.replace(/[^\d]/g, '');
+                      setForm(f => ({ ...f, grossPrice: raw }));
                     }}
                     placeholder="300000000"
                     className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                    required
                   />
                   {form.grossPrice && (
-                    <p className="text-xs text-slate-400 mt-1">{formatVND(form.grossPrice)}</p>
+                    <p className="text-xs text-emerald-600 mt-1 font-medium">
+                      {formatVND(parseInt(form.grossPrice, 10))}
+                    </p>
                   )}
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-1">Chiết khấu (BPS) *</label>
-                  <input
-                    type="number" value={form.defaultDiscount}
-                    onChange={e => setForm(f => ({ ...f, defaultDiscount: e.target.value }))}
-                    min="0" max="10000" step="100"
-                    placeholder="2500 = 25%"
-                    className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
-                  />
-                  <p className="text-xs text-slate-400 mt-1">
-                    {formatBPS(parseInt(form.defaultDiscount, 10) || 0)} — 2500 = 25%, 1000 = 10%
-                  </p>
-                </div>
-              </div>
-
-              {/* Net price preview */}
-              {form.grossPrice && (
-                <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 text-center">
-                  <span className="text-sm text-emerald-700 font-medium">Giá sau chiết khấu: </span>
-                  <span className="text-lg font-bold text-emerald-700">
-                    {formatVND(calcNetPrice(form.grossPrice, form.defaultDiscount))}
-                  </span>
                 </div>
               )}
 
-              {/* Rank */}
+              {/* ═══ PRODUCT_COMBO FIELDS ═══ */}
+              {form.packageType === 'PRODUCT_COMBO' && (
+                <>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-semibold text-slate-700 mb-1">Số lượng máy yêu cầu *</label>
+                      <input
+                        type="number"
+                        min="1"
+                        value={form.requiredQuantity}
+                        onChange={e => setForm(f => ({ ...f, requiredQuantity: e.target.value }))}
+                        placeholder="5"
+                        className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                        required
+                      />
+                      <p className="text-xs text-slate-400 mt-1">Khách hàng được chọn bất kỳ sản phẩm đủ điều kiện</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-slate-700 mb-1">Chiết khấu (%)</label>
+                      <div className="relative">
+                        <input
+                          type="number"
+                          min="0"
+                          max="100"
+                          step="0.5"
+                          value={form.discountPercent}
+                          onChange={e => setForm(f => ({ ...f, discountPercent: e.target.value }))}
+                          placeholder="35"
+                          className="w-full px-3 py-2.5 pr-10 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                        />
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-slate-400 font-semibold">%</span>
+                      </div>
+                      <p className="text-xs text-slate-400 mt-1">0% — 100%</p>
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {/* ═══ Rank ═══ */}
               <div>
                 <label className="block text-sm font-semibold text-slate-700 mb-1">Cấp bậc gán *</label>
                 <select
@@ -633,63 +664,27 @@ const AdminNppPackages: React.FC = () => {
                 </select>
               </div>
 
-              {/* ─── Items ─────────────────────────────────────────────────── */}
-              <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">Sản phẩm trong gói *</label>
-                <div className="space-y-3">
-                  {form.items.map((item, idx) => (
-                    <div key={idx} className="flex items-start gap-2 bg-slate-50 rounded-xl p-3 border border-slate-200">
-                      <div className="flex-1 min-w-0">
-                        <select
-                          value={item.productId}
-                          onChange={e => updateItem(idx, 'productId', e.target.value)}
-                          className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-cyan-500"
-                        >
-                          <option value="">-- Chọn sản phẩm --</option>
-                          {getAvailableProducts(idx).map(p => (
-                            <option key={p.id} value={p.id}>{p.title} — {formatVND(p.price)}</option>
-                          ))}
-                          {/* Keep current selection visible even if filtered */}
-                          {item.productId && !getAvailableProducts(idx).find(p => p.id === item.productId) && (
-                            <option value={item.productId}>
-                              {products.find(p => p.id === item.productId)?.title || item.productId}
-                            </option>
-                          )}
-                        </select>
-                      </div>
-                      <div className="w-20">
-                        <input
-                          type="number" min="1" value={item.quantity}
-                          onChange={e => updateItem(idx, 'quantity', parseInt(e.target.value, 10) || 1)}
-                          className="w-full px-2 py-2 bg-white border border-slate-200 rounded-lg text-sm text-center focus:ring-2 focus:ring-cyan-500"
-                          placeholder="SL"
-                        />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <input
-                          type="text" value={item.note}
-                          onChange={e => updateItem(idx, 'note', e.target.value)}
-                          placeholder="Ghi chú..."
-                          className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-cyan-500"
-                        />
-                      </div>
-                      {form.items.length > 1 && (
-                        <button type="button" onClick={() => removeItem(idx)} className="p-2 text-red-400 hover:text-red-600">
-                          <X className="w-4 h-4" />
-                        </button>
-                      )}
-                    </div>
-                  ))}
-                </div>
-                <button
-                  type="button" onClick={addItem}
-                  className="mt-2 text-sm text-cyan-600 hover:text-cyan-700 font-semibold flex items-center gap-1"
-                >
-                  <Plus className="w-4 h-4" /> Thêm sản phẩm
-                </button>
+              {/* ═══ PREVIEW ═══ */}
+              <div className={`rounded-xl p-4 border ${form.packageType === 'CAPITAL' ? 'bg-amber-50 border-amber-200' : 'bg-blue-50 border-blue-200'}`}>
+                <p className="text-xs font-bold uppercase text-slate-500 mb-2">Xem trước</p>
+                <p className="font-bold text-slate-800">{form.name || '(Tên gói)'}</p>
+                {form.packageType === 'CAPITAL' ? (
+                  <div className="mt-1 text-sm space-y-0.5">
+                    <p><span className="text-slate-500">Loại:</span> <span className="font-semibold text-amber-700">Gói vốn</span></p>
+                    <p><span className="text-slate-500">Giá:</span> <span className="font-bold text-slate-800">{form.grossPrice ? formatVND(parseInt(form.grossPrice, 10)) : '—'}</span></p>
+                    <p><span className="text-slate-500">Cấp bậc:</span> <span className="font-semibold text-cyan-700">{RANK_LABELS[form.assignedRank]}</span></p>
+                  </div>
+                ) : (
+                  <div className="mt-1 text-sm space-y-0.5">
+                    <p><span className="text-slate-500">Loại:</span> <span className="font-semibold text-blue-700">Combo sản phẩm</span></p>
+                    <p><span className="text-slate-500">Số lượng:</span> <span className="font-bold text-slate-800">{form.requiredQuantity || '—'} máy</span></p>
+                    <p><span className="text-slate-500">Chiết khấu:</span> <span className="font-bold text-amber-600">{form.discountPercent || '0'}%</span></p>
+                    <p><span className="text-slate-500">Cấp bậc:</span> <span className="font-semibold text-cyan-700">{RANK_LABELS[form.assignedRank]}</span></p>
+                  </div>
+                )}
               </div>
 
-              {/* Actions */}
+              {/* ═══ Actions ═══ */}
               <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-200">
                 <button
                   type="button"
@@ -700,7 +695,7 @@ const AdminNppPackages: React.FC = () => {
                 </button>
                 <button
                   type="submit" disabled={submitting}
-                  className="px-6 py-2.5 bg-gradient-to-r from-cyan-600 to-ocean-600 text-white rounded-xl font-semibold text-sm hover:shadow-lg hover:shadow-cyan-500/20 transition-all disabled:opacity-50 flex items-center gap-2"
+                  className="px-6 py-2.5 bg-gradient-to-r from-cyan-600 to-blue-600 text-white rounded-xl font-semibold text-sm hover:shadow-lg hover:shadow-cyan-500/20 transition-all disabled:opacity-50 flex items-center gap-2"
                 >
                   {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
                   {editingPkg ? 'Cập Nhật' : 'Tạo Gói'}
