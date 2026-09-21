@@ -354,3 +354,14 @@ Khi CTV tham gia, hệ thống tạo Customer record:
     + Căn giữa sơ đồ mượt mà trên desktop với container `min-w-max`.
   - Cấu hình API fallback proxy trong `server.cjs` chuyển tiếp an toàn các route `/api/*` về backend port 3011.
   - Đã kiểm thử giao diện thực tế bằng headless browser (Puppeteer CDP), chụp ảnh lưu trữ xác nhận sơ đồ cây hiển thị cực kỳ đẹp mắt, cân đối và chuẩn xác.
+### 8. Đồng Bộ Schema Database & Khắc Phục Lỗi Tải Đơn Hàng Website (21/09):
+- **Vấn đề**: Boss báo cáo tab "Đơn Hàng Website" hiển thị `(0)` đơn và văng khung lỗi đỏ `(!)` "Lỗi tải đơn hàng website - Thử lại".
+- **Nguyên nhân**: Bảng `WebsiteOrder` trong `dev.db` trên VPS bị thiếu 4 cột giao hàng (`shippingAddress`, `recipientPhone`, `recipientEmail`, `contactHotline`) so với `schema.prisma`.
+- **Giải pháp triển khai**:
+  - Tạo backup an toàn: `dev.db.backup_before_schema_sync_21092026`.
+  - Thực thi DDL migration bổ sung an toàn 4 cột vào bảng `WebsiteOrder` trong SQLite `dev.db`.
+  - Checkpoint WAL (`PRAGMA wal_checkpoint(TRUNCATE)`).
+  - Restart PM2 `happylife-backend` và `wasypro`.
+- **Kết quả kiểm thử thực tế**:
+  - API `/api/admin/website-orders` và `/api/orders/my` đạt 200 OK.
+  - Toàn bộ 4 đơn hàng website (46.600.000đ) hiển thị hoàn hảo trên giao diện Admin, khung lỗi biến mất hoàn toàn.

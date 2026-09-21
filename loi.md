@@ -205,3 +205,45 @@ if (authedUser && (sponsorUserId || authedUser.isSystemParticipant) && cpSnapsho
 - sponsorUserId = authedUser.parentId (luôn từ DB, không từ URL)
 - parentId=null + isSystemParticipant=false → bridge không fire → đúng
 - parentId=A + bất kỳ isSystemParticipant → bridge fire → A nhận DIRECT_NO_ID → đúng
+
+---
+
+## [2026-09-21] BUG: Lỗi tải đơn hàng website (HTTP 500 / The column main.WebsiteOrder.shippingAddress does not exist)
+
+### Observe
+- User báo cáo và gửi ảnh chụp: Tab "Đơn Website" hiển thị `(0)` đơn, doanh thu `0đ`, kèm khung cảnh báo màu đỏ: `(!)` "Lỗi tải đơn hàng website — Thử lại".
+- Khách hàng truy cập "Đơn hàng của tôi" trên Website cũng bị báo lỗi máy chủ.
+
+### Evidence (Log thực tế từ happylife-backend-error.log)
+```text
+[ADMIN WEBSITE ORDERS] 
+Invalid `prisma.websiteOrder.findMany()` invocation:
+The column `main.WebsiteOrder.shippingAddress` does not exist in the current database.
+
+[MY ORDERS] 
+Invalid `prisma.websiteOrder.findMany()` invocation:
+The column `main.WebsiteOrder.shippingAddress` does not exist in the current database.
+```
+
+### Root Cause
+- Đợt cập nhật ngày 18/09 bổ sung 4 trường giao hàng chi tiết cho WebsiteOrder trong `schema.prisma` (`shippingAddress`, `recipientPhone`, `recipientEmail`, `contactHotline`).
+- `@prisma/client` đã được generate theo schema mới nên câu lệnh `findMany()` tự động SELECT 4 cột này.
+- Tuy nhiên, trong database SQLite thực tế (`dev.db` trên VPS), bảng `WebsiteOrder` chưa được bổ sung 4 cột mới (do uncheckpointed DDL trong WAL bị xóa ở commit 29ffaa7).
+- SQLite ném ngoại lệ cột không tồn tại ➔ API văng HTTP 500 ➔ UI rơi vào nhánh catch error, hiển thị thông báo lỗi đỏ và không hiển thị được danh sách 4 đơn hàng có sẵn.
+
+### Fix
+1. Backup an toàn: `cp dev.db dev.db.backup_before_schema_sync_21092026`
+2. Thực thi DDL migration trực tiếp vào `dev.db`:
+   ```sql
+   ALTER TABLE "WebsiteOrder" ADD COLUMN "shippingAddress" TEXT;
+   ALTER TABLE "WebsiteOrder" ADD COLUMN "recipientPhone" TEXT;
+   ALTER TABLE "WebsiteOrder" ADD COLUMN "recipientEmail" TEXT;
+   ALTER TABLE "WebsiteOrder" ADD COLUMN "contactHotline" TEXT;
+   PRAGMA wal_checkpoint(TRUNCATE);
+   ```
+3. Restart PM2: `pm2 restart happylife-backend wasypro`
+
+### Verification
+- API `/api/admin/website-orders`: HTTP 200 OK, trả về đúng 4 đơn hàng (tổng 46.600.000đ, 1 Mới, 3 Hoàn thành).
+- API `/api/orders/my`: HTTP 200 OK.
+- Chụp ảnh màn hình giao diện thực tế qua Chrome DevTools: tab "Đơn Hàng Website (4)" hiển thị đầy đủ, sắc nét, khung lỗi màu đỏ biến mất 100%.

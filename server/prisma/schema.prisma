@@ -58,6 +58,14 @@ model User {
   sponsoredCustomers Customer[] @relation("CustomerSponsor")
   linkedCustomers    Customer[] @relation("CustomerLinked")
   createdOrders      Order[]    @relation("OrderCreator")
+
+  // Phase 3.1: NPP Partner Status
+  isNpp               Boolean         @default(false)
+  nppActivatedAt      DateTime?
+
+  // Phase 3.1: NPP Relations
+  nppPurchases        NppPurchase[]   @relation("UserNppPurchases")
+  nppCommissions      NppCommission[] @relation("UserNppCommissions")
 }
 
 model Customer {
@@ -271,6 +279,7 @@ model Product {
 
   // Phase 2C: Commission Points independent from price (FINAL SPEC v3.6) - Integer representation
   commissionPoints Int   @default(0)
+  nppPackageItems   NppPackageItem[]
   orderItems        OrderItem[]
 
   category      ProductCategory @relation(fields: [categoryId], references: [id])
@@ -383,6 +392,14 @@ model RankHistory {
   createdAt   DateTime @default(now())
 
   user User @relation(fields: [userId], references: [userId])
+
+  // Phase 3.1: NPP Purchase trigger
+  nppPurchaseId       String?
+  effectiveFrom       DateTime        @default(now())
+  effectiveTo         DateTime?
+  nppPurchase         NppPurchase?    @relation("PurchaseRankHistory", fields: [nppPurchaseId], references: [id])
+
+  @@index([userId, effectiveFrom])
 }
 
 // Phase 2C → Migration 2C-1: Idempotency table for Commission Processing (FINAL SPEC v3.6)
@@ -468,6 +485,9 @@ model CommissionPeriod {
   commissions          Commission[]
   commissionProcessing CommissionProcessing[]
   closeAudit           PeriodCloseAudit?
+
+  // Phase 3.1: NPP Commission relation
+  nppCommissions      NppCommission[] @relation("PeriodNppCommissions")
 }
 
 // Period Lifecycle: Policy gắn theo kỳ
@@ -535,4 +555,142 @@ model Lead {
   status       String   @default("new")  // new, contacted, completed, cancelled
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+}
+
+// ─── Phase 3.1: NPP Package System ─────────────────────────────────────────
+
+// NPP Package Definition (Admin-managed catalog)
+model NppPackage {
+  id              String           @id @default(cuid())
+  code            String           @unique
+  name            String
+  description     String?
+  grossPrice      BigInt
+  defaultDiscount Int              @default(0)
+  assignedRank    String           @default("AMBASSADOR")
+  isActive        Boolean          @default(true)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  items           NppPackageItem[]
+  purchases       NppPurchase[]
+}
+
+// NPP Package Components
+model NppPackageItem {
+  id          String     @id @default(cuid())
+  packageId   String
+  productId   String
+  quantity    Int        @default(1)
+  note        String?
+
+  package     NppPackage @relation(fields: [packageId], references: [id], onDelete: Cascade)
+  product     Product    @relation(fields: [productId], references: [id])
+
+  @@unique([packageId, productId])
+  @@index([packageId])
+  @@index([productId])
+}
+
+// NPP Purchase Transaction (NO Customer dependency)
+model NppPurchase {
+  id                    String          @id @default(cuid())
+  code                  String          @unique
+  userId                String
+  userCode              String
+  packageId             String
+
+  grossPrice            BigInt
+  discountRateBps       Int             @default(0)
+  discountAmount        BigInt          @default(0)
+  netPayableAmount      BigInt
+  depositAmount         BigInt          @default(0)
+  paidAmount            BigInt          @default(0)
+  remainingAmount       BigInt          @default(0)
+  actualPaidAmount      BigInt
+
+  depositAt             DateTime?
+  depositNote           String?
+  isPaidInFull          Boolean         @default(false)
+  paidInFullAt          DateTime?
+  paidInFullConfirmedBy String?
+
+  status                String          @default("NEW")
+  settlementStatus      String          @default("PENDING")
+
+  activatedAt           DateTime?
+  assignedRank          String
+  allocatedBusinessId   String?
+
+  packageSnapshot       String
+
+  shippingAddress       String?
+  recipientPhone        String?
+  recipientName         String?
+
+  createdAt             DateTime        @default(now())
+  updatedAt             DateTime        @updatedAt
+
+  user                  User            @relation("UserNppPurchases", fields: [userId], references: [id])
+  package               NppPackage      @relation(fields: [packageId], references: [id])
+  commissions           NppCommission[]
+  rankHistories         RankHistory[]   @relation("PurchaseRankHistory")
+  payments              NppPayment[]
+
+  @@index([userId])
+  @@index([packageId])
+  @@index([status])
+  @@index([isPaidInFull])
+  @@index([settlementStatus])
+}
+
+// NPP Payment Ledger (audit trail)
+model NppPayment {
+  id              String      @id @default(cuid())
+  purchaseId      String
+  amount          BigInt
+  paymentMethod   String      @default("BANK_TRANSFER")
+  referenceCode   String?
+  note            String?
+  confirmedBy     String
+  paidAt          DateTime    @default(now())
+  createdAt       DateTime    @default(now())
+
+  purchase        NppPurchase @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+
+  @@index([purchaseId])
+}
+
+// NPP Commission (F1=10%, F2=5% — separate from CTV retail engine)
+model NppCommission {
+  id                String            @id @default(cuid())
+  purchaseId        String
+  beneficiaryId     String
+  beneficiaryUserId String
+  level             Int
+  rateBps           Int
+
+  commissionBase    BigInt
+  earnedMoney       BigInt
+  earnedPoints      Int
+
+  rankAtCommission  String
+  policyVersion     String            @default("NPP-v1.0")
+  status            String            @default("PENDING_CLEARING")
+
+  createdAt         DateTime          @default(now())
+  settledAt         DateTime?
+  availableAt       DateTime?
+  paidAt            DateTime?
+
+  periodId          String?
+
+  purchase          NppPurchase       @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+  beneficiary       User              @relation("UserNppCommissions", fields: [beneficiaryId], references: [id])
+  period            CommissionPeriod? @relation("PeriodNppCommissions", fields: [periodId], references: [id])
+
+  @@unique([purchaseId, level])
+  @@index([beneficiaryId])
+  @@index([status])
+  @@index([periodId])
 }
