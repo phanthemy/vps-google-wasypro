@@ -6475,6 +6475,514 @@ app.get('/api/admin/npp/activations', authenticateToken, requireRole(['admin']),
 
 // ─── End Phase 3.2.1 ─────────────────────────────────────────────────────────
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// Phase 3.3: NPP Purchase Flow APIs
+// ═══════════════════════════════════════════════════════════════════════════════
+
+const NPP_PURCHASE_FLOW = ['NEW', 'DEPOSIT', 'CONFIRMED', 'SHIPPING', 'COMPLETED'];
+
+function generatePurchaseCode() {
+  const now = new Date();
+  const yy = String(now.getFullYear()).slice(2);
+  const mm = String(now.getMonth() + 1).padStart(2, '0');
+  const rand = String(Math.floor(1000 + Math.random() * 9000));
+  return `NPP-${yy}${mm}-${rand}`;
+}
+
+// POST /api/admin/npp/purchases — Create purchase from approved registration
+app.post('/api/admin/npp/purchases', authenticateToken, requireRole(['admin']), async (req, res) => {
+  try {
+    const { registrationId, items } = req.body;
+    if (!registrationId) return res.status(400).json({ success: false, message: 'registrationId required' });
+
+    // 1. Find registration
+    const reg = await prisma.nppRegistration.findUnique({
+      where: { id: registrationId },
+      include: { package: true, user: true },
+    });
+    if (!reg) return res.status(404).json({ success: false, message: 'Registration not found' });
+    if (reg.status !== 'APPROVED') return res.status(400).json({ success: false, message: `Registration status is ${reg.status}, must be APPROVED` });
+
+    // 2. Check no existing purchase for this registration
+    const existingPurchase = await prisma.nppPurchase.findFirst({ where: { registrationId } });
+    if (existingPurchase) return res.status(400).json({ success: false, message: 'Purchase already exists for this registration' });
+
+    const pkg = reg.package;
+    if (!pkg.isActive) return res.status(400).json({ success: false, message: 'Package is inactive' });
+
+    let grossPrice, discountRateBps, discountAmount, netPayableAmount;
+    let purchaseItems = [];
+    let packageSnapshotData;
+
+    if (pkg.packageType === 'CAPITAL') {
+      // CAPITAL: fixed grossPrice, no products, no discount
+      if (!pkg.grossPrice || pkg.grossPrice <= 0n) return res.status(400).json({ success: false, message: 'CAPITAL package has no valid grossPrice' });
+      grossPrice = pkg.grossPrice;
+      discountRateBps = 0;
+      discountAmount = 0n;
+      netPayableAmount = grossPrice;
+      packageSnapshotData = { packageCode: pkg.code, name: pkg.name, type: 'CAPITAL', grossPrice: grossPrice.toString() };
+
+    } else if (pkg.packageType === 'PRODUCT_COMBO') {
+      // PRODUCT_COMBO: user selects products
+      if (!items || !Array.isArray(items) || items.length === 0) {
+        return res.status(400).json({ success: false, message: 'PRODUCT_COMBO requires items: [{ productId, quantity }]' });
+      }
+
+      // Validate total quantity
+      const totalQty = items.reduce((s, i) => s + (i.quantity || 0), 0);
+      if (totalQty !== pkg.requiredQuantity) {
+        return res.status(400).json({ success: false, message: `Total quantity must be exactly ${pkg.requiredQuantity}, got ${totalQty}` });
+      }
+
+      // Fetch products and calculate
+      const productIds = [...new Set(items.map(i => i.productId))];
+      const products = await prisma.product.findMany({ where: { id: { in: productIds } } });
+      const productMap = {};
+      products.forEach(p => { productMap[p.id] = p; });
+
+      grossPrice = 0n;
+      for (const item of items) {
+        if (!item.productId || !item.quantity || item.quantity < 1) {
+          return res.status(400).json({ success: false, message: 'Each item must have productId and quantity >= 1' });
+        }
+        const product = productMap[item.productId];
+        if (!product) return res.status(400).json({ success: false, message: `Product ${item.productId} not found` });
+        if (product.price <= 0) return res.status(400).json({ success: false, message: `Product ${product.title} has invalid price` });
+
+        const unitPrice = floatPriceToBigInt(product.price);
+        const lineTotal = unitPrice * BigInt(item.quantity);
+        grossPrice += lineTotal;
+
+        purchaseItems.push({
+          productId: product.id,
+          productCode: product.slug,
+          productName: product.title,
+          quantity: item.quantity,
+          unitPrice,
+          lineTotal,
+        });
+      }
+
+      discountRateBps = pkg.defaultDiscount || 0;
+      discountAmount = grossPrice * BigInt(discountRateBps) / 10000n;
+      netPayableAmount = grossPrice - discountAmount;
+
+      if (netPayableAmount <= 0n) return res.status(400).json({ success: false, message: 'Net payable must be positive' });
+      if (discountAmount >= grossPrice) return res.status(400).json({ success: false, message: 'Discount exceeds gross price' });
+
+      packageSnapshotData = {
+        packageCode: pkg.code, name: pkg.name, type: 'PRODUCT_COMBO',
+        requiredQuantity: pkg.requiredQuantity, discountBps: discountRateBps,
+        items: purchaseItems.map(i => ({ productId: i.productId, name: i.productName, qty: i.quantity, unitPrice: i.unitPrice.toString(), lineTotal: i.lineTotal.toString() })),
+      };
+
+    } else {
+      return res.status(400).json({ success: false, message: `Unknown packageType: ${pkg.packageType}` });
+    }
+
+    // Generate unique code
+    let code = generatePurchaseCode();
+    let codeUnique = false;
+    for (let i = 0; i < 5; i++) {
+      const exists = await prisma.nppPurchase.findUnique({ where: { code } });
+      if (!exists) { codeUnique = true; break; }
+      code = generatePurchaseCode();
+    }
+    if (!codeUnique) return res.status(500).json({ success: false, message: 'Could not generate unique purchase code' });
+
+    // Create purchase + items in transaction
+    const result = await prisma.$transaction(async (tx) => {
+      const purchase = await tx.nppPurchase.create({
+        data: {
+          code,
+          userId: reg.user.id,
+          userCode: reg.user.userId,
+          packageId: pkg.id,
+          registrationId: reg.id,
+          grossPrice,
+          discountRateBps,
+          discountAmount,
+          netPayableAmount,
+          remainingAmount: netPayableAmount,
+          actualPaidAmount: netPayableAmount,
+          assignedRank: pkg.assignedRank,
+          packageSnapshot: JSON.stringify(packageSnapshotData),
+          status: 'NEW',
+        },
+      });
+
+      // Create purchase items (PRODUCT_COMBO only)
+      if (purchaseItems.length > 0) {
+        for (const item of purchaseItems) {
+          await tx.nppPurchaseItem.create({
+            data: {
+              purchaseId: purchase.id,
+              productId: item.productId,
+              productCode: item.productCode,
+              productName: item.productName,
+              quantity: item.quantity,
+              unitPrice: item.unitPrice,
+              lineTotal: item.lineTotal,
+            },
+          });
+        }
+      }
+
+      return purchase;
+    });
+
+    console.log(`[NPP PURCHASE] Created ${code} for ${reg.user.userId} pkg=${pkg.code} net=${netPayableAmount}`);
+    res.status(201).json({ success: true, message: 'Purchase created', data: serializeBigInt(result) });
+
+  } catch (e) {
+    console.error('POST /api/admin/npp/purchases error:', e);
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+// GET /api/admin/npp/purchases — List all purchases
+app.get('/api/admin/npp/purchases', authenticateToken, requireRole(['admin']), async (req, res) => {
+  try {
+    const purchases = await prisma.nppPurchase.findMany({
+      include: {
+        user: { select: { userId: true, fullName: true, phone: true } },
+        package: { select: { code: true, name: true, packageType: true, assignedRank: true } },
+        payments: { select: { id: true, amount: true, paidAt: true, paymentMethod: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    res.json({ success: true, data: purchases.map(p => serializeBigInt(p)) });
+  } catch (e) {
+    console.error('GET /api/admin/npp/purchases error:', e);
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+// GET /api/admin/npp/purchases/:id — Purchase detail
+app.get('/api/admin/npp/purchases/:id', authenticateToken, requireRole(['admin']), async (req, res) => {
+  try {
+    const purchase = await prisma.nppPurchase.findUnique({
+      where: { id: req.params.id },
+      include: {
+        user: { select: { userId: true, fullName: true, phone: true, businessId: true, rank: true, isNpp: true } },
+        package: { select: { code: true, name: true, packageType: true, assignedRank: true, requiredQuantity: true, defaultDiscount: true } },
+        payments: { orderBy: { paidAt: 'desc' } },
+        items: { include: { product: { select: { title: true, price: true, image: true } } } },
+      },
+    });
+    if (!purchase) return res.status(404).json({ success: false, message: 'Purchase not found' });
+    res.json({ success: true, data: serializeBigInt(purchase) });
+  } catch (e) {
+    console.error('GET /api/admin/npp/purchases/:id error:', e);
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+// PATCH /api/admin/npp/purchases/:id/status — Forward-only status transition
+app.patch('/api/admin/npp/purchases/:id/status', authenticateToken, requireRole(['admin']), async (req, res) => {
+  try {
+    const { status } = req.body;
+    if (!status) return res.status(400).json({ success: false, message: 'status required' });
+
+    const validStatuses = ['NEW', 'DEPOSIT', 'CONFIRMED', 'SHIPPING', 'COMPLETED', 'CANCELLED'];
+    if (!validStatuses.includes(status)) return res.status(400).json({ success: false, message: `Invalid status: ${status}` });
+
+    const purchase = await prisma.nppPurchase.findUnique({ where: { id: req.params.id }, include: { package: true } });
+    if (!purchase) return res.status(404).json({ success: false, message: 'Purchase not found' });
+
+    // No changes after COMPLETED or CANCELLED
+    if (purchase.status === 'COMPLETED') return res.status(400).json({ success: false, message: 'Không thể thay đổi đơn đã hoàn tất.' });
+    if (purchase.status === 'CANCELLED') return res.status(400).json({ success: false, message: 'Không thể thay đổi đơn đã hủy.' });
+
+    // Forward-only (except CANCELLED which can come from any pre-COMPLETED status)
+    if (status !== 'CANCELLED') {
+      const currentIdx = NPP_PURCHASE_FLOW.indexOf(purchase.status);
+      const targetIdx = NPP_PURCHASE_FLOW.indexOf(status);
+      if (targetIdx <= currentIdx) {
+        return res.status(400).json({ success: false, message: `Không thể chuyển từ ${purchase.status} về ${status}` });
+      }
+
+      // CAPITAL can skip SHIPPING: CONFIRMED → COMPLETED
+      if (purchase.package.packageType === 'CAPITAL' && purchase.status === 'CONFIRMED' && status === 'COMPLETED') {
+        // Allow skip
+      } else if (targetIdx > currentIdx + 1 && status !== 'COMPLETED') {
+        // Cannot skip states (except CAPITAL CONFIRMED→COMPLETED)
+        return res.status(400).json({ success: false, message: `Không thể bỏ qua trạng thái. Phải chuyển tuần tự.` });
+      }
+    }
+
+    // COMPLETED requires isPaidInFull
+    if (status === 'COMPLETED') {
+      if (!purchase.isPaidInFull) return res.status(400).json({ success: false, message: 'Chưa thanh toán đủ. Không thể hoàn tất.' });
+      if (purchase.paidAmount !== purchase.netPayableAmount) return res.status(400).json({ success: false, message: 'Số tiền thanh toán không khớp.' });
+    }
+
+    const updated = await prisma.nppPurchase.update({
+      where: { id: req.params.id },
+      data: { status },
+    });
+
+    console.log(`[NPP PURCHASE STATUS] ${purchase.code}: ${purchase.status} → ${status}`);
+    res.json({ success: true, data: serializeBigInt(updated) });
+  } catch (e) {
+    console.error('PATCH /api/admin/npp/purchases/:id/status error:', e);
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+// POST /api/admin/npp/purchases/:id/payments — Record payment
+app.post('/api/admin/npp/purchases/:id/payments', authenticateToken, requireRole(['admin']), async (req, res) => {
+  try {
+    const { amount, paymentMethod, referenceCode, note } = req.body;
+    if (!amount) return res.status(400).json({ success: false, message: 'amount required' });
+
+    const amountBigInt = BigInt(amount);
+    if (amountBigInt <= 0n) return res.status(400).json({ success: false, message: 'Amount must be positive' });
+
+    const purchase = await prisma.nppPurchase.findUnique({ where: { id: req.params.id } });
+    if (!purchase) return res.status(404).json({ success: false, message: 'Purchase not found' });
+    if (purchase.status === 'COMPLETED') return res.status(400).json({ success: false, message: 'Đơn đã hoàn tất, không thể thêm thanh toán.' });
+    if (purchase.status === 'CANCELLED') return res.status(400).json({ success: false, message: 'Đơn đã hủy.' });
+
+    // Block overpayment
+    if (amountBigInt > purchase.remainingAmount) {
+      return res.status(400).json({
+        success: false,
+        message: `Số tiền thanh toán (${amountBigInt}) vượt quá số còn lại (${purchase.remainingAmount}).`,
+      });
+    }
+
+    const adminUserId = req.user.userId || req.user.id;
+
+    // Transaction: create payment + recalculate
+    const result = await prisma.$transaction(async (tx) => {
+      const payment = await tx.nppPayment.create({
+        data: {
+          purchaseId: purchase.id,
+          amount: amountBigInt,
+          paymentMethod: paymentMethod || 'BANK_TRANSFER',
+          referenceCode: referenceCode || null,
+          note: note || null,
+          confirmedBy: adminUserId,
+        },
+      });
+
+      // Recalculate from source
+      const allPayments = await tx.nppPayment.findMany({ where: { purchaseId: purchase.id } });
+      const totalPaid = allPayments.reduce((sum, p) => sum + p.amount, 0n);
+      const remaining = purchase.netPayableAmount - totalPaid;
+      const isPaidInFull = totalPaid >= purchase.netPayableAmount;
+
+      const updateData = {
+        paidAmount: totalPaid,
+        remainingAmount: remaining,
+        isPaidInFull,
+      };
+
+      // First payment = deposit
+      if (allPayments.length === 1) {
+        updateData.depositAmount = amountBigInt;
+        updateData.depositAt = new Date();
+        if (purchase.status === 'NEW') updateData.status = 'DEPOSIT';
+      }
+
+      if (isPaidInFull) {
+        updateData.paidInFullAt = new Date();
+        updateData.paidInFullConfirmedBy = adminUserId;
+        // Auto-advance to CONFIRMED if still DEPOSIT or NEW
+        if (purchase.status === 'NEW' || purchase.status === 'DEPOSIT') {
+          updateData.status = 'CONFIRMED';
+        }
+      }
+
+      await tx.nppPurchase.update({ where: { id: purchase.id }, data: updateData });
+
+      return payment;
+    });
+
+    console.log(`[NPP PAYMENT] ${purchase.code}: +${amountBigInt} by ${adminUserId}`);
+    res.status(201).json({ success: true, message: 'Payment recorded', data: serializeBigInt(result) });
+  } catch (e) {
+    console.error('POST /api/admin/npp/purchases/:id/payments error:', e);
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+// POST /api/admin/npp/purchases/:id/complete — Confirm COMPLETED + activate NPP
+app.post('/api/admin/npp/purchases/:id/complete', authenticateToken, requireRole(['admin']), async (req, res) => {
+  try {
+    const purchase = await prisma.nppPurchase.findUnique({
+      where: { id: req.params.id },
+      include: { package: true, user: true },
+    });
+    if (!purchase) return res.status(404).json({ success: false, message: 'Purchase not found' });
+
+    // Validation
+    if (purchase.status === 'COMPLETED') return res.status(400).json({ success: false, message: 'Đơn đã hoàn tất.' });
+    if (purchase.status === 'CANCELLED') return res.status(400).json({ success: false, message: 'Đơn đã hủy.' });
+    if (!purchase.isPaidInFull) return res.status(400).json({ success: false, message: 'Chưa thanh toán đủ.' });
+    if (purchase.paidAmount !== purchase.netPayableAmount) return res.status(400).json({ success: false, message: 'Số tiền không khớp.' });
+    if (purchase.activatedAt) return res.status(400).json({ success: false, message: 'Đã kích hoạt trước đó.' });
+
+    // Must be CONFIRMED or SHIPPING (or CONFIRMED for CAPITAL skip)
+    const allowedFromStatus = ['CONFIRMED', 'SHIPPING'];
+    if (!allowedFromStatus.includes(purchase.status)) {
+      return res.status(400).json({ success: false, message: `Không thể hoàn tất từ trạng thái ${purchase.status}` });
+    }
+
+    const adminUserId = req.user.userId || req.user.id;
+    const pkg = purchase.package;
+    const user = purchase.user;
+
+    // Execute activation inside transaction
+    const result = await prisma.$transaction(async (tx) => {
+      // 1. BID allocation (only if user has no BID)
+      let allocatedBid = null;
+      if (!user.businessId) {
+        const seq = await tx.businessIdSequence.findFirst({});
+        if (!seq) throw new Error('BusinessIdSequence not found');
+        const nextVal = seq.nextVal;
+        allocatedBid = `WK-${nextVal}`;
+        await tx.businessIdSequence.update({ where: { id: seq.id }, data: { nextVal: nextVal + 1 } });
+        await tx.user.update({ where: { id: user.id }, data: { businessId: allocatedBid } });
+      }
+
+      // 2. Rank change — Package Purchase: ALWAYS set to package rank (can downgrade)
+      const previousRank = user.rank || 'NONE';
+      const newRank = pkg.assignedRank;
+
+      // 3. Update user
+      await tx.user.update({
+        where: { id: user.id },
+        data: {
+          isNpp: true,
+          nppActivatedAt: user.nppActivatedAt || new Date(),
+          rank: newRank,
+        },
+      });
+
+      // 4. RankHistory (if changed)
+      if (previousRank !== newRank) {
+        await tx.rankHistory.updateMany({
+          where: { userId: user.userId, effectiveTo: null },
+          data: { effectiveTo: new Date() },
+        });
+        await tx.rankHistory.create({
+          data: {
+            userId: user.userId,
+            fromRank: previousRank || null,
+            toRank: newRank,
+            fromStatus: previousRank || 'NONE',
+            toStatus: newRank,
+            reason: 'NPP_PACKAGE_PURCHASE',
+            metadata: JSON.stringify({ packageCode: pkg.code, packageName: pkg.name }),
+            triggeredBy: adminUserId,
+            nppPurchaseId: purchase.id,
+            effectiveFrom: new Date(),
+          },
+        });
+      }
+
+      // 5. NppActivation record
+      const activation = await tx.nppActivation.create({
+        data: {
+          userId: user.id,
+          source: 'PURCHASE',
+          packageId: pkg.id,
+          purchaseId: purchase.id,
+          assignedRank: newRank,
+          previousRank: previousRank,
+          allocatedBid: allocatedBid,
+          activatedBy: adminUserId,
+          paymentStatus: 'PAID',
+        },
+      });
+
+      // 6. Update purchase
+      await tx.nppPurchase.update({
+        where: { id: purchase.id },
+        data: {
+          status: 'COMPLETED',
+          activatedAt: new Date(),
+          allocatedBusinessId: allocatedBid,
+          paidInFullConfirmedBy: adminUserId,
+        },
+      });
+
+      // 7. Update registration → CONVERTED
+      if (purchase.registrationId) {
+        await tx.nppRegistration.update({
+          where: { id: purchase.registrationId },
+          data: { status: 'CONVERTED' },
+        });
+      }
+
+      return { activation, allocatedBid, previousRank, newRank };
+    });
+
+    console.log(`[NPP COMPLETE] ${purchase.code}: ${user.userId} activated as ${result.newRank} BID=${result.allocatedBid || user.businessId}`);
+    res.json({
+      success: true,
+      message: `NPP kích hoạt thành công. Rank: ${result.newRank}. BID: ${result.allocatedBid || user.businessId}`,
+      data: serializeBigInt(result),
+    });
+  } catch (e) {
+    console.error('POST /api/admin/npp/purchases/:id/complete error:', e);
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+// PATCH /api/admin/npp/purchases/:id/cancel — Cancel purchase (before COMPLETED only)
+app.patch('/api/admin/npp/purchases/:id/cancel', authenticateToken, requireRole(['admin']), async (req, res) => {
+  try {
+    const purchase = await prisma.nppPurchase.findUnique({ where: { id: req.params.id } });
+    if (!purchase) return res.status(404).json({ success: false, message: 'Purchase not found' });
+    if (purchase.status === 'COMPLETED') return res.status(400).json({ success: false, message: 'Không thể hủy đơn đã hoàn tất và kích hoạt NPP.' });
+    if (purchase.status === 'CANCELLED') return res.status(400).json({ success: false, message: 'Đơn đã hủy.' });
+
+    const updated = await prisma.nppPurchase.update({
+      where: { id: req.params.id },
+      data: { status: 'CANCELLED' },
+    });
+
+    console.log(`[NPP CANCEL] ${purchase.code} cancelled`);
+    res.json({ success: true, message: 'Purchase cancelled', data: serializeBigInt(updated) });
+  } catch (e) {
+    console.error('PATCH /api/admin/npp/purchases/:id/cancel error:', e);
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+// GET /api/npp/my-purchase — User views own NPP purchases
+app.get('/api/npp/my-purchase', authenticateToken, async (req, res) => {
+  try {
+    const dbId = req.user.dbId || req.user.id;
+    const user = await prisma.user.findFirst({
+      where: { OR: [{ id: dbId }, { userId: dbId }] },
+    });
+    if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+
+    const purchases = await prisma.nppPurchase.findMany({
+      where: { userId: user.id },
+      include: {
+        package: { select: { code: true, name: true, packageType: true, assignedRank: true } },
+        payments: { select: { amount: true, paidAt: true, paymentMethod: true }, orderBy: { paidAt: 'desc' } },
+        items: { select: { productName: true, quantity: true, unitPrice: true, lineTotal: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    res.json({ success: true, data: purchases.map(p => serializeBigInt(p)) });
+  } catch (e) {
+    console.error('GET /api/npp/my-purchase error:', e);
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// End Phase 3.3 NPP Purchase Flow APIs
+// ═══════════════════════════════════════════════════════════════════════════════
+
 
 module.exports = app;
 module.exports.app = app;

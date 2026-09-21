@@ -284,6 +284,7 @@ model Product {
   // Phase 2C: Commission Points independent from price (FINAL SPEC v3.6) - Integer representation
   commissionPoints Int              @default(0)
   nppPackageItems  NppPackageItem[]
+  nppPurchaseItems NppPurchaseItem[]
   orderItems       OrderItem[]
 
   category ProductCategory @relation(fields: [categoryId], references: [id])
@@ -608,6 +609,7 @@ model NppPurchase {
   userId    String
   userCode  String
   packageId String
+  registrationId  String?
 
   grossPrice       BigInt
   discountRateBps  Int    @default(0)
@@ -645,6 +647,7 @@ model NppPurchase {
   commissions   NppCommission[]
   rankHistories RankHistory[]   @relation("PurchaseRankHistory")
   payments      NppPayment[]
+  items         NppPurchaseItem[]
 
   @@index([userId])
   @@index([packageId])
@@ -745,4 +748,22 @@ model NppActivation {
 
   @@index([userId])
   @@index([source])
+}
+
+// Phase 3.3: NPP Purchase Items (products selected by NPP)
+model NppPurchaseItem {
+  id          String  @id @default(cuid())
+  purchaseId  String
+  productId   String
+  productCode String
+  productName String
+  quantity    Int     @default(1)
+  unitPrice   BigInt
+  lineTotal   BigInt
+
+  purchase NppPurchase @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+  product  Product     @relation(fields: [productId], references: [id])
+
+  @@index([purchaseId])
+  @@index([productId])
 }

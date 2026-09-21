@@ -24,3 +24,4 @@ database_backup.sql
 
 # Local backups (stored on VPS only, too large for GitHub)
 backups/
+*.bak*
