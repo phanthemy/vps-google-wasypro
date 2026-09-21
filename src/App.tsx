@@ -23,6 +23,7 @@ import AdminUsers from './components/admin/AdminUsers';
 import AdminPolicyConfig from './components/admin/AdminPolicyConfig';
 import AdminSystemView from './components/admin/AdminSystemView';
 import AdminPeriods from './components/admin/AdminPeriods';
+import AdminNppPackages from './components/admin/AdminNppPackages';
 import AdminPeriodDetail from './components/admin/AdminPeriodDetail';
 import AdminCTVManagement from './components/admin/AdminCTVManagement';
 import AdminMembersView from './components/admin/AdminMembersView';
@@ -288,6 +289,7 @@ export const App: React.FC = () => {
                 : <AdminPeriods onSelectPeriod={(id) => setSelectedPeriodId(id)} />
             )}
             {adminActiveTab === 'policy' && <AdminPolicyConfig />}
+            {adminActiveTab === 'npp-packages' && <AdminNppPackages />}
             {adminActiveTab === 'system' && <AdminSystemView />}
           </main>
         </div>
