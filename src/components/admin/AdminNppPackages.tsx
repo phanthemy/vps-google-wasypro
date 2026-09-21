@@ -36,7 +36,9 @@ interface NppPackage {
   code: string;
   name: string;
   description: string | null;
-  grossPrice: number;
+  grossPrice: number | null;
+  packageType: string;
+  requiredQuantity: number | null;
   defaultDiscount: number;
   assignedRank: string;
   isActive: boolean;
@@ -69,6 +71,8 @@ interface PackageFormData {
   assignedRank: string;
   isActive: boolean;
   items: PackageItemInput[];
+  packageType: string;
+  requiredQuantity: string;
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -99,7 +103,8 @@ const RANK_OPTIONS = [
   { value: 'DIRECTOR', label: 'Quản lý (Director)' },
 ];
 
-function formatVND(value: number | string): string {
+function formatVND(value: number | string | null | undefined): string {
+  if (value === null || value === undefined) return '2014';
   const num = typeof value === 'string' ? parseInt(value, 10) : value;
   if (isNaN(num)) return '0 ₫';
   return num.toLocaleString('vi-VN') + ' ₫';
@@ -204,6 +209,8 @@ const AdminNppPackages: React.FC = () => {
     grossPrice: '', defaultDiscount: '0',
     assignedRank: 'AMBASSADOR', isActive: true,
     items: [{ productId: '', quantity: 1, note: '' }],
+    packageType: 'PRODUCT_COMBO',
+    requiredQuantity: '',
   };
   const [form, setForm] = useState<PackageFormData>(emptyForm);
 
@@ -249,6 +256,8 @@ const AdminNppPackages: React.FC = () => {
       defaultDiscount: String(pkg.defaultDiscount),
       assignedRank: pkg.assignedRank,
       isActive: pkg.isActive,
+      packageType: (pkg as any).packageType || 'PRODUCT_COMBO',
+      requiredQuantity: (pkg as any).requiredQuantity ? String((pkg as any).requiredQuantity) : '',
       items: pkg.items.length > 0
         ? pkg.items.map(i => ({ productId: i.productId, quantity: i.quantity, note: i.note || '' }))
         : [{ productId: '', quantity: 1, note: '' }],
@@ -286,9 +295,11 @@ const AdminNppPackages: React.FC = () => {
         code: form.code.trim(),
         name: form.name.trim(),
         description: form.description.trim() || null,
-        grossPrice: form.grossPrice,
-        defaultDiscount: parseInt(form.defaultDiscount, 10) || 0,
+        grossPrice: form.packageType === 'CAPITAL' ? form.grossPrice : null,
+        defaultDiscount: form.packageType === 'CAPITAL' ? 0 : (parseInt(form.defaultDiscount, 10) || 0),
         assignedRank: form.assignedRank,
+        packageType: form.packageType,
+        requiredQuantity: form.packageType === 'PRODUCT_COMBO' ? (parseInt(form.requiredQuantity, 10) || null) : null,
         isActive: form.isActive,
         items: form.items
           .filter(i => i.productId)
@@ -432,6 +443,9 @@ const AdminNppPackages: React.FC = () => {
                     <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${pkg.isActive ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
                       {pkg.isActive ? 'Đang hoạt động' : 'Đã tắt'}
                     </span>
+                    <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${(pkg as any).packageType === 'CAPITAL' ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'}`}>
+                      {(pkg as any).packageType === 'CAPITAL' ? '💰 CAPITAL' : `📦 COMBO ${(pkg as any).requiredQuantity || ''}`}
+                    </span>
                     <span className="text-xs text-slate-400 font-mono">{pkg.code}</span>
                   </div>
                   <h3 className="text-lg font-bold text-slate-800 truncate">{pkg.name}</h3>
@@ -441,7 +455,7 @@ const AdminNppPackages: React.FC = () => {
                   <div className="flex flex-wrap gap-4 mt-3 text-sm">
                     <div>
                       <span className="text-slate-400">Giá gốc: </span>
-                      <span className="font-bold text-slate-700">{formatVND(pkg.grossPrice)}</span>
+                      <span className="font-bold text-slate-700">{pkg.grossPrice ? formatVND(pkg.grossPrice) : 'Tính theo SP'}</span>
                     </div>
                     <div>
                       <span className="text-slate-400">Chiết khấu: </span>

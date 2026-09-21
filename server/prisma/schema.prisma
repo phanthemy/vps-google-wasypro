@@ -10,48 +10,48 @@ datasource db {
 }
 
 model User {
-  id        String   @id @default(cuid())
-  userId    String   @unique
-  fullName  String
-  phone     String   @unique
-  password  String   @default("123456")
-  cccd      String?
-  bankInfo  String?
-  tier      String   @default("NONE") // DIAMOND, GOLD, SILVER
-  role      String   @default("ctv") // admin, accountant, ctv
-  parentId  String?
-  status    String   @default("ACTIVE") // ACTIVE, INACTIVE
-  mustChangePassword Boolean @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  note      String?
-  avatarUrl String?   // URL ảnh đại diện CTV
+  id                 String   @id @default(cuid())
+  userId             String   @unique
+  fullName           String
+  phone              String   @unique
+  password           String   @default("123456")
+  cccd               String?
+  bankInfo           String?
+  tier               String   @default("NONE") // DIAMOND, GOLD, SILVER
+  role               String   @default("ctv") // admin, accountant, ctv
+  parentId           String?
+  status             String   @default("ACTIVE") // ACTIVE, INACTIVE
+  mustChangePassword Boolean  @default(true)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  note               String?
+  avatarUrl          String? // URL ảnh đại diện CTV
 
   // Phase 2A: Foundation rank & S-Points fields
-  rank              String?   // AMBASSADOR, SALES_MANAGER, SALES_DIRECTOR, EXEC_OPERATIONS, EXEC_PROVINCE, EXEC_STRATEGIC
-  rankStatus        String?   // NOT_QUALIFIED, AUTO_QUALIFIED, ACTIVE_RANK, MANUAL_APPROVED, REVOKED
-  rankAchievedAt    DateTime?
-  regionCode        String?   // M? v?ng/t?nh ph? tr?ch
-  sPoints           Float     @default(0)   // T?ng ?i?m S t?ch l?y hi?n c?
-  wholesaleEligible Boolean   @default(false)
-  totalMachinesBought Int     @default(0)   // T?ng s? l?n t? mua (isSelfBuy=true) t?ch l?y
+  rank                String? // AMBASSADOR, SALES_MANAGER, SALES_DIRECTOR, EXEC_OPERATIONS, EXEC_PROVINCE, EXEC_STRATEGIC
+  rankStatus          String? // NOT_QUALIFIED, AUTO_QUALIFIED, ACTIVE_RANK, MANUAL_APPROVED, REVOKED
+  rankAchievedAt      DateTime?
+  regionCode          String? // M? v?ng/t?nh ph? tr?ch
+  sPoints             Float     @default(0) // T?ng ?i?m S t?ch l?y hi?n c?
+  wholesaleEligible   Boolean   @default(false)
+  totalMachinesBought Int       @default(0) // T?ng s? l?n t? mua (isSelfBuy=true) t?ch l?y
 
   // Phase 2B: Ambassador activation audit
   rankActivationMethod String? // AUTO_MACHINE_PURCHASE | AUTO_SPOINT_THRESHOLD | ADMIN_MANUAL_APPROVE
   rankActivatedBy      String? // userId admin n?u manual approve, null n?u auto
 
   // Phase 2C: Participant status & BusinessId (FINAL SPEC v3.6)
-  isSystemParticipant  Boolean   @default(false)
-  businessId           String?   @unique
-  participantAt        DateTime?
-  qualifyingPoints     Int       @default(0)
+  isSystemParticipant Boolean   @default(false)
+  businessId          String?   @unique
+  participantAt       DateTime?
+  qualifyingPoints    Int       @default(0)
 
-  parent      User?         @relation("UserToUser", fields: [parentId], references: [userId])
-  children    User[]        @relation("UserToUser")
-  customers   Customer[]    @relation("LegacyCustomerSource")
-  commissions Commission[]
+  parent             User?               @relation("UserToUser", fields: [parentId], references: [userId])
+  children           User[]              @relation("UserToUser")
+  customers          Customer[]          @relation("LegacyCustomerSource")
+  commissions        Commission[]
   sPointTransactions SPointTransaction[]
-  wholesaleOrders    WholesaleOrder[]   @relation("WholesaleBuyer")
+  wholesaleOrders    WholesaleOrder[]    @relation("WholesaleBuyer")
   rankHistories      RankHistory[]
 
   // Phase 2C relations
@@ -60,18 +60,22 @@ model User {
   createdOrders      Order[]    @relation("OrderCreator")
 
   // Phase 3.1: NPP Partner Status
-  isNpp               Boolean         @default(false)
+  isNpp               Boolean   @default(false)
   nppActivatedAt      DateTime?
+  nppActivationSource String? // PURCHASE | ADMIN_GRANT
+  nppActivatedBy      String? // userId Admin (for ADMIN_GRANT)
 
   // Phase 3.1: NPP Relations
-  nppPurchases        NppPurchase[]   @relation("UserNppPurchases")
-  nppCommissions      NppCommission[] @relation("UserNppCommissions")
+  nppPurchases     NppPurchase[]     @relation("UserNppPurchases")
+  nppCommissions   NppCommission[]   @relation("UserNppCommissions")
+  nppRegistrations NppRegistration[] @relation("UserNppRegistrations")
+  nppActivations   NppActivation[]   @relation("UserNppActivations")
 }
 
 model Customer {
   id           String   @id @default(cuid())
   fullName     String
-  phone        String   // Can store full phone or last 4 digits
+  phone        String // Can store full phone or last 4 digits
   sourceCtvId  String
   status       String   @default("NEW") // NEW, APPOINT_BOOKED, ARRIVED, EXPIRED
   registeredAt DateTime @default(now())
@@ -80,11 +84,11 @@ model Customer {
 
   // Phase 2C: Direct sponsor & Linked user account (FINAL SPEC v3.6)
   sponsorUserId String?
-  linkedUserId  String?  @unique
+  linkedUserId  String? @unique
 
-  sourceCtv    User     @relation("LegacyCustomerSource", fields: [sourceCtvId], references: [userId])
-  sponsorUser  User?    @relation("CustomerSponsor", fields: [sponsorUserId], references: [id])
-  linkedUser   User?    @relation("CustomerLinked", fields: [linkedUserId], references: [id])
+  sourceCtv   User  @relation("LegacyCustomerSource", fields: [sourceCtvId], references: [userId])
+  sponsorUser User? @relation("CustomerSponsor", fields: [sponsorUserId], references: [id])
+  linkedUser  User? @relation("CustomerLinked", fields: [linkedUserId], references: [id])
 
   appointments Appointment[]
   orders       Order[]
@@ -96,50 +100,50 @@ model Customer {
 model CustomerAuditLog {
   id         String   @id @default(cuid())
   customerId String
-  userId     String   // The admin/accountant who made the change
-  action     String   // e.g., 'UPDATE_STATUS'
-  details    String   // JSON string of changes (from -> to)
+  userId     String // The admin/accountant who made the change
+  action     String // e.g., 'UPDATE_STATUS'
+  details    String // JSON string of changes (from -> to)
   createdAt  DateTime @default(now())
 
-  customer   Customer @relation(fields: [customerId], references: [id])
+  customer Customer @relation(fields: [customerId], references: [id])
 }
 
 model Appointment {
-  id          String   @id @default(cuid())
-  customerId  String
-  date        DateTime
-  status      String   @default("PENDING") // PENDING, ARRIVED, CANCELLED
-  createdAt   DateTime @default(now())
+  id         String   @id @default(cuid())
+  customerId String
+  date       DateTime
+  status     String   @default("PENDING") // PENDING, ARRIVED, CANCELLED
+  createdAt  DateTime @default(now())
 
-  customer    Customer @relation(fields: [customerId], references: [id])
+  customer Customer @relation(fields: [customerId], references: [id])
 }
 
 model ServiceCategory {
-  id          String   @id @default(cuid())
-  name        String   @unique // e.g. "N?i khoa", "Ph?u thu?t", "Ch?m s?c"
+  id   String @id @default(cuid())
+  name String @unique // e.g. "N?i khoa", "Ph?u thu?t", "Ch?m s?c"
 
-  services    Service[]
+  services Service[]
 }
 
 model Service {
-  id          String   @id @default(cuid())
-  name        String
-  categoryId  String
-  group       String?
+  id         String  @id @default(cuid())
+  name       String
+  categoryId String
+  group      String?
 
   price       Float
   description String?
   imageUrl    String?
 
   // Phase 2A: Product type for S-Points and wholesale classification
-  productType String?   // MACHINE, SUPPLY, SERVICE ? null = ch?a ph?n lo?i (c?n admin set)
-  listPrice   Float?    // Gi? ni?m y?t (null = d?ng price)
+  productType String? // MACHINE, SUPPLY, SERVICE ? null = ch?a ph?n lo?i (c?n admin set)
+  listPrice   Float? // Gi? ni?m y?t (null = d?ng price)
 
   // Phase 2C: Commission Points independent from price (FINAL SPEC v3.6) - Integer representation
-  commissionPoints Int   @default(0)
+  commissionPoints Int @default(0)
 
-  category    ServiceCategory @relation(fields: [categoryId], references: [id])
-  orderItems  OrderItem[]
+  category       ServiceCategory      @relation(fields: [categoryId], references: [id])
+  orderItems     OrderItem[]
   wholesaleItems WholesaleOrderItem[] @relation("WholesaleItems")
 }
 
@@ -151,91 +155,91 @@ model Order {
   createdAt   DateTime @default(now())
 
   // Phase 2B: Order classification
-  orderType   String   @default("RETAIL")  // RETAIL
-  isSelfBuy   Boolean  @default(false)     // buyer.phone == customer.phone
+  orderType String  @default("RETAIL") // RETAIL
+  isSelfBuy Boolean @default(false) // buyer.phone == customer.phone
 
   // Phase 2C: Purchase Type & Orderer Attribution (FINAL SPEC v3.6)
-  purchaseType  String   @default("CUSTOMER_PURCHASE") // SELF_PURCHASE | CUSTOMER_PURCHASE
+  purchaseType  String  @default("CUSTOMER_PURCHASE") // SELF_PURCHASE | CUSTOMER_PURCHASE
   ordererUserId String?
 
   // Period Lifecycle: gắn order với kỳ hoa hồng
-  periodId    String?  // null = pre-period (legacy data)
+  periodId String? // null = pre-period (legacy data)
 
   // Deposit (Đặt cọc)
-  depositAmount Float?    @default(0)
+  depositAmount Float?  @default(0)
   depositAt     String?
   depositNote   String?
 
   // Shipping info (thông tin giao hàng)
-  shippingAddress String?  // Địa chỉ giao hàng (bắt buộc khi giao)
-  recipientPhone  String?  // SĐT người nhận (bắt buộc)
-  recipientEmail  String?  // Email người nhận (tùy chọn)
-  contactHotline  String?  // Hotline liên hệ (tùy chọn)
+  shippingAddress String? // Địa chỉ giao hàng (bắt buộc khi giao)
+  recipientPhone  String? // SĐT người nhận (bắt buộc)
+  recipientEmail  String? // Email người nhận (tùy chọn)
+  contactHotline  String? // Hotline liên hệ (tùy chọn)
 
-  customer    Customer    @relation(fields: [customerId], references: [id])
-  orderer     User?       @relation("OrderCreator", fields: [ordererUserId], references: [id])
-  period      CommissionPeriod? @relation(fields: [periodId], references: [id])
-  items       OrderItem[]
-  commissions Commission[]
+  customer             Customer              @relation(fields: [customerId], references: [id])
+  orderer              User?                 @relation("OrderCreator", fields: [ordererUserId], references: [id])
+  period               CommissionPeriod?     @relation(fields: [periodId], references: [id])
+  items                OrderItem[]
+  commissions          Commission[]
   commissionProcessing CommissionProcessing?
 }
 
 model OrderItem {
-  id        String   @id @default(cuid())
+  id        String  @id @default(cuid())
   orderId   String
   serviceId String?
   productId String?
-  amount    Float    // actual paid amount
-  qty       Int      @default(1)
+  amount    Float // actual paid amount
+  qty       Int     @default(1)
 
   // Phase 2C: Commission Points snapshot at order time (FINAL SPEC v3.6) - Integer representation
   unitCommissionPts Int @default(0)
   lineCommissionPts Int @default(0)
 
-  order     Order    @relation(fields: [orderId], references: [id])
-  service   Service? @relation(fields: [serviceId], references: [id])
-  product   Product? @relation(fields: [productId], references: [id])
+  order   Order    @relation(fields: [orderId], references: [id])
+  service Service? @relation(fields: [serviceId], references: [id])
+  product Product? @relation(fields: [productId], references: [id])
 }
 
 model Commission {
-  id          String   @id @default(cuid())
-  orderId     String
-  receiverId  String
-  amount      Float
-  type        String   // DIRECT, OVERRIDE_F1, OVERRIDE_F2, SELF_CONSUMPTION, DIRECT_RETAIL, DISTRIBUTION_PARTNER, REGIONAL_DEVELOPMENT
-  status      String   @default("PENDING") // PENDING, APPROVED, PAID, REJECTED, REVOKED
-  createdAt   DateTime @default(now())
+  id         String   @id @default(cuid())
+  orderId    String
+  receiverId String
+  amount     Float
+  type       String // DIRECT, OVERRIDE_F1, OVERRIDE_F2, SELF_CONSUMPTION, DIRECT_RETAIL, DISTRIBUTION_PARTNER, REGIONAL_DEVELOPMENT
+  status     String   @default("PENDING") // PENDING, APPROVED, PAID, REJECTED, REVOKED
+  createdAt  DateTime @default(now())
 
   // Phase 2B: Audit snapshot fields
-  rateSnapshot Float?   // % rate applied at time of calculation
-  rankSnapshot String?  // receiver rank at time of calculation
-  baseAmount   Float?   // amount before rate multiplication
-  policyRef    String?  // Rule ID: AM-01, AM-02, AM-03, AM-04, DIRECT, OVERRIDE_F1, OVERRIDE_F2
-  metadata     String?  // JSON: additional rule details (ancestor depth, rule match, etc.)
+  rateSnapshot Float? // % rate applied at time of calculation
+  rankSnapshot String? // receiver rank at time of calculation
+  baseAmount   Float? // amount before rate multiplication
+  policyRef    String? // Rule ID: AM-01, AM-02, AM-03, AM-04, DIRECT, OVERRIDE_F1, OVERRIDE_F2
+  metadata     String? // JSON: additional rule details (ancestor depth, rule match, etc.)
 
   // Phase 2C: Mandatory 6 audit snapshot fields (FINAL SPEC v3.6) - Integer point/money representation
-  ruleKey       String?  // Exact rule key applied: e.g. AMBASSADOR_SELF_BUY, MANAGER_F1_PURCHASE
-  policyVersion String?  // Policy version snapshot: e.g. 1.0.0 or 09/2026-v1
-  role          String?  // Role in transaction: SELF, DIRECT_SPONSOR, UPSTREAM_D1, UPSTREAM_D2
-  basePoints    Int?     // Base integer points used for calculation (orderTotalCP or split points)
-  earnedPoints  Int?     // Calculated integer points: Math.round(basePoints * rateSnapshot)
-  earnedMoney   Int?     // Calculated integer VND: earnedPoints * 1000
+  ruleKey       String? // Exact rule key applied: e.g. AMBASSADOR_SELF_BUY, MANAGER_F1_PURCHASE
+  policyVersion String? // Policy version snapshot: e.g. 1.0.0 or 09/2026-v1
+  role          String? // Role in transaction: SELF, DIRECT_SPONSOR, UPSTREAM_D1, UPSTREAM_D2
+  basePoints    Int? // Base integer points used for calculation (orderTotalCP or split points)
+  earnedPoints  Int? // Calculated integer points: Math.round(basePoints * rateSnapshot)
+  earnedMoney   Int? // Calculated integer VND: earnedPoints * 1000
 
   // Period Lifecycle: gắn commission với kỳ hoa hồng
-  periodId    String?  // null = pre-period (legacy data)
+  periodId String? // null = pre-period (legacy data)
 
-  order       Order    @relation(fields: [orderId], references: [id])
-  receiver    User     @relation(fields: [receiverId], references: [userId])
-  period      CommissionPeriod? @relation(fields: [periodId], references: [id])
+  order    Order             @relation(fields: [orderId], references: [id])
+  receiver User              @relation(fields: [receiverId], references: [userId])
+  period   CommissionPeriod? @relation(fields: [periodId], references: [id])
 }
 
 // Phase 2A ? Migration 3: S-Point Transaction log
 model SPointTransaction {
   id          String   @id @default(cuid())
   userId      String
-  orderId     String?  // Link to order that generated the points (nullable for adjustments)
-  points      Float    // Positive = earn, Negative = redeem/deduct
-  type        String   // EARN, REDEEM, EXPIRE, ADJUST
+  orderId     String? // Link to order that generated the points (nullable for adjustments)
+  points      Float // Positive = earn, Negative = redeem/deduct
+  type        String // EARN, REDEEM, EXPIRE, ADJUST
   description String?
   createdAt   DateTime @default(now())
 
@@ -244,7 +248,7 @@ model SPointTransaction {
   snapshotBalance Float?
   policyVersion   String?
 
-  user        User     @relation(fields: [userId], references: [userId])
+  user User @relation(fields: [userId], references: [userId])
 }
 
 model ProductCategory {
@@ -267,73 +271,73 @@ model Product {
   rating        Float    @default(5)
   reviewsCount  Int      @default(0)
   image         String?
-  gallery       String?  // JSON array string
+  gallery       String? // JSON array string
   description   String?
-  specs         String?  // JSON string of ProductSpecs
+  specs         String? // JSON string of ProductSpecs
   isHot         Boolean  @default(false)
   isNew         Boolean  @default(false)
   stock         Int      @default(0)
-  promotion     String?  // Gift/promotion text e.g. "T?ng b? l?c th? tr? gi? 500k"
+  promotion     String? // Gift/promotion text e.g. "T?ng b? l?c th? tr? gi? 500k"
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
   // Phase 2C: Commission Points independent from price (FINAL SPEC v3.6) - Integer representation
-  commissionPoints Int   @default(0)
-  nppPackageItems   NppPackageItem[]
-  orderItems        OrderItem[]
+  commissionPoints Int              @default(0)
+  nppPackageItems  NppPackageItem[]
+  orderItems       OrderItem[]
 
-  category      ProductCategory @relation(fields: [categoryId], references: [id])
+  category ProductCategory @relation(fields: [categoryId], references: [id])
 }
 
 model WebsiteOrder {
-  id            String   @id @default(cuid())
-  customerName  String
-  customerPhone String
-  address       String?
-  shippingAddress String?
-  recipientPhone  String?
-  recipientEmail  String?
-  contactHotline  String?
-  message       String?
-  type          String   @default("ORDER") // ORDER, CONSULTATION
-  productId     String?
-  productTitle  String?
-  productPrice  Float    @default(0)
-  qty           Int      @default(1)
-  totalAmount   Float    @default(0)
-  status        String   @default("NEW") // NEW, CONFIRMED, SHIPPING, COMPLETED, CANCELLED
+  id                      String   @id @default(cuid())
+  customerName            String
+  customerPhone           String
+  address                 String?
+  shippingAddress         String?
+  recipientPhone          String?
+  recipientEmail          String?
+  contactHotline          String?
+  message                 String?
+  type                    String   @default("ORDER") // ORDER, CONSULTATION
+  productId               String?
+  productTitle            String?
+  productPrice            Float    @default(0)
+  qty                     Int      @default(1)
+  totalAmount             Float    @default(0)
+  status                  String   @default("NEW") // NEW, CONFIRMED, SHIPPING, COMPLETED, CANCELLED
   // Identity link — null for guest orders, set when logged-in user places order
-  userId        String?  // FK to User.userId (denormalized for SQLite simplicity)
-  sponsorUserId String?  // FK to User.userId (refCode at time of order, for commission)
-  commissionPoints Float @default(0) // snapshot of product.commissionPoints at order time
-  qualifyingPointsAwarded Boolean @default(false) // true once QP credited to user
-  shadowOrderId   String?  // Link to shadow Order (set only when CTV participant at creation)
-  isCtvOrder      Boolean  @default(false) // true = classified as CTV order at creation time
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  userId                  String? // FK to User.userId (denormalized for SQLite simplicity)
+  sponsorUserId           String? // FK to User.userId (refCode at time of order, for commission)
+  commissionPoints        Float    @default(0) // snapshot of product.commissionPoints at order time
+  qualifyingPointsAwarded Boolean  @default(false) // true once QP credited to user
+  shadowOrderId           String? // Link to shadow Order (set only when CTV participant at creation)
+  isCtvOrder              Boolean  @default(false) // true = classified as CTV order at creation time
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
 }
 
 model AdminUser {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  password  String
-  name      String
-  role      String   @default("admin")
-  isActive  Boolean  @default(true)
-  mustChangePassword Boolean @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id                 String   @id @default(cuid())
+  email              String   @unique
+  password           String
+  name               String
+  role               String   @default("admin")
+  isActive           Boolean  @default(true)
+  mustChangePassword Boolean  @default(true)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 }
 
 // Phase 2B ? Migration 2B-4: Configurable retail commission rules engine
 model CommissionPriceRule {
   id           String   @id @default(cuid())
-  productType  String   // MACHINE, SUPPLY, SERVICE
-  minPrice     Float?   // null = no lower bound
-  maxPrice     Float?   // null = no upper bound
-  rate         Float?   // null = TBD/CONFIGURABLE (inactive rules)
-  commType     String   // Commission type to create: DIRECT_RETAIL, etc.
-  rankRequired String?  // AMBASSADOR, null = any rank
+  productType  String // MACHINE, SUPPLY, SERVICE
+  minPrice     Float? // null = no lower bound
+  maxPrice     Float? // null = no upper bound
+  rate         Float? // null = TBD/CONFIGURABLE (inactive rules)
+  commType     String // Commission type to create: DIRECT_RETAIL, etc.
+  rankRequired String? // AMBASSADOR, null = any rank
   isActive     Boolean  @default(true)
   note         String?
   createdAt    DateTime @default(now())
@@ -342,37 +346,37 @@ model CommissionPriceRule {
 
 // Phase 2B ? Migration 2B-5a: Wholesale order module
 model WholesaleOrder {
-  id             String   @id @default(cuid())
+  id             String    @id @default(cuid())
   buyerUserId    String
   totalMachines  Int
-  discountRate   Float            // 0.35 | 0.40 | 0.45
-  basePriceType  String   @default("PRICE")  // PRICE ? chot (MAU_THUAN_03)
-  priceTotal     Float            // Total service.price before discount (snapshot)
-  listPriceTotal Float?           // Total listPrice for reference
-  finalAmount    Float            // Total after discount = priceTotal * (1 - discountRate)
-  status         String   @default("PENDING_APPROVAL")
+  discountRate   Float // 0.35 | 0.40 | 0.45
+  basePriceType  String    @default("PRICE") // PRICE ? chot (MAU_THUAN_03)
+  priceTotal     Float // Total service.price before discount (snapshot)
+  listPriceTotal Float? // Total listPrice for reference
+  finalAmount    Float // Total after discount = priceTotal * (1 - discountRate)
+  status         String    @default("PENDING_APPROVAL")
   approvedBy     String?
   approvedAt     DateTime?
   shippedAt      DateTime?
   completedAt    DateTime?
   notes          String?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
-  buyer User                @relation("WholesaleBuyer", fields: [buyerUserId], references: [userId])
+  buyer User                 @relation("WholesaleBuyer", fields: [buyerUserId], references: [userId])
   items WholesaleOrderItem[]
 }
 
 model WholesaleOrderItem {
-  id               String         @id @default(cuid())
+  id               String @id @default(cuid())
   wholesaleOrderId String
   serviceId        String
   qty              Int
-  unitPrice        Float          // service.price snapshot at order time (BASE)
-  unitListPrice    Float?         // service.listPrice snapshot (reference only)
-  discountRate     Float          // 0.35 | 0.40 | 0.45
-  discountedPrice  Float          // unitPrice * (1 - discountRate)
-  subtotal         Float          // discountedPrice * qty
+  unitPrice        Float // service.price snapshot at order time (BASE)
+  unitListPrice    Float? // service.listPrice snapshot (reference only)
+  discountRate     Float // 0.35 | 0.40 | 0.45
+  discountedPrice  Float // unitPrice * (1 - discountRate)
+  subtotal         Float // discountedPrice * qty
 
   wholesaleOrder WholesaleOrder @relation(fields: [wholesaleOrderId], references: [id])
   service        Service        @relation("WholesaleItems", fields: [serviceId], references: [id])
@@ -382,22 +386,22 @@ model WholesaleOrderItem {
 model RankHistory {
   id          String   @id @default(cuid())
   userId      String
-  fromRank    String?  // null if first time achieving rank
+  fromRank    String? // null if first time achieving rank
   toRank      String
   fromStatus  String?
   toStatus    String
-  reason      String   // AUTO_MACHINE_PURCHASE | AUTO_SPOINT_THRESHOLD | ADMIN_MANUAL_APPROVE | ADMIN_REVOKE
-  triggeredBy String?  // admin userId or SYSTEM
-  metadata    String?  // JSON snapshot: machinesBoughtAtTime, sPointsAtTime, approvalNote, revokeReason
+  reason      String // AUTO_MACHINE_PURCHASE | AUTO_SPOINT_THRESHOLD | ADMIN_MANUAL_APPROVE | ADMIN_REVOKE
+  triggeredBy String? // admin userId or SYSTEM
+  metadata    String? // JSON snapshot: machinesBoughtAtTime, sPointsAtTime, approvalNote, revokeReason
   createdAt   DateTime @default(now())
 
   user User @relation(fields: [userId], references: [userId])
 
   // Phase 3.1: NPP Purchase trigger
-  nppPurchaseId       String?
-  effectiveFrom       DateTime        @default(now())
-  effectiveTo         DateTime?
-  nppPurchase         NppPurchase?    @relation("PurchaseRankHistory", fields: [nppPurchaseId], references: [id])
+  nppPurchaseId String?
+  effectiveFrom DateTime     @default(now())
+  effectiveTo   DateTime?
+  nppPurchase   NppPurchase? @relation("PurchaseRankHistory", fields: [nppPurchaseId], references: [id])
 
   @@index([userId, effectiveFrom])
 }
@@ -411,8 +415,8 @@ model CommissionProcessing {
   policyVersion String   @default("1.0.0")
 
   // Period Lifecycle
-  periodId        String?
-  policySetVersion String?  // e.g. "09/2026-v2"
+  periodId         String?
+  policySetVersion String? // e.g. "09/2026-v2"
 
   order  Order             @relation(fields: [orderId], references: [id])
   period CommissionPeriod? @relation(fields: [periodId], references: [id])
@@ -431,54 +435,54 @@ model SystemPolicyConfig {
   value       String
   description String?
   version     String   @default("1.0.0")
-  updatedBy   String?  // User ID or ADMIN who updated the policy
+  updatedBy   String? // User ID or ADMIN who updated the policy
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  auditLogs   SystemPolicyAuditLog[]
+  auditLogs SystemPolicyAuditLog[]
 }
 
 // Phase 2C ? Migration 2C-4: System Policy Audit History (FINAL SPEC v3.6 ? IX.3)
 model SystemPolicyAuditLog {
-  id          String   @id @default(cuid())
-  policyId    String
-  key         String
-  oldValue    String?
-  newValue    String
-  version     String
-  updatedBy   String?
-  createdAt   DateTime @default(now())
+  id        String   @id @default(cuid())
+  policyId  String
+  key       String
+  oldValue  String?
+  newValue  String
+  version   String
+  updatedBy String?
+  createdAt DateTime @default(now())
 
-  policy      SystemPolicyConfig @relation(fields: [policyId], references: [id])
-  reason      String?
+  policy SystemPolicyConfig @relation(fields: [policyId], references: [id])
+  reason String?
 }
 
 // Phase 2C ? Migration 2C-5: Product/Service Commission Points Audit History (FINAL SPEC v3.6)
 model CommissionPointAuditLog {
-  id         String   @id @default(cuid())
-  itemType   String   // 'PRODUCT' | 'SERVICE'
-  itemId     String
-  itemName   String?
-  oldValue   Int?
-  newValue   Int
-  actor      String?  // userId or email
-  reason     String?
-  createdAt  DateTime @default(now())
+  id        String   @id @default(cuid())
+  itemType  String // 'PRODUCT' | 'SERVICE'
+  itemId    String
+  itemName  String?
+  oldValue  Int?
+  newValue  Int
+  actor     String? // userId or email
+  reason    String?
+  createdAt DateTime @default(now())
 }
 
 // ─── Period Lifecycle ───────────────────────────────────────────────────────
 
 // Period Lifecycle: Kỳ hoa hồng
 model CommissionPeriod {
-  id          String   @id @default(cuid())
-  periodName  String   // e.g. "09/2026", "10/2026"
-  startAt     DateTime
-  endAt       DateTime
-  status      String   @default("OPEN") // OPEN | CLOSED
-  createdAt   DateTime @default(now())
-  createdBy   String   // userId admin
-  closedAt    DateTime?
-  closedBy    String?  // userId admin
+  id         String    @id @default(cuid())
+  periodName String // e.g. "09/2026", "10/2026"
+  startAt    DateTime
+  endAt      DateTime
+  status     String    @default("OPEN") // OPEN | CLOSED
+  createdAt  DateTime  @default(now())
+  createdBy  String // userId admin
+  closedAt   DateTime?
+  closedBy   String? // userId admin
 
   policies             PeriodPolicyConfig[]
   orders               Order[]
@@ -487,7 +491,7 @@ model CommissionPeriod {
   closeAudit           PeriodCloseAudit?
 
   // Phase 3.1: NPP Commission relation
-  nppCommissions      NppCommission[] @relation("PeriodNppCommissions")
+  nppCommissions NppCommission[] @relation("PeriodNppCommissions")
 }
 
 // Period Lifecycle: Policy gắn theo kỳ
@@ -495,15 +499,15 @@ model PeriodPolicyConfig {
   id            String   @id @default(cuid())
   periodId      String
   key           String
-  value         String   // rate 0.00-1.00 | integer (THRESHOLD) | "NOT_CONFIGURED"
+  value         String // rate 0.00-1.00 | integer (THRESHOLD) | "NOT_CONFIGURED"
   description   String?
-  version       String   // e.g. "09/2026-v1", "09/2026-v2"
+  version       String // e.g. "09/2026-v1", "09/2026-v2"
   updatedBy     String?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
   effectiveFrom DateTime @default(now())
 
-  period    CommissionPeriod     @relation(fields: [periodId], references: [id])
+  period    CommissionPeriod       @relation(fields: [periodId], references: [id])
   auditLogs PeriodPolicyAuditLog[]
 
   @@unique([periodId, key])
@@ -511,7 +515,7 @@ model PeriodPolicyConfig {
 
 // Period Lifecycle: Audit log thay đổi policy theo kỳ
 model PeriodPolicyAuditLog {
-  id            String   @id @default(cuid())
+  id            String    @id @default(cuid())
   policyId      String
   periodId      String
   key           String
@@ -519,7 +523,7 @@ model PeriodPolicyAuditLog {
   newValue      String
   version       String
   updatedBy     String?
-  updatedAt     DateTime @default(now())
+  updatedAt     DateTime  @default(now())
   reason        String?
   effectiveFrom DateTime?
 
@@ -538,11 +542,10 @@ model PeriodCloseAudit {
   totalCommissions  Int      @default(0)
   totalEarnedPoints Int      @default(0)
   totalEarnedMoney  Int      @default(0)
-  metadata          String?  // JSON
+  metadata          String? // JSON
 
   period CommissionPeriod @relation(fields: [periodId], references: [id])
 }
-
 
 model Lead {
   id           String   @id @default(cuid())
@@ -552,7 +555,7 @@ model Lead {
   message      String?
   address      String?
   productName  String?
-  status       String   @default("new")  // new, contacted, completed, cancelled
+  status       String   @default("new") // new, contacted, completed, cancelled
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 }
@@ -561,31 +564,37 @@ model Lead {
 
 // NPP Package Definition (Admin-managed catalog)
 model NppPackage {
-  id              String           @id @default(cuid())
-  code            String           @unique
+  id              String  @id @default(cuid())
+  code            String  @unique
   name            String
   description     String?
-  grossPrice      BigInt
-  defaultDiscount Int              @default(0)
-  assignedRank    String           @default("AMBASSADOR")
-  isActive        Boolean          @default(true)
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
+  grossPrice      BigInt? // CAPITAL: required, PRODUCT_COMBO: null
+  defaultDiscount Int     @default(0)
+  assignedRank    String  @default("AMBASSADOR")
+  isActive        Boolean @default(true)
 
-  items           NppPackageItem[]
-  purchases       NppPurchase[]
+  // Phase 3.2.1: Package Type
+  packageType      String   @default("PRODUCT_COMBO") // CAPITAL | PRODUCT_COMBO
+  requiredQuantity Int? // PRODUCT_COMBO: required qty. CAPITAL: null
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  items         NppPackageItem[]
+  purchases     NppPurchase[]
+  registrations NppRegistration[]
+  activations   NppActivation[]   @relation("ActivationPackage")
 }
 
 // NPP Package Components
 model NppPackageItem {
-  id          String     @id @default(cuid())
-  packageId   String
-  productId   String
-  quantity    Int        @default(1)
-  note        String?
+  id        String  @id @default(cuid())
+  packageId String
+  productId String
+  quantity  Int     @default(1)
+  note      String?
 
-  package     NppPackage @relation(fields: [packageId], references: [id], onDelete: Cascade)
-  product     Product    @relation(fields: [productId], references: [id])
+  package NppPackage @relation(fields: [packageId], references: [id], onDelete: Cascade)
+  product Product    @relation(fields: [productId], references: [id])
 
   @@unique([packageId, productId])
   @@index([packageId])
@@ -594,48 +603,48 @@ model NppPackageItem {
 
 // NPP Purchase Transaction (NO Customer dependency)
 model NppPurchase {
-  id                    String          @id @default(cuid())
-  code                  String          @unique
-  userId                String
-  userCode              String
-  packageId             String
+  id        String @id @default(cuid())
+  code      String @unique
+  userId    String
+  userCode  String
+  packageId String
 
-  grossPrice            BigInt
-  discountRateBps       Int             @default(0)
-  discountAmount        BigInt          @default(0)
-  netPayableAmount      BigInt
-  depositAmount         BigInt          @default(0)
-  paidAmount            BigInt          @default(0)
-  remainingAmount       BigInt          @default(0)
-  actualPaidAmount      BigInt
+  grossPrice       BigInt
+  discountRateBps  Int    @default(0)
+  discountAmount   BigInt @default(0)
+  netPayableAmount BigInt
+  depositAmount    BigInt @default(0)
+  paidAmount       BigInt @default(0)
+  remainingAmount  BigInt @default(0)
+  actualPaidAmount BigInt
 
   depositAt             DateTime?
   depositNote           String?
-  isPaidInFull          Boolean         @default(false)
+  isPaidInFull          Boolean   @default(false)
   paidInFullAt          DateTime?
   paidInFullConfirmedBy String?
 
-  status                String          @default("NEW")
-  settlementStatus      String          @default("PENDING")
+  status           String @default("NEW")
+  settlementStatus String @default("PENDING")
 
-  activatedAt           DateTime?
-  assignedRank          String
-  allocatedBusinessId   String?
+  activatedAt         DateTime?
+  assignedRank        String
+  allocatedBusinessId String?
 
-  packageSnapshot       String
+  packageSnapshot String
 
-  shippingAddress       String?
-  recipientPhone        String?
-  recipientName         String?
+  shippingAddress String?
+  recipientPhone  String?
+  recipientName   String?
 
-  createdAt             DateTime        @default(now())
-  updatedAt             DateTime        @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  user                  User            @relation("UserNppPurchases", fields: [userId], references: [id])
-  package               NppPackage      @relation(fields: [packageId], references: [id])
-  commissions           NppCommission[]
-  rankHistories         RankHistory[]   @relation("PurchaseRankHistory")
-  payments              NppPayment[]
+  user          User            @relation("UserNppPurchases", fields: [userId], references: [id])
+  package       NppPackage      @relation(fields: [packageId], references: [id])
+  commissions   NppCommission[]
+  rankHistories RankHistory[]   @relation("PurchaseRankHistory")
+  payments      NppPayment[]
 
   @@index([userId])
   @@index([packageId])
@@ -646,51 +655,94 @@ model NppPurchase {
 
 // NPP Payment Ledger (audit trail)
 model NppPayment {
-  id              String      @id @default(cuid())
-  purchaseId      String
-  amount          BigInt
-  paymentMethod   String      @default("BANK_TRANSFER")
-  referenceCode   String?
-  note            String?
-  confirmedBy     String
-  paidAt          DateTime    @default(now())
-  createdAt       DateTime    @default(now())
+  id            String   @id @default(cuid())
+  purchaseId    String
+  amount        BigInt
+  paymentMethod String   @default("BANK_TRANSFER")
+  referenceCode String?
+  note          String?
+  confirmedBy   String
+  paidAt        DateTime @default(now())
+  createdAt     DateTime @default(now())
 
-  purchase        NppPurchase @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+  purchase NppPurchase @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
 
   @@index([purchaseId])
 }
 
 // NPP Commission (F1=10%, F2=5% — separate from CTV retail engine)
 model NppCommission {
-  id                String            @id @default(cuid())
+  id                String @id @default(cuid())
   purchaseId        String
   beneficiaryId     String
   beneficiaryUserId String
   level             Int
   rateBps           Int
 
-  commissionBase    BigInt
-  earnedMoney       BigInt
-  earnedPoints      Int
+  commissionBase BigInt
+  earnedMoney    BigInt
+  earnedPoints   Int
 
-  rankAtCommission  String
-  policyVersion     String            @default("NPP-v1.0")
-  status            String            @default("PENDING_CLEARING")
+  rankAtCommission String
+  policyVersion    String @default("NPP-v1.0")
+  status           String @default("PENDING_CLEARING")
 
-  createdAt         DateTime          @default(now())
-  settledAt         DateTime?
-  availableAt       DateTime?
-  paidAt            DateTime?
+  createdAt   DateTime  @default(now())
+  settledAt   DateTime?
+  availableAt DateTime?
+  paidAt      DateTime?
 
-  periodId          String?
+  periodId String?
 
-  purchase          NppPurchase       @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
-  beneficiary       User              @relation("UserNppCommissions", fields: [beneficiaryId], references: [id])
-  period            CommissionPeriod? @relation("PeriodNppCommissions", fields: [periodId], references: [id])
+  purchase    NppPurchase       @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+  beneficiary User              @relation("UserNppCommissions", fields: [beneficiaryId], references: [id])
+  period      CommissionPeriod? @relation("PeriodNppCommissions", fields: [periodId], references: [id])
 
   @@unique([purchaseId, level])
   @@index([beneficiaryId])
   @@index([status])
   @@index([periodId])
+}
+
+// ─── Phase 3.2.1: NPP Registration (intent, NOT activation) ───────────────
+model NppRegistration {
+  id           String   @id @default(cuid())
+  userId       String
+  packageId    String
+  status       String   @default("PENDING")
+  // PENDING | APPROVED | CANCELLED | REPLACED | CONVERTED
+  note         String?
+  cancelReason String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user    User       @relation("UserNppRegistrations", fields: [userId], references: [id])
+  package NppPackage @relation(fields: [packageId], references: [id])
+
+  @@index([userId])
+  @@index([packageId])
+  @@index([status])
+}
+
+// ─── Phase 3.2.1: NPP Activation audit trail ──────────────────────────────
+model NppActivation {
+  id            String   @id @default(cuid())
+  userId        String
+  source        String // PURCHASE | ADMIN_GRANT
+  packageId     String?
+  purchaseId    String?
+  assignedRank  String // AMBASSADOR | MANAGER | DIRECTOR
+  previousRank  String? // Rank before this activation
+  allocatedBid  String? // BID allocated in this activation (null if already had)
+  activatedBy   String // Admin userId or "SYSTEM"
+  reason        String? // Required for ADMIN_GRANT
+  note          String?
+  paymentStatus String? // PAID | PARTIAL | UNPAID
+  createdAt     DateTime @default(now())
+
+  user    User        @relation("UserNppActivations", fields: [userId], references: [id])
+  package NppPackage? @relation("ActivationPackage", fields: [packageId], references: [id])
+
+  @@index([userId])
+  @@index([source])
 }

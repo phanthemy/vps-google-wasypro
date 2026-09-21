@@ -24,6 +24,7 @@ import AdminPolicyConfig from './components/admin/AdminPolicyConfig';
 import AdminSystemView from './components/admin/AdminSystemView';
 import AdminPeriods from './components/admin/AdminPeriods';
 import AdminNppPackages from './components/admin/AdminNppPackages';
+import AdminNppManagement from './components/admin/AdminNppManagement';
 import AdminPeriodDetail from './components/admin/AdminPeriodDetail';
 import AdminCTVManagement from './components/admin/AdminCTVManagement';
 import AdminMembersView from './components/admin/AdminMembersView';
@@ -290,6 +291,7 @@ export const App: React.FC = () => {
             )}
             {adminActiveTab === 'policy' && <AdminPolicyConfig />}
             {adminActiveTab === 'npp-packages' && <AdminNppPackages />}
+            {adminActiveTab === 'npp-management' && <AdminNppManagement />}
             {adminActiveTab === 'system' && <AdminSystemView />}
           </main>
         </div>
