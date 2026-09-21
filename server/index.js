@@ -6149,6 +6149,26 @@ app.delete('/api/admin/npp/packages/:id', authenticateToken, requireRole(['admin
 
 // ─── Phase 3.2.1: NPP Registration + Activation Foundation ──────────────────
 
+
+// GET /api/npp/packages/available-public — Public endpoint for registration form (no auth required)
+app.get('/api/npp/packages/available-public', async (req, res) => {
+  try {
+    const packages = await prisma.nppPackage.findMany({
+      where: { isActive: true },
+      select: {
+        id: true, code: true, name: true, description: true,
+        grossPrice: true, defaultDiscount: true, assignedRank: true,
+        packageType: true, requiredQuantity: true,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    res.json({ success: true, data: packages.map(p => serializeBigInt(p)) });
+  } catch (e) {
+    console.error('GET /api/npp/packages/available-public error:', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // GET /api/npp/packages/available — User-facing active packages
 app.get('/api/npp/packages/available', authenticateToken, async (req, res) => {
   try {
