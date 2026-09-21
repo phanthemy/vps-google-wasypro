@@ -5744,6 +5744,412 @@ app.calculateAndCreateCommissions = calculateAndCreateCommissions;
 app.processOrderPointsAndActivation = processOrderPointsAndActivation;
 app.normalizeRankPrefix = normalizeRankPrefix;
 
+// ─── Phase 3.2: NPP Package Admin CRUD APIs ─────────────────────────────────
+
+// BigInt safe serializer for API responses (NO global prototype mutation)
+function serializeBigInt(obj) {
+  if (obj === null || obj === undefined) return obj;
+  if (typeof obj === 'bigint') {
+    // Safe range check: Number.MAX_SAFE_INTEGER = 9007199254740991
+    if (obj >= -9007199254740991n && obj <= 9007199254740991n) {
+      return Number(obj);
+    }
+    return obj.toString();
+  }
+  if (Array.isArray(obj)) {
+    return obj.map(serializeBigInt);
+  }
+  if (typeof obj === 'object' && obj instanceof Date) {
+    return obj;
+  }
+  if (typeof obj === 'object') {
+    const result = {};
+    for (const [key, value] of Object.entries(obj)) {
+      result[key] = serializeBigInt(value);
+    }
+    return result;
+  }
+  return obj;
+}
+
+// Valid rank enums for NPP packages
+const NPP_VALID_RANKS = ['AMBASSADOR', 'MANAGER', 'DIRECTOR'];
+
+// ── GET /api/admin/npp/packages — List all packages ──────────────────────────
+app.get('/api/admin/npp/packages', authenticateToken, requireRole(['admin']), async (req, res) => {
+  try {
+    const packages = await prisma.nppPackage.findMany({
+      include: {
+        items: {
+          include: {
+            product: { select: { id: true, slug: true, title: true, price: true, image: true } }
+          }
+        },
+        _count: { select: { purchases: true } }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+    res.json({ success: true, data: serializeBigInt(packages) });
+  } catch (error) {
+    console.error('Error listing NPP packages:', error);
+    res.status(500).json({ error: 'Lỗi server' });
+  }
+});
+
+// ── GET /api/admin/npp/packages/:id — Package detail ─────────────────────────
+app.get('/api/admin/npp/packages/:id', authenticateToken, requireRole(['admin']), async (req, res) => {
+  try {
+    const pkg = await prisma.nppPackage.findUnique({
+      where: { id: req.params.id },
+      include: {
+        items: {
+          include: {
+            product: { select: { id: true, slug: true, title: true, price: true, image: true, stock: true } }
+          }
+        },
+        _count: { select: { purchases: true } }
+      }
+    });
+    if (!pkg) {
+      return res.status(404).json({ error: 'Không tìm thấy gói NPP' });
+    }
+    res.json({ success: true, data: serializeBigInt(pkg) });
+  } catch (error) {
+    console.error('Error getting NPP package:', error);
+    res.status(500).json({ error: 'Lỗi server' });
+  }
+});
+
+// ── POST /api/admin/npp/packages — Create package ────────────────────────────
+app.post('/api/admin/npp/packages', authenticateToken, requireRole(['admin']), async (req, res) => {
+  try {
+    const { code, name, description, grossPrice, defaultDiscount, assignedRank, isActive, items } = req.body;
+
+    // --- Validate required fields ---
+    if (!code || !code.trim()) {
+      return res.status(400).json({ error: 'Mã gói (code) là bắt buộc' });
+    }
+    if (!name || !name.trim()) {
+      return res.status(400).json({ error: 'Tên gói (name) là bắt buộc' });
+    }
+
+    // --- Validate grossPrice ---
+    if (grossPrice === undefined || grossPrice === null) {
+      return res.status(400).json({ error: 'Giá niêm yết (grossPrice) là bắt buộc' });
+    }
+    let grossPriceBigInt;
+    try {
+      grossPriceBigInt = BigInt(grossPrice);
+    } catch (e) {
+      return res.status(400).json({ error: 'grossPrice phải là số nguyên hợp lệ' });
+    }
+    if (grossPriceBigInt <= 0n) {
+      return res.status(400).json({ error: 'grossPrice phải lớn hơn 0' });
+    }
+
+    // --- Validate defaultDiscount ---
+    const discount = defaultDiscount !== undefined ? Number(defaultDiscount) : 0;
+    if (!Number.isInteger(discount) || discount < 0 || discount > 10000) {
+      return res.status(400).json({ error: 'defaultDiscount phải từ 0 đến 10000 (basis points)' });
+    }
+
+    // --- Validate assignedRank ---
+    const rank = assignedRank || 'AMBASSADOR';
+    if (!NPP_VALID_RANKS.includes(rank)) {
+      return res.status(400).json({ error: `assignedRank phải là một trong: ${NPP_VALID_RANKS.join(', ')}` });
+    }
+
+    // --- Validate items ---
+    if (!items || !Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ error: 'Gói phải chứa ít nhất 1 sản phẩm (items)' });
+    }
+
+    // Check duplicate products in items
+    const productIds = items.map(i => i.productId);
+    const uniqueProductIds = new Set(productIds);
+    if (uniqueProductIds.size !== productIds.length) {
+      return res.status(400).json({ error: 'Không được có sản phẩm trùng lặp trong gói' });
+    }
+
+    // Validate each item
+    for (const item of items) {
+      if (!item.productId) {
+        return res.status(400).json({ error: 'Mỗi item phải có productId' });
+      }
+      const qty = item.quantity !== undefined ? Number(item.quantity) : 1;
+      if (!Number.isInteger(qty) || qty < 1) {
+        return res.status(400).json({ error: `Số lượng sản phẩm phải >= 1 (productId: ${item.productId})` });
+      }
+    }
+
+    // --- Check code uniqueness ---
+    const existingCode = await prisma.nppPackage.findUnique({ where: { code: code.trim() } });
+    if (existingCode) {
+      return res.status(400).json({ error: 'Mã gói đã tồn tại' });
+    }
+
+    // --- Verify all products exist ---
+    const products = await prisma.product.findMany({
+      where: { id: { in: Array.from(uniqueProductIds) } },
+      select: { id: true }
+    });
+    const foundProductIds = new Set(products.map(p => p.id));
+    for (const pid of uniqueProductIds) {
+      if (!foundProductIds.has(pid)) {
+        return res.status(400).json({ error: `Sản phẩm không tồn tại: ${pid}` });
+      }
+    }
+
+    // --- Create package with items in a transaction ---
+    const result = await prisma.nppPackage.create({
+      data: {
+        code: code.trim(),
+        name: name.trim(),
+        description: description || null,
+        grossPrice: grossPriceBigInt,
+        defaultDiscount: discount,
+        assignedRank: rank,
+        isActive: isActive !== undefined ? Boolean(isActive) : true,
+        items: {
+          create: items.map(item => ({
+            productId: item.productId,
+            quantity: item.quantity !== undefined ? Number(item.quantity) : 1,
+            note: item.note || null
+          }))
+        }
+      },
+      include: {
+        items: {
+          include: {
+            product: { select: { id: true, slug: true, title: true, price: true, image: true } }
+          }
+        }
+      }
+    });
+
+    res.json({ success: true, message: 'Tạo gói NPP thành công', data: serializeBigInt(result) });
+  } catch (error) {
+    console.error('Error creating NPP package:', error);
+    res.status(500).json({ error: 'Lỗi server' });
+  }
+});
+
+// ── PUT /api/admin/npp/packages/:id — Update package ─────────────────────────
+app.put('/api/admin/npp/packages/:id', authenticateToken, requireRole(['admin']), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { code, name, description, grossPrice, defaultDiscount, assignedRank, isActive, items } = req.body;
+
+    // --- Verify package exists ---
+    const existing = await prisma.nppPackage.findUnique({
+      where: { id },
+      include: { _count: { select: { purchases: true } } }
+    });
+    if (!existing) {
+      return res.status(404).json({ error: 'Không tìm thấy gói NPP' });
+    }
+
+    // --- Build update data ---
+    const updateData = {};
+
+    if (code !== undefined) {
+      if (!code.trim()) {
+        return res.status(400).json({ error: 'Mã gói (code) không được rỗng' });
+      }
+      if (code.trim() !== existing.code) {
+        const dup = await prisma.nppPackage.findUnique({ where: { code: code.trim() } });
+        if (dup) {
+          return res.status(400).json({ error: 'Mã gói đã tồn tại' });
+        }
+      }
+      updateData.code = code.trim();
+    }
+
+    if (name !== undefined) {
+      if (!name.trim()) {
+        return res.status(400).json({ error: 'Tên gói (name) không được rỗng' });
+      }
+      updateData.name = name.trim();
+    }
+
+    if (description !== undefined) {
+      updateData.description = description || null;
+    }
+
+    if (grossPrice !== undefined) {
+      let gpBigInt;
+      try {
+        gpBigInt = BigInt(grossPrice);
+      } catch (e) {
+        return res.status(400).json({ error: 'grossPrice phải là số nguyên hợp lệ' });
+      }
+      if (gpBigInt <= 0n) {
+        return res.status(400).json({ error: 'grossPrice phải lớn hơn 0' });
+      }
+      updateData.grossPrice = gpBigInt;
+    }
+
+    if (defaultDiscount !== undefined) {
+      const disc = Number(defaultDiscount);
+      if (!Number.isInteger(disc) || disc < 0 || disc > 10000) {
+        return res.status(400).json({ error: 'defaultDiscount phải từ 0 đến 10000 (basis points)' });
+      }
+      updateData.defaultDiscount = disc;
+    }
+
+    if (assignedRank !== undefined) {
+      if (!NPP_VALID_RANKS.includes(assignedRank)) {
+        return res.status(400).json({ error: `assignedRank phải là một trong: ${NPP_VALID_RANKS.join(', ')}` });
+      }
+      updateData.assignedRank = assignedRank;
+    }
+
+    if (isActive !== undefined) {
+      updateData.isActive = Boolean(isActive);
+    }
+
+    // --- Handle items replacement (atomic) ---
+    if (items !== undefined) {
+      if (!Array.isArray(items) || items.length === 0) {
+        return res.status(400).json({ error: 'Gói phải chứa ít nhất 1 sản phẩm (items)' });
+      }
+
+      // Check duplicate products
+      const productIds = items.map(i => i.productId);
+      const uniqueProductIds = new Set(productIds);
+      if (uniqueProductIds.size !== productIds.length) {
+        return res.status(400).json({ error: 'Không được có sản phẩm trùng lặp trong gói' });
+      }
+
+      // Validate each item
+      for (const item of items) {
+        if (!item.productId) {
+          return res.status(400).json({ error: 'Mỗi item phải có productId' });
+        }
+        const qty = item.quantity !== undefined ? Number(item.quantity) : 1;
+        if (!Number.isInteger(qty) || qty < 1) {
+          return res.status(400).json({ error: `Số lượng sản phẩm phải >= 1 (productId: ${item.productId})` });
+        }
+      }
+
+      // Verify all products exist
+      const products = await prisma.product.findMany({
+        where: { id: { in: Array.from(uniqueProductIds) } },
+        select: { id: true }
+      });
+      const foundProductIds = new Set(products.map(p => p.id));
+      for (const pid of uniqueProductIds) {
+        if (!foundProductIds.has(pid)) {
+          return res.status(400).json({ error: `Sản phẩm không tồn tại: ${pid}` });
+        }
+      }
+
+      // Atomic replacement: delete old items + create new items in transaction
+      await prisma.$transaction([
+        prisma.nppPackageItem.deleteMany({ where: { packageId: id } }),
+        ...items.map(item =>
+          prisma.nppPackageItem.create({
+            data: {
+              packageId: id,
+              productId: item.productId,
+              quantity: item.quantity !== undefined ? Number(item.quantity) : 1,
+              note: item.note || null
+            }
+          })
+        )
+      ]);
+    }
+
+    // --- Update package metadata ---
+    const updated = await prisma.nppPackage.update({
+      where: { id },
+      data: updateData,
+      include: {
+        items: {
+          include: {
+            product: { select: { id: true, slug: true, title: true, price: true, image: true } }
+          }
+        },
+        _count: { select: { purchases: true } }
+      }
+    });
+
+    res.json({ success: true, message: 'Cập nhật gói NPP thành công', data: serializeBigInt(updated) });
+  } catch (error) {
+    console.error('Error updating NPP package:', error);
+    res.status(500).json({ error: 'Lỗi server' });
+  }
+});
+
+// ── PATCH /api/admin/npp/packages/:id/status — Activate/Deactivate ───────────
+app.patch('/api/admin/npp/packages/:id/status', authenticateToken, requireRole(['admin']), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { isActive } = req.body;
+
+    if (isActive === undefined) {
+      return res.status(400).json({ error: 'isActive là bắt buộc' });
+    }
+
+    const existing = await prisma.nppPackage.findUnique({ where: { id } });
+    if (!existing) {
+      return res.status(404).json({ error: 'Không tìm thấy gói NPP' });
+    }
+
+    const updated = await prisma.nppPackage.update({
+      where: { id },
+      data: { isActive: Boolean(isActive) },
+      include: {
+        items: {
+          include: {
+            product: { select: { id: true, slug: true, title: true, price: true, image: true } }
+          }
+        }
+      }
+    });
+
+    const statusText = updated.isActive ? 'kích hoạt' : 'vô hiệu hóa';
+    res.json({ success: true, message: `Gói NPP đã được ${statusText}`, data: serializeBigInt(updated) });
+  } catch (error) {
+    console.error('Error updating NPP package status:', error);
+    res.status(500).json({ error: 'Lỗi server' });
+  }
+});
+
+// ── DELETE /api/admin/npp/packages/:id — Delete (only if zero purchases) ─────
+app.delete('/api/admin/npp/packages/:id', authenticateToken, requireRole(['admin']), async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const existing = await prisma.nppPackage.findUnique({
+      where: { id },
+      include: { _count: { select: { purchases: true } } }
+    });
+    if (!existing) {
+      return res.status(404).json({ error: 'Không tìm thấy gói NPP' });
+    }
+
+    if (existing._count.purchases > 0) {
+      return res.status(400).json({
+        error: `Không thể xóa gói NPP đã có ${existing._count.purchases} đơn hàng. Hãy vô hiệu hóa thay vì xóa.`
+      });
+    }
+
+    // Delete items first (cascade should handle, but explicit for safety)
+    await prisma.$transaction([
+      prisma.nppPackageItem.deleteMany({ where: { packageId: id } }),
+      prisma.nppPackage.delete({ where: { id } })
+    ]);
+
+    res.json({ success: true, message: 'Đã xóa gói NPP' });
+  } catch (error) {
+    console.error('Error deleting NPP package:', error);
+    res.status(500).json({ error: 'Lỗi server' });
+  }
+});
+
+// ─── End Phase 3.2 ───────────────────────────────────────────────────────────
+
 module.exports = app;
 module.exports.app = app;
 module.exports.executeOrderSettlement = executeOrderSettlement;
