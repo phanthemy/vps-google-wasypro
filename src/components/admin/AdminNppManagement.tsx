@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   Shield, Search, CheckCircle2, AlertCircle, X, Loader2,
-  UserPlus, Clock, FileText, ChevronDown,
+  UserPlus, Clock, FileText, ChevronDown, ShoppingCart
 } from 'lucide-react';
+import AdminNppPurchases from './AdminNppPurchases';
 
 function getCsrfToken(): string {
   if (typeof document === 'undefined') return '';
@@ -41,7 +42,7 @@ interface Activation {
   package: NppPackage | null;
 }
 
-type SubTab = 'registrations' | 'activations' | 'grant';
+type SubTab = 'registrations' | 'activations' | 'grant' | 'purchases';
 
 const AdminNppManagement: React.FC = () => {
   const [subTab, setSubTab] = useState<SubTab>('registrations');
@@ -181,6 +182,7 @@ const AdminNppManagement: React.FC = () => {
       <div className="flex gap-2 border-b border-slate-200 pb-0">
         {[
           { key: 'registrations' as SubTab, label: 'Đăng ký', icon: FileText, count: registrations.filter(r => r.status === 'PENDING').length },
+          { key: 'purchases' as SubTab, label: 'Đơn hàng', icon: ShoppingCart, count: 0 },
           { key: 'activations' as SubTab, label: 'Lịch sử kích hoạt', icon: Clock, count: activations.length },
           { key: 'grant' as SubTab, label: 'Cấp NPP', icon: UserPlus, count: 0 },
         ].map(tab => (
@@ -370,6 +372,9 @@ const AdminNppManagement: React.FC = () => {
             Xác nhận cấp NPP
           </button>
         </form>
+      )}
+      {subTab === 'purchases' && (
+        <AdminNppPurchases />
       )}
     </div>
   );
