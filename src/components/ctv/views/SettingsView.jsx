@@ -20,12 +20,12 @@ export default function SettingsView({ currentUser: initialUser }) {
   const currentUser = user || initialUser;
   if (!currentUser) return null;
 
-  const isParticipant = !!currentUser.isSystemParticipant || !!currentUser.isNpp || !!currentUser.hasNppRegistration;
+  const isParticipant = !!currentUser.isSystemParticipant || ['PENDING','APPROVED','PURCHASING','PAID','ACTIVE'].includes(currentUser.nppStatus);
   const qp = currentUser.qualifyingPoints || 0;
 
   const roleText = currentUser.role === 'admin' ? 'Quản Trị Viên'
     : currentUser.role === 'accountant' ? 'Kế Toán'
-    : currentUser.isNpp ? 'Nhà Phân Phối (NPP)' : currentUser.hasNppRegistration ? 'NPP - Chờ kích hoạt' : isParticipant ? 'Đối Tác CTV'
+    : ({ ACTIVE: 'Nhà Phân Phối (NPP)', PAID: 'NPP — Chờ Admin kích hoạt', PURCHASING: 'NPP — Đang mua gói', APPROVED: 'NPP — Đã duyệt', PENDING: 'NPP — Chờ duyệt' })[currentUser.nppStatus] || (false : isParticipant ? 'Đối Tác CTV'
     : 'Khách Hàng';
 
 function getCsrfToken() {
@@ -234,7 +234,7 @@ function getCsrfToken() {
                   {currentUser.businessId}
                 </span>
               ) : (
-                <span className="text-xs font-semibold text-amber-600 italic">{currentUser.hasNppRegistration ? "Chưa cấp (Mua gói NPP để nhận)" : "Chưa cấp (Cần đạt 5.000 CP)"}</span>
+                <span className="text-xs font-semibold text-amber-600 italic">{currentUser.nppStatus === "PAID" ? "Chờ Admin kích hoạt để nhận BID" : currentUser.nppStatus && currentUser.nppStatus !== "NONE" && currentUser.nppStatus !== "ACTIVE" ? "Chọn gói NPP và mua để nhận BID" : "Chưa cấp (Cần đạt 5.000 CP)"}</span>
               )}
             </div>
           </div>
@@ -242,10 +242,10 @@ function getCsrfToken() {
           {/* Qualifying Points */}
           <div className="bg-gray-50/80 border border-gray-200/60 rounded-xl p-3.5 flex flex-col justify-between">
             <div className="text-[11px] font-bold text-secondary uppercase tracking-wider mb-2 flex items-center gap-1.5">
-              <User size={14} className="text-blue-500" /> {currentUser.hasNppRegistration ? "Trạng thái NPP" : "Điểm Tích Lũy (CP)"}
+              <User size={14} className="text-blue-500" /> {currentUser.nppStatus && currentUser.nppStatus !== "NONE" ? "Trạng thái NPP" : "Điểm Tích Lũy (CP)"}
             </div>
             <div className="font-extrabold text-blue-600 text-sm">
-              {currentUser.hasNppRegistration ? <span className="text-emerald-600">Mua gói NPP để kích hoạt</span> : <>{qp.toLocaleString("vi-VN")} <span className="text-xs text-secondary font-normal">/ 5.000 CP</span></>}
+              {currentUser.nppStatus === "PAID" ? <span className="text-amber-600">Chờ Admin kích hoạt</span> : currentUser.nppStatus === "PURCHASING" ? <span className="text-blue-600">Đang thanh toán gói NPP</span> : currentUser.nppStatus === "APPROVED" ? <span className="text-emerald-600">Chọn gói NPP để mua</span> : currentUser.nppStatus === "PENDING" ? <span className="text-gray-600">Chờ duyệt đăng ký NPP</span> : <>{qp.toLocaleString("vi-VN")} <span className="text-xs text-secondary font-normal">/ 5.000 CP</span></>}
             </div>
           </div>
         </div>
@@ -275,7 +275,7 @@ function getCsrfToken() {
           <div className="flex items-start gap-3 p-3.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-800">
             <AlertCircle size={20} className="text-amber-600 shrink-0 mt-0.5" />
             <div>
-              <div className="font-bold text-sm text-amber-900">{currentUser.hasNppRegistration ? "NPP - Đang xử lý" : "Chưa tham gia hệ thống đối tác"}</div>
+              <div className="font-bold text-sm text-amber-900">{currentUser.nppStatus && currentUser.nppStatus !== "NONE" ? `NPP — ${currentUser.nppStatus}` : "Chưa tham gia hệ thống đối tác"}</div>
               <div className="text-xs text-amber-700 mt-0.5">
                 Vào tab <strong>Gói NPP</strong> để xem trạng thái đăng ký và mua gói NPP.
               </div>

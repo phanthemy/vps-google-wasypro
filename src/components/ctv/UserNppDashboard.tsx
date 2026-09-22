@@ -33,7 +33,7 @@ interface Payment { id: string; amount: string; paymentMethod: string; reference
 interface Purchase { id: string; code: string; status: string; grossPrice: string; discountRateBps: number; discountAmount: string; netPayableAmount: string; paidAmount: string; remainingAmount: string; isPaidInFull: boolean; items: PurchaseItem[]; payments: Payment[]; package?: any; createdAt: string; activatedAt?: string; }
 interface Registration { id: string; status: string; package?: any; createdAt: string; }
 
-interface Props { userId?: string; isNpp?: boolean; rank?: string | null; businessId?: string | null; }
+interface Props { userId?: string; nppStatus?: string; rank?: string | null; businessId?: string | null; }
 
 const UserNppDashboard: React.FC<Props> = ({ userId, isNpp, rank, businessId }) => {
   const [registration, setRegistration] = useState<Registration | null>(null);

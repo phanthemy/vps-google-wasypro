@@ -306,7 +306,7 @@ app.post('/api/auth/login', authLimiter, async (req, res) => {
 
     // Return user information without exposing token string in body
         // Check if user has NPP registration
-        const nppReg = await prisma.nppRegistration.findFirst({ 
+    const nppStatus = await computeNppStatus(user.userId, user.id, !!user.isNpp);
           where: { userId: user.id, status: { in: ['PENDING', 'APPROVED'] } } 
         });
     res.json({
@@ -327,7 +327,7 @@ app.post('/api/auth/login', authLimiter, async (req, res) => {
         rank: user.rank ?? null,
         rankStatus: user.rankStatus ?? null,
         isNpp: user.isNpp ?? false,
-        hasNppRegistration: !!nppReg,
+        nppStatus,
         avatarUrl: user.avatarUrl ?? null,
       }
     });
@@ -343,7 +343,7 @@ app.get('/api/auth/me', authenticateToken, async (req, res) => {
     const lookupId = req.user.userId || req.user.id;
     const user = await prisma.user.findFirst({ where: { OR: [{ userId: lookupId }, { id: lookupId }] } });
     if (!user) return res.status(404).json({ success: false, message: 'Người dùng không tồn tại.' });
-        const nppRegMe = await prisma.nppRegistration.findFirst({ where: { userId: user.id, status: { in: ['PENDING', 'APPROVED'] } } });
+    const nppStatusMe = await computeNppStatus(req.user.id, user.id, !!user.isNpp);
     res.json({
       success: true,
       data: {
@@ -361,7 +361,7 @@ app.get('/api/auth/me', authenticateToken, async (req, res) => {
         rank: user.rank ?? null,
         rankStatus: user.rankStatus ?? null,
         isNpp: user.isNpp ?? false,
-        hasNppRegistration: !!nppRegMe,
+        nppStatus: nppStatusMe,
         avatarUrl: user.avatarUrl ?? null,
       }
     });
@@ -580,8 +580,7 @@ app.post('/api/auth/register', authLimiter, async (req, res) => {
         participantAt: newUser.participantAt,
         businessId: null,
         rank: null,
-        hasNppRegistration: hasNppRegistration,
-        isNpp: false,
+        nppStatus: hasNppRegistration ? "PENDING" : "NONE",
       }
     });
   } catch (err) {
@@ -5818,6 +5817,31 @@ function serializeBigInt(obj) {
     return result;
   }
   return obj;
+}
+
+// Compute NPP lifecycle status for a user
+async function computeNppStatus(userId, userDbId, isNpp) {
+  if (isNpp) return 'ACTIVE';
+  // Check purchase first (more specific)
+  const purchase = await prisma.nppPurchase.findFirst({
+    where: { userId: userDbId, status: { notIn: ['CANCELLED'] } },
+    orderBy: { createdAt: 'desc' },
+  });
+  if (purchase) {
+    if (purchase.isPaidInFull && purchase.status !== 'COMPLETED') return 'PAID';
+    if (['NEW', 'DEPOSIT', 'CONFIRMED', 'SHIPPING'].includes(purchase.status)) return 'PURCHASING';
+  }
+  // Check registration
+  const reg = await prisma.nppRegistration.findFirst({
+    where: { userId: userDbId, status: { in: ['PENDING', 'APPROVED', 'CONVERTED'] } },
+    orderBy: { createdAt: 'desc' },
+  });
+  if (reg) {
+    if (reg.status === 'APPROVED') return 'APPROVED';
+    if (reg.status === 'PENDING') return 'PENDING';
+    if (reg.status === 'CONVERTED') return 'ACTIVE'; // converted = completed purchase
+  }
+  return 'NONE';
 }
 
 // Valid rank enums for NPP packages

@@ -95,7 +95,7 @@ export const CTVPortalContainer: React.FC<CTVPortalContainerProps> = ({
   const isAdminOrAccountant = isAdmin || isAccountant;
   
   // A user is considered a full partner if they joined the system or already have an official rank
-  const isParticipant = !!currentUser?.isSystemParticipant || !!(currentUser as any)?.isNpp || !!(currentUser as any)?.hasNppRegistration || 
+  const isParticipant = !!currentUser?.isSystemParticipant || ['PENDING','APPROVED','PURCHASING','PAID','ACTIVE'].includes((currentUser as any)?.nppStatus) || 
     ['AMBASSADOR', 'MANAGER', 'DIRECTOR', 'SALES_MANAGER', 'SALES_DIRECTOR'].includes(currentUser?.rank || '') ||
     isAdminOrAccountant;
 
@@ -124,7 +124,7 @@ export const CTVPortalContainer: React.FC<CTVPortalContainerProps> = ({
     ? 'Quản Trị' 
     : isAccountant 
     ? 'Kế Toán' 
-    : (currentUser as any)?.isNpp ? 'Nhà Phân Phối (NPP)' : (currentUser as any)?.hasNppRegistration ? 'NPP - Chờ kích hoạt' : isParticipant 
+    : ({ ACTIVE: 'Nhà Phân Phối (NPP)', PAID: 'NPP — Chờ kích hoạt', PURCHASING: 'NPP — Đang mua gói', APPROVED: 'NPP — Đã duyệt', PENDING: 'NPP — Chờ duyệt' } as any)[(currentUser as any)?.nppStatus] || (false : isParticipant 
     ? 'Đối Tác CTV' 
     : 'Khách Hàng';
 
@@ -389,7 +389,7 @@ export const CTVPortalContainer: React.FC<CTVPortalContainerProps> = ({
           {activeTab === 'npp' && (
             <UserNppDashboard
               userId={currentUser.id}
-              isNpp={(currentUser as any).isNpp}
+              nppStatus={(currentUser as any).nppStatus}
               rank={(currentUser as any).rank}
               businessId={(currentUser as any).businessId}
             />

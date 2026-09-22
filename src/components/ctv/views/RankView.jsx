@@ -194,7 +194,7 @@ export default function RankView({ currentUser }) {
 
 
   // ─── NPP User: Different rank logic ───
-  const isNppUser = currentUser?.isNpp || currentUser?.hasNppRegistration;
+  const isNppUser = currentUser?.nppStatus && currentUser.nppStatus !== 'NONE';
   if (isNppUser) {
     const rankLabels = { AMBASSADOR: 'Đại Sứ Thương Mại', MANAGER: 'Trưởng Nhóm', DIRECTOR: 'Quản Lý' };
     return (
@@ -335,7 +335,7 @@ export default function RankView({ currentUser }) {
           </div>
           <div className="mt-4 pt-3 border-t border-slate-100 text-[11px] text-slate-500 flex justify-between">
             <span>ID: <strong className="font-mono text-slate-800">{currentUser?.id || currentUser?.userId}</strong></span>
-            <span>Trạng thái: <strong className="text-emerald-600">{currentUser?.isSystemParticipant || currentUser?.isNpp || currentUser?.hasNppRegistration ? (currentUser?.isNpp ? 'Nhà Phân Phối (NPP)' : currentUser?.hasNppRegistration ? 'NPP - Chờ kích hoạt' : 'Đã kích hoạt CTV') : 'Khách hàng'}</strong></span>
+            <span>Trạng thái: <strong className="text-emerald-600">{currentUser?.isSystemParticipant || currentUser?.nppStatus && currentUser.nppStatus !== 'NONE' ? (currentUser?.isNpp ? 'Nhà Phân Phối (NPP)' : currentUser?.hasNppRegistration ? 'NPP - Chờ kích hoạt' : 'Đã kích hoạt CTV') : 'Khách hàng'}</strong></span>
           </div>
         </div>
 

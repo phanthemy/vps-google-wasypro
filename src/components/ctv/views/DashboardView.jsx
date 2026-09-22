@@ -88,7 +88,7 @@ export default function DashboardView({ refreshKey, currentUser, setActiveTab })
 
   const userObj = { ...currentUser, ...personalStats, ...freshUser };
   const isAdmin = userObj.role === 'admin';
-  const isParticipant = !!userObj.isSystemParticipant || !!userObj.isNpp || !!userObj.hasNppRegistration || 
+  const isParticipant = !!userObj.isSystemParticipant || ['PENDING','APPROVED','PURCHASING','PAID','ACTIVE'].includes(userObj.nppStatus) || 
     ['AMBASSADOR', 'MANAGER', 'DIRECTOR', 'SALES_MANAGER', 'SALES_DIRECTOR'].includes(userObj.rank || '') ||
     userObj.role === 'admin' || userObj.role === 'accountant';
 
@@ -147,7 +147,7 @@ export default function DashboardView({ refreshKey, currentUser, setActiveTab })
   return (
     <div className="flex flex-col gap-6">
       {/* 1. NON-PARTICIPANT BANNER */}
-      {!isParticipant && !userObj.hasNppRegistration && (
+      {!isParticipant && !(['PENDING','APPROVED','PURCHASING','PAID','ACTIVE'].includes(userObj.nppStatus)) && (
         <div className="glass-panel p-6 border-2 border-primary/30 bg-primary/5 rounded-2xl text-center space-y-3">
           <div className="text-primary font-extrabold text-xl flex items-center justify-center gap-2">
             <Sparkles className="w-5 h-5 text-amber-400" />
@@ -170,7 +170,7 @@ export default function DashboardView({ refreshKey, currentUser, setActiveTab })
 
       {/* 2. PROMOTION PROGRESS (Ambassador / Manager / Director) */}
       <div>
-        {!userObj.hasNppRegistration && <AmbassadorProgressCard userId={currentUser.id} />}
+        {!(['PENDING','APPROVED','PURCHASING','PAID','ACTIVE'].includes(userObj.nppStatus)) && <AmbassadorProgressCard userId={currentUser.id} />}
       </div>
 
       {/* 3. KEY METRICS GRID */}
