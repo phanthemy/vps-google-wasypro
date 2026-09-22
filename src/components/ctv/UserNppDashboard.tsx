@@ -35,7 +35,7 @@ interface Registration { id: string; status: string; package?: any; createdAt: s
 
 interface Props { userId?: string; nppStatus?: string; rank?: string | null; businessId?: string | null; }
 
-const UserNppDashboard: React.FC<Props> = ({ userId, isNpp, rank, businessId }) => {
+const UserNppDashboard: React.FC<Props> = ({ userId, nppStatus, rank, businessId }) => {
   const [registration, setRegistration] = useState<Registration | null>(null);
   const [purchases, setPurchases] = useState<Purchase[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
@@ -128,10 +128,10 @@ const UserNppDashboard: React.FC<Props> = ({ userId, isNpp, rank, businessId }) 
           <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center"><Package className="w-5 h-5" /></div>
           <div>
             <h2 className="text-lg font-bold">Nhà Phân Phối (NPP)</h2>
-            <p className="text-xs text-white/80">{isNpp ? `${RANK_LABELS[rank || ''] || rank} · BID: ${businessId || '—'}` : 'Đăng ký và mua gói NPP'}</p>
+            <p className="text-xs text-white/80">{nppStatus === 'ACTIVE' ? `${RANK_LABELS[rank || ''] || rank} · BID: ${businessId || '—'}` : 'Đăng ký và mua gói NPP'}</p>
           </div>
         </div>
-        {isNpp && <div className="mt-3 flex items-center gap-2 bg-white/15 rounded-lg px-3 py-2 text-xs"><Star className="w-4 h-4" /> NPP đã kích hoạt thành công</div>}
+        {nppStatus === 'ACTIVE' && <div className="mt-3 flex items-center gap-2 bg-white/15 rounded-lg px-3 py-2 text-xs"><Star className="w-4 h-4" /> NPP đã kích hoạt thành công</div>}
       </div>
 
       {error && <div className="flex items-center gap-2 text-xs text-red-600 bg-red-50 p-3 rounded-xl border border-red-200"><AlertCircle className="w-4 h-4 flex-shrink-0" />{error}</div>}
@@ -214,7 +214,7 @@ const UserNppDashboard: React.FC<Props> = ({ userId, isNpp, rank, businessId }) 
       )}
 
       {/* No registration yet */}
-      {!registration && !isNpp && (
+      {!registration && nppStatus !== 'ACTIVE' && (
         <div className="bg-white rounded-xl border border-gray-200 p-6 text-center">
           <Package className="w-10 h-10 mx-auto text-gray-300 mb-3" />
           <p className="text-sm text-gray-600 font-semibold">Bạn chưa đăng ký NPP</p>
