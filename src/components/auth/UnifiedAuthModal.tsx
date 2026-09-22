@@ -73,9 +73,9 @@ export const UnifiedAuthModal: React.FC<UnifiedAuthModalProps> = ({
     try {
       const res = await fetch('/api/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ phone: loginPhone, password: loginPassword }), credentials: 'include' });
       const data = await res.json();
-      if (data.success && data.user) {
+      if (data.success && data.data) {
         // If NPP was selected during register-then-login, handle NPP registration after login
-        onSuccess(data.user);
+        onSuccess(data.data);
       } else { setError(data.message || 'Đăng nhập thất bại.'); }
     } catch { setError('Lỗi kết nối.'); }
     setLoading(false);
@@ -94,8 +94,8 @@ export const UnifiedAuthModal: React.FC<UnifiedAuthModalProps> = ({
       const data = await res.json();
       if (data.success) {
         // If NPP selected, register NPP after account creation + auto-login
-        if (regType === 'npp' && data.user) {
-          onSuccess(data.user);
+        if (regType === 'npp' && data.data) {
+          onSuccess(data.data);
           // NPP registration via API
           try {
             const csrf = document.cookie.match(/csrf_token=([^;]*)/)?.[1] || '';
@@ -108,7 +108,7 @@ export const UnifiedAuthModal: React.FC<UnifiedAuthModalProps> = ({
           } catch {}
           return;
         }
-        if (data.user) { onSuccess(data.user); }
+        if (data.data) { onSuccess(data.data); }
         else { setSuccessMsg('Đăng ký thành công! Mật khẩu mặc định: 123456'); switchTab('login'); }
       } else { setError(data.message || 'Đăng ký thất bại.'); }
     } catch { setError('Lỗi kết nối.'); }
