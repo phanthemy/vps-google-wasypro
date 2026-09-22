@@ -54,6 +54,9 @@ const UserNppDashboard: React.FC<Props> = ({ userId, nppStatus, rank, businessId
 
   // Expanded purchase
   const [expandedPurchase, setExpandedPurchase] = useState<string | null>(null);
+  const [registering, setRegistering] = useState(false);
+  const [regError, setRegError] = useState('');
+  const [regSuccess, setRegSuccess] = useState('');
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -113,6 +116,34 @@ const UserNppDashboard: React.FC<Props> = ({ userId, nppStatus, rank, businessId
       } else { setError(data.message || 'Lỗi tạo đơn mua.'); }
     } catch { setError('Lỗi kết nối.'); }
     setSubmitting(false);
+  };
+
+  const handleRegisterNpp = async () => {
+    setRegistering(true);
+    setRegError('');
+    setRegSuccess('');
+    try {
+      const res = await fetch('/api/npp/register', {
+        method: 'POST',
+        credentials: 'include',
+        headers: authHeaders({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify({}),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setRegSuccess(data.message || 'Đăng ký NPP thành công! Đang chờ xử lý.');
+        // Refresh registration data
+        const regRes = await fetch('/api/npp/my-registration', { credentials: 'include', headers: authHeaders() });
+        const regData = await regRes.json();
+        if (regData.success) setRegistration(regData.data.active || regData.data);
+      } else {
+        setRegError(data.error || data.message || 'Đăng ký thất bại');
+      }
+    } catch (e: any) {
+      setRegError(e.message || 'Lỗi kết nối');
+    } finally {
+      setRegistering(false);
+    }
   };
 
   if (loading) return (
@@ -216,12 +247,22 @@ const UserNppDashboard: React.FC<Props> = ({ userId, nppStatus, rank, businessId
         </div>
       )}
 
-      {/* No registration yet */}
+      {/* No registration — show register button */}
       {!registration && nppStatus !== 'ACTIVE' && (
         <div className="bg-white rounded-xl border border-gray-200 p-6 text-center">
-          <Package className="w-10 h-10 mx-auto text-gray-300 mb-3" />
-          <p className="text-sm text-gray-600 font-semibold">Bạn chưa đăng ký NPP</p>
-          <p className="text-xs text-gray-400 mt-1">Đăng ký NPP tại trang chủ khi tạo tài khoản.</p>
+          <Package className="w-10 h-10 mx-auto text-purple-400 mb-3" />
+          <p className="text-sm text-gray-800 font-semibold mb-1">Bạn chưa đăng ký Nhà Phân Phối (NPP)</p>
+          <p className="text-xs text-gray-500 mb-4">Đăng ký để trở thành đối tác NPP. Sau khi được duyệt, bạn có thể chọn gói sản phẩm.</p>
+          {regError && <p className="text-xs text-red-500 mb-2">{regError}</p>}
+          {regSuccess && <p className="text-xs text-emerald-600 mb-2">{regSuccess}</p>}
+          <button
+            onClick={handleRegisterNpp}
+            disabled={registering}
+            className="px-6 py-2.5 bg-purple-600 text-white text-sm font-bold rounded-lg hover:bg-purple-700 disabled:opacity-50 transition-all"
+          >
+            {registering ? 'Đang đăng ký...' : 'Đăng ký NPP'}
+          </button>
+          <p className="text-[10px] text-gray-400 mt-2">Chọn gói sản phẩm không bắt buộc — có thể chọn sau khi được duyệt.</p>
         </div>
       )}
 

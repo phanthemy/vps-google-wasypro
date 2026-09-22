@@ -6249,21 +6249,25 @@ app.get('/api/npp/packages/available', authenticateToken, async (req, res) => {
   }
 });
 
-// POST /api/npp/register — User registers NPP intent
+// POST /api/npp/register — User registers NPP intent (packageId optional)
 app.post('/api/npp/register', authenticateToken, async (req, res) => {
   try {
     const userId = req.user.dbId || req.user.id;
     const { packageId } = req.body;
 
-    if (!packageId) return res.status(400).json({ error: 'packageId là bắt buộc' });
-
     const user = await prisma.user.findUnique({ where: { id: userId } });
     if (!user) return res.status(404).json({ error: 'User not found' });
     if (user.isNpp) return res.status(400).json({ error: 'Bạn đã là NPP ACTIVE. Không cần đăng ký.' });
 
-    const pkg = await prisma.nppPackage.findUnique({ where: { id: packageId } });
-    if (!pkg) return res.status(404).json({ error: 'Gói NPP không tồn tại' });
-    if (!pkg.isActive) return res.status(400).json({ error: 'Gói NPP đã ngừng hoạt động' });
+    // Validate package only if provided
+    let validPackageId = null;
+    let pkg = null;
+    if (packageId) {
+      pkg = await prisma.nppPackage.findUnique({ where: { id: packageId } });
+      if (!pkg) return res.status(404).json({ error: 'Gói NPP không tồn tại' });
+      if (!pkg.isActive) return res.status(400).json({ error: 'Gói NPP đã ngừng hoạt động' });
+      validPackageId = pkg.id;
+    }
 
     // Single active registration enforcement
     const existingReg = await prisma.nppRegistration.findFirst({
@@ -6272,35 +6276,39 @@ app.post('/api/npp/register', authenticateToken, async (req, res) => {
 
     let replacedId = null;
     if (existingReg) {
-      if (existingReg.packageId === packageId) {
+      // Same package (or both null) — no change needed
+      if (existingReg.packageId === validPackageId) {
         return res.json({
           success: true,
-          message: 'Bạn đã đăng ký gói này. Đang chờ xử lý.',
+          message: existingReg.packageId ? 'Bạn đã đăng ký gói này. Đang chờ xử lý.' : 'Bạn đã đăng ký NPP. Đang chờ xử lý.',
           data: serializeBigInt(existingReg),
         });
       }
-      await prisma.nppRegistration.update({
-        where: { id: existingReg.id },
-        data: {
-          status: 'REPLACED',
-          cancelReason: 'Đổi sang gói ' + pkg.code,
-          updatedAt: new Date(),
-        },
-      });
-      replacedId = existingReg.id;
+      // Only replace if changing package
+      if (validPackageId || existingReg.packageId) {
+        await prisma.nppRegistration.update({
+          where: { id: existingReg.id },
+          data: {
+            status: 'REPLACED',
+            cancelReason: validPackageId ? 'Đổi sang gói ' + pkg.code : 'Đổi sang đăng ký không chọn gói',
+            updatedAt: new Date(),
+          },
+        });
+        replacedId = existingReg.id;
+      }
     }
 
     const reg = await prisma.nppRegistration.create({
       data: {
         userId,
-        packageId,
+        packageId: validPackageId,
         status: 'PENDING',
         updatedAt: new Date(),
       },
     });
 
     const message = replacedId
-      ? 'Đã đổi đăng ký sang gói ' + pkg.name + '. Đăng ký cũ đã được hủy.'
+      ? 'Đã đổi đăng ký' + (pkg ? ' sang gói ' + pkg.name : '') + '. Đăng ký cũ đã được hủy.'
       : 'Đã đăng ký NPP. Vui lòng chờ xử lý.';
 
     res.json({ success: true, message, data: serializeBigInt(reg) });
