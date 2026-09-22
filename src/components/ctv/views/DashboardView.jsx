@@ -147,7 +147,7 @@ export default function DashboardView({ refreshKey, currentUser, setActiveTab })
   return (
     <div className="flex flex-col gap-6">
       {/* 1. NON-PARTICIPANT BANNER */}
-      {!isParticipant && (
+      {!isParticipant && !userObj.hasNppRegistration && (
         <div className="glass-panel p-6 border-2 border-primary/30 bg-primary/5 rounded-2xl text-center space-y-3">
           <div className="text-primary font-extrabold text-xl flex items-center justify-center gap-2">
             <Sparkles className="w-5 h-5 text-amber-400" />
@@ -170,7 +170,7 @@ export default function DashboardView({ refreshKey, currentUser, setActiveTab })
 
       {/* 2. PROMOTION PROGRESS (Ambassador / Manager / Director) */}
       <div>
-        <AmbassadorProgressCard userId={currentUser.id} />
+        {!userObj.hasNppRegistration && <AmbassadorProgressCard userId={currentUser.id} />}
       </div>
 
       {/* 3. KEY METRICS GRID */}

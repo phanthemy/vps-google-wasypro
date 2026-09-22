@@ -234,7 +234,7 @@ function getCsrfToken() {
                   {currentUser.businessId}
                 </span>
               ) : (
-                <span className="text-xs font-semibold text-amber-600 italic">Chưa cấp (Cần đạt 5.000 CP)</span>
+                <span className="text-xs font-semibold text-amber-600 italic">{currentUser.hasNppRegistration ? "Chưa cấp (Mua gói NPP để nhận)" : "Chưa cấp (Cần đạt 5.000 CP)"}</span>
               )}
             </div>
           </div>
@@ -242,10 +242,10 @@ function getCsrfToken() {
           {/* Qualifying Points */}
           <div className="bg-gray-50/80 border border-gray-200/60 rounded-xl p-3.5 flex flex-col justify-between">
             <div className="text-[11px] font-bold text-secondary uppercase tracking-wider mb-2 flex items-center gap-1.5">
-              <User size={14} className="text-blue-500" /> Điểm Tích Lũy (CP)
+              <User size={14} className="text-blue-500" /> {currentUser.hasNppRegistration ? "Trạng thái NPP" : "Điểm Tích Lũy (CP)"}
             </div>
             <div className="font-extrabold text-blue-600 text-sm">
-              {qp.toLocaleString('vi-VN')} <span className="text-xs text-secondary font-normal">/ 5.000 CP</span>
+              {currentUser.hasNppRegistration ? <span className="text-emerald-600">Mua gói NPP để kích hoạt</span> : <>{qp.toLocaleString("vi-VN")} <span className="text-xs text-secondary font-normal">/ 5.000 CP</span></>}
             </div>
           </div>
         </div>
