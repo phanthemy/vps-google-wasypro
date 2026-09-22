@@ -68,7 +68,7 @@ const UserNppDashboard: React.FC<Props> = ({ userId, nppStatus, rank, businessId
         fetch('/api/npp/packages/available', { credentials: 'include', headers: authHeaders() }),
       ]);
       const [regData, purchData, prodData, pkgData] = await Promise.all([regRes.json(), purchRes.json(), prodRes.json(), pkgRes.json()]);
-      if (regData.success && regData.data) setRegistration(regData.data.active || regData.data);
+      if (regData.success && regData.data) setRegistration(regData.data.active || null);
       if (purchData.success && purchData.data) setPurchases(Array.isArray(purchData.data) ? purchData.data : [purchData.data]);
       const prods = Array.isArray(prodData) ? prodData : prodData.data || [];
       setProducts(prods.filter((p: Product) => p.price > 0));
@@ -135,7 +135,7 @@ const UserNppDashboard: React.FC<Props> = ({ userId, nppStatus, rank, businessId
         // Refresh registration data
         const regRes = await fetch('/api/npp/my-registration', { credentials: 'include', headers: authHeaders() });
         const regData = await regRes.json();
-        if (regData.success) setRegistration(regData.data.active || regData.data);
+        if (regData.success) setRegistration(regData.data.active || null);
       } else {
         setRegError(data.error || data.message || 'Đăng ký thất bại');
       }
