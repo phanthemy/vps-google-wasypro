@@ -31,7 +31,7 @@ import AdminMembersView from './components/admin/AdminMembersView';
 
 // CTV & Unified Auth Integrations
 import { CTVPortalContainer } from './components/ctv/CTVPortalContainer';
-import { UnifiedAuthModal } from './components/auth/UnifiedAuthModal';
+import UnifiedAuthModal from './components/auth/UnifiedAuthModal';
 import { useUnifiedAuth, UserSession } from './hooks/useUnifiedAuth';
 import { useReferralAttribution } from './hooks/useReferralAttribution';
 
