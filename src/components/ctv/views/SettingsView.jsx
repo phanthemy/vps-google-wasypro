@@ -23,9 +23,11 @@ export default function SettingsView({ currentUser: initialUser }) {
   const isParticipant = !!currentUser.isSystemParticipant || ['PENDING','APPROVED','PURCHASING','PAID','ACTIVE'].includes(currentUser.nppStatus);
   const qp = currentUser.qualifyingPoints || 0;
 
+  const nppRoleMapS = { ACTIVE: 'Nhà Phân Phối (NPP)', PAID: 'NPP — Chờ Admin kích hoạt', PURCHASING: 'NPP — Đang mua gói', APPROVED: 'NPP — Đã duyệt', PENDING: 'NPP — Chờ duyệt' };
   const roleText = currentUser.role === 'admin' ? 'Quản Trị Viên'
     : currentUser.role === 'accountant' ? 'Kế Toán'
-    : ({ ACTIVE: 'Nhà Phân Phối (NPP)', PAID: 'NPP — Chờ Admin kích hoạt', PURCHASING: 'NPP — Đang mua gói', APPROVED: 'NPP — Đã duyệt', PENDING: 'NPP — Chờ duyệt' })[currentUser.nppStatus] || (false : isParticipant ? 'Đối Tác CTV'
+    : (currentUser.nppStatus && nppRoleMapS[currentUser.nppStatus]) ? nppRoleMapS[currentUser.nppStatus]
+    : isParticipant ? 'Đối Tác CTV'
     : 'Khách Hàng';
 
 function getCsrfToken() {

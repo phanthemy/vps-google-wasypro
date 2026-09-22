@@ -120,11 +120,15 @@ export const CTVPortalContainer: React.FC<CTVPortalContainerProps> = ({
     return 'bg-white/20 text-white border border-white/30';
   })();
 
+  const nppS = (currentUser as any)?.nppStatus;
+  const nppRoleMap: Record<string, string> = { ACTIVE: 'Nhà Phân Phối (NPP)', PAID: 'NPP — Chờ kích hoạt', PURCHASING: 'NPP — Đang mua gói', APPROVED: 'NPP — Đã duyệt', PENDING: 'NPP — Chờ duyệt' };
   const roleText = isAdmin 
     ? 'Quản Trị' 
     : isAccountant 
     ? 'Kế Toán' 
-    : ({ ACTIVE: 'Nhà Phân Phối (NPP)', PAID: 'NPP — Chờ kích hoạt', PURCHASING: 'NPP — Đang mua gói', APPROVED: 'NPP — Đã duyệt', PENDING: 'NPP — Chờ duyệt' } as any)[(currentUser as any)?.nppStatus] || (false : isParticipant 
+    : (nppS && nppRoleMap[nppS]) 
+    ? nppRoleMap[nppS] 
+    : isParticipant 
     ? 'Đối Tác CTV' 
     : 'Khách Hàng';
 
