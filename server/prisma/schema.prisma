@@ -594,7 +594,7 @@ model NppPackageItem {
   quantity  Int     @default(1)
   note      String?
 
-  package NppPackage @relation(fields: [packageId], references: [id], onDelete: Cascade)
+  package NppPackage? @relation(fields: [packageId], references: [id], onDelete: Cascade)
   product Product    @relation(fields: [productId], references: [id])
 
   @@unique([packageId, productId])
@@ -711,7 +711,7 @@ model NppCommission {
 model NppRegistration {
   id           String   @id @default(cuid())
   userId       String
-  packageId    String
+  packageId    String?
   status       String   @default("PENDING")
   // PENDING | APPROVED | CANCELLED | REPLACED | CONVERTED
   note         String?
@@ -720,7 +720,7 @@ model NppRegistration {
   updatedAt    DateTime @updatedAt
 
   user    User       @relation("UserNppRegistrations", fields: [userId], references: [id])
-  package NppPackage @relation(fields: [packageId], references: [id])
+  package NppPackage? @relation(fields: [packageId], references: [id])
 
   @@index([userId])
   @@index([packageId])
