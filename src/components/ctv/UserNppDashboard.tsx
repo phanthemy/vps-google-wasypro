@@ -174,7 +174,7 @@ const UserNppDashboard: React.FC<Props> = ({ userId, isNpp, rank, businessId }) 
                   return (
                     <label key={p.id} className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all ${selected ? 'border-sky-400 bg-sky-50' : 'border-gray-200 bg-gray-50 hover:border-sky-300'}`}>
                       <input type="checkbox" checked={selected} onChange={() => toggleProduct(p.id)} className="accent-sky-500 flex-shrink-0" />
-                      {p.image && <img src={p.image} alt="" className="w-10 h-10 rounded-lg object-cover flex-shrink-0" />}
+                      {p.image && <img src={p.image.startsWith("/uploads/") ? "/api" + p.image : p.image} alt="" className="w-10 h-10 rounded-lg object-cover flex-shrink-0 bg-gray-100" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />}
                       <div className="flex-1 min-w-0">
                         <p className="text-xs font-semibold text-gray-800 truncate">{p.title}</p>
                         <p className="text-[11px] text-gray-500">{formatVND(p.price)}</p>
