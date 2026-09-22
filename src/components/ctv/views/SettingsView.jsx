@@ -20,12 +20,12 @@ export default function SettingsView({ currentUser: initialUser }) {
   const currentUser = user || initialUser;
   if (!currentUser) return null;
 
-  const isParticipant = !!currentUser.isSystemParticipant;
+  const isParticipant = !!currentUser.isSystemParticipant || !!currentUser.isNpp || !!currentUser.hasNppRegistration;
   const qp = currentUser.qualifyingPoints || 0;
 
   const roleText = currentUser.role === 'admin' ? 'Quản Trị Viên'
     : currentUser.role === 'accountant' ? 'Kế Toán'
-    : isParticipant ? 'Đối Tác Kinh Doanh'
+    : currentUser.isNpp ? 'Nhà Phân Phối (NPP)' : currentUser.hasNppRegistration ? 'NPP - Chờ kích hoạt' : isParticipant ? 'Đối Tác CTV'
     : 'Khách Hàng';
 
 function getCsrfToken() {
@@ -275,9 +275,9 @@ function getCsrfToken() {
           <div className="flex items-start gap-3 p-3.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-800">
             <AlertCircle size={20} className="text-amber-600 shrink-0 mt-0.5" />
             <div>
-              <div className="font-bold text-sm text-amber-900">Chưa tham gia hệ thống đối tác</div>
+              <div className="font-bold text-sm text-amber-900">!currentUser.hasNppRegistration ? 'Chưa tham gia hệ thống đối tác' : 'NPP - Đang xử lý'</div>
               <div className="text-xs text-amber-700 mt-0.5">
-                Về tab <strong>Dashboard</strong> và bấm "Tham Gia Hệ Thống" để bắt đầu tích lũy điểm xét chuẩn.
+                Vào tab Gói NPP để xem trạng thái và mua gói "Tham Gia Hệ Thống" để bắt đầu tích lũy điểm xét chuẩn.
               </div>
             </div>
           </div>

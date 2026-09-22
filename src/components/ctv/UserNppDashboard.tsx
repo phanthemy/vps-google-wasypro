@@ -62,7 +62,7 @@ const UserNppDashboard: React.FC<Props> = ({ userId, isNpp, rank, businessId }) 
         fetch('/api/npp/packages/available', { credentials: 'include', headers: authHeaders() }),
       ]);
       const [regData, purchData, prodData, pkgData] = await Promise.all([regRes.json(), purchRes.json(), prodRes.json(), pkgRes.json()]);
-      if (regData.success && regData.data) setRegistration(regData.data);
+      if (regData.success && regData.data) setRegistration(regData.data.active || regData.data);
       if (purchData.success && purchData.data) setPurchases(Array.isArray(purchData.data) ? purchData.data : [purchData.data]);
       const prods = Array.isArray(prodData) ? prodData : prodData.data || [];
       setProducts(prods.filter((p: Product) => p.price > 0));
