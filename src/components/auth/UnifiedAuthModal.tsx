@@ -39,128 +39,105 @@ export const UnifiedAuthModal: React.FC<UnifiedAuthModalProps> = ({
   const [regFullName, setRegFullName] = useState('');
   const [regPhone, setRegPhone] = useState('');
   const [regRefCode, setRegRefCode] = useState(referralCode);
-  const [joinCtv, setJoinCtv] = useState(true);
+  // Registration type: 'none' | 'ctv' | 'npp' — mutually exclusive
+  const [regType, setRegType] = useState<'none' | 'ctv' | 'npp'>('none');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
 
   // NPP registration state
-  const [wantNpp, setWantNpp] = useState(false);
   const [nppPackages, setNppPackages] = useState<NppPackageOption[]>([]);
   const [selectedPackageId, setSelectedPackageId] = useState('');
   const [loadingPackages, setLoadingPackages] = useState(false);
 
   useEffect(() => {
-    if (isOpen) { setTab(initialTab); setError(''); setSuccessMsg(''); if (referralCode) setRegRefCode(referralCode); setWantNpp(false); setSelectedPackageId(''); }
+    if (isOpen) { setTab(initialTab); setError(''); setSuccessMsg(''); if (referralCode) setRegRefCode(referralCode); setRegType('none'); setSelectedPackageId(''); }
   }, [isOpen, initialTab, referralCode]);
 
-  // Load NPP packages when user checks NPP
+  // Load NPP packages when NPP selected
   useEffect(() => {
-    if (!wantNpp) { setNppPackages([]); setSelectedPackageId(''); return; }
+    if (regType !== 'npp') return;
+    if (nppPackages.length > 0) return;
     setLoadingPackages(true);
     fetch('/api/npp/packages/available-public')
-      .then(r => r.ok ? r.json() : Promise.resolve({ data: [] }))
-      .then(d => setNppPackages(d.data || []))
-      .catch(() => setNppPackages([]))
+      .then(r => r.json())
+      .then(d => { if (d.success && d.data) setNppPackages(d.data); })
+      .catch(() => {})
       .finally(() => setLoadingPackages(false));
-  }, [wantNpp]);
+  }, [regType]);
 
-  if (!isOpen) return null;
+  const switchTab = (t: 'login' | 'register') => { setTab(t); setError(''); setSuccessMsg(''); };
 
   const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault(); setError(''); setLoading(true);
     try {
-      const res = await fetch('/api/auth/login', { credentials: 'include', method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ phone: loginPhone.trim(), password: loginPassword }) });
+      const res = await fetch('/api/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ phone: loginPhone, password: loginPassword }), credentials: 'include' });
       const data = await res.json();
-      if (!res.ok || !data.success) throw new Error(data.message || 'Số điện thoại hoặc mật khẩu không chính xác');
-      localStorage.setItem('crm_user', JSON.stringify(data.data));
-      onSuccess(data.data); onClose();
-    } catch (err: any) { setError(err.message || 'Lỗi kết nối máy chủ'); } finally { setLoading(false); }
+      if (data.success && data.user) {
+        // If NPP was selected during register-then-login, handle NPP registration after login
+        onSuccess(data.user);
+      } else { setError(data.message || 'Đăng nhập thất bại.'); }
+    } catch { setError('Lỗi kết nối.'); }
+    setLoading(false);
   };
 
   const handleRegisterSubmit = async (e: React.FormEvent) => {
-    e.preventDefault(); setError(''); setLoading(true);
-
+    e.preventDefault(); setError(''); setSuccessMsg('');
     // Validate NPP selection
-    if (wantNpp && !selectedPackageId) {
-      setError('Vui lòng chọn một gói NPP.');
-      setLoading(false);
-      return;
-    }
-
+    if (regType === 'npp' && !selectedPackageId) { setError('Vui lòng chọn gói NPP.'); return; }
+    setLoading(true);
     try {
-      // Step 1: Register account
-      const res = await fetch('/api/auth/register', { credentials: 'include', method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ fullName: regFullName.trim(), phone: regPhone.trim(), password: '123456', refCode: regRefCode.trim() || undefined, joinSystem: joinCtv }) }).then(r => r.json());
-
-      if (!res?.success) {
-        setError(res?.message || res?.error || 'Đăng ký không thành công. Vui lòng kiểm tra lại.');
-        setLoading(false);
-        return;
-      }
-
-      // Step 2: If NPP selected, auto-login then register NPP
-      if (wantNpp && selectedPackageId) {
-        try {
-          const loginRes = await fetch('/api/auth/login', {
-            credentials: 'include', method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ phone: regPhone.trim(), password: '123456' })
-          }).then(r => r.json());
-
-          if (loginRes.success) {
-            const csrfMatch = document.cookie.match(/(^|;\s*)csrf_token=([^;]*)/);
-            const csrfToken = csrfMatch ? decodeURIComponent(csrfMatch[2]) : '';
-
-            const nppRes = await fetch('/api/npp/register', {
-              method: 'POST', credentials: 'include',
-              headers: { 'Content-Type': 'application/json', ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {}) },
-              body: JSON.stringify({ packageId: selectedPackageId })
-            }).then(r => r.json());
-
-            if (nppRes.success) {
-              setSuccessMsg('Đăng ký thành công! Đăng ký NPP đã được ghi nhận (chờ xử lý). Mật khẩu mặc định: 123456.');
-            } else {
-              setSuccessMsg('Đăng ký tài khoản thành công! Đăng ký NPP lỗi: ' + (nppRes.error || nppRes.message || '') + '. MK: 123456.');
-            }
-            // Logout so user can login fresh
-            await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' }).catch(() => {});
-          } else {
-            setSuccessMsg('Đăng ký tài khoản thành công! Đăng ký NPP sẽ thực hiện sau khi đăng nhập. MK: 123456.');
-          }
-        } catch {
-          setSuccessMsg('Đăng ký tài khoản thành công! Đăng ký NPP bị lỗi kết nối. MK: 123456.');
+      const body: any = { fullName: regFullName, phone: regPhone, password: '123456', referralCode: regRefCode || undefined };
+      // joinSystem only if CTV selected
+      if (regType === 'ctv') body.joinSystem = true;
+      const res = await fetch('/api/auth/register', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), credentials: 'include' });
+      const data = await res.json();
+      if (data.success) {
+        // If NPP selected, register NPP after account creation + auto-login
+        if (regType === 'npp' && data.user) {
+          onSuccess(data.user);
+          // NPP registration via API
+          try {
+            const csrf = document.cookie.match(/csrf_token=([^;]*)/)?.[1] || '';
+            await fetch('/api/npp/register', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': decodeURIComponent(csrf) },
+              body: JSON.stringify({ packageId: selectedPackageId }),
+              credentials: 'include',
+            });
+          } catch {}
+          return;
         }
-      } else {
-        setSuccessMsg('Đăng ký thành công! Mật khẩu mặc định: 123456. Vui lòng đăng nhập.');
-      }
-
-      setTab('login'); setLoginPhone(regPhone.trim()); setLoginPassword('123456');
-      setRegFullName(''); setRegPhone(''); setRegRefCode(''); setJoinCtv(false);
-      setWantNpp(false); setSelectedPackageId('');
-    } catch (err: any) { setError(err.message || 'Lỗi kết nối máy chủ'); } finally { setLoading(false); }
+        if (data.user) { onSuccess(data.user); }
+        else { setSuccessMsg('Đăng ký thành công! Mật khẩu mặc định: 123456'); switchTab('login'); }
+      } else { setError(data.message || 'Đăng ký thất bại.'); }
+    } catch { setError('Lỗi kết nối.'); }
+    setLoading(false);
   };
 
-  const switchTab = (t: 'login' | 'register') => { setTab(t); setError(''); setSuccessMsg(''); };
+  if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={onClose}>
-      <div className="relative w-full max-w-sm bg-white rounded-2xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
-        <div className="bg-gradient-to-r from-primary-dark via-primary to-primary text-white px-6 pt-6 pb-5 text-center relative flex-shrink-0">
-          <button onClick={onClose} className="absolute top-4 right-4 p-1.5 rounded-full bg-white/20 hover:bg-white/30 transition-colors" aria-label="Đóng"><X className="w-4 h-4 text-white" /></button>
-          <div className="w-10 h-10 mx-auto mb-2 rounded-full bg-white/20 flex items-center justify-center"><User className="w-5 h-5 text-white" /></div>
-          <h3 className="text-base font-extrabold uppercase tracking-wide">Tài khoản WasyPro</h3>
-          <p className="text-xs text-white/80 mt-0.5">Đăng nhập hoặc tạo tài khoản mới</p>
-        </div>
-        <div className="flex p-3 gap-2 bg-gray-50 border-b border-gray-100 flex-shrink-0">
-          {(['login', 'register'] as const).map((t) => (
-            <button key={t} type="button" onClick={() => switchTab(t)} className={`flex-1 py-2 text-xs font-bold rounded-lg uppercase tracking-wide transition-all ${tab === t ? 'bg-white text-primary shadow-sm border border-gray-200' : 'text-gray-500 hover:text-gray-700'}`}>
-              {t === 'login' ? 'Đăng Nhập' : 'Đăng Ký'}
-            </button>
-          ))}
-        </div>
-        <div className="px-6 py-5 overflow-y-auto">
-          {error && <div className="mb-4 p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs font-semibold flex items-start gap-2"><AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5 text-red-500" /><span>{error}</span></div>}
-          {successMsg && <div className="mb-4 p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold flex items-start gap-2"><CheckCircle2 className="w-4 h-4 flex-shrink-0 mt-0.5 text-emerald-600" /><span>{successMsg}</span></div>}
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center px-4" onClick={onClose}>
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+      <div className="relative bg-white rounded-2xl w-full max-w-md max-h-[90vh] overflow-y-auto shadow-2xl" onClick={(e) => e.stopPropagation()}>
+        <button onClick={onClose} className="absolute top-3 right-3 z-10 w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 text-gray-500"><X className="w-4 h-4" /></button>
+        <div className="p-6 pt-8">
+          <div className="text-center mb-5">
+            <div className="w-12 h-12 mx-auto bg-primary/10 text-primary rounded-full flex items-center justify-center mb-2"><User className="w-6 h-6" /></div>
+            <h2 className="text-lg font-extrabold text-gray-900 tracking-tight">TÀI KHOẢN WASYPRO</h2>
+            <p className="text-xs text-gray-400 mt-0.5">Đăng nhập hoặc tạo tài khoản mới</p>
+          </div>
+          <div className="flex mb-5 bg-gray-100 rounded-xl p-1">
+            {(['login', 'register'] as const).map(t => (
+              <button key={t} onClick={() => switchTab(t)} className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${tab === t ? 'bg-white text-primary shadow-sm' : 'text-gray-500'}`}>
+                {t === 'login' ? 'ĐĂNG NHẬP' : 'ĐĂNG KÝ'}
+              </button>
+            ))}
+          </div>
+          {error && <div className="mb-3 flex items-center gap-2 text-xs text-red-600 bg-red-50 p-2.5 rounded-lg"><AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />{error}</div>}
+          {successMsg && <div className="mb-3 flex items-center gap-2 text-xs text-green-600 bg-green-50 p-2.5 rounded-lg"><CheckCircle2 className="w-3.5 h-3.5 flex-shrink-0" />{successMsg}</div>}
+
           {tab === 'login' ? (
             <form onSubmit={handleLoginSubmit} className="space-y-4">
               <div><label className="block text-xs font-bold text-gray-600 mb-1.5 uppercase">Số điện thoại</label><div className="relative"><Phone className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" /><input type="tel" required autoFocus value={loginPhone} onChange={(e) => setLoginPhone(e.target.value)} placeholder="09..." className="w-full pl-10 pr-4 py-3 text-sm bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary/15 outline-none transition-all" /></div></div>
@@ -177,27 +154,41 @@ export const UnifiedAuthModal: React.FC<UnifiedAuthModalProps> = ({
               <div><label className="block text-xs font-bold text-gray-600 mb-1.5 uppercase">Số điện thoại</label><div className="relative"><Phone className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" /><input type="tel" required value={regPhone} onChange={(e) => setRegPhone(e.target.value)} placeholder="09..." className="w-full pl-10 pr-4 py-3 text-sm bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary/15 outline-none transition-all" /></div></div>
               <div><label className="block text-xs font-bold text-gray-600 mb-1.5 uppercase">Mã giới thiệu <span className="normal-case text-gray-400 font-normal">(nếu có)</span></label><input type="text" value={regRefCode} onChange={(e) => setRegRefCode(e.target.value.toUpperCase())} placeholder="VD: ADMIN01" className="w-full px-4 py-3 text-sm bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary/15 outline-none transition-all font-semibold tracking-wider" /></div>
 
-              {/* CTV Checkbox */}
-              <label className="flex items-start gap-3 p-3.5 rounded-xl border border-gray-200 bg-gray-50 cursor-pointer hover:bg-primary/5 hover:border-primary/30 transition-all">
-                <input type="checkbox" checked={joinCtv} onChange={(e) => setJoinCtv(e.target.checked)} className="mt-0.5 w-4 h-4 accent-primary flex-shrink-0" />
+              {/* ═══ CTV Option ═══ */}
+              <label
+                className={`flex items-start gap-3 p-3.5 rounded-xl border cursor-pointer transition-all ${
+                  regType === 'ctv'
+                    ? 'border-primary bg-primary/5 ring-2 ring-primary/20'
+                    : 'border-gray-200 bg-gray-50 hover:bg-primary/5 hover:border-primary/30'
+                }`}
+                onClick={() => setRegType(regType === 'ctv' ? 'none' : 'ctv')}
+              >
+                <input type="radio" name="regType" checked={regType === 'ctv'} readOnly className="mt-0.5 w-4 h-4 accent-primary flex-shrink-0" />
                 <div>
                   <p className="text-xs font-bold text-gray-800 flex items-center gap-1.5"><Users className="w-3.5 h-3.5 text-primary" />Tham gia chương trình Cộng Tác Viên</p>
                   <p className="text-[11px] text-gray-500 mt-0.5 leading-relaxed">Tích lũy điểm hoa hồng từ đơn hàng, nhận Business ID khi đạt 5.000 CP</p>
                 </div>
               </label>
 
-              {/* ═══ NPP REGISTRATION OPTION ═══ */}
-              <div className="rounded-xl border border-sky-200 bg-sky-50/50">
-                <label className="flex items-start gap-3 p-3.5 cursor-pointer hover:bg-sky-100/50 transition-all rounded-xl">
-                  <input type="checkbox" checked={wantNpp} onChange={(e) => setWantNpp(e.target.checked)} className="mt-0.5 w-4 h-4 accent-sky-500 flex-shrink-0" />
+              {/* ═══ NPP Option ═══ */}
+              <div className={`rounded-xl border transition-all ${
+                regType === 'npp'
+                  ? 'border-sky-400 bg-sky-50/80 ring-2 ring-sky-300/30'
+                  : 'border-sky-200 bg-sky-50/50'
+              }`}>
+                <label
+                  className="flex items-start gap-3 p-3.5 cursor-pointer hover:bg-sky-100/50 transition-all rounded-xl"
+                  onClick={() => { setRegType(regType === 'npp' ? 'none' : 'npp'); }}
+                >
+                  <input type="radio" name="regType" checked={regType === 'npp'} readOnly className="mt-0.5 w-4 h-4 accent-sky-500 flex-shrink-0" />
                   <div>
                     <p className="text-xs font-bold text-gray-800 flex items-center gap-1.5">📦 Đăng ký trở thành Nhà Phân Phối (NPP)</p>
                     <p className="text-[11px] text-gray-500 mt-0.5 leading-relaxed">Đăng ký nhu cầu tham gia hệ thống NPP và lựa chọn gói NPP.</p>
                   </div>
                 </label>
 
-                {/* Package selection */}
-                {wantNpp && (
+                {/* Package selection — only when NPP selected */}
+                {regType === 'npp' && (
                   <div className="px-3.5 pb-3.5 pt-0">
                     <div className="border-t border-sky-200 pt-3">
                       <p className="text-xs font-bold text-gray-700 mb-2">Chọn gói NPP *</p>
