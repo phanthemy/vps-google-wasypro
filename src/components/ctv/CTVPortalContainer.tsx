@@ -124,7 +124,7 @@ export const CTVPortalContainer: React.FC<CTVPortalContainerProps> = ({
     ? 'Quản Trị' 
     : isAccountant 
     ? 'Kế Toán' 
-    : (currentUser as any)?.isNpp ? 'Nhà Phân Phối' : isParticipant 
+    : (currentUser as any)?.isNpp ? 'Nhà Phân Phối (NPP)' : (currentUser as any)?.hasNppRegistration ? 'NPP - Chờ kích hoạt' : isParticipant 
     ? 'Đối Tác CTV' 
     : 'Khách Hàng';
 
