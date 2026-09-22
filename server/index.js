@@ -457,7 +457,7 @@ app.delete('/api/users/me/avatar', authenticateToken, async (req, res) => {
 // refCode → parentId (sponsor). No business rights until "THAM GIA HỆ THỐNG".
 app.post('/api/auth/register', authLimiter, async (req, res) => {
   try {
-    let { fullName, phone, password, refCode, joinSystem } = req.body;
+    let { fullName, phone, password, refCode, joinSystem, nppPackageId } = req.body;
     if (!fullName || !fullName.trim()) return res.status(400).json({ success: false, message: 'Vui lòng nhập họ tên.' });
     if (!phone || !phone.trim()) return res.status(400).json({ success: false, message: 'Vui lòng nhập số điện thoại.' });
 
@@ -532,6 +532,33 @@ app.post('/api/auth/register', authLimiter, async (req, res) => {
 
     console.log(`[REGISTER] ${generatedId} ${fullName} (${phone}) joinSystem=${willJoinSystem}`);
 
+    // ─── NPP Registration (if nppPackageId provided) ───
+    let hasNppRegistration = false;
+    if (nppPackageId) {
+      try {
+        const pkg = await prisma.nppPackage.findUnique({ where: { id: nppPackageId } });
+        if (pkg && pkg.isActive) {
+          await prisma.nppRegistration.create({
+            data: {
+              userId: newUser.id,
+              packageId: nppPackageId,
+              status: 'PENDING',
+            }
+          });
+          hasNppRegistration = true;
+          console.log(`[REGISTER] NPP registration created for ${generatedId}, package: ${pkg.name}`);
+        }
+      } catch (nppErr) { console.error('[REGISTER] NPP registration error:', nppErr.message); }
+    }
+
+
+    // Auto-login: set session cookie so user is logged in immediately
+    const token = jwt.sign(
+      { id: newUser.userId, userId: newUser.userId, dbId: newUser.id, role: newUser.role, fullName: newUser.fullName, phone: newUser.phone, tier: newUser.tier, parentId: newUser.parentId, mustChangePassword: false },
+      process.env.JWT_SECRET || 'your-secret-key',
+      { expiresIn: '7d' }
+    );
+    res.cookie('auth_token', token, { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax', maxAge: 7 * 24 * 60 * 60 * 1000 });
     res.status(201).json({
       success: true,
       message: 'Đăng ký tài khoản thành công! Vui lòng đăng nhập.',
@@ -543,6 +570,8 @@ app.post('/api/auth/register', authLimiter, async (req, res) => {
         participantAt: newUser.participantAt,
         businessId: null,
         rank: null,
+        hasNppRegistration: hasNppRegistration,
+        isNpp: false,
       }
     });
   } catch (err) {
