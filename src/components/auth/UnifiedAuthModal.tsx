@@ -34,12 +34,13 @@ export default function UnifiedAuthModal({ isOpen, onClose, initialTab = 'login'
   useEffect(() => { setTab(initialTab); }, [initialTab]);
   useEffect(() => { if (referralCode) setRegRefCode(referralCode); }, [referralCode]);
 
-  // Load NPP packages when register tab is shown
+  // Load NPP packages from PUBLIC endpoint (no auth required)
   useEffect(() => {
     if (tab === 'register') {
-      fetch('/api/npp/packages/available').then(r => r.json()).then(d => {
-        if (d.success) setNppPackages(d.data || []);
-      }).catch(() => {});
+      fetch('/api/npp/packages/available-public')
+        .then(r => r.json())
+        .then(d => { if (d.success) setNppPackages(d.data || []); })
+        .catch(() => {});
     }
   }, [tab]);
 
@@ -72,7 +73,7 @@ export default function UnifiedAuthModal({ isOpen, onClose, initialTab = 'login'
 
     if (!regFullName.trim()) { setError('Vui lòng nhập họ tên.'); setLoading(false); return; }
     if (!regPhone.trim()) { setError('Vui lòng nhập số điện thoại.'); setLoading(false); return; }
-    if (regType === 'npp' && !selectedPackageId) { setError('Vui lòng chọn gói NPP.'); setLoading(false); return; }
+    // Package is OPTIONAL — no validation required
 
     try {
       const body: any = {
@@ -82,7 +83,10 @@ export default function UnifiedAuthModal({ isOpen, onClose, initialTab = 'login'
         referralCode: regRefCode.trim() || undefined,
       };
       if (regType === 'ctv') body.joinSystem = true;
-      if (regType === 'npp') body.nppPackageId = selectedPackageId;
+      if (regType === 'npp') {
+        body.registerNpp = true;
+        if (selectedPackageId) body.nppPackageId = selectedPackageId;
+      }
 
       const res = await fetch('/api/auth/register', {
         method: 'POST',
@@ -186,7 +190,7 @@ export default function UnifiedAuthModal({ isOpen, onClose, initialTab = 'login'
               </div>
             </div>
 
-            {/* CTV / NPP Selection — Radio (mutual exclusive) */}
+            {/* CTV / NPP Selection — Radio (mutual exclusive, neither default) */}
             <div className="space-y-2">
               <div
                 onClick={() => { setRegType(regType === 'ctv' ? 'none' : 'ctv'); setSelectedPackageId(''); }}
@@ -213,18 +217,18 @@ export default function UnifiedAuthModal({ isOpen, onClose, initialTab = 'login'
                   </div>
                   <div>
                     <div className="font-bold text-sm flex items-center gap-1.5">🏪 Đăng ký trở thành Nhà Phân Phối (NPP)</div>
-                    <div className="text-xs text-gray-500 mt-0.5">Đăng ký như cầu tham gia hệ thống NPP và lựa chọn gói NPP.</div>
+                    <div className="text-xs text-gray-500 mt-0.5">Đăng ký nhu cầu tham gia hệ thống NPP và lựa chọn gói NPP.</div>
                   </div>
                 </div>
 
-                {/* NPP Package Selection */}
+                {/* NPP Package Selection — OPTIONAL */}
                 {regType === 'npp' && nppPackages.length > 0 && (
                   <div className="mt-3 ml-8 space-y-2">
-                    <label className="text-xs font-bold text-gray-700">Chọn gói NPP *</label>
+                    <label className="text-xs font-bold text-gray-700">Chọn gói NPP <span className="font-normal text-gray-400">(không bắt buộc — có thể chọn sau)</span></label>
                     {nppPackages.map(pkg => (
                       <div
                         key={pkg.id}
-                        onClick={(e) => { e.stopPropagation(); setSelectedPackageId(pkg.id); }}
+                        onClick={(e) => { e.stopPropagation(); setSelectedPackageId(selectedPackageId === pkg.id ? '' : pkg.id); }}
                         className={`p-2.5 rounded-lg border cursor-pointer transition-all ${selectedPackageId === pkg.id ? 'border-emerald-400 bg-emerald-50' : 'border-gray-200 hover:border-gray-300'}`}
                       >
                         <div className="flex items-center gap-2">
@@ -233,7 +237,12 @@ export default function UnifiedAuthModal({ isOpen, onClose, initialTab = 'login'
                           </div>
                           <div>
                             <div className="font-bold text-sm">{pkg.name}</div>
-                            <div className="text-xs text-gray-500">{pkg.requiredQuantity} máy · CK {(pkg.defaultDiscount / 100).toFixed(0)}% · {pkg.assignedRank === 'AMBASSADOR' ? 'Đại sứ' : pkg.assignedRank === 'MANAGER' ? 'Trưởng nhóm' : pkg.assignedRank}</div>
+                            <div className="text-xs text-gray-500">
+                              {pkg.packageType === 'PRODUCT_COMBO' 
+                                ? `${pkg.requiredQuantity} máy · CK ${(pkg.defaultDiscount / 100).toFixed(0)}% · ${pkg.assignedRank === 'AMBASSADOR' ? 'Đại sứ' : pkg.assignedRank === 'MANAGER' ? 'Trưởng nhóm' : pkg.assignedRank}`
+                                : `Gói vốn · ${pkg.assignedRank === 'AMBASSADOR' ? 'Đại sứ' : pkg.assignedRank === 'MANAGER' ? 'Trưởng nhóm' : pkg.assignedRank}`
+                              }
+                            </div>
                           </div>
                         </div>
                         {pkg.description && <div className="text-[11px] text-gray-400 mt-1 ml-6">{pkg.description}</div>}

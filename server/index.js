@@ -465,6 +465,10 @@ app.post('/api/auth/register', authLimiter, async (req, res) => {
     fullName = fullName.trim();
     const rawPwd = (password && password.trim()) ? password.trim() : '123456';
     const willJoinSystem = !!joinSystem; // true if user chose CTV at registration
+    const wantNpp = !!req.body.registerNpp || !!nppPackageId;
+    if (willJoinSystem && wantNpp) {
+      return res.status(400).json({ success: false, message: "CTV và NPP không thể chọn cùng lúc. Vui lòng chọn một." });
+    }
 
     // Check duplicate phone
     const existing = await prisma.user.findUnique({ where: { phone } });
@@ -532,22 +536,28 @@ app.post('/api/auth/register', authLimiter, async (req, res) => {
 
     console.log(`[REGISTER] ${generatedId} ${fullName} (${phone}) joinSystem=${willJoinSystem}`);
 
-    // ─── NPP Registration (if nppPackageId provided) ───
+
+    // ─── NPP Registration (if registerNpp or nppPackageId) ───
     let hasNppRegistration = false;
-    if (nppPackageId) {
+    if (wantNpp) {
       try {
-        const pkg = await prisma.nppPackage.findUnique({ where: { id: nppPackageId } });
-        if (pkg && pkg.isActive) {
-          await prisma.nppRegistration.create({
-            data: {
-              userId: newUser.id,
-              packageId: nppPackageId,
-              status: 'PENDING',
-            }
-          });
-          hasNppRegistration = true;
-          console.log(`[REGISTER] NPP registration created for ${generatedId}, package: ${pkg.name}`);
+        let validPackageId = null;
+        if (nppPackageId) {
+          const pkg = await prisma.nppPackage.findUnique({ where: { id: nppPackageId } });
+          if (pkg && pkg.isActive) validPackageId = pkg.id;
+          else console.warn(`[REGISTER] Invalid/inactive package: ${nppPackageId}`);
         }
+        await prisma.nppRegistration.create({
+          data: {
+            userId: newUser.id,
+            packageId: validPackageId,
+            status: 'PENDING',
+          }
+        });
+        hasNppRegistration = true;
+        console.log(`[REGISTER] NPP registration created for ${generatedId}, package: ${validPackageId || 'NONE'}`);
+      } catch (nppErr) { console.error('[REGISTER] NPP registration error:', nppErr.message); }
+    }
       } catch (nppErr) { console.error('[REGISTER] NPP registration error:', nppErr.message); }
     }
 
