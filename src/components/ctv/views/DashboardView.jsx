@@ -88,7 +88,7 @@ export default function DashboardView({ refreshKey, currentUser, setActiveTab })
 
   const userObj = { ...currentUser, ...personalStats, ...freshUser };
   const isAdmin = userObj.role === 'admin';
-  const isParticipant = !!userObj.isSystemParticipant || 
+  const isParticipant = !!userObj.isSystemParticipant || !!userObj.isNpp || !!userObj.hasNppRegistration || 
     ['AMBASSADOR', 'MANAGER', 'DIRECTOR', 'SALES_MANAGER', 'SALES_DIRECTOR'].includes(userObj.rank || '') ||
     userObj.role === 'admin' || userObj.role === 'accountant';
 

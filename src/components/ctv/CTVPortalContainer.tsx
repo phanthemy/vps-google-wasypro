@@ -95,7 +95,7 @@ export const CTVPortalContainer: React.FC<CTVPortalContainerProps> = ({
   const isAdminOrAccountant = isAdmin || isAccountant;
   
   // A user is considered a full partner if they joined the system or already have an official rank
-  const isParticipant = !!currentUser?.isSystemParticipant || 
+  const isParticipant = !!currentUser?.isSystemParticipant || !!(currentUser as any)?.isNpp || !!(currentUser as any)?.hasNppRegistration || 
     ['AMBASSADOR', 'MANAGER', 'DIRECTOR', 'SALES_MANAGER', 'SALES_DIRECTOR'].includes(currentUser?.rank || '') ||
     isAdminOrAccountant;
 
@@ -124,7 +124,7 @@ export const CTVPortalContainer: React.FC<CTVPortalContainerProps> = ({
     ? 'Quản Trị' 
     : isAccountant 
     ? 'Kế Toán' 
-    : isParticipant 
+    : (currentUser as any)?.isNpp ? 'Nhà Phân Phối' : isParticipant 
     ? 'Đối Tác CTV' 
     : 'Khách Hàng';
 
