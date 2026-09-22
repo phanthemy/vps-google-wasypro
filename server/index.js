@@ -322,6 +322,7 @@ app.post('/api/auth/login', authLimiter, async (req, res) => {
         businessId: user.businessId ?? null,
         rank: user.rank ?? null,
         rankStatus: user.rankStatus ?? null,
+        isNpp: user.isNpp ?? false,
         avatarUrl: user.avatarUrl ?? null,
       }
     });
@@ -353,6 +354,7 @@ app.get('/api/auth/me', authenticateToken, async (req, res) => {
         businessId: user.businessId ?? null,
         rank: user.rank ?? null,
         rankStatus: user.rankStatus ?? null,
+        isNpp: user.isNpp ?? false,
         avatarUrl: user.avatarUrl ?? null,
       }
     });
@@ -6975,6 +6977,143 @@ app.get('/api/npp/my-purchase', authenticateToken, async (req, res) => {
     res.json({ success: true, data: purchases.map(p => serializeBigInt(p)) });
   } catch (e) {
     console.error('GET /api/npp/my-purchase error:', e);
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+// ─── Phase 3.3: User-facing NPP Purchase ─────────────────────────────────────
+
+// POST /api/npp/my-purchase — User creates own purchase (selects products for their approved registration)
+app.post('/api/npp/my-purchase', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.dbId;
+    const { items } = req.body; // [{productId, quantity}]
+
+    // 1. Find user's APPROVED registration
+    const registration = await prisma.nppRegistration.findFirst({
+      where: { userId, status: 'APPROVED' },
+      include: { package: true },
+    });
+    if (!registration) return res.status(400).json({ success: false, message: 'Không tìm thấy đăng ký NPP được duyệt.' });
+
+    // 2. Check no existing purchase for this registration
+    const existingPurchase = await prisma.nppPurchase.findFirst({ where: { registrationId: registration.id } });
+    if (existingPurchase) return res.status(400).json({ success: false, message: 'Đã có đơn mua cho đăng ký này.', data: existingPurchase });
+
+    const pkg = registration.package;
+
+    // 3. Build purchase based on package type
+    let grossPrice, discountRateBps, discountAmount, netPayableAmount;
+    let purchaseItems = [];
+
+    if (pkg.packageType === 'CAPITAL') {
+      grossPrice = pkg.grossPrice;
+      discountRateBps = 0;
+      discountAmount = BigInt(0);
+      netPayableAmount = grossPrice;
+    } else {
+      // PRODUCT_COMBO
+      if (!items || !Array.isArray(items) || items.length === 0) {
+        return res.status(400).json({ success: false, message: 'Vui lòng chọn sản phẩm cho gói combo.' });
+      }
+
+      // Validate quantity
+      const totalQty = items.reduce((sum, i) => sum + (i.quantity || 1), 0);
+      if (pkg.requiredQuantity && totalQty !== pkg.requiredQuantity) {
+        return res.status(400).json({ success: false, message: `Gói yêu cầu chọn đúng ${pkg.requiredQuantity} sản phẩm. Bạn đã chọn ${totalQty}.` });
+      }
+
+      // Fetch products
+      const productIds = items.map(i => i.productId);
+      const products = await prisma.product.findMany({ where: { id: { in: productIds } } });
+      if (products.length !== productIds.length) {
+        return res.status(400).json({ success: false, message: 'Một số sản phẩm không tồn tại.' });
+      }
+
+      // Calculate prices (Float → BigInt boundary)
+      const floatPriceToBigInt = (p) => {
+        const cents = Math.round(p);
+        if (Math.abs(cents - p) > 0.01) throw new Error(`Giá ${p} không phải số nguyên VNĐ.`);
+        return BigInt(cents);
+      };
+
+      grossPrice = BigInt(0);
+      for (const item of items) {
+        const product = products.find(p => p.id === item.productId);
+        const qty = item.quantity || 1;
+        const unitPrice = floatPriceToBigInt(product.price);
+        const lineTotal = unitPrice * BigInt(qty);
+        grossPrice += lineTotal;
+        purchaseItems.push({
+          productId: product.id,
+          productCode: product.slug,
+          productName: product.title,
+          quantity: qty,
+          unitPrice,
+          lineTotal,
+        });
+      }
+
+      discountRateBps = pkg.defaultDiscount || 0;
+      discountAmount = grossPrice * BigInt(discountRateBps) / BigInt(10000);
+      netPayableAmount = grossPrice - discountAmount;
+
+      // Check fractional VND
+      if (grossPrice * BigInt(discountRateBps) % BigInt(10000) !== BigInt(0)) {
+        return res.status(400).json({ success: false, message: 'Lỗi: Số tiền chiết khấu có phần lẻ VNĐ. Vui lòng chọn sản phẩm khác.' });
+      }
+    }
+
+    // 4. Generate purchase code
+    const now = new Date();
+    const dateStr = `${(now.getMonth()+1).toString().padStart(2,'0')}${now.getDate().toString().padStart(2,'0')}`;
+    const rand = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+    const code = `NPP-${dateStr}-${rand}`;
+
+    // 5. Create purchase + items in transaction
+    const purchase = await prisma.$transaction(async (tx) => {
+      const p = await tx.nppPurchase.create({
+        data: {
+          code,
+          userId,
+          userCode: req.user.userId,
+          packageId: pkg.id,
+          registrationId: registration.id,
+          grossPrice,
+          discountRateBps,
+          discountAmount,
+          netPayableAmount,
+          remainingAmount: netPayableAmount,
+          actualPaidAmount: BigInt(0),
+          assignedRank: pkg.assignedRank,
+          packageSnapshot: JSON.stringify({ code: pkg.code, name: pkg.name, packageType: pkg.packageType, requiredQuantity: pkg.requiredQuantity, defaultDiscount: pkg.defaultDiscount }),
+        },
+      });
+
+      // Create items for PRODUCT_COMBO
+      if (purchaseItems.length > 0) {
+        for (const item of purchaseItems) {
+          await tx.nppPurchaseItem.create({
+            data: { purchaseId: p.id, ...item },
+          });
+        }
+      }
+
+      return p;
+    });
+
+    // Serialize BigInt
+    const serialize = (obj) => JSON.parse(JSON.stringify(obj, (_, v) => typeof v === 'bigint' ? v.toString() : v));
+
+    const full = await prisma.nppPurchase.findUnique({
+      where: { id: purchase.id },
+      include: { items: true, payments: true, package: true },
+    });
+
+    console.log(`[NPP USER PURCHASE] ${req.user.userId} created ${code} for package ${pkg.code}`);
+    res.json({ success: true, data: serialize(full), message: 'Đơn mua NPP đã được tạo thành công.' });
+  } catch (e) {
+    console.error('POST /api/npp/my-purchase error:', e);
     res.status(500).json({ success: false, error: e.message });
   }
 });

@@ -15,6 +15,7 @@ export interface UserSession {
   businessId?: string | null;
   rank?: string | null;
   rankStatus?: string | null;
+  isNpp?: boolean;
 }
 
 export function useUnifiedAuth() {

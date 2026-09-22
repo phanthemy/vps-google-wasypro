@@ -15,7 +15,8 @@ import {
   History,
   ArrowLeft,
   ChevronDown,
-  MoreHorizontal
+  MoreHorizontal,
+  Package
 } from 'lucide-react';
 
 // Subviews
@@ -43,6 +44,7 @@ import RankView from './views/RankView.jsx';
 import ChangePasswordModal from './components/modals/ChangePasswordModal.jsx';
 
 import { UserSession } from '../../hooks/useUnifiedAuth';
+import UserNppDashboard from './UserNppDashboard';
 
 interface CTVPortalContainerProps {
   currentUser: UserSession;
@@ -133,6 +135,7 @@ export const CTVPortalContainer: React.FC<CTVPortalContainerProps> = ({
     { id: 'orders', label: isParticipant ? 'Đơn Hàng' : 'Đơn Hàng Của Tôi', icon: ShoppingCart, visible: true },
     { id: 'rank', label: 'Cấp Bậc & Điểm Tích Lũy', icon: TrendingUp, visible: isParticipant },
     { id: 'commissions', label: 'Hoa Hồng', icon: Wallet, visible: isParticipant },
+    { id: 'npp', label: 'Gói NPP', icon: Package, visible: true },
   ];
 
   // 2. Secondary Navigation Tabs (Grouped in "Thêm ▾" dropdown)
@@ -383,6 +386,14 @@ export const CTVPortalContainer: React.FC<CTVPortalContainerProps> = ({
             />
           )}
 
+          {activeTab === 'npp' && (
+            <UserNppDashboard
+              userId={currentUser.id}
+              isNpp={(currentUser as any).isNpp}
+              rank={(currentUser as any).rank}
+              businessId={(currentUser as any).businessId}
+            />
+          )}
           {activeTab === 'account' && (
             <SettingsView currentUser={currentUser} />
           )}
