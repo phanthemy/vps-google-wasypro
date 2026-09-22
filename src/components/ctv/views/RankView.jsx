@@ -192,6 +192,98 @@ export default function RankView({ currentUser }) {
     }
   ];
 
+
+  // ─── NPP User: Different rank logic ───
+  const isNppUser = currentUser?.isNpp || currentUser?.hasNppRegistration;
+  if (isNppUser) {
+    const rankLabels = { AMBASSADOR: 'Đại Sứ Thương Mại', MANAGER: 'Trưởng Nhóm', DIRECTOR: 'Quản Lý' };
+    return (
+      <div className="space-y-6 font-sans">
+        <div className="glass-panel p-5 rounded-2xl bg-white border border-gray-100 shadow-sm">
+          <h2 className="text-xl font-extrabold text-slate-900 flex items-center gap-2 mb-1">
+            <Star size={22} className="text-amber-500 fill-amber-400" /> Nhà Phân Phối (NPP)
+          </h2>
+          <p className="text-xs text-slate-600">Cấp bậc và quyền lợi Nhà Phân Phối</p>
+        </div>
+
+        <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))' }}>
+          {/* NPP Status Card */}
+          <div className="glass-panel p-5 rounded-2xl bg-white border border-gray-100 shadow-sm">
+            <div className="flex items-center gap-2 text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">
+              <Award size={16} className="text-primary" /> Cấp bậc NPP
+            </div>
+            <div className="flex items-center gap-4">
+              <RankBadge tier={currentUser?.tier} rank={currentUser?.rank} isSystemParticipant={true} size="lg" />
+              <div>
+                <p className="font-extrabold text-slate-900 text-lg">{currentUser?.fullName}</p>
+                {currentUser?.rank ? (
+                  <p className="text-sm text-purple-700 font-bold mt-1">{rankLabels[currentUser.rank] || currentUser.rank}</p>
+                ) : (
+                  <p className="text-sm text-amber-600 font-semibold mt-1">Chờ kích hoạt</p>
+                )}
+                {currentUser?.businessId ? (
+                  <p className="text-xs mt-1">BID: <strong className="font-mono bg-amber-100 text-amber-900 px-2 py-0.5 rounded">{currentUser.businessId}</strong></p>
+                ) : (
+                  <p className="text-xs text-amber-600 mt-1 italic">BID: Mua gói NPP để nhận</p>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* NPP Activation Info */}
+          <div className="glass-panel p-5 rounded-2xl bg-white border border-gray-100 shadow-sm">
+            <div className="flex items-center gap-2 text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">
+              <Info size={16} className="text-sky-500" /> Cách lên cấp NPP
+            </div>
+            <div className="space-y-2 text-xs text-slate-700">
+              <div className="flex items-start gap-2">
+                <span className="w-5 h-5 rounded-full bg-sky-100 text-sky-700 flex items-center justify-center text-[10px] font-bold flex-shrink-0">1</span>
+                <span>Đăng ký gói NPP (Combo 5 hoặc Combo 15)</span>
+              </div>
+              <div className="flex items-start gap-2">
+                <span className="w-5 h-5 rounded-full bg-sky-100 text-sky-700 flex items-center justify-center text-[10px] font-bold flex-shrink-0">2</span>
+                <span>Chọn sản phẩm trong gói và đặt mua</span>
+              </div>
+              <div className="flex items-start gap-2">
+                <span className="w-5 h-5 rounded-full bg-sky-100 text-sky-700 flex items-center justify-center text-[10px] font-bold flex-shrink-0">3</span>
+                <span>Thanh toán đầy đủ</span>
+              </div>
+              <div className="flex items-start gap-2">
+                <span className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center text-[10px] font-bold flex-shrink-0">✓</span>
+                <span className="font-semibold text-emerald-700">NPP kích hoạt → nhận BID + Rank</span>
+              </div>
+            </div>
+            {!currentUser?.isNpp && (
+              <div className="mt-3 pt-3 border-t border-gray-100 text-xs text-amber-600 font-semibold">
+                → Vào tab <strong>Gói NPP</strong> để chọn sản phẩm và mua gói
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Rank History */}
+        {history.length > 0 && (
+          <div className="glass-panel p-5 rounded-2xl bg-white border border-gray-100 shadow-sm">
+            <h3 className="text-sm font-bold text-slate-800 mb-3 flex items-center gap-2">
+              <Clock size={16} className="text-slate-400" /> Lịch sử thay đổi cấp bậc
+            </h3>
+            <div className="space-y-2">
+              {history.map((h, i) => (
+                <div key={i} className="flex items-center justify-between text-xs p-2 bg-gray-50 rounded-lg border border-gray-100">
+                  <div>
+                    <span className="font-semibold">{rankLabels[h.toRank] || h.toRank || '—'}</span>
+                    {h.fromRank && <span className="text-gray-400 ml-1">← {rankLabels[h.fromRank] || h.fromRank}</span>}
+                  </div>
+                  <span className="text-gray-400">{new Date(h.createdAt).toLocaleDateString('vi-VN')}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6 font-sans">
       {/* Top Banner */}
