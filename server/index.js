@@ -307,8 +307,6 @@ app.post('/api/auth/login', authLimiter, async (req, res) => {
     // Return user information without exposing token string in body
         // Check if user has NPP registration
     const nppStatus = await computeNppStatus(user.userId, user.id, !!user.isNpp);
-          where: { userId: user.id, status: { in: ['PENDING', 'APPROVED'] } } 
-        });
     res.json({
       success: true,
       requirePasswordChange: user.mustChangePassword,
@@ -326,7 +324,6 @@ app.post('/api/auth/login', authLimiter, async (req, res) => {
         businessId: user.businessId ?? null,
         rank: user.rank ?? null,
         rankStatus: user.rankStatus ?? null,
-        isNpp: user.isNpp ?? false,
         nppStatus,
         avatarUrl: user.avatarUrl ?? null,
       }
@@ -360,7 +357,6 @@ app.get('/api/auth/me', authenticateToken, async (req, res) => {
         businessId: user.businessId ?? null,
         rank: user.rank ?? null,
         rankStatus: user.rankStatus ?? null,
-        isNpp: user.isNpp ?? false,
         nppStatus: nppStatusMe,
         avatarUrl: user.avatarUrl ?? null,
       }
@@ -467,7 +463,7 @@ app.post('/api/auth/register', authLimiter, async (req, res) => {
     const willJoinSystem = !!joinSystem; // true if user chose CTV at registration
     const wantNpp = !!req.body.registerNpp || !!nppPackageId;
     if (willJoinSystem && wantNpp) {
-      return res.status(400).json({ success: false, message: "CTV và NPP không thể chọn cùng lúc. Vui lòng chọn một." });
+      return res.status(400).json({ success: false, message: 'CTV và NPP không thể chọn cùng lúc. Vui lòng chọn một.' });
     }
 
     // Check duplicate phone
@@ -536,7 +532,6 @@ app.post('/api/auth/register', authLimiter, async (req, res) => {
 
     console.log(`[REGISTER] ${generatedId} ${fullName} (${phone}) joinSystem=${willJoinSystem}`);
 
-
     // ─── NPP Registration (if registerNpp or nppPackageId) ───
     let hasNppRegistration = false;
     if (wantNpp) {
@@ -545,7 +540,6 @@ app.post('/api/auth/register', authLimiter, async (req, res) => {
         if (nppPackageId) {
           const pkg = await prisma.nppPackage.findUnique({ where: { id: nppPackageId } });
           if (pkg && pkg.isActive) validPackageId = pkg.id;
-          else console.warn(`[REGISTER] Invalid/inactive package: ${nppPackageId}`);
         }
         await prisma.nppRegistration.create({
           data: {
@@ -556,8 +550,6 @@ app.post('/api/auth/register', authLimiter, async (req, res) => {
         });
         hasNppRegistration = true;
         console.log(`[REGISTER] NPP registration created for ${generatedId}, package: ${validPackageId || 'NONE'}`);
-      } catch (nppErr) { console.error('[REGISTER] NPP registration error:', nppErr.message); }
-    }
       } catch (nppErr) { console.error('[REGISTER] NPP registration error:', nppErr.message); }
     }
 
@@ -5822,7 +5814,6 @@ function serializeBigInt(obj) {
 // Compute NPP lifecycle status for a user
 async function computeNppStatus(userId, userDbId, isNpp) {
   if (isNpp) return 'ACTIVE';
-  // Check purchase first (more specific)
   const purchase = await prisma.nppPurchase.findFirst({
     where: { userId: userDbId, status: { notIn: ['CANCELLED'] } },
     orderBy: { createdAt: 'desc' },
@@ -5831,18 +5822,18 @@ async function computeNppStatus(userId, userDbId, isNpp) {
     if (purchase.isPaidInFull && purchase.status !== 'COMPLETED') return 'PAID';
     if (['NEW', 'DEPOSIT', 'CONFIRMED', 'SHIPPING'].includes(purchase.status)) return 'PURCHASING';
   }
-  // Check registration
   const reg = await prisma.nppRegistration.findFirst({
     where: { userId: userDbId, status: { in: ['PENDING', 'APPROVED', 'CONVERTED'] } },
     orderBy: { createdAt: 'desc' },
   });
   if (reg) {
+    if (reg.status === 'CONVERTED') return 'ACTIVE';
     if (reg.status === 'APPROVED') return 'APPROVED';
     if (reg.status === 'PENDING') return 'PENDING';
-    if (reg.status === 'CONVERTED') return 'ACTIVE'; // converted = completed purchase
   }
   return 'NONE';
 }
+
 
 // Valid rank enums for NPP packages
 const NPP_VALID_RANKS = ['AMBASSADOR', 'MANAGER', 'DIRECTOR'];
@@ -6576,7 +6567,7 @@ app.post('/api/admin/npp/purchases', authenticateToken, requireRole(['admin']), 
     if (reg.status !== 'APPROVED') return res.status(400).json({ success: false, message: `Registration status is ${reg.status}, must be APPROVED` });
 
     // 2. Check no existing purchase for this registration
-    const existingPurchase = await prisma.nppPurchase.findFirst({ where: { registrationId } });
+    const existingPurchase = await prisma.nppPurchase.findFirst({ where: { registrationId, status: { notIn: ['CANCELLED'] } } });
     if (existingPurchase) return res.status(400).json({ success: false, message: 'Purchase already exists for this registration' });
 
     const pkg = reg.package;
