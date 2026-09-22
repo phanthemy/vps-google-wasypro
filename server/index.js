@@ -305,6 +305,10 @@ app.post('/api/auth/login', authLimiter, async (req, res) => {
     });
 
     // Return user information without exposing token string in body
+        // Check if user has NPP registration
+        const nppReg = await prisma.nppRegistration.findFirst({ 
+          where: { userId: user.id, status: { in: ['PENDING', 'APPROVED'] } } 
+        });
     res.json({
       success: true,
       requirePasswordChange: user.mustChangePassword,
@@ -323,6 +327,7 @@ app.post('/api/auth/login', authLimiter, async (req, res) => {
         rank: user.rank ?? null,
         rankStatus: user.rankStatus ?? null,
         isNpp: user.isNpp ?? false,
+        hasNppRegistration: !!nppReg,
         avatarUrl: user.avatarUrl ?? null,
       }
     });
@@ -338,6 +343,7 @@ app.get('/api/auth/me', authenticateToken, async (req, res) => {
     const lookupId = req.user.userId || req.user.id;
     const user = await prisma.user.findFirst({ where: { OR: [{ userId: lookupId }, { id: lookupId }] } });
     if (!user) return res.status(404).json({ success: false, message: 'Người dùng không tồn tại.' });
+        const nppRegMe = await prisma.nppRegistration.findFirst({ where: { userId: user.id, status: { in: ['PENDING', 'APPROVED'] } } });
     res.json({
       success: true,
       data: {
@@ -355,6 +361,7 @@ app.get('/api/auth/me', authenticateToken, async (req, res) => {
         rank: user.rank ?? null,
         rankStatus: user.rankStatus ?? null,
         isNpp: user.isNpp ?? false,
+        hasNppRegistration: !!nppRegMe,
         avatarUrl: user.avatarUrl ?? null,
       }
     });

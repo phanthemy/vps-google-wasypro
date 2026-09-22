@@ -16,6 +16,7 @@ export interface UserSession {
   rank?: string | null;
   rankStatus?: string | null;
   isNpp?: boolean;
+  hasNppRegistration?: boolean;
 }
 
 export function useUnifiedAuth() {
