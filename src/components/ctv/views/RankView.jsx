@@ -253,7 +253,7 @@ export default function RankView({ currentUser }) {
                 <span className="font-semibold text-emerald-700">NPP kích hoạt → nhận BID + Rank</span>
               </div>
             </div>
-            {!currentUser?.isNpp && (
+            {currentUser?.nppStatus !== 'ACTIVE' && (
               <div className="mt-3 pt-3 border-t border-gray-100 text-xs text-amber-600 font-semibold">
                 → Vào tab <strong>Gói NPP</strong> để chọn sản phẩm và mua gói
               </div>
@@ -335,7 +335,7 @@ export default function RankView({ currentUser }) {
           </div>
           <div className="mt-4 pt-3 border-t border-slate-100 text-[11px] text-slate-500 flex justify-between">
             <span>ID: <strong className="font-mono text-slate-800">{currentUser?.id || currentUser?.userId}</strong></span>
-            <span>Trạng thái: <strong className="text-emerald-600">{currentUser?.isSystemParticipant || currentUser?.nppStatus && currentUser.nppStatus !== 'NONE' ? (currentUser?.isNpp ? 'Nhà Phân Phối (NPP)' : currentUser?.hasNppRegistration ? 'NPP - Chờ kích hoạt' : 'Đã kích hoạt CTV') : 'Khách hàng'}</strong></span>
+            <span>Trạng thái: <strong className="text-emerald-600">{currentUser?.nppStatus === 'ACTIVE' ? 'Nhà Phân Phối (NPP)' : currentUser?.nppStatus === 'PAID' ? 'NPP — Chờ Admin kích hoạt' : currentUser?.nppStatus === 'PURCHASING' ? 'NPP — Đang mua gói' : currentUser?.nppStatus === 'APPROVED' ? 'NPP — Đã duyệt' : currentUser?.nppStatus === 'PENDING' ? 'NPP — Chờ duyệt' : currentUser?.isSystemParticipant ? 'Đã kích hoạt CTV' : 'Khách hàng'}</strong></span>
           </div>
         </div>
 

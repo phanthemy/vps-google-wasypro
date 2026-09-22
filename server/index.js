@@ -462,9 +462,7 @@ app.post('/api/auth/register', authLimiter, async (req, res) => {
     const rawPwd = (password && password.trim()) ? password.trim() : '123456';
     const willJoinSystem = !!joinSystem; // true if user chose CTV at registration
     const wantNpp = !!req.body.registerNpp || !!nppPackageId;
-    if (willJoinSystem && wantNpp) {
-      return res.status(400).json({ success: false, message: 'CTV và NPP không thể chọn cùng lúc. Vui lòng chọn một.' });
-    }
+    // CTV + NPP can coexist — no mutual exclusion guard
 
     // Check duplicate phone
     const existing = await prisma.user.findUnique({ where: { phone } });

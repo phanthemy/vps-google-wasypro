@@ -6,8 +6,10 @@ function getCsrfToken(): string {
   return match ? decodeURIComponent(match[1]) : '';
 }
 function authHeaders(h: Record<string, string> = {}): Record<string, string> {
-  const t = getCsrfToken(); return t ? { ...h, 'X-CSRF-Token': t } : { ...h };
-}
+  const csrfToken = document.cookie.split('; ').find(c => c.startsWith('csrf_token='))?.split('=')[1] || '';
+  const headers: Record<string, string> = { ...h };
+  if (csrfToken) headers['X-CSRF-Token'] = csrfToken;
+  return headers;
 const formatVND = (v: number | string | null | undefined): string => {
   if (v == null) return '—';
   const n = typeof v === 'string' ? parseInt(v, 10) : v;
