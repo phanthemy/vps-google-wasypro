@@ -309,6 +309,7 @@ app.post('/api/auth/login', authLimiter, async (req, res) => {
     // Return user information without exposing token string in body
         // Check if user has NPP registration
     const nppStatus = await computeNppStatus(user.userId, user.id, !!user.isNpp);
+    const nppRank = await computeNppRank(user.id);
     res.json({
       success: true,
       requirePasswordChange: user.mustChangePassword,
@@ -327,6 +328,7 @@ app.post('/api/auth/login', authLimiter, async (req, res) => {
         rank: user.rank ?? null,
         rankStatus: user.rankStatus ?? null,
         nppStatus,
+        nppRank: nppRank ?? null,
         avatarUrl: user.avatarUrl ?? null,
       }
     });
@@ -360,6 +362,7 @@ app.get('/api/auth/me', authenticateToken, async (req, res) => {
         rank: user.rank ?? null,
         rankStatus: user.rankStatus ?? null,
         nppStatus: nppStatusMe,
+        nppRank: (await computeNppRank(user.id)) ?? null,
         avatarUrl: user.avatarUrl ?? null,
       }
     });
@@ -5834,6 +5837,25 @@ async function computeNppStatus(userId, userDbId, isNpp) {
   return 'NONE';
 }
 
+// Compute NPP assigned rank from purchase or registration package
+async function computeNppRank(userDbId) {
+  // Check purchase first (higher priority)
+  const purchase = await prisma.nppPurchase.findFirst({
+    where: { userId: userDbId, status: { notIn: ['CANCELLED'] } },
+    orderBy: { createdAt: 'desc' },
+  });
+  if (purchase && purchase.assignedRank) return purchase.assignedRank;
+  
+  // Fallback to registration package
+  const reg = await prisma.nppRegistration.findFirst({
+    where: { userId: userDbId, status: { in: ['PENDING', 'APPROVED', 'CONVERTED'] } },
+    include: { package: { select: { assignedRank: true } } },
+    orderBy: { createdAt: 'desc' },
+  });
+  if (reg && reg.package && reg.package.assignedRank) return reg.package.assignedRank;
+  
+  return null;
+}
 
 // Valid rank enums for NPP packages
 const NPP_VALID_RANKS = ['AMBASSADOR', 'MANAGER', 'DIRECTOR'];

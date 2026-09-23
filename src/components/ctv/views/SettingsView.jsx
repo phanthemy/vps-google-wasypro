@@ -215,7 +215,7 @@ function getCsrfToken() {
             <div className="text-[11px] font-bold text-secondary uppercase tracking-wider mb-2 flex items-center gap-1.5">
               <Award size={14} className="text-primary" /> Cấp Bậc
             </div>
-            <RankBadge tier={currentUser.tier} rank={currentUser.rank} isSystemParticipant={isParticipant} size="md" />
+            <RankBadge tier={currentUser.tier} rank={currentUser.rank} nppRank={currentUser.nppRank} isSystemParticipant={isParticipant} size="md" />
           </div>
 
           {/* Vai Trò */}

@@ -67,11 +67,13 @@ export function getRankDisplayLabel(rank) {
 /**
  * RankBadge — hiển thị cấp bậc với màu Đồng/Bạc/Vàng
  */
-export default function RankBadge({ tier, rank, isSystemParticipant, size = 'md' }) {
+export default function RankBadge({ tier, rank, isSystemParticipant, nppRank, size = 'md' }) {
   let key = 'CUSTOMER';
 
   if (rank && ['AMBASSADOR', 'MANAGER', 'DIRECTOR', 'SALES_MANAGER', 'SALES_DIRECTOR'].includes(rank.toUpperCase())) {
     key = rank.toUpperCase();
+  } else if (nppRank && ['AMBASSADOR', 'MANAGER', 'DIRECTOR'].includes(nppRank.toUpperCase())) {
+    key = nppRank.toUpperCase();
   } else if (tier && ['MANAGER', 'DIRECTOR', 'SALES_MANAGER', 'SALES_DIRECTOR', 'GOLD', 'DIAMOND'].includes(tier.toUpperCase())) {
     key = tier.toUpperCase();
   } else if (isSystemParticipant) {
