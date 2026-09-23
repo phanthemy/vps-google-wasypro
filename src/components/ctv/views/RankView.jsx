@@ -213,18 +213,18 @@ export default function RankView({ currentUser }) {
               <Award size={16} className="text-primary" /> Cấp bậc NPP
             </div>
             <div className="flex items-center gap-4">
-              <RankBadge tier={currentUser?.tier} rank={currentUser?.rank} isSystemParticipant={true} size="lg" />
+              <RankBadge tier={currentUser?.tier} rank={currentUser?.rank} nppRank={currentUser?.nppRank} isSystemParticipant={true} size="lg" />
               <div>
                 <p className="font-extrabold text-slate-900 text-lg">{currentUser?.fullName}</p>
-                {currentUser?.rank ? (
-                  <p className="text-sm text-purple-700 font-bold mt-1">{rankLabels[currentUser.rank] || currentUser.rank}</p>
+                {(currentUser?.rank || currentUser?.nppRank) ? (
+                  <p className="text-sm text-purple-700 font-bold mt-1">{rankLabels[currentUser.rank || currentUser.nppRank] || currentUser.rank || currentUser.nppRank}</p>
                 ) : (
                   <p className="text-sm text-amber-600 font-semibold mt-1">Chờ kích hoạt</p>
                 )}
                 {currentUser?.businessId ? (
                   <p className="text-xs mt-1">BID: <strong className="font-mono bg-amber-100 text-amber-900 px-2 py-0.5 rounded">{currentUser.businessId}</strong></p>
                 ) : (
-                  <p className="text-xs text-amber-600 mt-1 italic">BID: Mua gói NPP để nhận</p>
+                  <p className="text-xs text-amber-600 mt-1 italic">BID: Thanh toán gói NPP và admin kích hoạt để nhận</p>
                 )}
               </div>
             </div>
@@ -238,7 +238,7 @@ export default function RankView({ currentUser }) {
             <div className="space-y-2 text-xs text-slate-700">
               <div className="flex items-start gap-2">
                 <span className="w-5 h-5 rounded-full bg-sky-100 text-sky-700 flex items-center justify-center text-[10px] font-bold flex-shrink-0">1</span>
-                <span>Đăng ký gói NPP (Combo 5 hoặc Combo 15)</span>
+                <span>Đăng ký gói NPP (Combo hoặc Chiến lược)</span>
               </div>
               <div className="flex items-start gap-2">
                 <span className="w-5 h-5 rounded-full bg-sky-100 text-sky-700 flex items-center justify-center text-[10px] font-bold flex-shrink-0">2</span>
