@@ -358,7 +358,7 @@ const UserNppDashboard: React.FC<Props> = ({ userId, nppStatus, rank, businessId
                       {/* Status info */}
                       {p.status === 'NEW' || p.status === 'DEPOSIT' ? (
                         <div className="bg-amber-50 rounded-lg p-2.5 text-xs text-amber-700 border border-amber-200">
-                          💡 Vui lòng thanh toán {p.status === 'NEW' ? 'để hoàn tất đơn mua' : 'phần còn lại'}. Liên hệ công ty để được hướng dẫn.
+                          💡 Gói NPP chờ thanh toán ({p.status === 'NEW' ? 'chưa thanh toán' : 'đã đặt cọc'}). Liên hệ công ty để kích hoạt.
                         </div>
                       ) : p.status === 'COMPLETED' ? (
                         <div className="bg-emerald-50 rounded-lg p-2.5 text-xs text-emerald-700 border border-emerald-200">
