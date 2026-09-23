@@ -187,7 +187,34 @@ const UserNppDashboard: React.FC<Props> = ({ userId, nppStatus, rank, businessId
         </div>
       )}
 
-      {/* Action: Select Products & Create Purchase */}
+      {/* Action: CAPITAL package — one-click purchase */}
+      {registration?.status === 'APPROVED' && !pendingPurchase && !activePurchase && registration.package?.packageType === 'CAPITAL' && (
+        <div className="bg-white rounded-xl border-2 border-emerald-300 p-4">
+          <h3 className="text-sm font-bold text-emerald-700 flex items-center gap-2 mb-3"><ShoppingCart className="w-4 h-4" /> Tạo đơn mua NPP</h3>
+          <p className="text-xs text-gray-500 mb-4">
+            Gói <strong>{registration.package.name}</strong> — Vốn đầu tư: <strong>{formatVND(registration.package.grossPrice || 0)}</strong>
+          </p>
+          <button
+            onClick={handleCreatePurchase}
+            disabled={submitting}
+            className="w-full py-3 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-sm disabled:opacity-50 flex items-center justify-center gap-2 transition-all"
+          >
+            {submitting ? <><Loader2 className="w-4 h-4 animate-spin" /> Đang xử lý...</> : <><ShoppingCart className="w-4 h-4" /> Tạo đơn mua — {formatVND(registration.package.grossPrice || 0)}</>}
+          </button>
+        </div>
+      )}
+
+      {/* Action: No package selected — user needs to choose */}
+      {registration?.status === 'APPROVED' && !pendingPurchase && !activePurchase && !registration.package && (
+        <div className="bg-white rounded-xl border-2 border-amber-300 p-4 text-center">
+          <AlertCircle className="w-8 h-8 mx-auto text-amber-400 mb-2" />
+          <p className="text-sm text-gray-800 font-semibold mb-1">Đăng ký đã được duyệt!</p>
+          <p className="text-xs text-gray-500 mb-3">Vui lòng liên hệ công ty để chọn gói NPP và tiến hành mua hàng.</p>
+          <p className="text-[10px] text-gray-400">Hotline: 1900 98 98 78</p>
+        </div>
+      )}
+
+      {/* Action: Select Products & Create Purchase (PRODUCT_COMBO) */}
       {registration?.status === 'APPROVED' && !pendingPurchase && !activePurchase && registration.package?.packageType === 'PRODUCT_COMBO' && (
         <div className="bg-white rounded-xl border-2 border-sky-300 p-4">
           <div className="flex items-center justify-between mb-3">
