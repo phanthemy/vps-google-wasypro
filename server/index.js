@@ -458,7 +458,9 @@ app.delete('/api/users/me/avatar', authenticateToken, async (req, res) => {
 // refCode → parentId (sponsor). No business rights until "THAM GIA HỆ THỐNG".
 app.post('/api/auth/register', authLimiter, async (req, res) => {
   try {
-    let { fullName, phone, password, refCode, joinSystem, nppPackageId } = req.body;
+    let { fullName, phone, password, refCode, joinSystem, nppPackageId, referralCode } = req.body;
+    // Frontend sends 'referralCode', backend used 'refCode' — accept both
+    if (!refCode && referralCode) refCode = referralCode;
     if (!fullName || !fullName.trim()) return res.status(400).json({ success: false, message: 'Vui lòng nhập họ tên.' });
     if (!phone || !phone.trim()) return res.status(400).json({ success: false, message: 'Vui lòng nhập số điện thoại.' });
 
