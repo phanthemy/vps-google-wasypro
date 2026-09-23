@@ -15,8 +15,8 @@ export default function OrdersView({ currentUser }) {
   const [showCreateModal, setShowCreateModal] = useState(false);
 
   const isAdmin = currentUser?.role === 'admin' || currentUser?.role === 'accountant';
-  // NPP with rank or active CTV = can create orders
-  const isParticipant = !!currentUser?.isSystemParticipant || currentUser?.nppStatus === 'ACTIVE' || ['AMBASSADOR', 'MANAGER', 'DIRECTOR'].includes(currentUser?.rank || '');
+  // NPP with rank (purchased package) or active CTV = can create orders
+  const isParticipant = !!currentUser?.isSystemParticipant || currentUser?.nppStatus === 'ACTIVE' || currentUser?.nppRank || ['AMBASSADOR', 'MANAGER', 'DIRECTOR'].includes(currentUser?.rank || '');
 
   const loadOrders = async () => {
     setLoading(true);

@@ -95,9 +95,10 @@ export const CTVPortalContainer: React.FC<CTVPortalContainerProps> = ({
   const isAdminOrAccountant = isAdmin || isAccountant;
   
   // A user is considered a full partner if they joined the system or already have an official rank
-  // isParticipant = CTV (joined system) OR NPP ACTIVE OR has official rank OR admin
+  // isParticipant = CTV (joined system) OR NPP with rank (purchased package) OR has official rank OR admin
   const isParticipant = !!currentUser?.isSystemParticipant || 
-    (currentUser as any)?.nppStatus === 'ACTIVE' || 
+    (currentUser as any)?.nppStatus === 'ACTIVE' ||
+    !!(currentUser as any)?.nppRank ||
     ['AMBASSADOR', 'MANAGER', 'DIRECTOR', 'SALES_MANAGER', 'SALES_DIRECTOR'].includes(currentUser?.rank || '') ||
     isAdminOrAccountant;
   

@@ -2372,7 +2372,9 @@ app.post('/api/orders', authenticateToken, async (req, res) => {
       if (!customer) {
         // Auto-create linked Customer (fallback for users who joined before this feature)
         const ordererUser = await prisma.user.findUnique({ where: { id: ordererUserId } });
-        if (!ordererUser || (!ordererUser.isSystemParticipant && !ordererUser.isNpp)) {
+        // Allow CTV (isSystemParticipant) OR NPP active (isNpp) OR NPP purchasing (has purchase)
+        const hasNppPurchase = await prisma.nppPurchase.findFirst({ where: { userId: ordererUserId, status: { notIn: ['CANCELLED'] } } });
+        if (!ordererUser || (!ordererUser.isSystemParticipant && !ordererUser.isNpp && !hasNppPurchase)) {
           return res.status(400).json({ success: false, error: 'NOT_PARTICIPANT',
             message: 'Bạn chưa tham gia chương trình CTV/NPP. Vui lòng tham gia trước.' });
         }

@@ -88,8 +88,8 @@ export default function DashboardView({ refreshKey, currentUser, setActiveTab })
 
   const userObj = { ...currentUser, ...personalStats, ...freshUser };
   const isAdmin = userObj.role === 'admin';
-  // isParticipant = CTV OR NPP ACTIVE OR has rank OR admin
-  const isParticipant = !!userObj.isSystemParticipant || userObj.nppStatus === 'ACTIVE' || 
+  // isParticipant = CTV OR NPP ACTIVE OR has nppRank (purchased package) OR has rank OR admin
+  const isParticipant = !!userObj.isSystemParticipant || userObj.nppStatus === 'ACTIVE' || !!userObj.nppRank ||
     ['AMBASSADOR', 'MANAGER', 'DIRECTOR', 'SALES_MANAGER', 'SALES_DIRECTOR'].includes(userObj.rank || '') ||
     userObj.role === 'admin' || userObj.role === 'accountant';
   // NPP user with non-NONE status can access portal

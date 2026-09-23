@@ -20,8 +20,8 @@ export default function SettingsView({ currentUser: initialUser }) {
   const currentUser = user || initialUser;
   if (!currentUser) return null;
 
-  // isParticipant = CTV (joined system) OR NPP ACTIVE only — not pending/approved/purchasing
-  const isParticipant = !!currentUser.isSystemParticipant || currentUser.nppStatus === 'ACTIVE';
+  // isParticipant = CTV (joined system) OR NPP ACTIVE OR has nppRank (purchased package)
+  const isParticipant = !!currentUser.isSystemParticipant || currentUser.nppStatus === 'ACTIVE' || !!currentUser.nppRank;
   const qp = currentUser.qualifyingPoints || 0;
 
   const nppRoleMapS = { ACTIVE: 'Nhà Phân Phối (NPP)', PAID: 'NPP — Chờ Admin kích hoạt', PURCHASING: 'NPP — Đang mua gói', APPROVED: 'NPP — Đã duyệt', PENDING: 'NPP — Chờ duyệt' };
