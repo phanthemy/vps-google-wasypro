@@ -2441,6 +2441,21 @@ app.post('/api/orders', authenticateToken, async (req, res) => {
     }
     // ─── END PHASE 2D VALIDATION ──────────────────────────────────────────
 
+    // NPP Pricing Mode — apply discount from NPP package
+    let appliedDiscountBps = 0;
+    let nppDiscountLabel = '';
+    if (pricingMode === 'NPP') {
+      const nppPurchase = await prisma.nppPurchase.findFirst({
+        where: { userId: ordererUserId, status: { notIn: ['CANCELLED'] } },
+        include: { package: true },
+        orderBy: { createdAt: 'desc' },
+      });
+      if (nppPurchase && nppPurchase.package && nppPurchase.package.defaultDiscount > 0) {
+        appliedDiscountBps = nppPurchase.package.defaultDiscount;
+        nppDiscountLabel = nppPurchase.package.name + ' (-' + (appliedDiscountBps / 100) + '%)';
+      }
+    }
+
     // Build order items
     let totalAmount = 0;
     const itemsData = [];
