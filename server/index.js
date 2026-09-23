@@ -6888,7 +6888,9 @@ app.post('/api/admin/npp/purchases/:id/payments', authenticateToken, requireRole
     const { amount, paymentMethod, referenceCode, note } = req.body;
     if (!amount) return res.status(400).json({ success: false, message: 'amount required' });
 
-    const amountBigInt = BigInt(amount);
+    // Strip formatting characters (dots, commas, spaces) from amount string
+    const cleanAmount = String(amount).replace(/[.,\s]/g, '');
+    const amountBigInt = BigInt(cleanAmount);
     if (amountBigInt <= 0n) return res.status(400).json({ success: false, message: 'Amount must be positive' });
 
     const purchase = await prisma.nppPurchase.findUnique({ where: { id: req.params.id } });
