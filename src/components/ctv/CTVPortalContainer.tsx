@@ -145,7 +145,7 @@ export const CTVPortalContainer: React.FC<CTVPortalContainerProps> = ({
     { id: 'orders', label: isParticipant ? 'Đơn Hàng' : 'Đơn Hàng Của Tôi', icon: ShoppingCart, visible: true },
     { id: 'rank', label: 'Cấp Bậc & Điểm Tích Lũy', icon: TrendingUp, visible: isParticipant },
     { id: 'commissions', label: 'Hoa Hồng', icon: Wallet, visible: isParticipant },
-    { id: 'npp', label: 'Gói NPP', icon: Package, visible: true },
+    { id: 'npp', label: 'Gói NPP', icon: Package, visible: hasNppRegistration || !!(currentUser as any)?.isNpp },
   ];
 
   // 2. Secondary Navigation Tabs (Grouped in "Thêm ▾" dropdown)
