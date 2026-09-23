@@ -2346,7 +2346,7 @@ app.post('/api/orders', authenticateToken, async (req, res) => {
     // purchaseSubject from client is INTENT only. Backend validates and computes truth.
     // Refs: PHASE 2D SPEC v1
 
-    let { customerId, purchaseSubject, items, shippingAddress, recipientPhone, recipientEmail, contactHotline } = req.body;
+    let { customerId, purchaseSubject, items, shippingAddress, recipientPhone, recipientEmail, contactHotline, pricingMode } = req.body;
 
     if (!items || !Array.isArray(items) || items.length === 0) {
       return res.status(400).json({ success: false, message: 'Đơn hàng phải có ít nhất một sản phẩm/dịch vụ.' });
@@ -2466,13 +2466,24 @@ app.post('/api/orders', authenticateToken, async (req, res) => {
         const svc = await prisma.service.findUnique({ where: { id: item.serviceId } });
         if (!svc) return res.status(400).json({ success: false, message: `Dịch vụ ${item.serviceId} không tồn tại` });
         serviceId = svc.id;
-        itemAmount = Number(item.amount) || (svc.price * qty);
+        const baseSvcPrice = Number(item.amount) || (svc.price * qty);
+        if (appliedDiscountBps > 0) {
+          itemAmount = Math.round(baseSvcPrice * (10000 - appliedDiscountBps) / 10000);
+        } else {
+          itemAmount = baseSvcPrice;
+        }
         unitCommissionPts = Math.round(Number(svc.commissionPoints || 0));
       } else {
         const prod = await prisma.product.findUnique({ where: { id: item.productId } });
         if (!prod) return res.status(400).json({ success: false, message: `Sản phẩm ${item.productId} không tồn tại` });
         productId = prod.id;
-        itemAmount = Number(item.amount) || (prod.price * qty);
+        // Apply NPP discount if pricingMode = NPP
+        const basePrice = Number(item.amount) || (prod.price * qty);
+        if (appliedDiscountBps > 0) {
+          itemAmount = Math.round(basePrice * (10000 - appliedDiscountBps) / 10000);
+        } else {
+          itemAmount = basePrice;
+        }
         unitCommissionPts = Math.round(Number(prod.commissionPoints || 0));
       }
 
@@ -2494,7 +2505,7 @@ app.post('/api/orders', authenticateToken, async (req, res) => {
         customerId,
         totalAmount,
         status: 'NEW',
-        orderType: 'RETAIL',
+        orderType: appliedDiscountBps > 0 ? 'NPP_DISCOUNT' : 'RETAIL',
         isSelfBuy: isSelf,
         purchaseType,
         ordererUserId,
@@ -7100,6 +7111,39 @@ app.patch('/api/admin/npp/purchases/:id/cancel', authenticateToken, requireRole(
 });
 
 // GET /api/npp/my-purchase — User views own NPP purchases
+// ── GET /api/npp/my-discount — Get NPP discount rate for order pricing ──
+app.get('/api/npp/my-discount', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    // Find user's active NPP purchase with package
+    const purchase = await prisma.nppPurchase.findFirst({
+      where: { userId, status: { notIn: ['CANCELLED'] } },
+      include: { package: true },
+      orderBy: { createdAt: 'desc' },
+    });
+    if (!purchase || !purchase.package) {
+      return res.json({ success: true, hasDiscount: false, discount: null });
+    }
+    const pkg = purchase.package;
+    const rateBps = pkg.defaultDiscount || 0;
+    res.json({
+      success: true,
+      hasDiscount: rateBps > 0,
+      discount: {
+        rateBps,
+        ratePercent: rateBps / 100,
+        packageCode: pkg.code,
+        packageName: pkg.name,
+        packageType: pkg.packageType,
+        assignedRank: pkg.assignedRank,
+      },
+    });
+  } catch (e) {
+    console.error('GET /api/npp/my-discount error:', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 app.get('/api/npp/my-purchase', authenticateToken, async (req, res) => {
   try {
     const dbId = req.user.dbId || req.user.id;

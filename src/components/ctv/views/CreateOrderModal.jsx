@@ -24,11 +24,30 @@ export default function CreateOrderModal({ currentUser, onClose, onSuccess }) {
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(false);
   const [customerSearch, setCustomerSearch] = useState('');
+  // NPP Pricing
+  const [pricingMode, setPricingMode] = useState('RETAIL'); // 'RETAIL' | 'NPP'
+  const [nppDiscount, setNppDiscount] = useState(null); // { rateBps, ratePercent, packageName }
+
   // Shipping info
   const [shippingAddress, setShippingAddress] = useState('');
   const [recipientPhone, setRecipientPhone] = useState('');
   const [recipientEmail, setRecipientEmail] = useState('');
   const [contactHotline, setContactHotline] = useState('');
+
+  // Load NPP discount info if user has nppRank
+  useEffect(() => {
+    if (currentUser?.nppRank) {
+      fetch('/api/npp/my-discount', { credentials: 'include' })
+        .then(r => r.json())
+        .then(data => {
+          if (data.success && data.hasDiscount) {
+            setNppDiscount(data.discount);
+            setPricingMode('NPP'); // Default to NPP pricing for NPP users
+          }
+        })
+        .catch(() => {});
+    }
+  }, [currentUser]);
 
   // Load products
   useEffect(() => {
@@ -81,6 +100,7 @@ export default function CreateOrderModal({ currentUser, onClose, onSuccess }) {
 
       const body = {
         purchaseSubject,
+        pricingMode: pricingMode,
         items: [{ productId: selectedProduct.id, qty }],
         shippingAddress: shippingAddress.trim(),
         recipientPhone: recipientPhone.trim(),
@@ -115,7 +135,9 @@ export default function CreateOrderModal({ currentUser, onClose, onSuccess }) {
     }
   };
 
-  const totalAmount = selectedProduct ? selectedProduct.price * qty : 0;
+  const discountRate = pricingMode === 'NPP' && nppDiscount ? nppDiscount.rateBps : 0;
+  const retailTotal = selectedProduct ? selectedProduct.price * qty : 0;
+  const totalAmount = discountRate > 0 ? Math.round(retailTotal * (10000 - discountRate) / 10000) : retailTotal;
   const totalCP = selectedProduct ? (selectedProduct.commissionPoints || 0) * qty : 0;
 
   if (success) {
@@ -306,6 +328,42 @@ export default function CreateOrderModal({ currentUser, onClose, onSuccess }) {
             </div>
           )}
 
+          {/* PRICING MODE — only for NPP users with discount */}
+          {nppDiscount && (
+            <div>
+              <label className="text-xs font-bold uppercase tracking-wider" style={{ color: '#64748b' }}>Chế Độ Giá</label>
+              <div className="flex gap-2 mt-2">
+                <button
+                  onClick={() => setPricingMode('NPP')}
+                  className="flex-1 py-2.5 rounded-xl font-bold text-sm transition-all"
+                  style={{
+                    background: pricingMode === 'NPP' ? '#dcfce7' : '#f8fafc',
+                    color: pricingMode === 'NPP' ? '#166534' : '#64748b',
+                    border: pricingMode === 'NPP' ? '2px solid #22c55e' : '1px solid #e2e8f0',
+                  }}
+                >
+                  🏷️ Giá NPP (-{nppDiscount.ratePercent}%)
+                </button>
+                <button
+                  onClick={() => setPricingMode('RETAIL')}
+                  className="flex-1 py-2.5 rounded-xl font-bold text-sm transition-all"
+                  style={{
+                    background: pricingMode === 'RETAIL' ? '#fef3c7' : '#f8fafc',
+                    color: pricingMode === 'RETAIL' ? '#92400e' : '#64748b',
+                    border: pricingMode === 'RETAIL' ? '2px solid #f59e0b' : '1px solid #e2e8f0',
+                  }}
+                >
+                  💰 Giá Retail
+                </button>
+              </div>
+              {pricingMode === 'NPP' && (
+                <p className="text-xs mt-1.5 font-medium" style={{ color: '#16a34a' }}>
+                  Gói: {nppDiscount.packageName} — Chiết khấu {nppDiscount.ratePercent}%
+                </p>
+              )}
+            </div>
+          )}
+
           {/* STEP 2: Product Selection */}
           <div>
             <label className="text-xs font-bold uppercase tracking-wider" style={{ color: '#64748b' }}>Sản Phẩm</label>
@@ -332,9 +390,20 @@ export default function CreateOrderModal({ currentUser, onClose, onSuccess }) {
                     </div>
                   </div>
                   <div className="text-right">
-                    <div className="font-bold text-sm" style={{ color: '#059669' }}>
-                      {new Intl.NumberFormat('vi-VN').format(p.price)}đ
-                    </div>
+                    {pricingMode === 'NPP' && discountRate > 0 ? (
+                      <>
+                        <div className="text-xs line-through" style={{ color: '#94a3b8' }}>
+                          {new Intl.NumberFormat('vi-VN').format(p.price)}đ
+                        </div>
+                        <div className="font-bold text-sm" style={{ color: '#16a34a' }}>
+                          {new Intl.NumberFormat('vi-VN').format(Math.round(p.price * (10000 - discountRate) / 10000))}đ
+                        </div>
+                      </>
+                    ) : (
+                      <div className="font-bold text-sm" style={{ color: '#059669' }}>
+                        {new Intl.NumberFormat('vi-VN').format(p.price)}đ
+                      </div>
+                    )}
                     {selectedProduct?.id === p.id && <CheckCircle size={14} style={{ color: '#10b981' }} />}
                   </div>
                 </button>
@@ -398,6 +467,22 @@ export default function CreateOrderModal({ currentUser, onClose, onSuccess }) {
                   <span style={{ color: '#64748b' }}>Số lượng</span>
                   <span className="font-bold">{qty}</span>
                 </div>
+                {pricingMode === 'NPP' && discountRate > 0 && (
+                  <div className="flex justify-between">
+                    <span style={{ color: '#64748b' }}>Giá gốc</span>
+                    <span className="line-through" style={{ color: '#94a3b8' }}>
+                      {new Intl.NumberFormat('vi-VN').format(retailTotal)}đ
+                    </span>
+                  </div>
+                )}
+                {pricingMode === 'NPP' && discountRate > 0 && (
+                  <div className="flex justify-between">
+                    <span style={{ color: '#16a34a' }}>Chiết khấu NPP (-{nppDiscount?.ratePercent}%)</span>
+                    <span className="font-bold" style={{ color: '#16a34a' }}>
+                      -{new Intl.NumberFormat('vi-VN').format(retailTotal - totalAmount)}đ
+                    </span>
+                  </div>
+                )}
                 <div className="flex justify-between pt-2" style={{ borderTop: '1px dashed #e2e8f0' }}>
                   <span className="font-bold" style={{ color: '#475569' }}>Tổng tiền</span>
                   <span className="font-extrabold text-lg" style={{ color: '#059669' }}>
