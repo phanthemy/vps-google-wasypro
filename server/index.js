@@ -2372,9 +2372,9 @@ app.post('/api/orders', authenticateToken, async (req, res) => {
       if (!customer) {
         // Auto-create linked Customer (fallback for users who joined before this feature)
         const ordererUser = await prisma.user.findUnique({ where: { id: ordererUserId } });
-        if (!ordererUser || !ordererUser.isSystemParticipant) {
+        if (!ordererUser || (!ordererUser.isSystemParticipant && !ordererUser.isNpp)) {
           return res.status(400).json({ success: false, error: 'NOT_PARTICIPANT',
-            message: 'Bạn chưa tham gia chương trình CTV. Vui lòng tham gia trước.' });
+            message: 'Bạn chưa tham gia chương trình CTV/NPP. Vui lòng tham gia trước.' });
         }
         const orderSponsor = ordererUser.parentId ? (await prisma.user.findFirst({ where: { userId: ordererUser.parentId } })) : null;
         customer = await prisma.customer.create({
@@ -4306,7 +4306,7 @@ async function executeOrderSettlement(orderId, options = {}) {
     const buyerIsSelf = !!(qualifyingMember && orderer && qualifyingMember.id === orderer.id);
     // customerIsCTV = the CUSTOMER (recipient) is a CTV participant with potential SELF eligibility
     // Used for SELF commission: CTV-A orders for CTV-B → CTV-B gets SELF
-    const customerIsCTV = !!(qualifyingMember && qualifyingMember.isSystemParticipant);
+    const customerIsCTV = !!(qualifyingMember && (qualifyingMember.isSystemParticipant || qualifyingMember.isNpp));
     // Legacy compat: isSelf = customerIsCTV for SELF block usage
     const isSelf = customerIsCTV;
 
@@ -4371,7 +4371,7 @@ async function executeOrderSettlement(orderId, options = {}) {
 
     if (orderTotalCP > 0 && qualifyingMember) {
       const currentUser = await tx.user.findUnique({ where: { id: qualifyingMember.id } });
-      const isQualifying = !!currentUser.isSystemParticipant;
+      const isQualifying = !!currentUser.isSystemParticipant || !!currentUser.isNpp;
       const newQualifyingPoints = isQualifying
         ? Math.round((currentUser.qualifyingPoints || 0) + orderTotalCP)
         : Math.round(currentUser.qualifyingPoints || 0);
@@ -5985,7 +5985,17 @@ app.post('/api/admin/npp/packages', authenticateToken, requireRole(['admin']), a
     }
 
     // Rank validation
-    const rank = assignedRank || 'AMBASSADOR';
+    // Auto-assign rank based on grossPrice for CAPITAL packages
+    let rank = assignedRank || 'AMBASSADOR';
+    if (packageType === 'CAPITAL' && grossPrice) {
+      const priceNum = typeof grossPrice === 'bigint' ? grossPrice : BigInt(Math.round(Number(grossPrice)));
+      if (priceNum >= 2000000000n) rank = 'DIRECTOR';
+      else if (priceNum >= 300000000n) rank = 'MANAGER';
+      else rank = 'AMBASSADOR';
+      if (assignedRank && assignedRank !== rank) {
+        return res.status(400).json({ error: 'Gói ' + grossPrice + '₫ phải có cấp bậc ' + rank + '. Không thể chọn ' + assignedRank + '.' });
+      }
+    }
     if (!NPP_VALID_RANKS.includes(rank)) {
       return res.status(400).json({ error: `assignedRank phải là một trong: ${NPP_VALID_RANKS.join(', ')}` });
     }
@@ -6412,9 +6422,11 @@ app.post('/api/admin/npp/grant', authenticateToken, requireRole(['admin']), asyn
         allocatedBid = 'WK-' + String(bidValue).padStart(5, '0');
       }
 
-      // 2. Update User
+      // 2. Update User — NPP grant = join system
       const userUpdate = {
         isNpp: true,
+        isSystemParticipant: true,
+        participantAt: user.participantAt || new Date(),
         nppActivationSource: 'ADMIN_GRANT',
         nppActivatedBy: adminUserId,
         rank: assignedRank,
@@ -6427,6 +6439,24 @@ app.post('/api/admin/npp/grant', authenticateToken, requireRole(['admin']), asyn
         where: { id: userId },
         data: userUpdate,
       });
+
+      // 2b. Auto-create linked Customer for NPP (like join-system)
+      const existingCustomer = await tx.customer.findFirst({ where: { linkedUserId: userId } });
+      if (!existingCustomer) {
+        const sponsorUser = user.parentId ? (await tx.user.findFirst({ where: { userId: user.parentId } })) : null;
+        const tenYearsFromNow = new Date();
+        tenYearsFromNow.setFullYear(tenYearsFromNow.getFullYear() + 10);
+        await tx.customer.create({
+          data: {
+            fullName: user.fullName,
+            phone: user.phone,
+            linkedUserId: userId,
+            sourceCtvId: user.userId,
+            sponsorUserId: sponsorUser?.id || null,
+            expiresAt: tenYearsFromNow,
+          }
+        });
+      }
 
       // 3. Close existing active RankHistory (only if rank changes)
       if (user.rank && user.rank !== assignedRank) {
@@ -6945,15 +6975,35 @@ app.post('/api/admin/npp/purchases/:id/complete', authenticateToken, requireRole
       const previousRank = user.rank || 'NONE';
       const newRank = pkg.assignedRank;
 
-      // 3. Update user
+      // 3. Update user — NPP activation = join system
       await tx.user.update({
         where: { id: user.id },
         data: {
           isNpp: true,
+          isSystemParticipant: true,
+          participantAt: user.participantAt || new Date(),
           nppActivatedAt: user.nppActivatedAt || new Date(),
           rank: newRank,
         },
       });
+
+      // 3b. Auto-create linked Customer for NPP (like join-system)
+      const existingCustomer = await tx.customer.findFirst({ where: { linkedUserId: user.id } });
+      if (!existingCustomer) {
+        const sponsorUser = user.parentId ? (await tx.user.findFirst({ where: { userId: user.parentId } })) : null;
+        const tenYearsFromNow = new Date();
+        tenYearsFromNow.setFullYear(tenYearsFromNow.getFullYear() + 10);
+        await tx.customer.create({
+          data: {
+            fullName: user.fullName,
+            phone: user.phone,
+            linkedUserId: user.id,
+            sourceCtvId: user.userId,
+            sponsorUserId: sponsorUser?.id || null,
+            expiresAt: tenYearsFromNow,
+          }
+        });
+      }
 
       // 4. RankHistory (if changed)
       if (previousRank !== newRank) {

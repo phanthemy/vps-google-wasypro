@@ -600,7 +600,12 @@ const AdminNppPackages: React.FC = () => {
                     value={form.grossPrice}
                     onChange={e => {
                       const raw = e.target.value.replace(/[^\d]/g, '');
-                      setForm(f => ({ ...f, grossPrice: raw }));
+                      // Auto-assign rank based on price for CAPITAL packages
+                      const price = parseInt(raw, 10) || 0;
+                      let autoRank = 'AMBASSADOR';
+                      if (price >= 2000000000) autoRank = 'DIRECTOR';
+                      else if (price >= 300000000) autoRank = 'MANAGER';
+                      setForm(f => ({ ...f, grossPrice: raw, ...(f.packageType === 'CAPITAL' ? { assignedRank: autoRank } : {}) }));
                     }}
                     placeholder="300000000"
                     className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
