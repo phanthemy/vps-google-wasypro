@@ -25,8 +25,10 @@ export default function CreateOrderModal({ currentUser, onClose, onSuccess }) {
   const [success, setSuccess] = useState(false);
   const [customerSearch, setCustomerSearch] = useState('');
   // NPP Pricing
-  const [pricingMode, setPricingMode] = useState('RETAIL'); // 'RETAIL' | 'NPP'
+  const [pricingMode, setPricingMode] = useState('RETAIL'); // 'RETAIL' | 'NPP' | 'COMBO'
   const [nppDiscount, setNppDiscount] = useState(null); // { rateBps, ratePercent, packageName }
+  const [nppCombo, setNppCombo] = useState(null); // { packageName, discountPercent, items: [...] }
+  const [comboItems, setComboItems] = useState([]); // [{ productId, qty }] for combo mode
 
   // Shipping info
   const [shippingAddress, setShippingAddress] = useState('');
@@ -34,15 +36,37 @@ export default function CreateOrderModal({ currentUser, onClose, onSuccess }) {
   const [recipientEmail, setRecipientEmail] = useState('');
   const [contactHotline, setContactHotline] = useState('');
 
-  // Load NPP discount info if user has nppRank
+  // Load NPP discount + combo info if user has nppRank
   useEffect(() => {
     if (currentUser?.nppRank) {
+      // Fetch discount info
       fetch('/api/npp/my-discount', { credentials: 'include' })
         .then(r => r.json())
         .then(data => {
           if (data.success && data.hasDiscount) {
             setNppDiscount(data.discount);
-            setPricingMode('NPP'); // Default to NPP pricing for NPP users
+          }
+        })
+        .catch(() => {});
+      // Fetch combo package info
+      fetch('/api/npp/my-combo', { credentials: 'include' })
+        .then(r => r.json())
+        .then(data => {
+          if (data.success && data.hasCombo) {
+            setNppCombo(data.combo);
+            // Default to combo mode for NPP users with combo package
+            setPricingMode('COMBO');
+            // Pre-fill combo items with original quantities
+            setComboItems(data.combo.items.map(item => ({
+              productId: item.productId,
+              productName: item.productName,
+              price: item.price,
+              discountedPrice: item.discountedPrice,
+              qty: item.originalQty,
+            })));
+          } else if (data.success) {
+            // No combo, use NPP discount if available
+            setPricingMode('NPP');
           }
         })
         .catch(() => {});
@@ -87,6 +111,17 @@ export default function CreateOrderModal({ currentUser, onClose, onSuccess }) {
     setError(null);
     try {
       // Validate shipping fields
+      // Validate combo items
+      if (pricingMode === 'COMBO' && comboItems.every(ci => ci.qty <= 0)) {
+        setError('Vui lòng chọn ít nhất 1 sản phẩm trong combo.');
+        setSubmitting(false);
+        return;
+      }
+      if (pricingMode !== 'COMBO' && !selectedProduct) {
+        setError('Vui lòng chọn sản phẩm.');
+        setSubmitting(false);
+        return;
+      }
       if (!recipientPhone.trim()) {
         setError('Vui lòng nhập số điện thoại người nhận.');
         setSubmitting(false);
@@ -101,7 +136,9 @@ export default function CreateOrderModal({ currentUser, onClose, onSuccess }) {
       const body = {
         purchaseSubject,
         pricingMode: pricingMode,
-        items: [{ productId: selectedProduct.id, qty }],
+        items: pricingMode === 'COMBO'
+          ? comboItems.filter(ci => ci.qty > 0).map(ci => ({ productId: ci.productId, qty: ci.qty }))
+          : [{ productId: selectedProduct.id, qty }],
         shippingAddress: shippingAddress.trim(),
         recipientPhone: recipientPhone.trim(),
         recipientEmail: recipientEmail.trim() || null,
@@ -135,9 +172,11 @@ export default function CreateOrderModal({ currentUser, onClose, onSuccess }) {
     }
   };
 
-  const discountRate = pricingMode === 'NPP' && nppDiscount ? nppDiscount.rateBps : 0;
+  const discountRate = (pricingMode === 'NPP' || pricingMode === 'COMBO') && nppDiscount ? nppDiscount.rateBps : 0;
   const retailTotal = selectedProduct ? selectedProduct.price * qty : 0;
-  const totalAmount = discountRate > 0 ? Math.round(retailTotal * (10000 - discountRate) / 10000) : retailTotal;
+  const comboTotal = pricingMode === 'COMBO' ? comboItems.reduce((sum, ci) => sum + ci.discountedPrice * ci.qty, 0) : 0;
+  const comboRetailTotal = pricingMode === 'COMBO' ? comboItems.reduce((sum, ci) => sum + ci.price * ci.qty, 0) : 0;
+  const totalAmount = pricingMode === 'COMBO' ? comboTotal : (discountRate > 0 ? Math.round(retailTotal * (10000 - discountRate) / 10000) : retailTotal);
   const totalCP = selectedProduct ? (selectedProduct.commissionPoints || 0) * qty : 0;
 
   if (success) {
@@ -328,25 +367,40 @@ export default function CreateOrderModal({ currentUser, onClose, onSuccess }) {
             </div>
           )}
 
-          {/* PRICING MODE — only for NPP users with discount */}
-          {nppDiscount && (
+          {/* PRICING MODE — for NPP users with combo or discount */}
+          {(nppCombo || nppDiscount) && (
             <div>
-              <label className="text-xs font-bold uppercase tracking-wider" style={{ color: '#64748b' }}>Chế Độ Giá</label>
-              <div className="flex gap-2 mt-2">
-                <button
-                  onClick={() => setPricingMode('NPP')}
-                  className="flex-1 py-2.5 rounded-xl font-bold text-sm transition-all"
-                  style={{
-                    background: pricingMode === 'NPP' ? '#dcfce7' : '#f8fafc',
-                    color: pricingMode === 'NPP' ? '#166534' : '#64748b',
-                    border: pricingMode === 'NPP' ? '2px solid #22c55e' : '1px solid #e2e8f0',
-                  }}
-                >
-                  🏷️ Giá NPP (-{nppDiscount.ratePercent}%)
-                </button>
+              <label className="text-xs font-bold uppercase tracking-wider" style={{ color: '#64748b' }}>Chế Độ Mua Hàng</label>
+              <div className="flex gap-2 mt-2 flex-wrap">
+                {nppCombo && (
+                  <button
+                    onClick={() => setPricingMode('COMBO')}
+                    className="flex-1 py-2.5 rounded-xl font-bold text-sm transition-all min-w-[120px]"
+                    style={{
+                      background: pricingMode === 'COMBO' ? '#dbeafe' : '#f8fafc',
+                      color: pricingMode === 'COMBO' ? '#1e40af' : '#64748b',
+                      border: pricingMode === 'COMBO' ? '2px solid #3b82f6' : '1px solid #e2e8f0',
+                    }}
+                  >
+                    📦 Combo NPP
+                  </button>
+                )}
+                {nppDiscount && (
+                  <button
+                    onClick={() => setPricingMode('NPP')}
+                    className="flex-1 py-2.5 rounded-xl font-bold text-sm transition-all min-w-[120px]"
+                    style={{
+                      background: pricingMode === 'NPP' ? '#dcfce7' : '#f8fafc',
+                      color: pricingMode === 'NPP' ? '#166534' : '#64748b',
+                      border: pricingMode === 'NPP' ? '2px solid #22c55e' : '1px solid #e2e8f0',
+                    }}
+                  >
+                    🏷️ Mua Lẻ CK (-{nppDiscount.ratePercent}%)
+                  </button>
+                )}
                 <button
                   onClick={() => setPricingMode('RETAIL')}
-                  className="flex-1 py-2.5 rounded-xl font-bold text-sm transition-all"
+                  className="flex-1 py-2.5 rounded-xl font-bold text-sm transition-all min-w-[120px]"
                   style={{
                     background: pricingMode === 'RETAIL' ? '#fef3c7' : '#f8fafc',
                     color: pricingMode === 'RETAIL' ? '#92400e' : '#64748b',
@@ -356,7 +410,12 @@ export default function CreateOrderModal({ currentUser, onClose, onSuccess }) {
                   💰 Giá Retail
                 </button>
               </div>
-              {pricingMode === 'NPP' && (
+              {pricingMode === 'COMBO' && nppCombo && (
+                <p className="text-xs mt-1.5 font-medium" style={{ color: '#2563eb' }}>
+                  📦 {nppCombo.packageName} — CK {nppCombo.discountPercent}% — Chọn sản phẩm và số lượng bên dưới
+                </p>
+              )}
+              {pricingMode === 'NPP' && nppDiscount && (
                 <p className="text-xs mt-1.5 font-medium" style={{ color: '#16a34a' }}>
                   Gói: {nppDiscount.packageName} — Chiết khấu {nppDiscount.ratePercent}%
                 </p>
@@ -364,7 +423,45 @@ export default function CreateOrderModal({ currentUser, onClose, onSuccess }) {
             </div>
           )}
 
-          {/* STEP 2: Product Selection */}
+          {/* COMBO MODE: Product selection from combo package */}
+          {pricingMode === 'COMBO' && nppCombo && (
+            <div>
+              <label className="text-xs font-bold uppercase tracking-wider" style={{ color: '#64748b' }}>Sản Phẩm Combo — {nppCombo.packageName}</label>
+              <div className="mt-2 rounded-xl overflow-hidden" style={{ border: '1px solid #bfdbfe' }}>
+                {comboItems.map((ci, idx) => (
+                  <div key={ci.productId} className="flex items-center justify-between p-3" style={{ borderBottom: idx < comboItems.length - 1 ? '1px solid #f1f5f9' : 'none', background: ci.qty > 0 ? '#eff6ff' : 'transparent' }}>
+                    <div className="flex-1 min-w-0">
+                      <div className="font-bold text-sm" style={{ color: '#1e293b' }}>{ci.productName}</div>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <span className="text-xs line-through" style={{ color: '#94a3b8' }}>{new Intl.NumberFormat('vi-VN').format(ci.price)}đ</span>
+                        <span className="text-xs font-bold" style={{ color: '#16a34a' }}>{new Intl.NumberFormat('vi-VN').format(ci.discountedPrice)}đ</span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1 ml-2">
+                      <button onClick={() => { const next = [...comboItems]; next[idx] = {...next[idx], qty: Math.max(0, next[idx].qty - 1)}; setComboItems(next); }} className="w-7 h-7 rounded-lg flex items-center justify-center text-sm font-bold" style={{ background: '#e2e8f0', color: '#475569' }}>−</button>
+                      <span className="w-8 text-center font-bold text-sm">{ci.qty}</span>
+                      <button onClick={() => { const next = [...comboItems]; next[idx] = {...next[idx], qty: next[idx].qty + 1}; setComboItems(next); }} className="w-7 h-7 rounded-lg flex items-center justify-center text-sm font-bold" style={{ background: '#3b82f6', color: '#fff' }}>+</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              {comboItems.some(ci => ci.qty > 0) && (
+                <div className="mt-2 p-3 rounded-xl" style={{ background: '#eff6ff', border: '1px solid #bfdbfe' }}>
+                  <div className="flex justify-between text-xs" style={{ color: '#64748b' }}>
+                    <span>Tổng SL: {comboItems.reduce((s, ci) => s + ci.qty, 0)} sản phẩm</span>
+                    <span>Giá gốc: <span className="line-through">{new Intl.NumberFormat('vi-VN').format(comboRetailTotal)}đ</span></span>
+                  </div>
+                  <div className="flex justify-between mt-1">
+                    <span className="text-xs font-bold" style={{ color: '#16a34a' }}>CK {nppCombo.discountPercent}%: -{new Intl.NumberFormat('vi-VN').format(comboRetailTotal - comboTotal)}đ</span>
+                    <span className="font-extrabold text-sm" style={{ color: '#059669' }}>{new Intl.NumberFormat('vi-VN').format(comboTotal)}đ</span>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* STEP 2: Product Selection (for NPP/RETAIL modes) */}
+          {pricingMode !== 'COMBO' && (
           <div>
             <label className="text-xs font-bold uppercase tracking-wider" style={{ color: '#64748b' }}>Sản Phẩm</label>
             <div className="mt-2 max-h-48 overflow-y-auto rounded-xl" style={{ border: '1px solid #e2e8f0' }}>
@@ -461,11 +558,15 @@ export default function CreateOrderModal({ currentUser, onClose, onSuccess }) {
                 )}
                 <div className="flex justify-between">
                   <span style={{ color: '#64748b' }}>Sản phẩm</span>
-                  <span className="font-bold" style={{ color: '#1e293b' }}>{selectedProduct.title}</span>
+                  <span className="font-bold" style={{ color: '#1e293b' }}>
+                    {pricingMode === 'COMBO' ? `Combo ${comboItems.filter(ci => ci.qty > 0).length} SP` : selectedProduct.title}
+                  </span>
                 </div>
                 <div className="flex justify-between">
                   <span style={{ color: '#64748b' }}>Số lượng</span>
-                  <span className="font-bold">{qty}</span>
+                  <span className="font-bold">
+                    {pricingMode === 'COMBO' ? comboItems.reduce((s, ci) => s + ci.qty, 0) : qty}
+                  </span>
                 </div>
                 {pricingMode === 'NPP' && discountRate > 0 && (
                   <div className="flex justify-between">
@@ -501,7 +602,7 @@ export default function CreateOrderModal({ currentUser, onClose, onSuccess }) {
 
 
           {/* SHIPPING SECTION */}
-          {selectedProduct && (purchaseSubject === 'SELF' || selectedCustomer) && (
+          {((pricingMode === 'COMBO' && comboItems.some(ci => ci.qty > 0)) || (pricingMode !== 'COMBO' && selectedProduct)) && (purchaseSubject === 'SELF' || selectedCustomer) && (
             <div className="rounded-xl p-4" style={{ background: '#f0f9ff', border: '1.5px solid #bae6fd' }}>
               <div className="text-xs font-bold uppercase tracking-wider mb-3 flex items-center gap-1.5" style={{ color: '#0369a1' }}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
@@ -571,12 +672,12 @@ export default function CreateOrderModal({ currentUser, onClose, onSuccess }) {
           {/* Submit */}
           <button
             onClick={handleSubmit}
-            disabled={submitting || !selectedProduct || (purchaseSubject === 'CUSTOMER' && !selectedCustomer)}
+            disabled={submitting || (pricingMode !== 'COMBO' && !selectedProduct) || (pricingMode === 'COMBO' && comboItems.every(ci => ci.qty <= 0)) || (purchaseSubject === 'CUSTOMER' && !selectedCustomer)}
             className="w-full py-3.5 rounded-xl font-bold text-white text-sm uppercase tracking-wider transition-all"
             style={{
-              background: submitting || !selectedProduct || (purchaseSubject === 'CUSTOMER' && !selectedCustomer)
+              background: submitting || (pricingMode !== 'COMBO' && !selectedProduct) || (pricingMode === 'COMBO' && comboItems.every(ci => ci.qty <= 0)) || (purchaseSubject === 'CUSTOMER' && !selectedCustomer)
                 ? '#cbd5e1' : '#6366f1',
-              cursor: submitting || !selectedProduct || (purchaseSubject === 'CUSTOMER' && !selectedCustomer)
+              cursor: submitting || (pricingMode !== 'COMBO' && !selectedProduct) || (pricingMode === 'COMBO' && comboItems.every(ci => ci.qty <= 0)) || (purchaseSubject === 'CUSTOMER' && !selectedCustomer)
                 ? 'not-allowed' : 'pointer',
             }}
           >
