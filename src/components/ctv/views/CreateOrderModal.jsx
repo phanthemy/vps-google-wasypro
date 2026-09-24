@@ -535,8 +535,6 @@ export default function CreateOrderModal({ currentUser, onClose, onSuccess }) {
             </div>
           )}
 
-          )}
-
           {/* STEP 3: Summary */}
           {((pricingMode === 'COMBO' && comboItems.some(ci => ci.qty > 0)) || (pricingMode !== 'COMBO' && selectedProduct)) && (purchaseSubject === 'SELF' || selectedCustomer) && (
             <div className="rounded-xl p-4" style={{ background: '#f8fafc', border: '1px solid #e2e8f0' }}>
