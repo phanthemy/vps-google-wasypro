@@ -533,6 +533,7 @@ export default function CreateOrderModal({ currentUser, onClose, onSuccess }) {
                 >+</button>
               </div>
             </div>
+          )}
           </>)}
 
           {/* STEP 3: Summary */}
