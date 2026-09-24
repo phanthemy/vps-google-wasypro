@@ -103,7 +103,9 @@ export const CTVPortalContainer: React.FC<CTVPortalContainerProps> = ({
     isAdminOrAccountant;
   
   // NPP user with pending/approved/purchasing status — show portal but not "partner" badge
-  const hasNppRegistration = ['PENDING','APPROVED','PURCHASING','PAID','ACTIVE'].includes((currentUser as any)?.nppStatus);
+  // NPP tab: only show for users actively in NPP flow (APPROVED with purchase, PURCHASING, PAID, ACTIVE)
+  // PENDING = just submitted form, not yet approved — should NOT see NPP tab
+  const hasNppRegistration = ['PURCHASING','PAID','ACTIVE'].includes((currentUser as any)?.nppStatus) || !!(currentUser as any)?.isNpp;
 
   // Rank Display Information
   const rankLabel = (() => {
@@ -127,7 +129,7 @@ export const CTVPortalContainer: React.FC<CTVPortalContainerProps> = ({
   })();
 
   const nppS = (currentUser as any)?.nppStatus;
-  const nppRoleMap: Record<string, string> = { ACTIVE: 'Nhà Phân Phối (NPP)', PAID: 'NPP — Chờ kích hoạt', PURCHASING: 'NPP — Đang mua gói', APPROVED: 'NPP — Đã duyệt', PENDING: 'NPP — Chờ duyệt' };
+  const nppRoleMap: Record<string, string> = { ACTIVE: 'Nhà Phân Phối (NPP)', PAID: 'NPP — Chờ kích hoạt', PURCHASING: 'NPP — Đang mua gói' };
   const roleText = isAdmin 
     ? 'Quản Trị' 
     : isAccountant 
@@ -145,7 +147,7 @@ export const CTVPortalContainer: React.FC<CTVPortalContainerProps> = ({
     { id: 'orders', label: isParticipant ? 'Đơn Hàng' : 'Đơn Hàng Của Tôi', icon: ShoppingCart, visible: true },
     { id: 'rank', label: 'Cấp Bậc & Điểm Tích Lũy', icon: TrendingUp, visible: isParticipant },
     { id: 'commissions', label: 'Hoa Hồng', icon: Wallet, visible: isParticipant },
-    { id: 'npp', label: 'Gói NPP', icon: Package, visible: hasNppRegistration || !!(currentUser as any)?.isNpp },
+    { id: 'npp', label: 'Gói NPP', icon: Package, visible: hasNppRegistration },
   ];
 
   // 2. Secondary Navigation Tabs (Grouped in "Thêm ▾" dropdown)
