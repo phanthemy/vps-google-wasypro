@@ -461,7 +461,7 @@ export default function CreateOrderModal({ currentUser, onClose, onSuccess }) {
           )}
 
           {/* STEP 2: Product Selection (for NPP/RETAIL modes) */}
-          {pricingMode !== 'COMBO' && (
+          {pricingMode !== 'COMBO' && (<>
           <div>
             <label className="text-xs font-bold uppercase tracking-wider" style={{ color: '#64748b' }}>Sản Phẩm</label>
             <div className="mt-2 max-h-48 overflow-y-auto rounded-xl" style={{ border: '1px solid #e2e8f0' }}>
@@ -533,7 +533,7 @@ export default function CreateOrderModal({ currentUser, onClose, onSuccess }) {
                 >+</button>
               </div>
             </div>
-          )}
+          </>)}
 
           {/* STEP 3: Summary */}
           {((pricingMode === 'COMBO' && comboItems.some(ci => ci.qty > 0)) || (pricingMode !== 'COMBO' && selectedProduct)) && (purchaseSubject === 'SELF' || selectedCustomer) && (
