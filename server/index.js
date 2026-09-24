@@ -7129,14 +7129,87 @@ app.patch('/api/admin/npp/purchases/:id/cancel', authenticateToken, requireRole(
   }
 });
 
+// GET /api/npp/my-combo — Get NPP combo package info + products for repeat orders
+app.get('/api/npp/my-combo', authenticateToken, async (req, res) => {
+  try {
+    const userDbId = req.user.dbId;
+    
+    // Find latest completed NPP purchase with PRODUCT_COMBO package
+    const purchase = await prisma.nppPurchase.findFirst({
+      where: { userId: userDbId, status: { notIn: ['CANCELLED'] } },
+      include: { 
+        package: true,
+        items: { include: { product: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    
+    if (!purchase || !purchase.package) {
+      return res.json({ success: true, hasCombo: false, combo: null });
+    }
+    
+    const pkg = purchase.package;
+    const discountBps = pkg.defaultDiscount || 0;
+    const discountPercent = discountBps / 100;
+    
+    // Build combo items from purchase items
+    const comboItems = (purchase.items || []).map(item => {
+      const price = Number(item.unitPrice);
+      const discountedPrice = discountBps > 0 ? Math.round(price * (10000 - discountBps) / 10000) : price;
+      return {
+        productId: item.productId,
+        productName: item.productName || (item.product ? item.product.title : 'Unknown'),
+        price,
+        discountedPrice,
+        originalQty: item.quantity,
+      };
+    });
+    
+    // If no items in purchase, fall back to all products (for CAPITAL packages)
+    if (comboItems.length === 0) {
+      const allProducts = await prisma.product.findMany({ where: { price: { gt: 0 } } });
+      for (const p of allProducts) {
+        const price = Number(p.price);
+        const discountedPrice = discountBps > 0 ? Math.round(price * (10000 - discountBps) / 10000) : price;
+        comboItems.push({
+          productId: p.id,
+          productName: p.title,
+          price,
+          discountedPrice,
+          originalQty: 0,
+        });
+      }
+    }
+    
+    res.json({
+      success: true,
+      hasCombo: comboItems.length > 0 && discountBps > 0,
+      combo: {
+        packageCode: pkg.code,
+        packageName: pkg.name,
+        packageType: pkg.packageType,
+        discountBps,
+        discountPercent,
+        assignedRank: pkg.assignedRank,
+        purchaseCode: purchase.code,
+        purchaseStatus: purchase.status,
+        items: comboItems,
+      },
+    });
+  } catch (e) {
+    console.error('GET /api/npp/my-combo error:', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // GET /api/npp/my-purchase — User views own NPP purchases
 // ── GET /api/npp/my-discount — Get NPP discount rate for order pricing ──
 app.get('/api/npp/my-discount', authenticateToken, async (req, res) => {
   try {
-    const userId = req.user.id;
-    // Find user's active NPP purchase with package
+    const userDbId = req.user.dbId;
+    // Find user's active NPP purchase with package (userId in NppPurchase = DB internal ID)
     const purchase = await prisma.nppPurchase.findFirst({
-      where: { userId, status: { notIn: ['CANCELLED'] } },
+      where: { userId: userDbId, status: { notIn: ['CANCELLED'] } },
       include: { package: true },
       orderBy: { createdAt: 'desc' },
     });
