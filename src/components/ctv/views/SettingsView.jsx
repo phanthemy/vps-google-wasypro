@@ -242,19 +242,28 @@ function getCsrfToken() {
             </div>
           </div>
 
-          {/* Qualifying Points */}
+          {/* Qualifying Points (CTV) or NPP Status */}
           <div className="bg-gray-50/80 border border-gray-200/60 rounded-xl p-3.5 flex flex-col justify-between">
             <div className="text-[11px] font-bold text-secondary uppercase tracking-wider mb-2 flex items-center gap-1.5">
-              <User size={14} className="text-blue-500" /> {currentUser.nppStatus && currentUser.nppStatus !== "NONE" ? "Trạng thái NPP" : "Điểm Tích Lũy (CP)"}
+              <User size={14} className="text-blue-500" /> {currentUser.isNpp || currentUser.nppStatus === 'ACTIVE' || currentUser.nppStatus === 'PURCHASING' || currentUser.nppStatus === 'PAID' ? "Trạng thái NPP" : "Điểm Tích Lũy (CP)"}
             </div>
             <div className="font-extrabold text-blue-600 text-sm">
-              {currentUser.nppStatus === "PAID" ? <span className="text-amber-600">Chờ Admin kích hoạt</span> : currentUser.nppStatus === "PURCHASING" ? <span className="text-blue-600">Đang thanh toán gói NPP</span> : currentUser.nppStatus === "APPROVED" ? <span className="text-emerald-600">Chọn gói NPP để mua</span> : currentUser.nppStatus === "PENDING" ? <span className="text-gray-600">Chờ duyệt đăng ký NPP</span> : <>{qp.toLocaleString("vi-VN")} <span className="text-xs text-secondary font-normal">/ 5.000 CP</span></>}
+              {currentUser.isNpp || currentUser.nppStatus === 'ACTIVE' ? (
+                <span className="text-emerald-600">NPP Đã Kích Hoạt</span>
+              ) : currentUser.nppStatus === "PAID" ? (
+                <span className="text-amber-600">Chờ Admin kích hoạt</span>
+              ) : currentUser.nppStatus === "PURCHASING" ? (
+                <span className="text-blue-600">Đang thanh toán gói NPP</span>
+              ) : (
+                <>{qp.toLocaleString("vi-VN")} <span className="text-xs text-secondary font-normal">/ 5.000 CP</span></>
+              )}
             </div>
           </div>
         </div>
       </div>
 
-      {/* Trạng thái tham gia */}
+      {/* Trạng thái tham gia — ẩn cho NPP vì NPP không dùng hệ thống CTV */}
+      {!(currentUser.isNpp || currentUser.nppStatus === 'ACTIVE') && (
       <div className="glass-panel p-5 rounded-2xl border border-gray-100 bg-white shadow-sm">
         <div className="text-xs font-bold text-secondary uppercase tracking-wider mb-3">
           Trạng Thái Tham Gia Hệ Thống Đối Tác
@@ -286,14 +295,17 @@ function getCsrfToken() {
           </div>
         )}
       </div>
+      )}
 
-      {/* Tiến độ cấp bậc */}
+      {/* Tiến độ cấp bậc — chỉ cho CTV, NPP rank từ gói mua */}
+      {!(currentUser.isNpp || currentUser.nppStatus === 'ACTIVE') && (
       <div className="space-y-2">
         <div className="text-xs font-bold text-secondary uppercase tracking-wider px-1">
           Tiến Trình Cấp Bậc
         </div>
         <AmbassadorProgressCard userId={currentUser.id || currentUser.userId} />
       </div>
+      )}
     </div>
   );
 }
