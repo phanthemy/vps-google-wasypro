@@ -11,10 +11,12 @@ export default function AdminSystemView() {
       '✓ Ambassadors + CTV\n' +
       '✓ Commission + Wallet\n' +
       '✓ Rank + Genealogy\n' +
-      '✓ Points (QP/SP)\n\n' +
+      '✓ Points (QP/SP)\n' +
+      '✓ NPP (Đăng ký, Đơn mua, Thanh toán, Kích hoạt)\n\n' +
       'Giữ lại:\n' +
       '✓ Super Admin\n' +
       '✓ Sản phẩm\n' +
+      '✓ Gói NPP (Combo 5, Combo 15, Chiến lược)\n' +
       '✓ Cấu hình hệ thống\n\n' +
       'Nhập: DELETE ALL DATA'
     );
@@ -71,6 +73,7 @@ export default function AdminSystemView() {
                   <li>✓ Commission + Wallet</li>
                   <li>✓ Rank + Genealogy</li>
                   <li>✓ Points (QP/SP)</li>
+                  <li>✓ NPP (Đăng ký, Đơn mua, Thanh toán)</li>
                 </ul>
               </div>
               <div>
@@ -79,6 +82,7 @@ export default function AdminSystemView() {
                   <li>✓ Super Admin</li>
                   <li>✓ Sản phẩm</li>
                   <li>✓ Cấu hình hoa hồng</li>
+                  <li>✓ Gói NPP (cấu hình)</li>
                   <li>✓ Cấu hình hệ thống</li>
                 </ul>
               </div>
