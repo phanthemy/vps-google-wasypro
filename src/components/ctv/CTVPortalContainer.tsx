@@ -103,9 +103,11 @@ export const CTVPortalContainer: React.FC<CTVPortalContainerProps> = ({
     isAdminOrAccountant;
   
   // NPP user with pending/approved/purchasing status — show portal but not "partner" badge
-  // NPP tab: only show for users actively in NPP flow (APPROVED with purchase, PURCHASING, PAID, ACTIVE)
-  // PENDING = just submitted form, not yet approved — should NOT see NPP tab
-  const hasNppRegistration = ['PURCHASING','PAID','ACTIVE'].includes((currentUser as any)?.nppStatus) || !!(currentUser as any)?.isNpp;
+  // NPP tab: show for users in active NPP flow
+  // PENDING = just submitted, not approved yet — hide tab
+  // APPROVED = admin approved, user needs to buy package — SHOW tab
+  // PURCHASING/PAID/ACTIVE = in purchase flow or active — SHOW tab
+  const hasNppRegistration = ['APPROVED','PURCHASING','PAID','ACTIVE'].includes((currentUser as any)?.nppStatus) || !!(currentUser as any)?.isNpp;
 
   // Rank Display Information
   const rankLabel = (() => {
