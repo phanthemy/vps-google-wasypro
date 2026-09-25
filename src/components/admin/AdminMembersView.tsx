@@ -75,7 +75,7 @@ const AdminMembersView: React.FC = () => {
           </div>
           <div>
             <h2 className="text-xl font-black text-slate-900">Tài Khoản Thành Viên ({filtered.length})</h2>
-            <p className="text-sm text-slate-500">Khach da dang ky â€” chua tham gia he thong CTV</p>
+            <p className="text-sm text-slate-500">Khách đã đăng ký — chưa tham gia hệ thống CTV</p>
           </div>
         </div>
         <button onClick={fetchMembers} disabled={loading} className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-100 text-slate-700 text-sm font-bold hover:bg-slate-200 transition-all disabled:opacity-50">
