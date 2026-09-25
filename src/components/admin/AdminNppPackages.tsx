@@ -220,7 +220,7 @@ const AdminNppPackages: React.FC = () => {
     if (!searchQuery) return true;
     const q = searchQuery.toLowerCase();
     return p.code.toLowerCase().includes(q) || p.name.toLowerCase().includes(q);
-  });
+  }).sort((a, b) => a.code.localeCompare(b.code));
 
   // Open create
   const openCreate = () => {

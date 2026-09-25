@@ -79,9 +79,9 @@ const AdminNppManagement: React.FC = () => {
         fetch('/api/admin/ctv', { credentials: 'include', headers: getAuthHeaders() }),
       ]);
       const [regD, actD, pkgD, usrD] = await Promise.all([regRes.json(), actRes.json(), pkgRes.json(), usrRes.json()]);
-      setRegistrations(regD.data || []);
+      setRegistrations((regD.data || []).sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
       setActivations(actD.data || []);
-      setPackages((pkgD.data || []).filter((p: NppPackage) => p));
+      setPackages((pkgD.data || []).filter((p: NppPackage) => p).sort((a: NppPackage, b: NppPackage) => a.code.localeCompare(b.code)));
       const u = Array.isArray(usrD) ? usrD : usrD.data || [];
       setUsers(u);
     } catch (e: any) { setError(e.message); }
