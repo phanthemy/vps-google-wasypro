@@ -9,13 +9,15 @@ export default function TreeNode({ node, defaultExpanded = true, isRoot = false 
   const rawRank = (node.rank || '').toUpperCase();
   const rawTier = (node.tier || '').toUpperCase();
 
-  let rankKey = 'AMBASSADOR';
+  let rankKey = 'MEMBER';
   if (['DIRECTOR', 'SALES_DIRECTOR', 'DIAMOND'].includes(rawRank) || ['DIRECTOR', 'SALES_DIRECTOR', 'DIAMOND'].includes(rawTier)) {
     rankKey = 'DIRECTOR';
   } else if (['MANAGER', 'SALES_MANAGER', 'GOLD'].includes(rawRank) || ['MANAGER', 'SALES_MANAGER', 'GOLD'].includes(rawTier)) {
     rankKey = 'MANAGER';
-  } else {
+  } else if (rawRank === 'AMBASSADOR') {
     rankKey = 'AMBASSADOR';
+  } else {
+    rankKey = 'MEMBER';
   }
 
   const cfg = RANK_CONFIG[rankKey] || RANK_CONFIG.AMBASSADOR;
