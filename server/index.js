@@ -2956,6 +2956,7 @@ app.post('/api/admin/reset-members', authenticateToken, async (req, res) => {
  *   SPointTransaction, RankHistory,
  *   CustomerAuditLog, Appointment, Customer,
  *   Lead,
+ *   NppCommission, NppPayment, NppPurchaseItem, NppPurchase, NppActivation, NppRegistration,
  *   User (role != admin),
  *   BusinessIdSequence
  *
@@ -2964,6 +2965,7 @@ app.post('/api/admin/reset-members', authenticateToken, async (req, res) => {
  *   Product, ProductCategory,
  *   Service, ServiceCategory,
  *   CommissionPriceRule,
+ *   NppPackage, NppPackageItem,
  *   SystemPolicyConfig, SystemPolicyAuditLog
  */
 app.post('/api/admin/factory-reset', authenticateToken, async (req, res) => {
@@ -3002,6 +3004,14 @@ app.post('/api/admin/factory-reset', authenticateToken, async (req, res) => {
     try { r.appointments  = (await prisma.appointment.deleteMany({})).count; }      catch(e) { r.appointments = 0; }
     try { r.customers     = (await prisma.customer.deleteMany({})).count; }         catch(e) { r.customers = 0; }
     try { r.leads         = (await prisma.lead.deleteMany({})).count; }             catch(e) { r.leads = 0; }
+
+    // ── NPP (Nhà Phân Phối) — xóa dữ liệu vận hành, GIỮ NppPackage + NppPackageItem ──
+    try { r.nppCommission    = (await prisma.nppCommission.deleteMany({})).count; }    catch(e) { r.nppCommission = 0; }
+    try { r.nppPayment       = (await prisma.nppPayment.deleteMany({})).count; }       catch(e) { r.nppPayment = 0; }
+    try { r.nppPurchaseItem  = (await prisma.nppPurchaseItem.deleteMany({})).count; }  catch(e) { r.nppPurchaseItem = 0; }
+    try { r.nppPurchase      = (await prisma.nppPurchase.deleteMany({})).count; }      catch(e) { r.nppPurchase = 0; }
+    try { r.nppActivation    = (await prisma.nppActivation.deleteMany({})).count; }    catch(e) { r.nppActivation = 0; }
+    try { r.nppRegistration  = (await prisma.nppRegistration.deleteMany({})).count; }  catch(e) { r.nppRegistration = 0; }
 
     // ── Users (non-admin) ──
     try { r.usersDeleted = (await prisma.user.deleteMany({ where: { role: { not: 'admin' } } })).count; } catch(e) { console.error('[RESET] User delete FAILED:', e.message); r.usersDeleted = 'FAILED: ' + e.message; }
