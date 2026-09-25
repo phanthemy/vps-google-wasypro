@@ -3027,8 +3027,9 @@ app.post('/api/admin/factory-reset', authenticateToken, async (req, res) => {
             rank: null, rankStatus: null, rankAchievedAt: null,
             rankActivationMethod: null, rankActivatedBy: null,
             totalMachinesBought: 0, wholesaleEligible: false,
-            businessId: null, // GIỮ isSystemParticipant=true — CTV vẫn là CTV sau reset
+            businessId: null,
             parentId: null,
+            isNpp: false, // Reset NPP flag for admin
           }
         });
       } catch(e) {}
