@@ -1,5 +1,17 @@
 # WasyPro — Log Lỗi
 
+## 2026-09-26
+
+### L05: San pham khong hien hinh anh (Anh tai len 404 + Anh mau thieu)
+- **Trieu chung**: Hinh anh san pham (dac biet anh tai len tu Admin) bi loi 404, hien thi HTML trang. Cac may loc "Water King" bi loi khong hien thi hinh anh.
+- **Nguyen nhan**: 
+  1. Nginx proxy /uploads/ sang backend (3011). Tuy nhien server/index.js chi phuc vu anh tinh tu ../public/uploads (noi chua avatars). Cac san pham upload tu Frontend PM2 (server.cjs) lai luu vao ../uploads/products, dan den mismatch duong dan va tra ve 404.
+  2. Nhieu san pham trong CSDL tham chieu file water-king-pro-9.jpg, nhung file nay khong he ton tai tren VPS (/dist va /public).
+- **Fix**: 
+  1. Them express static mount ../uploads vao backend index.js de phuc vu anh san pham dung luong Nginx.
+  2. Copy anh WebP cua may WS-03 thanh water-king-pro-9.jpg lam placeholder.
+- **Commit**: e43cefd
+
 ## 2026-09-25
 
 ### L01: APPROVED NPP không thấy tab Gói NPP
