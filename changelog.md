@@ -4,6 +4,12 @@
 
 ## 2026-09-26
 
+### Docs (evening session)
+- **Sync AI Workflow to Git** u2014 Add .agents/rules/project-workflow.md to repo (5149efd)
+- **Expand Startup Checklist** u2014 AGENTS.md 6 u2192 13 steps
+- **Create changelog.md** u2014 History from 2026-09-12 to 2026-09-26
+- **AGENTS.md bootstrap only** u2014 project-workflow.md = SSOT for AI Playbook
+
 ### Fix
 - **Product images 404** — Mount `../uploads` vào Express static + thêm placeholder `water-king-pro-9.jpg` (`e43cefd`)
 - Update memory.md và loi.md (`e0e00ea`)

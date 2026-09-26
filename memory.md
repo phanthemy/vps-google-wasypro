@@ -1,5 +1,23 @@
 # WasyPro — Memory Log
 
+## Cập nhật: 2026-09-26
+### Phiên 26/09/2026 tối (22:18 - 22:35)
+
+#### Đã làm:
+1. **Đồng bộ AI Workflow vào Git** — .agents/rules/project-workflow.md chưa bao giờ được commit. Upload lên VPS và git add (commit `5149efd`)
+2. **Mở rộng Startup Checklist** — AGENTS.md từ 6 bước lên 13 bước. Thêm: project-workflow.md, memory.md, loi.md, changelog.md, git state check, Plan Resume
+3. **Tạo changelog.md** — Lịch sử cập nhật từ 2026-09-12 đến 2026-09-26
+4. **AGENTS.md chỉ bootstrap** — project-workflow.md là SINGLE SOURCE OF TRUTH cho AI Engineering Playbook
+5. **Push GitHub** — máy B/C git pull sẽ nhận đầy đủ workflow
+
+#### Quyết định kỹ thuật:
+- AGENTS.md = bootstrap file, KHÔNG copy toàn bộ playbook vào
+- project-workflow.md = SSOT cho quy trình AI
+- 8/8 workflow files đều Git tracked
+- SSH key: oracle_wasypro.key / user ubuntu (không phải root)
+
+---
+
 ## Cập nhật: 2026-09-25
 
 ### Phiên 25/09/2026 (08:13 - 10:47)
