@@ -104,6 +104,8 @@ if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
 }
 app.use('/uploads', express.static(uploadsDir));
+const productsUploadsDir = path.join(__dirname, '../uploads');
+app.use('/uploads', express.static(productsUploadsDir));
 
 // Trust proxy (behind Nginx reverse proxy)
 app.set('trust proxy', 1);
