@@ -34,14 +34,29 @@ SSH VPS → Edit → Test → Commit → Push GitHub
 
 ## Startup Checklist (Agent bắt buộc chạy)
 
+> ⚠️ **BẮT BUỘC**: Khi nhận lệnh "Bắt đầu phiên" / "Bắt đầu làm việc" / "Bắt đầu",
+> Agent phải tự động thực hiện TOÀN BỘ checklist bên dưới mà KHÔNG hỏi lại.
+> Sau khi hoàn tất, kết luận duy nhất: **"Hệ thống đã sẵn sàng nhận nhiệm vụ."**
+
 ```
-1. Đọc README.md
-2. Đọc AGENTS.md
+1. Đọc AGENTS.md (file này)
+2. Đọc .agents/rules/project-workflow.md (AI Engineering Playbook — SINGLE SOURCE OF TRUTH cho quy trình)
 3. Xác định Source of Truth → Nếu VPS → KHÔNG sửa local
-4. Đọc .antigravity/STATE.md
-5. Đọc .antigravity/project.json
-6. git pull (trên VPS hoặc local tùy Source of Truth)
+4. git pull (trên VPS hoặc local tùy Source of Truth)
+5. Đọc README.md
+6. Đọc .antigravity/STATE.md
+7. Đọc .antigravity/project.json
+8. Đọc memory.md (nhật ký bộ nhớ & quyết định kỹ thuật)
+9. Đọc loi.md (sổ tay lỗi & cách fix)
+10. Đọc changelog.md (lịch sử cập nhật)
+11. Kiểm tra git status, git branch, HEAD hash (Local vs Remote)
+12. Plan Resume: Khôi phục Unfinished Plans, Blocked Tasks, Dependencies
+13. Báo cáo trạng thái ngắn gọn
 ```
+
+> **Lưu ý**: `project-workflow.md` định nghĩa đầy đủ quy trình Multi-Agent,
+> QA Verification, Memory Management, Session Commands, Production Safety.
+> Agent PHẢI đọc và tuân thủ 100% nội dung trong đó.
 
 ---
 
