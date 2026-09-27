@@ -1,5 +1,25 @@
 # WasyPro — Memory Log
 
+## Cập nhật: 2026-09-27
+
+### Phiên 27/09/2026
+
+#### Đã làm:
+1. **Setup test.wasypro.com trên Google Cloud VPS** — Thêm Nginx server block cho test.wasypro.com → port 5005 (frontend) + /api/ → port 3011 (backend). Thêm http/https test.wasypro.com vào CORS productionOrigins. Restart backend PM2. (commit `2116fbd`)
+2. **Tổng hợp tính năng dự án** — Đọc toàn bộ code trên VPS, tạo báo cáo 11 nhóm tính năng (130 API, 37 models, 67 components)
+
+#### Ghi chú:
+- DNS test.wasypro.com đã trỏ về IP 34.173.189.105 (Google Cloud VPS)
+- wasypro.com production đang chạy trên Oracle VPS (149.118.62.155)
+- test.wasypro.com dùng để test song song với production
+
+### Nginx config (Google Cloud VPS):
+- `wasypro.com` → port 5005
+- `app.wasypro.com` → port 5175 (legacy)
+- `test.wasypro.com` → port 5005 (test)
+- `/api/` → port 3011
+
+
 ## Cập nhật: 2026-09-26
 ### Phiên 26/09/2026 tối (22:18 - 22:35)
 
