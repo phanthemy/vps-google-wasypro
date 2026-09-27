@@ -25,7 +25,9 @@ const PORT = process.env.PORT || 3011;
 const productionOrigins = [
   'https://wasypro.com',
   'https://www.wasypro.com',
-  'https://app.wasypro.com'
+  'https://app.wasypro.com',
+  'http://test.wasypro.com',
+  'https://test.wasypro.com'
 ];
 
 const developmentOrigins = [
