@@ -1555,13 +1555,18 @@ app.get('/api/users', authenticateToken, async (req, res) => {
               include: { customer: true, items: { include: { service: true } } }
             }
           }
+        },
+        nppCommissions: {
+          where: orderDateFilter ? { createdAt: orderDateFilter.createdAt, status: { in: ['PENDING_CLEARING', 'SETTLED', 'PAID'] } } : { status: { in: ['PENDING_CLEARING', 'SETTLED', 'PAID'] } }
         }
       }
     });
 
     const mappedUsers = users.map(u => {
       const totalSales = u.customers.reduce((acc, c) => acc + c.orders.reduce((sum, o) => sum + o.totalAmount, 0), 0);
-      const totalCommission = u.commissions.reduce((acc, c) => acc + c.amount, 0);
+      const ctvCommission = u.commissions.reduce((acc, c) => acc + c.amount, 0);
+      const nppCommission = u.nppCommissions ? u.nppCommissions.reduce((acc, c) => acc + Number(c.earnedMoney || 0), 0) : 0;
+      const totalCommission = ctvCommission + nppCommission;
       return {
         id: u.userId,
         userId: u.userId,
