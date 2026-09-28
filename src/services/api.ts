@@ -217,25 +217,34 @@ export const api = {
 
   getAdminStats: async (): Promise<{ totalProducts: number; newLeads: number; activeWarranties: number; revenue: number }> => {
     try {
-      const [prods, orders, leads, warranties] = await Promise.all([
+      const [prods, orders, leads, warranties, nppPurchases] = await Promise.all([
         fetch('/api/products', { credentials: 'include' }),
         fetch('/api/orders', { credentials: 'include' }),
         fetch('/api/leads', { credentials: 'include' }),
         fetch('/api/warranties', { credentials: 'include' }),
+        fetch('/api/admin/npp/purchases', { credentials: 'include' }),
       ]);
       const pData = prods.ok ? await prods.json() : { data: [] };
       const oData = orders.ok ? await orders.json() : { data: [] };
       const lData = leads.ok ? await leads.json() : { data: [] };
       const wData = warranties.ok ? await warranties.json() : { data: [] };
+      const nData = nppPurchases.ok ? await nppPurchases.json() : { data: [] };
 
       const productList: any[] = Array.isArray(pData) ? pData : (pData.data || []);
       const orderList: any[] = Array.isArray(oData) ? oData : (oData.data || []);
       const leadList: any[] = Array.isArray(lData) ? lData : (lData.data || []);
       const warrantyList: any[] = Array.isArray(wData) ? wData : (wData.data || []);
+      const nppList: any[] = Array.isArray(nData) ? nData : (nData.data || []);
 
-      const revenue = orderList
+      const orderRevenue = orderList
         .filter((o: any) => o.status === 'COMPLETED')
         .reduce((s: number, o: any) => s + (o.totalAmount || 0), 0);
+        
+      const nppRevenue = nppList
+        .filter((o: any) => o.status === 'COMPLETED')
+        .reduce((s: number, o: any) => s + (Number(o.netPayableAmount) || 0), 0);
+
+      const revenue = orderRevenue + nppRevenue;
       const newLeads = leadList.filter((l: any) => l.status === 'new').length;
       const activeWarranties = warrantyList.filter((w: any) => w.status === 'active').length;
 
