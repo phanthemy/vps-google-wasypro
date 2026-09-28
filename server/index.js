@@ -1489,6 +1489,14 @@ app.get('/api/dashboard', authenticateToken, async (req, res) => {
       _sum: { amount: true },
       where: { receiverId: req.user.id, status: { in: ['PENDING', 'PAID'] } }
     });
+    
+    // Add NPP commissions
+    const totalNppCommissions = await prisma.nppCommission.aggregate({
+      _sum: { earnedMoney: true },
+      where: { beneficiaryId: req.user.id, status: { in: ['PENDING_CLEARING', 'SETTLED', 'PAID'] } }
+    });
+    
+    const sumCommission = (totalCommissions._sum.amount || 0) + Number(totalNppCommissions._sum.earnedMoney || 0n);
 
     res.json({
       success: true,
@@ -1497,7 +1505,7 @@ app.get('/api/dashboard', authenticateToken, async (req, res) => {
         personalSales,
         networkSales,
         directCustomersCount: personalCustomers.length,
-        totalCommission: totalCommissions._sum.amount || 0
+        totalCommission: sumCommission
       }
     });
   } catch (error) {
