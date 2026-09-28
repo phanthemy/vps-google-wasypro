@@ -1457,13 +1457,20 @@ app.get('/api/dashboard', authenticateToken, async (req, res) => {
         _sum: { totalAmount: true },
         where: { status: 'COMPLETED' }
       });
+      const totalNppSalesAgg = await prisma.nppPurchase.aggregate({
+        _sum: { netPayableAmount: true },
+        where: { status: 'COMPLETED' }
+      });
+      const totalOrderSales = totalSalesAgg._sum.totalAmount || 0;
+      const totalNppSales = Number(totalNppSalesAgg._sum.netPayableAmount || 0n);
+
       return res.json({
         success: true,
         data: {
           totalDirector,
           totalManager,
           totalAmbassador,
-          totalSales: totalSalesAgg._sum.totalAmount || 0
+          totalSales: totalOrderSales + totalNppSales
         }
       });
     }
