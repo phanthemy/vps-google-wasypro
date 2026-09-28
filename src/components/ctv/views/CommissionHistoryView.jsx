@@ -13,7 +13,26 @@ export default function CommissionHistoryView({ currentUser, setActiveTab }) {
       .then(r => r.json())
       .then(res => {
         if (res.success) {
-          setCommissions(res.data);
+          // Merge CTV commissions + NPP referral commissions
+          const ctvList = (res.data || []).map(c => ({ ...c, _type: c._type || 'CTV' }));
+          const nppList = (res.nppCommissions || []).map(c => ({
+            id: c.id,
+            createdAt: c.createdAt,
+            _type: 'NPP_REFERRAL',
+            ruleKey: c.level === 1 ? 'NPP_D1_10%' : 'NPP_D2_5%',
+            basePoints: null,
+            baseAmount: Number(c.commissionBase) || 0,
+            earnedPoints: c.earnedPoints || 0,
+            earnedMoney: c.earnedMoney,
+            amount: c.earnedMoney,
+            rateSnapshot: c.rateBps / 10000,
+            orderId: null,
+            purchaseCode: c.purchase?.code || '',
+            customerName: c.purchase?.user?.fullName || 'NPP',
+            rankAtCommission: c.rankAtCommission,
+            status: c.status,
+          }));
+          setCommissions([...ctvList, ...nppList]);
         }
         setLoading(false);
       })
@@ -61,7 +80,7 @@ export default function CommissionHistoryView({ currentUser, setActiveTab }) {
               ) : (
                 groupedCommissions.map(c => {
                   const dt = new Date(c.createdAt).toLocaleString('vi-VN');
-                  const customerName = c.order?.customer?.fullName || 'Khách Vãng Lai';
+                  const customerName = c._type === 'NPP_REFERRAL' ? (c.customerName || 'NPP') : (c.order?.customer?.fullName || 'Khách Vãng Lai');
                   const basePts = c.basePoints != null ? c.basePoints : (c.baseAmount ? Math.round(c.baseAmount / 1000) : '-');
                   const earnedPts = c.earnedPoints != null ? c.earnedPoints : (c.amount ? Math.round(c.amount / 1000) : 0);
                   const moneyAmount = c.earnedMoney != null ? c.earnedMoney : c.amount;
@@ -93,7 +112,11 @@ export default function CommissionHistoryView({ currentUser, setActiveTab }) {
                         </div>
                       </td>
                       <td className="py-3.5 px-3 font-mono text-xs">
-                        {c.orderId ? (
+                        {c._type === 'NPP_REFERRAL' && c.purchaseCode ? (
+                          <span className="text-emerald-400 font-semibold" title="Mã đơn NPP">
+                            {c.purchaseCode}
+                          </span>
+                        ) : c.orderId ? (
                           <span
                             className="text-blue-400 hover:text-blue-300 cursor-pointer hover:underline"
                             onClick={() => {

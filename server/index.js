@@ -3244,7 +3244,34 @@ app.get('/api/commissions', authenticateToken, async (req, res) => {
       orderBy: { createdAt: 'desc' }
     });
 
-    res.json({ success: true, data: commissions });
+    // Also fetch NPP commissions for this user
+    let nppWhereFilter = {};
+    if (req.user.role === 'ctv') {
+      const userDbRecord = await prisma.user.findFirst({ where: { userId: req.user.id } });
+      if (userDbRecord) nppWhereFilter.beneficiaryId = userDbRecord.id;
+    } else if (userId && userId !== 'ADMIN' && userId !== 'admin') {
+      nppWhereFilter.beneficiaryId = userId;
+    }
+    const nppCommissions = await prisma.nppCommission.findMany({
+      where: nppWhereFilter,
+      include: {
+        purchase: {
+          select: { code: true, netPayableAmount: true, user: { select: { userId: true, fullName: true, phone: true } } }
+        }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    res.json({ success: true, data: commissions, nppCommissions: nppCommissions.map(c => ({
+      ...c,
+      commissionBase: c.commissionBase?.toString(),
+      earnedMoney: Number(c.earnedMoney),
+      _type: 'NPP_REFERRAL',
+      purchase: c.purchase ? {
+        ...c.purchase,
+        netPayableAmount: c.purchase.netPayableAmount?.toString()
+      } : null
+    })) });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
