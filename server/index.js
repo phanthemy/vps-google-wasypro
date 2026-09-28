@@ -7100,6 +7100,60 @@ app.post('/api/admin/npp/purchases/:id/complete', authenticateToken, requireRole
         },
       });
 
+
+      // 8. NPP Referral Commission — D1 (10%), D2 (5%)
+      const nppCommissions = [];
+      const commissionBase = purchase.netPayableAmount; // BigInt
+      if (user.parentId && commissionBase > 0n) {
+        // D1 = direct sponsor of C
+        const d1 = await tx.user.findFirst({ where: { userId: user.parentId } });
+        if (d1 && d1.rank && ['AMBASSADOR', 'MANAGER', 'DIRECTOR'].includes(d1.rank)) {
+          const d1RateBps = 1000; // 10%
+          const d1Earned = commissionBase * BigInt(d1RateBps) / 10000n;
+          const d1Commission = await tx.nppCommission.create({
+            data: {
+              purchaseId: purchase.id,
+              beneficiaryId: d1.id,
+              beneficiaryUserId: d1.userId,
+              level: 1,
+              rateBps: d1RateBps,
+              commissionBase,
+              earnedMoney: d1Earned,
+              earnedPoints: 0,
+              rankAtCommission: d1.rank,
+              status: 'PENDING_CLEARING',
+            },
+          });
+          nppCommissions.push(d1Commission);
+          console.log(`[NPP COMMISSION] D1: ${d1.userId} (${d1.rank}) earns ${d1Earned} (10% of ${commissionBase})`);
+
+          // D2 = sponsor of D1
+          if (d1.parentId) {
+            const d2 = await tx.user.findFirst({ where: { userId: d1.parentId } });
+            if (d2 && d2.rank && ['AMBASSADOR', 'MANAGER', 'DIRECTOR'].includes(d2.rank)) {
+              const d2RateBps = 500; // 5%
+              const d2Earned = commissionBase * BigInt(d2RateBps) / 10000n;
+              const d2Commission = await tx.nppCommission.create({
+                data: {
+                  purchaseId: purchase.id,
+                  beneficiaryId: d2.id,
+                  beneficiaryUserId: d2.userId,
+                  level: 2,
+                  rateBps: d2RateBps,
+                  commissionBase,
+                  earnedMoney: d2Earned,
+                  earnedPoints: 0,
+                  rankAtCommission: d2.rank,
+                  status: 'PENDING_CLEARING',
+                },
+              });
+              nppCommissions.push(d2Commission);
+              console.log(`[NPP COMMISSION] D2: ${d2.userId} (${d2.rank}) earns ${d2Earned} (5% of ${commissionBase})`);
+            }
+          }
+        }
+      }
+
       // 7. Update registration → CONVERTED
       if (purchase.registrationId) {
         await tx.nppRegistration.update({
@@ -7108,7 +7162,7 @@ app.post('/api/admin/npp/purchases/:id/complete', authenticateToken, requireRole
         });
       }
 
-      return { activation, allocatedBid, previousRank, newRank };
+      return { activation, allocatedBid, previousRank, newRank, nppCommissions };
     });
 
     console.log(`[NPP COMPLETE] ${purchase.code}: ${user.userId} activated as ${result.newRank} BID=${result.allocatedBid || user.businessId}`);
