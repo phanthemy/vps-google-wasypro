@@ -7,34 +7,34 @@
 | Key | Value |
 |-----|-------|
 | **Status** | IN_PROGRESS |
-| **Last Session** | 2026-09-28 |
+| **Last Session** | 2026-09-30 |
 | **Branch** | main |
-| **Last Commit** | 382d154 |
+| **Last Commit** | `ade49e4` |
 | **Source of Truth** | Oracle VPS (149.118.62.155) |
 | **Working Dir** | /var/www/wasypro |
 
 ## Active Tasks
 
-### ✅ Completed This Session
-- [x] Sửa triệt để lỗi sập trắng trang khi bấm "MUA NGAY" (React Rules of Hooks violation trong ContactModal.tsx & ProductQuickViewModal.tsx) + Tích hợp ErrorBoundary.tsx
-- [x] Kiểm thử E2E giao diện thực tế qua Chrome DevTools Protocol (CDP) trên Edge headless (PASS, 0 uncaught errors)
-- [x] Audit chi tiết 13 câu hỏi nghiệp vụ Commission Case 4 (Orderer vs Customer, DIRECT_NO_ID, BID lifecycle, v.v.)
-- [x] Gia cố logic pre-BID threshold-crossing (selfRecipientBID = priorBusinessId, priorQP < threshold) trong `server/index.js`
-- [x] Viết và chạy thành công test suite thực tế `test_threshold_4000_500_1000.cjs` trên Oracle VPS: 4.000 + 500 + 1.000 CP => 800 + 100 + 150 = 1.050 CP chuẩn xác 100%
-- [x] Reload backend PM2 trên VPS và đồng bộ commit `70e077d` lên GitHub repo
+### ✅ Completed This Session (30/09/2026)
+- [x] NPP Combo chỉ hiện máy lọc nước (filter bỏ linh kiện) — `71607ce`
+- [x] Fix F0 hiện sai trong Admin Tạo Đơn (dùng networkParent thay sourceCtv) — `431e2be`
+- [x] Fix NppCommission thiếu trong Kỳ Hoa Hồng (gán periodId + merge 2 bảng) — `ade49e4`
+- [x] Fix JSDoc comment block nuốt 6 API — `dd7269f`
+- [x] NPP/CTV Ref Link chỉ hiện khi có businessId — `3921409`
+- [x] Smart Admin Create Order Modal (auto sponsor, required address) — `fcd9c7d`
+- [x] Nginx uploads location cho attachments — `dd7269f`
+- [x] Admin Order Management 6 APIs + 3 modals — `0729a81`
+- [x] Fix data: NppCommission periodId=null → gán vào kỳ 10/2026
 
-### ⏳ Pending (Boss Review)
-- [ ] Boss manual testing 4 cases
-- [ ] Lock Reset button after testing complete
-- [ ] Fix ~37 HIGH credential bugs in standalone CTV (wasypro-ctv/src/)
-- [ ] Screenshots of production after all fixes
+### ⏳ Chưa hoàn thành (Phiên tiếp theo)
+- [ ] **NPP order form trong Admin** — Khi tạo đơn cho NPP, form cần chế độ combo (chọn nhiều sản phẩm, chiết khấu combo)
+- [ ] **Verify CTV tab** — Đơn admin tạo có CTV gán → phải hiện trong tab "Đơn CTV"
+- [ ] **Test F0 hiện đúng** — F5 admin → Tạo Đơn → verify sponsor đúng cho cả 3 test accounts
+- [ ] **Test Kỳ Hoa Hồng** — F5 → verify 4 khoản đủ
 
-### 📋 Boss Decision Items (D2-D8)
+### 📋 Boss Decision Items
 - D2: Commission rates: hardcode vs Policy engine?
 - D3: Service model: keep or remove?
-- D4: AdminUser model: delete?
-- D5: Warranties/Leads/News tabs: build or remove?
-- D6: isSelfBuy vs purchaseType: unify?
 - D7: SQLite → PostgreSQL migration?
 - D8: React Router integration?
 
@@ -45,11 +45,12 @@
 NEW → CONFIRMED → SHIPPING → COMPLETED (settlement) | CANCELLED (reversal)
 ```
 
-### Admin UI
+### 2 Commission Tables (QUAN TRỌNG)
 ```
-Tab 1: 📦 Quản lý đơn Website (management, source of truth)
-Tab 2: 🤝 Theo dõi hoa hồng CTV (read-only)
+Commission       → Đơn bán lẻ (SELF, DIRECT, F1, F2)
+NppCommission    → Hoa hồng giới thiệu NPP (D1 10%, D2 5%)
 ```
+PHẢI query cả 2 ở mọi nơi hiện commission.
 
 ### Key Functions (server/index.js)
 | Function | Line | Purpose |
@@ -57,8 +58,13 @@ Tab 2: 🤝 Theo dõi hoa hồng CTV (read-only)
 | executeOrderSettlement | ~3389 | QP/SP/Commission on COMPLETED |
 | reverseOrderSettlement | ~3490 | Reverse all on CANCELLED |
 | calculateAndCreateCommissions | ~3074 | Commission rate logic |
-| POST /api/orders | 2156 | CTV Portal create (NEW) |
-| POST /api/orders/website | 4816 | Website bridge (shadow=NEW) |
-| PUT /api/admin/website-orders/:id/status | ~4754 | WO status + sync + settlement |
-| PUT /api/admin/orders/:id/status | NEW | Standalone CTV status |
-| POST /api/admin/reset-uat | NEW | Reset test data (temporary) |
+| NPP Activation + NppCommission | ~7886 | D1/D2 referral commission on NPP activate |
+| GET /api/admin/periods/:id/commissions | ~1378 | Period commissions (merged Commission + NppCommission) |
+
+### Test Accounts
+| userId | Name | parentId | businessId | rank |
+|--------|------|----------|-----------|------|
+| U1001 | Nguyễn Đức Quang | null | WK-10001 | AMBASSADOR |
+| U1002 | Phan Thế Mỹ | U1001 | WK-10004 | AMBASSADOR |
+| U1003 | Phan Thị My | U1001 | WK-10003 | AMBASSADOR |
+| U1004 | Phan Thị Thùy | U1001 | WK-10002 | AMBASSADOR |

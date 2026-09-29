@@ -1,5 +1,40 @@
 # WasyPro — Memory Log
 
+## Cập nhật: 2026-09-30
+
+### Phiên 30/09/2026 (01:28 - 02:00)
+
+#### Đã làm:
+1. **NPP Combo chỉ hiện máy lọc nước** (Commit `71607ce`):
+   - Frontend `UserNppDashboard.tsx`: Filter `title.match(/^Máy/)` → chỉ 5 máy lọc nước.
+   - Backend `/api/npp/my-combo`: Query `categoryId IN ('cat-01','cat-02') AND title startsWith 'Máy'`.
+   - Loại bỏ linh kiện/phụ kiện khỏi gói combo NPP.
+
+2. **Fix F0 hiện sai trong Admin Tạo Đơn** (Commit `431e2be`):
+   - Root cause: `Customer.sourceCtvId` trỏ chính mình khi CTV self-purchase → sponsor hiện chính khách.
+   - Backend: Thêm `networkParent` = resolve `User.parentId` (parent thật trong mạng lưới).
+   - Frontend: Ưu tiên `networkParent` > `sourceCtv`. Check `sponsor !== self`.
+
+3. **Fix NppCommission thiếu trong Kỳ Hoa Hồng admin** (Commit `ade49e4`):
+   - Root cause 1: NppCommission tạo không gán `periodId` → null → admin không thấy.
+   - Root cause 2: Admin API chỉ query `Commission`, bỏ sót `NppCommission`.
+   - Fix: Tìm period OPEN khi tạo NppCommission + merge 2 bảng trong API response.
+   - Data fix: Update record cũ periodId=null → kỳ 10/2026.
+
+#### Ghi chú kỹ thuật:
+- **2 bảng commission riêng biệt**: `Commission` (đơn bán lẻ) + `NppCommission` (hoa hồng giới thiệu NPP D1/D2). PHẢI query cả 2 ở mọi nơi hiện commission.
+- **sourceCtvId ≠ parentId**: `sourceCtvId` = CTV tạo Customer record, `parentId` = parent thật trong sponsor network. Luôn dùng `parentId` cho tuyến trên.
+- **NPP combo filter**: Dùng `title startsWith 'Máy'` vì "Bộ điện phân" cùng cat-01 nhưng KHÔNG phải máy.
+- **PM2 backend ID**: Hiện tại là 43 (đã bị delete/recreate phiên trước). Dùng `pm2 reload happylife-backend`.
+
+#### Chưa hoàn thành (Cần làm tiếp):
+1. **NPP order form khác trong Admin** — Khi tạo đơn cho NPP (Phan Thế Mỹ), form nên chuyển sang chế độ combo (chọn nhiều sản phẩm, chiết khấu combo) thay vì dropdown đơn lẻ.
+2. **Verify CTV tab** — Đơn admin tạo có CTV gán → phải hiện trong tab "Đơn CTV".
+3. **Test F0 hiện đúng** — F5 admin → Tạo Đơn → nhập SĐT → verify sponsor đúng.
+4. **Test Kỳ Hoa Hồng** — F5 → verify 4 khoản đủ.
+
+---
+
 ## Cập nhật: 2026-09-29
 
 ### Phiên 29/09/2026
@@ -14,15 +49,13 @@
      - Sau khi reset, người đăng ký tiếp theo sẽ tự động nhận `U1002`.
 2. **Cập nhật AGENTS.md**: Bổ sung quy định bất biến cho tài khoản Nguyễn Đức Quang.
 3. **Phân tách luồng Đăng ký Khách vãng lai & Khóa bảo trợ link ref**:
-   - Khi vào trực tiếp `wasypro.com` (không có link ref): Ẩn ô nhập Mã giới thiệu, ẩn 2 lựa chọn tham gia CTV/NPP. Thay thế bằng Box thông tin nổi bật kèm nút bấm liên hệ Zalo OA (`https://zalo.me/2928413591064686973`) hoặc Hotline `1900 989878` để được cấp mã. Đăng ký chỉ tạo tài khoản khách hàng thông thường.
-   - Khi vào qua link ref (`?ref=U1xxx`): Khóa chết ô Mã giới thiệu (`readOnly`, badge ổ khóa 🔒 không thể chỉnh sửa), hiện đầy đủ tùy chọn đăng ký CTV và NPP.
+   - Khi vào trực tiếp `wasypro.com` (không có link ref): Ẩn ô nhập Mã giới thiệu, ẩn 2 lựa chọn tham gia CTV/NPP. Thay thế bằng Box thông tin nổi bật kèm nút bấm liên hệ Zalo OA (`https://zalo.me/2928413591064686973`) hoặc Hotline `1900 989878` để được cấp mã.
+   - Khi vào qua link ref (`?ref=U1xxx`): Khóa chết ô Mã giới thiệu (`readOnly`, badge ổ khóa 🔒 không thể chỉnh sửa).
    - Backend `POST /api/auth/register`: Bổ sung Security Guard chặn đăng ký `joinSystem` hoặc `registerNpp` nếu không có `parentId` hợp lệ (HTTP 400).
-   - Test tự động `server/scripts/test_registration_guard.cjs` PASS 100%.
 4. **Ẩn nút Xóa CTV tài khoản Nguyễn Đức Quang (UI Invariant)**:
    - Trong `AdminCTVManagement.tsx`: Đã ẩn hoàn toàn nút "🗑️ Xóa CTV" khi hiển thị chi tiết tài khoản Nguyễn Đức Quang (`U1001` / `0968616263`).
-   - Cập nhật Điều 5 vào `AGENTS.md` (INVARIANT RULES).
 
-
+---
 
 ## Cập nhật: 2026-09-27
 
@@ -32,68 +65,6 @@
 1. **Setup test.wasypro.com trên Google Cloud VPS** — Thêm Nginx server block cho test.wasypro.com → port 5005 (frontend) + /api/ → port 3011 (backend). Thêm http/https test.wasypro.com vào CORS productionOrigins. Restart backend PM2. (commit `2116fbd`)
 2. **Tổng hợp tính năng dự án** — Đọc toàn bộ code trên VPS, tạo báo cáo 11 nhóm tính năng (130 API, 37 models, 67 components)
 
-#### Ghi chú:
-- DNS test.wasypro.com đã trỏ về IP 34.173.189.105 (Google Cloud VPS)
-- wasypro.com production đang chạy trên Oracle VPS (149.118.62.155)
-- test.wasypro.com dùng để test song song với production
-
-### Nginx config (Google Cloud VPS):
-- `wasypro.com` → port 5005
-- `app.wasypro.com` → port 5175 (legacy)
-- `test.wasypro.com` → port 5005 (test)
-- `/api/` → port 3011
-
-
-## Cập nhật: 2026-09-26
-### Phiên 26/09/2026 tối (22:18 - 22:35)
-
-#### Đã làm:
-1. **Đồng bộ AI Workflow vào Git** — .agents/rules/project-workflow.md chưa bao giờ được commit. Upload lên VPS và git add (commit `5149efd`)
-2. **Mở rộng Startup Checklist** — AGENTS.md từ 6 bước lên 13 bước. Thêm: project-workflow.md, memory.md, loi.md, changelog.md, git state check, Plan Resume
-3. **Tạo changelog.md** — Lịch sử cập nhật từ 2026-09-12 đến 2026-09-26
-4. **AGENTS.md chỉ bootstrap** — project-workflow.md là SINGLE SOURCE OF TRUTH cho AI Engineering Playbook
-5. **Push GitHub** — máy B/C git pull sẽ nhận đầy đủ workflow
-
-#### Quyết định kỹ thuật:
-- AGENTS.md = bootstrap file, KHÔNG copy toàn bộ playbook vào
-- project-workflow.md = SSOT cho quy trình AI
-- 8/8 workflow files đều Git tracked
-- SSH key: oracle_wasypro.key / user ubuntu (không phải root)
-
----
-
-## Cập nhật: 2026-09-25
-
-### Phiên 25/09/2026 (08:13 - 10:47)
-
-#### Đã làm:
-1. **Fix APPROVED NPP tab** — NPP user status APPROVED không thấy tab Gói NPP → thêm APPROVED vào visibility list (commit `91bdebe`)
-2. **Factory Reset bổ sung NPP** — Thêm 6 bảng NPP vào Factory Reset: NppCommission, NppPayment, NppPurchaseItem, NppPurchase, NppActivation, NppRegistration. Giữ NppPackage + NppPackageItem (commit `7e8e0e3`, `3d76394`)
-3. **Factory Reset UI** — Cập nhật giao diện admin hiển thị NPP trong danh sách xóa/giữ (commit `15afbc9`)
-4. **Sort gói NPP** — Sắp xếp theo code (NPP-001 → NPP-002...) trong tất cả admin views (commit `a48c377`)
-5. **Fix avatar không hiển thị** — Nginx thiếu proxy `/uploads/` → ảnh 404. Thêm location `/uploads/` + thêm `wasypro.com` vào server_name + xóa .bak conflict
-6. **Fix font tiếng Việt** — AdminMembersView.tsx viết không dấu + mojibake â€" → sửa toàn bộ 21 text replacements (commit `aa0a638`, `440e5da`)
-
-#### KHÔNG sửa (đọc logic):
-- "Nâng lên CTV" chỉ set isSystemParticipant=true. KHÔNG cấp rank/businessId. Rank AMBASSADOR + BID WK-XXXXX chỉ được cấp TỰ ĐỘNG khi qualifyingPoints >= 5000 CP (AMBASSADOR_THRESHOLD).
-
-### Phiên 23-24/09/2026
-
-#### Backend fixes:
-- Referral code bug: backend accepts both `refCode` AND `referralCode` (commit `aa24fe1`)
-- my-discount userId bug: `req.user.id` → `req.user.dbId` (commit `4c31d06`)
-- API `GET /api/npp/my-combo` endpoint (commit `4c31d06`)
-
-#### Frontend fixes:
-- NPP tab systemic fix: chỉ hiện cho APPROVED/PURCHASING/PAID/ACTIVE (commit `62c49a1`)
-- SettingsView NPP vs CTV: ẩn CP progress cho NPP user (commit `4190a26`)
-- CreateOrderModal combo mode: 3 chế độ Combo/CK/Retail (commits `16abcd1` → `bc80fac`)
-
-#### Data fixes:
-- U958 Dai Su 01: isNpp=0 (không phải NPP)
-- U509, TEST_UA: isNpp=0
-- U828 (Phan Thế Mỹ): NPP thật duy nhất
-
 ---
 
 ## Quy tắc quan trọng
@@ -102,14 +73,15 @@
 - VPS: `/var/www/wasypro/` — Oracle VPS `149.118.62.155`
 - GitHub: backup only
 
-### NPP Tab Visibility
-```
-PENDING → ẩn (chưa duyệt)
-APPROVED → hiện (cần mua gói)
-PURCHASING → hiện
-PAID → hiện
-ACTIVE → hiện
-```
+### 2 bảng Commission (QUAN TRỌNG)
+- `Commission`: Đơn bán lẻ (SELF_BUY, DIRECT_NO_ID, DIRECT_WITH_ID, F1, F2)
+- `NppCommission`: Hoa hồng giới thiệu NPP (D1 10%, D2 5%)
+- PHẢI query cả 2 khi hiện commission
+
+### Customer Sponsor vs Network Parent (QUAN TRỌNG)
+- `Customer.sourceCtvId` = CTV tạo customer record (có thể = chính mình khi self-purchase)
+- `User.parentId` = parent thật trong mạng lưới sponsor
+- Luôn dùng `parentId` để xác định F0/tuyến trên
 
 ### req.user structure
 ```js
@@ -117,25 +89,14 @@ req.user = { id: "U199", userId: "U199", dbId: cuid, role, fullName, phone }
 ```
 - NppPurchase.userId = cuid → dùng `req.user.dbId`
 
-### Factory Reset
-- Xóa: 26 bảng (Orders, Users non-admin, Commission, NPP data...)
-- Giữ: Product, NppPackage, SystemPolicyConfig, Admin users
-- Admin users: reset points/rank/isNpp, giữ account
-
-### Rank Logic (CTV)
-- isSystemParticipant=true → là CTV
-- CP tích lũy từ đơn hàng
-- CP >= 5000 (AMBASSADOR_THRESHOLD) → tự động rank AMBASSADOR + Business ID WK-XXXXX
-- KHÔNG cấp rank khi promote, chỉ khi đủ CP
-
-### Nginx
-- `/uploads/` proxy → backend port 3011
-- `wasypro.com` + `wasypro.nextapp.vn` → port 5005 (admin+landing)
-- `app.wasypro.com` → port 5175 (CTV portal)
-- API `/api/` → port 3011
+### NPP Combo Products Filter
+- Chỉ máy lọc nước: `title startsWith 'Máy'` + `categoryId IN ('cat-01','cat-02')`
+- "Bộ điện phân" (100k) nằm trong cat-01 nhưng KHÔNG phải máy → phải lọc bằng title
 
 ### Tránh
 - sed trên server/index.js → dùng Python
 - PowerShell inline quotes → dùng .sh scripts
 - BigInt() parse formatted numbers → strip dots
 - Báo cáo xong mà chưa test thật
+- Dùng `pm2 delete` rồi `pm2 start` → chỉ `pm2 reload`
+- Insert code gần JSDoc `/**` block → verify đã đóng `*/`

@@ -2,112 +2,95 @@
 
 ## 2026-09-30
 
-### L12: CTV chưa có BID vẫn được giảm giá 20% khi tự mua
-- **Triệu chứng**: Tài khoản Nguyễn Đức Quang (U1001) chưa có `rank`, chưa có `businessId` (chưa đạt 5.000 CP) nhưng CTV Portal vẫn hiện "Giảm 20% tự mua (Đại Sứ 20%)" và cho phép mua với giá 20.000.000đ thay vì 25.000.000đ.
-- **Nguyên nhân**: Cùng pattern với L11.
-  1. **Frontend** `CreateOrderModal.jsx` dòng 140: `selfDiscountRate = isDirector ? 0.3 : (isManager ? 0.25 : 0.2)` → Mặc định `else` = 20% cho mọi CTV kể cả không có BID.
-  2. **Backend** `server/index.js` dòng 2627: `else { appliedDiscountBps = 2000 }` → Cũng mặc định 20%.
+### L17: NppCommission không gán periodId khi tạo → admin Kỳ Hoa Hồng thiếu record
+- **Triệu chứng**: Admin Kỳ Hoa Hồng hiện 3 khoản, nhưng CTV Portal hiện 4 khoản. Record NPP D1 (7,995,000đ) bị mất.
+- **Nguyên nhân**: 
+  1. Code tạo `NppCommission` (dòng 7895) KHÔNG gán `periodId` → `periodId = null` → không thuộc kỳ nào.
+  2. API `/api/admin/periods/:periodId/commissions` chỉ query bảng `Commission`, KHÔNG query bảng `NppCommission` → bỏ sót hoa hồng NPP referral.
+  3. Trường hợp đặc biệt: NppCommission được tạo TRƯỚC khi kỳ hoa hồng được mở → periodId = null.
 - **Fix**:
-  1. Frontend: Thêm `const hasBID = Boolean(currentUser?.businessId)` → `selfDiscountRate = !hasBID ? 0 : ...` → Không có BID = 0% giảm giá.
-  2. Backend: Thêm `if (!orderer?.businessId) { appliedDiscountBps = 0 }` → Mua giá niêm yết 100%.
-- **Quy tắc vĩnh viễn**: **Không có BID = Không được giảm giá = Mua giá 100%**. Chiết khấu tự mua chỉ áp dụng khi đã có BID (Đại Sứ 20%, Trưởng Nhóm 25%, Quản Lý 30%).
+  1. Thêm lookup `commissionPeriod.findFirst({ where: { status: 'OPEN' } })` trước khi tạo NppCommission, gán `periodId: currentPeriodId` cho cả D1 và D2.
+  2. Admin API merge `NppCommission` vào response với format thống nhất (`receiver`, `ruleKey`, `rateSnapshot`, etc.).
+  3. Update record cũ `periodId = null` → gán vào kỳ 10/2026.
+- **Quy tắc**: Mọi commission (Commission + NppCommission) đều PHẢI có periodId khi tạo.
+- **Commit**: `ade49e4`
+
+### L16: Admin tạo đơn hiện sai F0 (tuyến trên) — CTV hiện chính mình làm sponsor
+- **Triệu chứng**: Trong form "Tạo Đơn Mới", khi nhập SĐT Phan Thị My (0933893530), hệ thống hiện "Phan Thị My U1003" làm người bảo trợ. Đúng phải là "Nguyễn Đức Quang U1001". Tương tự cho Phan Thế Mỹ.
+- **Nguyên nhân**:
+  1. API `/api/customers` trả `sourceCtv` = CTV tạo customer record. Khi CTV self-purchase, `sourceCtv` = **chính mình** (vì CTV tự tạo Customer record cho mình).
+  2. Frontend dùng `sourceCtv` để hiện sponsor → hiện chính khách hàng làm sponsor.
+  3. F0 thật nằm trong `User.parentId` (mạng lưới sponsor), không phải `Customer.sourceCtvId`.
+- **Fix**:
+  1. Backend: Thêm trường `networkParent` — resolve `User.parentId` cho mỗi customer có `linkedUser`. Trả về parent thật trong cây mạng lưới.
+  2. Frontend: Ưu tiên `c.networkParent` trước, fallback `c.sourceCtv`. Check `sponsor.userId !== linkedUser.userId` để tránh hiện chính mình.
+- **Quy tắc**: Sponsor/F0 luôn lấy từ `User.parentId` (mạng lưới), KHÔNG lấy từ `Customer.sourceCtvId` (nguồn tạo record).
+- **Commit**: `431e2be`
+
+### L15: NPP combo hiện tất cả sản phẩm kể cả linh kiện/phụ kiện
+- **Triệu chứng**: Khi NPP chọn sản phẩm trong gói combo, hiện cả Lõi Hydrogen, Lõi lọc thô, Màn chống sóng, Bút đo pH — đây là phụ kiện, không phải máy lọc nước.
+- **Nguyên nhân**:
+  1. `UserNppDashboard.tsx` (CTV portal, mua lần đầu): Filter chỉ `price > 0` → hiện tất cả.
+  2. `/api/npp/my-combo` (backend, mua lần 2+): Query `{ price: { gt: 0 } }` → hiện tất cả.
+- **Fix**:
+  1. Frontend: Filter `p.price > 0 && /^Máy/i.test(p.title)` — chỉ giữ sản phẩm có tên bắt đầu "Máy".
+  2. Backend: Query `categoryId IN ('cat-01','cat-02') AND title startsWith 'Máy'` — double gate bằng cả category và title.
+- **Sản phẩm combo (5 máy)**: WS-01 (25tr), WS-01 Pro Max (45tr), WS-01 NEW (19tr), WS-03 Pro (19tr), WS-03 (15tr).
+- **Loại trừ**: Bộ điện phân (100k, cùng cat-01 nhưng không phải máy), Lõi Hydrogen, Lõi lọc thô, Màn chống sóng, Bút đo pH.
+- **Commit**: `71607ce`
+
+## 2026-09-30 (earlier)
+
+### L14: JSDoc comment block nuốt 6 API endpoints → 404
+- **Triệu chứng**: 6 API mới (ctv-search, assign-sponsor, orders/create, history, upload-attachment, products-list) trả 404.
+- **Nguyên nhân**: JSDoc `/**` ở dòng 3141 mô tả factory-reset không được đóng `*/`. Code mới nằm trong comment block.
+- **Fix**: Thêm `*/` đóng comment trước block API mới.
+- **Commit**: `dd7269f`
+
+### L13: NPP Ref Link hiện cho NPP chưa kích hoạt (chưa mua gói combo)
+- **Triệu chứng**: Ref link hiện cho NPP đã APPROVED nhưng chưa mua gói → chưa có businessId → link vô nghĩa.
+- **Fix**: Chỉ hiện ref link khi `user.businessId` tồn tại. Nếu không → badge "⏳ Chưa kích hoạt".
+- **Commit**: `3921409`
+
+## 2026-09-30 (earlier)
+
+### L12: CTV chưa có BID vẫn được giảm giá 20% khi tự mua
+- **Triệu chứng**: Tài khoản Nguyễn Đức Quang (U1001) chưa có `rank`, chưa có `businessId` (chưa đạt 5.000 CP) nhưng CTV Portal vẫn hiện "Giảm 20% tự mua (Đại Sứ 20%)".
+- **Nguyên nhân**: Frontend mặc định `else` = 20%. Backend mặc định `else { appliedDiscountBps = 2000 }`.
+- **Fix**: `!hasBID ? 0 : ...` (Frontend), `if (!orderer?.businessId) { appliedDiscountBps = 0 }` (Backend).
+- **Quy tắc vĩnh viễn**: **Không có BID = Không được giảm giá = Mua giá 100%**.
 - **Commit**: `6a740be`
 
 ## 2026-09-29
 
 ### L11: CTV/NPP chưa có Business ID (BID) vẫn nhận hoa hồng
-- **Triệu chứng**: Tài khoản Nguyễn Đức Quang (U1001) chưa có `rank`, chưa có `businessId` nhưng vẫn nhận 3 khoản hoa hồng: DIRECT_NO_ID (1.000.000đ), NPP_D1 (3.600.000đ), DIRECT_WITH_ID (500.000đ).
-- **Nguyên nhân**: Code settlement (`calculateAndCreateCommissions`) có 4 điểm không kiểm tra `businessId` của người nhận:
-  1. **DIRECT commission**: `if (directSponsor)` → thiếu `directSponsor.businessId`
-  2. **NPP D1**: `if (netAmount > 0 && directSponsor)` → thiếu `directSponsor.businessId`
-  3. **Upstream F1**: `if (d1User)` → thiếu `d1User.businessId`
-  4. **Upstream F2**: `if (d2User)` → thiếu `d2User.businessId`
-  - Đồng thời có fallback sai: `directSponsor.role === 'ctv' ? 'AMBASSADOR' : null` cho phép CTV chưa có rank được gán AMBASSADOR ngầm.
-- **Fix**:
-  1. Thêm gate `&& directSponsor.businessId` cho DIRECT và NPP D1
-  2. Thêm gate `&& d1User.businessId` và `&& d2User.businessId` cho F1/F2
-  3. Xóa 3 commission sai đã phát sinh cho U1001
-- **Quy tắc vĩnh viễn**: **Không có BID = Không nhận bất kỳ commission nào** (DIRECT, NPP_D1, NPP_D2, F1, F2)
+- **Triệu chứng**: U1001 chưa có rank/BID nhưng nhận 3 khoản hoa hồng.
+- **Nguyên nhân**: `calculateAndCreateCommissions` có 4 điểm không kiểm tra `businessId`.
+- **Fix**: Thêm gate `&& directSponsor.businessId` cho DIRECT/NPP_D1, `&& d1User.businessId`/`d2User.businessId` cho F1/F2.
+- **Quy tắc vĩnh viễn**: **Không có BID = Không nhận bất kỳ commission nào**.
 - **Commit**: `bbfb655`
 
 ### L10: Tạo khách hàng mới trong Modal Tạo Đơn Hàng bị chặn CSRF Token
-- **Triệu chứng**: Khi CTV/NPP tạo đơn hàng, tại form "TẠO KHÁCH HÀNG MỚI", bấm nút "✅ Tạo" thì popup alert báo lỗi: `"Lỗi: Yêu cầu bị từ chối do thiếu hoặc không khớp mã CSRF Token."`
-- **Nguyên nhân**:
-  1. Frontend `CreateOrderModal.jsx` gửi request `POST /api/ctv/customers`.
-  2. Middleware `csrfProtection` trong `server/index.js` có danh sách miễn trừ (exempt) cho `/api/orders`, `/api/customers`, `/api/admin` nhưng bị thiếu prefix `/api/ctv` (cụ thể là `/api/ctv/customers`).
-  3. Hàm `getCsrfToken()` trong `CreateOrderModal.jsx` đọc regex cookie thuần, nếu cookie bị encode hoặc không khớp sẽ gửi header rỗng, dẫn đến backend chặn với mã lỗi HTTP 403 `CSRF_VALIDATION_FAILED`.
-- **Cách fix**:
-  1. `server/index.js`: Thêm `req.path.startsWith('/api/ctv')` và các route nghiệp vụ nội bộ (`/api/users`, `/api/admin`, `/api/leads`, `/api/internal-users`, `/api/services`) vào danh sách bypass kiểm tra CSRF Double-Submit (các route này vốn đã được bảo vệ xác thực bắt buộc bằng JWT qua cookie HttpOnly `authenticateToken` SameSite=Lax).
-  2. `src/components/ctv/views/CreateOrderModal.jsx`: Nâng cấp hàm `getCsrfToken()` hỗ trợ `decodeURIComponent` và fallback `localStorage.getItem('csrf_token')`.
+- **Triệu chứng**: Bấm "✅ Tạo" → alert "CSRF Token không khớp".
+- **Nguyên nhân**: Middleware CSRF exempt thiếu prefix `/api/ctv`.
+- **Fix**: Thêm `/api/ctv` vào exempt list.
 
 ## 2026-09-26
 
-### L05: Sản phẩm không hiện hình ảnh (Ảnh tải lên 404 + Ảnh mẫu thiếu)
-- **Triệu chứng**: Hình ảnh sản phẩm (đặc biệt ảnh tải lên từ Admin) bị lỗi 404, hiển thị HTML trắng. Các máy lọc "Water King" bị lỗi không hiển thị hình ảnh.
-- **Nguyên nhân**: 
-  1. Nginx proxy /uploads/ sang backend (3011). Tuy nhiên server/index.js chỉ phục vụ ảnh tĩnh từ ../public/uploads (nơi chứa avatars). Các sản phẩm upload từ Frontend PM2 (server.cjs) lại lưu vào ../uploads/products, dẫn đến mismatch đường dẫn và trả về 404.
-  2. Nhiều sản phẩm trong CSDL tham chiếu file water-king-pro-9.jpg, nhưng file này không hề tồn tại trên VPS (/dist và /public).
-- **Fix**: 
-  1. Thêm express static mount ../uploads vào backend index.js để phục vụ ảnh sản phẩm đúng luồng Nginx.
-  2. Copy ảnh WebP của máy WS-03 thành water-king-pro-9.jpg làm placeholder.
-- **Commit**: e43cefd
+### L05: Sản phẩm không hiện hình ảnh (404)
+- **Fix**: Mount `../uploads` vào Express static + placeholder image. Commit: `e43cefd`
 
 ## 2026-09-25
 
-### L01: APPROVED NPP không thấy tab Gói NPP
-- **Triệu chứng**: NPP user được admin approve nhưng login không thấy menu NPP
-- **Nguyên nhân**: hasNppRegistration chỉ check PURCHASING/PAID/ACTIVE, thiếu APPROVED
-- **Fix**: Thêm APPROVED vào visibility list
-- **Commit**: `91bdebe`
-
-### L02: Factory Reset không xóa NPP data
-- **Triệu chứng**: Bấm reset → Users xóa nhưng NppRegistration/Purchase/Payment còn → orphan data
-- **Nguyên nhân**: Factory Reset code không có NPP tables
-- **Fix**: Thêm 6 bảng NPP vào delete list, thêm isNpp reset cho admin
-- **Commit**: `7e8e0e3`, `3d76394`, `15afbc9`
-
-### L03: Avatar upload thành công nhưng không hiển thị
-- **Triệu chứng**: "Cập nhật thành công" nhưng ảnh broken
-- **Nguyên nhân**: 
-  1. Nginx thiếu `location /uploads/` → request đi vào Vite frontend → 404
-  2. `wasypro.com` không có trong nginx server_name
-  3. File `.bak` trong sites-enabled gây conflict
-- **Fix**: Thêm /uploads/ proxy, thêm wasypro.com, xóa .bak
-
-### L04: AdminMembersView font tiếng Việt lỗi
-- **Triệu chứng**: "Tai Khoan Thanh Vien", "â€"" 
-- **Nguyên nhân**: File viết không dấu + mojibake encoding (UTF-8 BOM + wrong bytes)
-- **Fix**: Python raw byte replacement cho 21 text + mojibake subtitle
-- **Commit**: `aa0a638`, `440e5da`
+### L01: APPROVED NPP không thấy tab Gói NPP → Commit: `91bdebe`
+### L02: Factory Reset không xóa NPP data → Commit: `7e8e0e3`, `3d76394`, `15afbc9`
+### L03: Avatar upload 404 → Nginx thiếu `/uploads/` proxy
+### L04: Font tiếng Việt lỗi mojibake → Commit: `aa0a638`, `440e5da`
 
 ## 2026-09-23/24
 
-### L05: Referral code không hoạt động
-- **Fix**: Backend accepts both `refCode` AND `referralCode` — commit `aa24fe1`
-
-### L06: my-discount trả hasDiscount: false
-- **Fix**: `req.user.id` → `req.user.dbId` — commit `4c31d06`
-
-### L07: CTV thuần thấy tab NPP
-- **Fix**: Systemic check nppStatus — commit `62c49a1`
-
-### L08: NPP user thấy CP 0/5000 progress
-- **Fix**: SettingsView ẩn CTV content cho NPP — commit `4190a26`
-
-### L09: CreateOrderModal build error
-- **Fix**: React Fragment wrapper cho multi-child JSX — commit `bc80fac`
-
-### Lỗi 29/09/2026: Tài khoản NPP bị hiện thị nhầm tích lũy 5.000 CP và rank Đại sứ sớm
-- **Hiện tượng**: Khi tạo/đăng ký tài khoản NPP mới (chưa thanh toán/chờ duyệt), màn hình "Thông Tin Tài Khoản" hiện thị nhầm "Điểm Tích Lũy (CP): 0 / 5.000 CP", thanh tiến trình cấp bậc CTV 5.000 CP, và rank "Đại sứ" sớm.
-- **Nguyên nhân**:
-  1. Backend `computeNppRank` truy vấn cả registration status `['PENDING', 'APPROVED']` và trả về `assignedRank` của gói trước khi người dùng thanh toán/kích hoạt.
-  2. Frontend `SettingsView.jsx` chỉ ẩn thẻ CP và thanh tiến trình khi status là `ACTIVE`, bỏ sót các trạng thái đăng ký NPP (`PENDING`, `APPROVED`, `PURCHASING`, `PAID`).
-- **Cách fix**:
-  1. `server/index.js`: Điều chỉnh `computeNppRank` chỉ trả về rank khi purchase status là `COMPLETED` hoặc registration status là `CONVERTED`.
-  2. `src/components/ctv/views/SettingsView.jsx`: Bổ sung kiểm tra `isNppUser`. NPP chưa kích hoạt hiện thị badge "Chờ kích hoạt", thẻ số 4 hiện thị "Trạng thái NPP" (Chờ Admin duyệt đăng ký / Đã duyệt / Đang mua gói), ẩn hoàn toàn thanh tích lũy 5.000 CP. Giữ nguyên 100% logic cho CTV thường.
-
-### Lỗi 29/09/2026: Lỗi font chữ tiếng Việt (?) trong SettingsView.jsx
-- **Hiện tượng**: Sau khi cập nhật giao diện, các chữ tiếng Việt có dấu biến thành dấu hỏi chấm "?".
-- **Nguyên nhân**: Script ghi file qua PowerShell bị lệch chuẩn mã hóa sang ANSI/Windows-1252 khi pipe qua SSH.
-- **Cách fix**: Soạn thảo script bằng UTF-8 nguyên bản, đẩy file trực tiếp lên VPS và build lại bằng Vite. Để kiểm tra lại `git diff` đảm bảo 100% tiếng Việt có dấu chuẩn xác.
-
+### L05: Referral code không hoạt động → Commit: `aa24fe1`
+### L06: my-discount trả hasDiscount: false → Commit: `4c31d06`
+### L07: CTV thuần thấy tab NPP → Commit: `62c49a1`
+### L08: NPP user thấy CP progress → Commit: `4190a26`
+### L09: CreateOrderModal build error → Commit: `bc80fac`
