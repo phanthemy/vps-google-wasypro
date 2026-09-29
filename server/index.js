@@ -7987,9 +7987,13 @@ app.get('/api/npp/my-combo', authenticateToken, async (req, res) => {
     const discountPercent = discountBps / 100;
     const requiredQuantity = pkg.requiredQuantity || (purchase.items && purchase.items.length > 0 ? purchase.items.reduce((s, i) => s + i.quantity, 0) : 5);
 
-    // Lấy tất cả sản phẩm máy trong danh mục để NPP tự do lựa chọn cho gói combo
+    // Lấy sản phẩm MÁY LỌC NƯỚC (không bao gồm linh kiện, phụ kiện, thiết bị kiểm tra)
     const allProducts = await prisma.product.findMany({
-      where: { price: { gt: 0 } },
+      where: {
+        price: { gt: 0 },
+        categoryId: { in: ['cat-01', 'cat-02'] }, // Máy Lọc Nước Ion Kiềm + Máy Lọc Nước Hydrogen
+        title: { startsWith: 'Máy' },
+      },
       orderBy: { price: 'desc' }
     });
 

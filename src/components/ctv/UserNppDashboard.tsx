@@ -30,7 +30,7 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; icon: any }>
   CANCELLED: { label: 'Đã hủy', color: 'bg-red-100 text-red-700', icon: XCircle },
 };
 
-interface Product { id: string; title: string; price: number; image?: string; slug?: string; }
+interface Product { id: string; title: string; price: number; image?: string; slug?: string; categoryId?: string; }
 interface PurchaseItem { id: string; productName: string; quantity: number; unitPrice: string; lineTotal: string; }
 interface Payment { id: string; amount: string; paymentMethod: string; referenceCode?: string; note?: string; createdAt: string; }
 interface Purchase { id: string; code: string; status: string; grossPrice: string; discountRateBps: number; discountAmount: string; netPayableAmount: string; paidAmount: string; remainingAmount: string; isPaidInFull: boolean; items: PurchaseItem[]; payments: Payment[]; package?: any; createdAt: string; activatedAt?: string; }
@@ -71,7 +71,7 @@ const UserNppDashboard: React.FC<Props> = ({ userId, nppStatus, rank, businessId
       if (regData.success && regData.data) setRegistration(regData.data.active || null);
       if (purchData.success && purchData.data) setPurchases(Array.isArray(purchData.data) ? purchData.data : [purchData.data]);
       const prods = Array.isArray(prodData) ? prodData : prodData.data || [];
-      setProducts(prods.filter((p: Product) => p.price > 0));
+      setProducts(prods.filter((p: Product) => p.price > 0 && /^Máy/i.test(p.title)));
       if (pkgData.success && pkgData.data) setPackages(pkgData.data);
     } catch { setError('Lỗi tải dữ liệu.'); }
     setLoading(false);
