@@ -1149,6 +1149,9 @@ function AdminCreateOrderModal({ onClose, onSuccess }: { onClose: () => void; on
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [customerFound, setCustomerFound] = useState(false);
+  const [customerSponsor, setCustomerSponsor] = useState<any>(null); // sponsor loaded from customer
+  const [sponsorLocked, setSponsorLocked] = useState(false); // true = auto-loaded, hide search
+  const [editingSponsor, setEditingSponsor] = useState(false); // user clicked "Sửa"
 
   useEffect(() => {
     fetch('/api/admin/products-list', { credentials: 'include' })
@@ -1160,7 +1163,12 @@ function AdminCreateOrderModal({ onClose, onSuccess }: { onClose: () => void; on
   // Auto-search customer when phone is typed (debounced)
   useEffect(() => {
     const phone = formData.customerPhone.trim();
-    if (phone.length < 4) { setCustomerFound(false); return; }
+    if (phone.length < 4) {
+      setCustomerFound(false);
+      setCustomerSponsor(null);
+      setSponsorLocked(false);
+      return;
+    }
     const timer = setTimeout(async () => {
       try {
         const res = await fetch(`/api/customers?phone=${encodeURIComponent(phone)}`, { credentials: 'include' });
@@ -1168,16 +1176,37 @@ function AdminCreateOrderModal({ onClose, onSuccess }: { onClose: () => void; on
         const customers = body.data || body || [];
         if (Array.isArray(customers) && customers.length > 0) {
           const c = customers[0];
-          setFormData(prev => ({ ...prev, customerName: c.fullName || prev.customerName }));
+          setFormData(prev => ({
+            ...prev,
+            customerName: c.fullName || prev.customerName,
+            recipientPhone: prev.recipientPhone || c.phone || prev.recipientPhone,
+          }));
           setCustomerFound(true);
+          // Auto-load sponsor from customer's sourceCtv
+          if (c.sourceCtv) {
+            setCustomerSponsor(c.sourceCtv);
+            setSelectedCtv(c.sourceCtv);
+            setSponsorLocked(true);
+            setEditingSponsor(false);
+          } else {
+            setCustomerSponsor(null);
+            setSponsorLocked(false);
+          }
         } else {
           setCustomerFound(false);
+          setCustomerSponsor(null);
+          setSponsorLocked(false);
         }
-      } catch (e) { setCustomerFound(false); }
+      } catch (e) {
+        setCustomerFound(false);
+        setCustomerSponsor(null);
+        setSponsorLocked(false);
+      }
     }, 500);
     return () => clearTimeout(timer);
   }, [formData.customerPhone]);
 
+  // CTV search (for manual sponsor selection)
   useEffect(() => {
     if (searchQuery.length < 2) { setSearchResults([]); return; }
     const timer = setTimeout(async () => {
@@ -1196,6 +1225,10 @@ function AdminCreateOrderModal({ onClose, onSuccess }: { onClose: () => void; on
   const handleSubmit = async () => {
     if (!formData.customerName || !formData.customerPhone || !formData.productId) {
       setError('Vui lòng điền đủ thông tin bắt buộc (Tên, SĐT, Sản phẩm)');
+      return;
+    }
+    if (!formData.shippingAddress.trim()) {
+      setError('Vui lòng nhập địa chỉ giao hàng');
       return;
     }
     setSubmitting(true);
@@ -1227,6 +1260,19 @@ function AdminCreateOrderModal({ onClose, onSuccess }: { onClose: () => void; on
     }
   };
 
+  // Rank label helper
+  const rankLabel = (r: string | null | undefined) => {
+    if (!r) return '';
+    const ru = r.toUpperCase();
+    if (ru === 'DIRECTOR' || ru === 'SALES_DIRECTOR') return '🏆 Giám đốc';
+    if (ru === 'MANAGER' || ru === 'SALES_MANAGER') return '⭐ Quản lý';
+    if (ru === 'AMBASSADOR') return '🎯 Đại sứ';
+    return r;
+  };
+
+  // Show sponsor search? Only if: no sponsor locked, or user clicked "Sửa"
+  const showSponsorSearch = !sponsorLocked || editingSponsor;
+
   return (
     <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
       <div className="bg-white rounded-3xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto p-6">
@@ -1235,7 +1281,7 @@ function AdminCreateOrderModal({ onClose, onSuccess }: { onClose: () => void; on
         {error && <div className="bg-rose-50 text-rose-600 p-3 rounded-xl text-sm mb-4">{error}</div>}
         
         <div className="space-y-4">
-          {/* Customer: Search by phone first */}
+          {/* 1. Customer: Search by phone */}
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-bold text-slate-700 mb-1">SĐT khách hàng *</label>
@@ -1251,7 +1297,7 @@ function AdminCreateOrderModal({ onClose, onSuccess }: { onClose: () => void; on
             </div>
           </div>
           
-          {/* Product selection */}
+          {/* 2. Product selection */}
           <div className="grid grid-cols-3 gap-3">
             <div className="col-span-2">
               <label className="block text-xs font-bold text-slate-700 mb-1">Sản phẩm *</label>
@@ -1271,41 +1317,91 @@ function AdminCreateOrderModal({ onClose, onSuccess }: { onClose: () => void; on
             </div>
           )}
 
+          {/* 3. Sponsor / CTV — Smart section */}
           <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1">Sponsor / CTV quản lý (Không bắt buộc)</label>
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-              placeholder="Nhập tên, SĐT hoặc mã để tìm..."
-              className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-sm"
-            />
-            {searchResults.length > 0 && !selectedCtv && (
-              <div className="mt-1 border border-slate-200 rounded-xl overflow-hidden max-h-32 overflow-y-auto">
-                {searchResults.map(ctv => (
-                  <div key={ctv.userId} onClick={() => { setSelectedCtv(ctv); setSearchResults([]); setSearchQuery(''); }} className="p-2 hover:bg-slate-50 cursor-pointer border-b border-slate-100 last:border-0 text-sm">
-                    <span className="font-bold">{ctv.fullName}</span> <span className="text-slate-500">- {ctv.phone} ({ctv.userId})</span>
+            <label className="block text-xs font-bold text-slate-700 mb-1">
+              Người bảo trợ / CTV quản lý {customerFound && customerSponsor ? '' : '(Không bắt buộc)'}
+            </label>
+
+            {/* If sponsor auto-loaded from customer and not editing */}
+            {sponsorLocked && !editingSponsor && selectedCtv && (
+              <div className="bg-emerald-50 border border-emerald-200 p-3 rounded-xl">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <div className="text-xs text-emerald-600 font-bold mb-1">🔗 Tuyến trên của khách hàng (tự động)</div>
+                    <div className="text-sm font-bold text-slate-800">{selectedCtv.fullName}</div>
+                    <div className="text-xs text-slate-500">
+                      {selectedCtv.userId} · {selectedCtv.phone}
+                      {selectedCtv.businessId && <span className="ml-1 text-amber-600 font-bold">BID: {selectedCtv.businessId}</span>}
+                    </div>
+                    {selectedCtv.rank && <div className="text-[11px] mt-0.5">{rankLabel(selectedCtv.rank)}</div>}
                   </div>
-                ))}
+                  <button
+                    onClick={() => setEditingSponsor(true)}
+                    className="px-2 py-1 text-[10px] font-bold text-amber-700 bg-amber-100 border border-amber-300 rounded-lg hover:bg-amber-200"
+                  >✏️ Sửa</button>
+                </div>
               </div>
             )}
-            {selectedCtv && (
-              <div className="mt-2 bg-blue-50 border border-blue-200 p-2 rounded-xl flex justify-between items-center">
-                <div className="text-sm font-bold text-slate-800">{selectedCtv.fullName} <span className="text-slate-500 font-normal">({selectedCtv.userId})</span></div>
-                <button onClick={() => setSelectedCtv(null)} className="text-rose-500 text-xs font-bold">Xóa</button>
-              </div>
+
+            {/* If no sponsor from customer, or user clicked "Sửa" */}
+            {showSponsorSearch && (
+              <>
+                {editingSponsor && (
+                  <div className="bg-amber-50 border border-amber-200 rounded-xl p-2 text-xs text-amber-700 mb-2">
+                    ⚠️ Đang thay đổi người bảo trợ. 
+                    <button onClick={() => { setEditingSponsor(false); setSelectedCtv(customerSponsor); setSearchQuery(''); setSearchResults([]); }} className="ml-2 underline font-bold">Hủy sửa</button>
+                  </div>
+                )}
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                  placeholder="Nhập tên, SĐT hoặc mã CTV/NPP để tìm..."
+                  className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-sm"
+                />
+                {searchResults.length > 0 && !selectedCtv && (
+                  <div className="mt-1 border border-slate-200 rounded-xl overflow-hidden max-h-32 overflow-y-auto">
+                    {searchResults.map(ctv => (
+                      <div key={ctv.userId} onClick={() => { setSelectedCtv(ctv); setSearchResults([]); setSearchQuery(''); if (editingSponsor) { setSponsorLocked(true); setEditingSponsor(false); } }} className="p-2 hover:bg-slate-50 cursor-pointer border-b border-slate-100 last:border-0 text-sm">
+                        <span className="font-bold">{ctv.fullName}</span> <span className="text-slate-500">- {ctv.phone} ({ctv.userId})</span>
+                        {ctv.businessId && <span className="ml-1 text-amber-600 text-[11px] font-bold">BID: {ctv.businessId}</span>}
+                        {ctv.rank && <span className="ml-1 text-purple-600 text-[11px]">{rankLabel(ctv.rank)}</span>}
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {selectedCtv && !sponsorLocked && (
+                  <div className="mt-2 bg-blue-50 border border-blue-200 p-2 rounded-xl flex justify-between items-center">
+                    <div>
+                      <div className="text-sm font-bold text-slate-800">{selectedCtv.fullName} <span className="text-slate-500 font-normal">({selectedCtv.userId})</span></div>
+                      {selectedCtv.rank && <div className="text-[11px] text-purple-600">{rankLabel(selectedCtv.rank)}</div>}
+                    </div>
+                    <button onClick={() => setSelectedCtv(null)} className="text-rose-500 text-xs font-bold">Xóa</button>
+                  </div>
+                )}
+              </>
+            )}
+
+            {/* If customer has no sponsor */}
+            {customerFound && !customerSponsor && !selectedCtv && (
+              <div className="mt-1 text-[10px] text-slate-400">Khách hàng chưa có người bảo trợ. Có thể chọn bên trên hoặc để trống.</div>
             )}
           </div>
           
+          {/* 4. Shipping address — REQUIRED */}
           <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1">Địa chỉ giao hàng</label>
-            <input type="text" value={formData.shippingAddress} onChange={e => setFormData({...formData, shippingAddress: e.target.value})} className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-sm" />
+            <label className="block text-xs font-bold text-slate-700 mb-1">Địa chỉ giao hàng *</label>
+            <input type="text" value={formData.shippingAddress} onChange={e => setFormData({...formData, shippingAddress: e.target.value})} placeholder="Nhập địa chỉ giao hàng..."
+              className={`w-full px-3 py-2 border rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-sm ${!formData.shippingAddress.trim() ? 'border-rose-300 bg-rose-50/30' : 'border-slate-200'}`} />
           </div>
           
+          {/* 5. Recipient info — auto-fill from customer */}
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-bold text-slate-700 mb-1">SĐT người nhận</label>
-              <input type="text" value={formData.recipientPhone} onChange={e => setFormData({...formData, recipientPhone: e.target.value})} className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-sm" />
+              <input type="text" value={formData.recipientPhone} onChange={e => setFormData({...formData, recipientPhone: e.target.value})} placeholder="Mặc định = SĐT KH"
+                className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-sm" />
             </div>
             <div>
               <label className="block text-xs font-bold text-slate-700 mb-1">Hotline liên hệ</label>
@@ -1313,6 +1409,7 @@ function AdminCreateOrderModal({ onClose, onSuccess }: { onClose: () => void; on
             </div>
           </div>
 
+          {/* 6. Note */}
           <div>
             <label className="block text-xs font-bold text-slate-700 mb-1">Ghi chú</label>
             <textarea value={formData.note} onChange={e => setFormData({...formData, note: e.target.value})} className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-sm h-20" />
