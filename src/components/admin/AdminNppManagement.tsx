@@ -277,6 +277,35 @@ const AdminNppManagement: React.FC = () => {
                           <span className="font-bold text-emerald-800">🏛️ Trực tiếp Công ty (F0 - Không qua tuyến trên)</span>
                         </div>
                       )}
+
+                      {/* NPP Ref Link */}
+                      {reg.user?.userId && (
+                        <div className="mt-2 bg-blue-50 border border-blue-200 rounded-xl p-2.5">
+                          <div className="text-[10px] font-bold text-blue-700 mb-1.5">🔗 Link Giới Thiệu (Ref Link)</div>
+                          <div className="space-y-1.5">
+                            <div className="flex items-center gap-2">
+                              <span className="text-[10px] text-slate-500 w-16 shrink-0">CTV Portal:</span>
+                              <code className="flex-1 text-[11px] bg-white px-2 py-0.5 rounded border border-slate-200 truncate select-all">
+                                {`${window.location.origin}/ctv?ref=${reg.user.userId}`}
+                              </code>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(`${window.location.origin}/ctv?ref=${reg.user!.userId}`); alert('✅ Đã copy!'); }}
+                                className="px-2 py-0.5 text-[10px] font-bold bg-blue-600 text-white rounded-md hover:bg-blue-700 shrink-0"
+                              >Copy</button>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-[10px] text-slate-500 w-16 shrink-0">Website:</span>
+                              <code className="flex-1 text-[11px] bg-white px-2 py-0.5 rounded border border-slate-200 truncate select-all">
+                                {`${window.location.origin}?ref=${reg.user.userId}`}
+                              </code>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(`${window.location.origin}?ref=${reg.user!.userId}`); alert('✅ Đã copy!'); }}
+                                className="px-2 py-0.5 text-[10px] font-bold bg-blue-600 text-white rounded-md hover:bg-blue-700 shrink-0"
+                              >Copy</button>
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </div>
 
                     <div className="flex flex-col sm:flex-row items-end sm:items-center gap-2">

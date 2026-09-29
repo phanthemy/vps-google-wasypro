@@ -3160,6 +3160,8 @@ app.post('/api/admin/reset-members', authenticateToken, async (req, res) => {
  *   Service, ServiceCategory,
  *   CommissionPriceRule,
  *   NppPackage, NppPackageItem,
+ *   SystemPolicyConfig, SystemPolicyAuditLog
+ */
 // --- NEW ADMIN ORDER APIS ---
 
 // Search CTV/NPP for admin assignment
