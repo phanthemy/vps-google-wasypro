@@ -7562,7 +7562,7 @@ app.get('/api/admin/npp/:id/downline', authenticateToken, requireRole(['admin', 
           where: { status: 'COMPLETED' },
           select: { netPayableAmount: true }
         },
-        orders: {
+        createdOrders: {
           where: { status: 'COMPLETED' },
           select: { totalAmount: true }
         }
@@ -7593,7 +7593,7 @@ app.get('/api/admin/npp/:id/downline', authenticateToken, requireRole(['admin', 
             where: { status: 'COMPLETED' },
             select: { netPayableAmount: true }
           },
-          orders: {
+          createdOrders: {
             where: { status: 'COMPLETED' },
             select: { totalAmount: true }
           }
@@ -7604,7 +7604,7 @@ app.get('/api/admin/npp/:id/downline', authenticateToken, requireRole(['admin', 
 
     // Helper map data th?nh vi?n
     const mapMember = (m, level, sponsorUserId) => {
-      const orderSales = (m.orders || []).reduce((sum, o) => sum + (o.totalAmount || 0), 0);
+      const orderSales = (m.createdOrders || []).reduce((sum, o) => sum + (o.totalAmount || 0), 0);
       const nppSales = (m.nppPurchases || []).reduce((sum, p) => sum + (Number(p.netPayableAmount) || 0), 0);
       const totalSales = orderSales + nppSales;
       const partnerType = m.isNpp ? 'NPP' : (m.qualifyingPoints > 0 || m.rank ? 'CTV' : 'CUSTOMER');
