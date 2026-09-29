@@ -1,4 +1,4 @@
-﻿require('dotenv').config();
+require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const cookieParser = require('cookie-parser');
@@ -2163,6 +2163,10 @@ app.get('/api/customers', authenticateToken, async (req, res) => {
       // This prevents CTV from seeing themselves in the "Khách Hàng" dropdown
       whereFilter.NOT = { linkedUserId: req.user.dbId };
     }
+    // Phone search filter (for admin create order modal)
+    if (req.query.phone) {
+      whereFilter.phone = { contains: req.query.phone.toString().trim() };
+    }
 
     const customers = await prisma.customer.findMany({
       where: whereFilter,
@@ -3567,7 +3571,7 @@ app.get('/api/admin/products-list', authenticateToken, async (req, res) => {
   try {
     if (req.user.role !== 'admin' && req.user.role !== 'accountant') return res.status(403).json({ success: false, message: 'Admin only' });
     const products = await prisma.product.findMany({
-      select: { id: true, title: true, price: true, commissionPoints: true, imageUrl: true },
+      select: { id: true, title: true, price: true, commissionPoints: true, image: true },
       orderBy: { title: 'asc' },
     });
     const services = await prisma.service.findMany({
@@ -3575,16 +3579,17 @@ app.get('/api/admin/products-list', authenticateToken, async (req, res) => {
       orderBy: { name: 'asc' },
     });
     const allProducts = [
-      ...products.map(p => ({ ...p, type: 'product' })),
+      ...products.map(p => ({ id: p.id, title: p.title, price: p.price, commissionPoints: p.commissionPoints, imageUrl: p.image, type: 'product' })),
       ...services.map(s => ({ id: s.id, title: s.name, price: s.price, commissionPoints: s.commissionPoints, imageUrl: s.imageUrl, type: 'service' })),
     ];
     res.json({ success: true, data: allProducts });
   } catch (err) {
+    console.error('[PRODUCTS LIST]', err);
     res.status(500).json({ success: false, message: 'Lỗi tải danh sách sản phẩm' });
   }
 });
 // --- END NEW ADMIN ORDER APIS ---
- *   SystemPolicyConfig, SystemPolicyAuditLog
+/**
  */
 app.post('/api/admin/factory-reset', authenticateToken, async (req, res) => {
   try {

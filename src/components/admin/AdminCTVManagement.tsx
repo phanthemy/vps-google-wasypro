@@ -230,6 +230,35 @@ export const AdminCTVManagement: React.FC = () => {
                 ))}
               </div>
 
+              {/* Referral Link */}
+              <div className="mt-4 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-4">
+                <div className="text-xs font-bold text-blue-700 mb-2 flex items-center gap-1.5">
+                  🔗 Link Giới Thiệu (Ref Link)
+                </div>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] text-slate-500 w-20 shrink-0">CTV Portal:</span>
+                    <code className="flex-1 text-xs bg-white px-2 py-1 rounded border border-slate-200 truncate select-all">
+                      {`${window.location.origin}/ctv?ref=${detail.ctv.userId}`}
+                    </code>
+                    <button
+                      onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/ctv?ref=${detail.ctv.userId}`); alert('✅ Đã copy!'); }}
+                      className="px-2 py-1 text-[10px] font-bold bg-blue-600 text-white rounded-lg hover:bg-blue-700 shrink-0"
+                    >Copy</button>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] text-slate-500 w-20 shrink-0">Website:</span>
+                    <code className="flex-1 text-xs bg-white px-2 py-1 rounded border border-slate-200 truncate select-all">
+                      {`${window.location.origin}?ref=${detail.ctv.userId}`}
+                    </code>
+                    <button
+                      onClick={() => { navigator.clipboard.writeText(`${window.location.origin}?ref=${detail.ctv.userId}`); alert('✅ Đã copy!'); }}
+                      className="px-2 py-1 text-[10px] font-bold bg-blue-600 text-white rounded-lg hover:bg-blue-700 shrink-0"
+                    >Copy</button>
+                  </div>
+                </div>
+              </div>
+
               {detail.ctv.note && (
                 <div className="mt-4 p-3 bg-amber-50 border border-amber-100 rounded-xl text-sm text-amber-800">
                   <span className="font-bold">Ghi chú:</span> {detail.ctv.note}

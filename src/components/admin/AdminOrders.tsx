@@ -1148,6 +1148,7 @@ function AdminCreateOrderModal({ onClose, onSuccess }: { onClose: () => void; on
   const [selectedCtv, setSelectedCtv] = useState<any>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [customerFound, setCustomerFound] = useState(false);
 
   useEffect(() => {
     fetch('/api/admin/products-list', { credentials: 'include' })
@@ -1155,6 +1156,27 @@ function AdminCreateOrderModal({ onClose, onSuccess }: { onClose: () => void; on
       .then(d => setProducts(d.data || []))
       .catch(() => {});
   }, []);
+
+  // Auto-search customer when phone is typed (debounced)
+  useEffect(() => {
+    const phone = formData.customerPhone.trim();
+    if (phone.length < 4) { setCustomerFound(false); return; }
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/customers?phone=${encodeURIComponent(phone)}`, { credentials: 'include' });
+        const body = await res.json();
+        const customers = body.data || body || [];
+        if (Array.isArray(customers) && customers.length > 0) {
+          const c = customers[0];
+          setFormData(prev => ({ ...prev, customerName: c.fullName || prev.customerName }));
+          setCustomerFound(true);
+        } else {
+          setCustomerFound(false);
+        }
+      } catch (e) { setCustomerFound(false); }
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [formData.customerPhone]);
 
   useEffect(() => {
     if (searchQuery.length < 2) { setSearchResults([]); return; }
@@ -1167,6 +1189,9 @@ function AdminCreateOrderModal({ onClose, onSuccess }: { onClose: () => void; on
     }, 300);
     return () => clearTimeout(timer);
   }, [searchQuery]);
+
+  const selectedProduct = products.find(p => p.id === formData.productId);
+  const lineTotal = selectedProduct ? selectedProduct.price * formData.qty : 0;
 
   const handleSubmit = async () => {
     if (!formData.customerName || !formData.customerPhone || !formData.productId) {
@@ -1210,23 +1235,29 @@ function AdminCreateOrderModal({ onClose, onSuccess }: { onClose: () => void; on
         {error && <div className="bg-rose-50 text-rose-600 p-3 rounded-xl text-sm mb-4">{error}</div>}
         
         <div className="space-y-4">
+          {/* Customer: Search by phone first */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">Tên khách hàng *</label>
-              <input type="text" value={formData.customerName} onChange={e => setFormData({...formData, customerName: e.target.value})} className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-sm" />
+              <label className="block text-xs font-bold text-slate-700 mb-1">SĐT khách hàng *</label>
+              <input type="text" value={formData.customerPhone} onChange={e => setFormData({...formData, customerPhone: e.target.value})} placeholder="Nhập SĐT để tìm..."
+                className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-sm" />
+              {customerFound && <div className="text-[10px] text-emerald-600 font-bold mt-1">✅ Tìm thấy khách hàng</div>}
+              {formData.customerPhone.length >= 4 && !customerFound && <div className="text-[10px] text-amber-600 mt-1">Khách mới — sẽ tạo hồ sơ</div>}
             </div>
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">SĐT khách hàng *</label>
-              <input type="text" value={formData.customerPhone} onChange={e => setFormData({...formData, customerPhone: e.target.value})} className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-sm" />
+              <label className="block text-xs font-bold text-slate-700 mb-1">Tên khách hàng *</label>
+              <input type="text" value={formData.customerName} onChange={e => setFormData({...formData, customerName: e.target.value})} placeholder="Họ tên..."
+                className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-sm" />
             </div>
           </div>
           
+          {/* Product selection */}
           <div className="grid grid-cols-3 gap-3">
             <div className="col-span-2">
               <label className="block text-xs font-bold text-slate-700 mb-1">Sản phẩm *</label>
               <select value={formData.productId} onChange={e => setFormData({...formData, productId: e.target.value})} className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-sm bg-white">
-                <option value="">-- Chọn --</option>
-                {products.map(p => <option key={p.id} value={p.id}>{p.title}</option>)}
+                <option value="">-- Chọn sản phẩm --</option>
+                {products.map(p => <option key={p.id} value={p.id}>{p.title} — {new Intl.NumberFormat('vi-VN').format(p.price)}đ (CP: {p.commissionPoints || 0})</option>)}
               </select>
             </div>
             <div>
@@ -1234,6 +1265,11 @@ function AdminCreateOrderModal({ onClose, onSuccess }: { onClose: () => void; on
               <input type="number" min="1" value={formData.qty} onChange={e => setFormData({...formData, qty: parseInt(e.target.value) || 1})} className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-sm" />
             </div>
           </div>
+          {selectedProduct && (
+            <div className="bg-blue-50 border border-blue-200 rounded-xl p-2 text-xs text-blue-800">
+              💰 Tổng tiền: <strong>{new Intl.NumberFormat('vi-VN').format(lineTotal)}đ</strong> | CP: <strong>{(selectedProduct.commissionPoints || 0) * formData.qty}</strong>
+            </div>
+          )}
 
           <div>
             <label className="block text-xs font-bold text-slate-700 mb-1">Sponsor / CTV quản lý (Không bắt buộc)</label>
