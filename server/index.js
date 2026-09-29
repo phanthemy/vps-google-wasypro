@@ -1,4 +1,4 @@
-require('dotenv').config();
+﻿require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const cookieParser = require('cookie-parser');
@@ -3156,6 +3156,434 @@ app.post('/api/admin/reset-members', authenticateToken, async (req, res) => {
  *   Service, ServiceCategory,
  *   CommissionPriceRule,
  *   NppPackage, NppPackageItem,
+// --- NEW ADMIN ORDER APIS ---
+
+// Search CTV/NPP for admin assignment
+app.get('/api/admin/ctv-search', authenticateToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin' && req.user.role !== 'accountant') return res.status(403).json({ success: false, message: 'Admin only' });
+    const q = (req.query.q || '').toString().trim();
+    if (!q || q.length < 2) return res.json({ success: true, data: [] });
+    const users = await prisma.user.findMany({
+      where: {
+        isSystemParticipant: true,
+        OR: [
+          { fullName: { contains: q } },
+          { phone: { contains: q } },
+          { userId: { contains: q } },
+          { businessId: { contains: q } },
+        ]
+      },
+      select: { id: true, userId: true, fullName: true, phone: true, businessId: true, rank: true, role: true },
+      take: 20,
+    });
+    res.json({ success: true, data: users });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Lỗi tìm kiếm CTV' });
+  }
+});
+
+app.put('/api/admin/website-orders/:id/assign-sponsor', authenticateToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin' && req.user.role !== 'accountant') return res.status(403).json({ success: false, message: 'Admin only' });
+    const { id } = req.params;
+    const { sponsorUserId, reason, attachmentUrl } = req.body;
+    
+    if (!sponsorUserId) return res.status(400).json({ success: false, message: 'Thiếu mã CTV/NPP' });
+    
+    // Find the website order
+    const wo = await prisma.websiteOrder.findUnique({ where: { id } });
+    if (!wo) return res.status(404).json({ success: false, message: 'Không tìm thấy đơn hàng' });
+    
+    // Find the sponsor CTV
+    const sponsor = await prisma.user.findFirst({
+      where: { OR: [{ userId: sponsorUserId }, { id: sponsorUserId }] }
+    });
+    if (!sponsor) return res.status(404).json({ success: false, message: 'Không tìm thấy CTV/NPP' });
+    
+    const previousSponsor = wo.sponsorUserId;
+    const isReassign = !!previousSponsor;
+    
+    // If reassigning, require reason
+    if (isReassign && !reason) {
+      return res.status(400).json({ success: false, message: 'Phải nêu lý do khi đổi CTV/NPP' });
+    }
+    
+    // Use transaction for atomicity
+    const result = await prisma.$transaction(async (tx) => {
+      // 1. If order is COMPLETED and has shadow order -> reverse settlement first
+      if (wo.status === 'COMPLETED' && wo.shadowOrderId) {
+        await tx.order.update({ where: { id: wo.shadowOrderId }, data: { status: 'NEW' } });
+        // Revoke all commissions for this shadow order
+        await tx.commission.updateMany({
+          where: { orderId: wo.shadowOrderId, status: { in: ['PENDING', 'APPROVED'] } },
+          data: { status: 'REVOKED' }
+        });
+        // Create reversal entries for PAID commissions
+        const paidComms = await tx.commission.findMany({
+          where: { orderId: wo.shadowOrderId, status: 'PAID' }
+        });
+        for (const comm of paidComms) {
+          await tx.commission.create({
+            data: {
+              orderId: comm.orderId,
+              receiverId: comm.receiverId,
+              amount: -comm.amount,
+              type: 'REVERSAL',
+              status: 'PAID',
+              rateSnapshot: comm.rateSnapshot,
+              rankSnapshot: comm.rankSnapshot,
+              baseAmount: comm.baseAmount,
+              policyRef: 'REVERSAL_REASSIGN',
+              ruleKey: 'REVERSAL_' + (comm.ruleKey || 'UNKNOWN'),
+              basePoints: comm.basePoints ? -comm.basePoints : 0,
+              earnedPoints: comm.earnedPoints ? -comm.earnedPoints : 0,
+              earnedMoney: comm.earnedMoney ? -comm.earnedMoney : 0,
+              metadata: JSON.stringify({ reason: 'Reassign sponsor', originalCommId: comm.id }),
+              periodId: comm.periodId,
+            }
+          });
+          await tx.commission.update({ where: { id: comm.id }, data: { status: 'REVOKED' } });
+        }
+        // Reverse sPoints and qualifyingPoints for the buyer
+        const shadowOrder = await tx.order.findUnique({ where: { id: wo.shadowOrderId }, include: { items: true, customer: true } });
+        if (shadowOrder && shadowOrder.customer?.linkedUserId) {
+          const orderCP = shadowOrder.items.reduce((s, i) => s + (i.lineCommissionPts || 0), 0);
+          if (orderCP > 0) {
+            await tx.user.update({
+              where: { id: shadowOrder.customer.linkedUserId },
+              data: {
+                qualifyingPoints: { decrement: orderCP },
+                sPoints: { decrement: orderCP },
+              }
+            });
+          }
+        }
+      }
+      
+      // 2. Update WebsiteOrder sponsor
+      await tx.websiteOrder.update({
+        where: { id },
+        data: {
+          sponsorUserId: sponsor.userId,
+          isCtvOrder: true,
+        }
+      });
+      
+      // 3. Handle shadow order
+      let shadowOrderId = wo.shadowOrderId;
+      
+      if (shadowOrderId) {
+        // Update existing shadow order's customer sponsor
+        const shadowOrder = await tx.order.findUnique({ where: { id: shadowOrderId }, include: { customer: true } });
+        if (shadowOrder) {
+          await tx.customer.update({
+            where: { id: shadowOrder.customerId },
+            data: {
+              sourceCtvId: sponsor.userId,
+              sponsorUserId: sponsor.id,
+            }
+          });
+        }
+      } else {
+        // Create new shadow order + customer
+        // Find product for CP
+        let productRecord = null;
+        if (wo.productId) {
+          productRecord = await tx.product.findUnique({ where: { id: wo.productId } });
+          if (!productRecord) {
+            productRecord = await tx.service.findUnique({ where: { id: wo.productId } });
+          }
+        }
+        
+        const unitCP = productRecord?.commissionPoints || wo.commissionPoints || 0;
+        
+        // Find or create customer
+        let customer = await tx.customer.findFirst({
+          where: { phone: wo.customerPhone, sourceCtvId: sponsor.userId }
+        });
+        if (!customer) {
+          customer = await tx.customer.create({
+            data: {
+              fullName: wo.customerName,
+              phone: wo.customerPhone,
+              sourceCtvId: sponsor.userId,
+              sponsorUserId: sponsor.id,
+              status: 'ARRIVED',
+              expiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
+            }
+          });
+        }
+        
+        // Find open period
+        const openPeriod = await tx.commissionPeriod.findFirst({ where: { status: 'OPEN' } });
+        
+        // Create shadow order
+        const shadowOrder = await tx.order.create({
+          data: {
+            customerId: customer.id,
+            totalAmount: wo.totalAmount,
+            status: wo.status === 'COMPLETED' ? 'NEW' : wo.status, // Reset to NEW if was completed
+            orderType: 'RETAIL',
+            purchaseType: 'CUSTOMER_PURCHASE',
+            isSelfBuy: false,
+            periodId: openPeriod?.id || null,
+            shippingAddress: wo.shippingAddress || wo.address,
+            recipientPhone: wo.recipientPhone,
+            recipientEmail: wo.recipientEmail,
+            contactHotline: wo.contactHotline,
+            items: {
+              create: [{
+                productId: wo.productId || undefined,
+                amount: wo.totalAmount,
+                qty: wo.qty || 1,
+                unitCommissionPts: unitCP,
+                lineCommissionPts: unitCP * (wo.qty || 1),
+              }]
+            }
+          }
+        });
+        
+        shadowOrderId = shadowOrder.id;
+        await tx.websiteOrder.update({
+          where: { id },
+          data: { shadowOrderId: shadowOrder.id }
+        });
+      }
+      
+      // 5. Create audit log
+      await tx.orderAuditLog.create({
+        data: {
+          websiteOrderId: id,
+          orderId: shadowOrderId,
+          action: isReassign ? 'REASSIGN_SPONSOR' : 'ASSIGN_SPONSOR',
+          performedBy: req.user?.fullName || req.user?.email || 'Admin',
+          previousValue: previousSponsor ? JSON.stringify({ sponsorUserId: previousSponsor }) : null,
+          newValue: JSON.stringify({ sponsorUserId: sponsor.userId, sponsorName: sponsor.fullName, sponsorBID: sponsor.businessId }),
+          reason: reason || null,
+          attachmentUrl: attachmentUrl || null,
+        }
+      });
+      
+      return { shadowOrderId, isReassign, wasCompleted: wo.status === 'COMPLETED' };
+    });
+    
+    // If order was completed, re-run settlement with new sponsor
+    let settlementResult = null;
+    if (result.wasCompleted && result.shadowOrderId) {
+      try {
+        // Reset shadow order to COMPLETED to trigger settlement
+        await prisma.order.update({ where: { id: result.shadowOrderId }, data: { status: 'COMPLETED' } });
+        settlementResult = await executeOrderSettlement(result.shadowOrderId);
+      } catch (e) {
+        console.error('[REASSIGN] Settlement error:', e);
+      }
+    }
+    
+    res.json({
+      success: true,
+      message: result.isReassign ? 'Đã đổi CTV/NPP thành công' : 'Đã gán CTV/NPP thành công',
+      settlement: settlementResult,
+    });
+  } catch (err) {
+    console.error('[ASSIGN SPONSOR]', err);
+    res.status(500).json({ success: false, message: err.message || 'Lỗi gán CTV/NPP' });
+  }
+});
+
+app.post('/api/admin/orders/create', authenticateToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin' && req.user.role !== 'accountant') return res.status(403).json({ success: false, message: 'Admin only' });
+    const { customerName, customerPhone, productId, qty, sponsorUserId, shippingAddress, recipientPhone, recipientEmail, contactHotline, note } = req.body;
+    
+    if (!customerName || !customerPhone) {
+      return res.status(400).json({ success: false, message: 'Thiếu thông tin khách hàng (tên, SĐT)' });
+    }
+    if (!productId) {
+      return res.status(400).json({ success: false, message: 'Thiếu sản phẩm' });
+    }
+    
+    const quantity = parseInt(qty, 10) || 1;
+    
+    // Find product
+    let product = await prisma.product.findUnique({ where: { id: productId } });
+    if (!product) product = await prisma.service.findUnique({ where: { id: productId } });
+    if (!product) return res.status(404).json({ success: false, message: 'Không tìm thấy sản phẩm' });
+    
+    const unitPrice = product.price || 0;
+    const totalAmount = unitPrice * quantity;
+    const unitCP = product.commissionPoints || 0;
+    
+    // Find sponsor if provided
+    let sponsor = null;
+    if (sponsorUserId) {
+      sponsor = await prisma.user.findFirst({
+        where: { OR: [{ userId: sponsorUserId }, { id: sponsorUserId }] }
+      });
+    }
+    
+    const result = await prisma.$transaction(async (tx) => {
+      // 1. Create WebsiteOrder
+      const wo = await tx.websiteOrder.create({
+        data: {
+          customerName,
+          customerPhone,
+          shippingAddress: shippingAddress || null,
+          recipientPhone: recipientPhone || null,
+          recipientEmail: recipientEmail || null,
+          contactHotline: contactHotline || null,
+          message: note || null,
+          type: 'ORDER',
+          productId: product.id,
+          productTitle: product.title || product.name,
+          productPrice: unitPrice,
+          qty: quantity,
+          totalAmount,
+          status: 'NEW',
+          sponsorUserId: sponsor?.userId || null,
+          commissionPoints: unitCP * quantity,
+          isCtvOrder: !!sponsor,
+        }
+      });
+      
+      let shadowOrderId = null;
+      
+      // 2. If sponsor exists, create shadow order + customer
+      if (sponsor) {
+        let customer = await tx.customer.findFirst({
+          where: { phone: customerPhone, sourceCtvId: sponsor.userId }
+        });
+        if (!customer) {
+          customer = await tx.customer.create({
+            data: {
+              fullName: customerName,
+              phone: customerPhone,
+              sourceCtvId: sponsor.userId,
+              sponsorUserId: sponsor.id,
+              status: 'ARRIVED',
+              expiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
+            }
+          });
+        }
+        
+        const openPeriod = await tx.commissionPeriod.findFirst({ where: { status: 'OPEN' } });
+        
+        const shadowOrder = await tx.order.create({
+          data: {
+            customerId: customer.id,
+            totalAmount,
+            status: 'NEW',
+            orderType: 'RETAIL',
+            purchaseType: 'CUSTOMER_PURCHASE',
+            isSelfBuy: false,
+            periodId: openPeriod?.id || null,
+            shippingAddress: shippingAddress || null,
+            recipientPhone: recipientPhone || null,
+            recipientEmail: recipientEmail || null,
+            contactHotline: contactHotline || null,
+            items: {
+              create: [{
+                productId: product.id,
+                amount: totalAmount,
+                qty: quantity,
+                unitCommissionPts: unitCP,
+                lineCommissionPts: unitCP * quantity,
+              }]
+            }
+          }
+        });
+        
+        shadowOrderId = shadowOrder.id;
+        await tx.websiteOrder.update({ where: { id: wo.id }, data: { shadowOrderId: shadowOrder.id } });
+      }
+      
+      // 3. Audit log
+      await tx.orderAuditLog.create({
+        data: {
+          websiteOrderId: wo.id,
+          orderId: shadowOrderId,
+          action: 'CREATE_ORDER',
+          performedBy: req.user?.fullName || req.user?.email || 'Admin',
+          newValue: JSON.stringify({
+            customerName, customerPhone, product: product.title || product.name,
+            qty: quantity, totalAmount,
+            sponsor: sponsor ? { userId: sponsor.userId, fullName: sponsor.fullName } : null,
+          }),
+          reason: note || 'Admin tạo đơn hàng',
+        }
+      });
+      
+      return wo;
+    });
+    
+    res.json({ success: true, data: result, message: 'Tạo đơn hàng thành công' });
+  } catch (err) {
+    console.error('[ADMIN CREATE ORDER]', err);
+    res.status(500).json({ success: false, message: err.message || 'Lỗi tạo đơn hàng' });
+  }
+});
+
+app.get('/api/admin/website-orders/:id/history', authenticateToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin' && req.user.role !== 'accountant') return res.status(403).json({ success: false, message: 'Admin only' });
+    const logs = await prisma.orderAuditLog.findMany({
+      where: { websiteOrderId: req.params.id },
+      orderBy: { createdAt: 'desc' },
+    });
+    res.json({ success: true, data: logs });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Lỗi tải lịch sử' });
+  }
+});
+
+const orderAttachmentUpload = multer({
+  storage: multer.diskStorage({
+    destination: (req, file, cb) => {
+      const dir = path.join(__dirname, '..', 'uploads', 'order-attachments');
+      if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+      cb(null, dir);
+    },
+    filename: (req, file, cb) => {
+      const ext = path.extname(file.originalname);
+      cb(null, `att_${Date.now()}_${Math.random().toString(36).slice(2, 8)}${ext}`);
+    }
+  }),
+  limits: { fileSize: 50 * 1024 * 1024 }, // 50MB for video
+  fileFilter: (req, file, cb) => {
+    const allowed = /\.(jpg|jpeg|png|gif|webp|mp4|mov|avi|pdf)$/i;
+    if (allowed.test(file.originalname)) cb(null, true);
+    else cb(new Error('File không hợp lệ. Chỉ chấp nhận ảnh, video hoặc PDF.'));
+  }
+});
+
+app.post('/api/admin/upload-attachment', authenticateToken, orderAttachmentUpload.single('file'), (req, res) => {
+  if (req.user.role !== 'admin' && req.user.role !== 'accountant') return res.status(403).json({ success: false, message: 'Admin only' });
+  if (!req.file) return res.status(400).json({ success: false, message: 'Không có file' });
+  const url = `/uploads/order-attachments/${req.file.filename}`;
+  res.json({ success: true, url });
+});
+
+app.get('/api/admin/products-list', authenticateToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin' && req.user.role !== 'accountant') return res.status(403).json({ success: false, message: 'Admin only' });
+    const products = await prisma.product.findMany({
+      select: { id: true, title: true, price: true, commissionPoints: true, imageUrl: true },
+      orderBy: { title: 'asc' },
+    });
+    const services = await prisma.service.findMany({
+      select: { id: true, name: true, price: true, commissionPoints: true, imageUrl: true },
+      orderBy: { name: 'asc' },
+    });
+    const allProducts = [
+      ...products.map(p => ({ ...p, type: 'product' })),
+      ...services.map(s => ({ id: s.id, title: s.name, price: s.price, commissionPoints: s.commissionPoints, imageUrl: s.imageUrl, type: 'service' })),
+    ];
+    res.json({ success: true, data: allProducts });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Lỗi tải danh sách sản phẩm' });
+  }
+});
+// --- END NEW ADMIN ORDER APIS ---
  *   SystemPolicyConfig, SystemPolicyAuditLog
  */
 app.post('/api/admin/factory-reset', authenticateToken, async (req, res) => {

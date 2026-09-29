@@ -767,3 +767,15 @@ model NppPurchaseItem {
   @@index([purchaseId])
   @@index([productId])
 }
+model OrderAuditLog {
+  id              String   @id @default(cuid())
+  websiteOrderId  String?  // FK to WebsiteOrder.id
+  orderId         String?  // FK to Order.id (shadow order)
+  action          String   // ASSIGN_SPONSOR, REASSIGN_SPONSOR, CREATE_ORDER, STATUS_CHANGE, ADMIN_NOTE
+  performedBy     String   // Admin email or name who performed the action
+  previousValue   String?  // JSON: previous state
+  newValue        String?  // JSON: new state
+  reason          String?  // Why the change was made (required for REASSIGN_SPONSOR)
+  attachmentUrl   String?  // Evidence file URL (image/video)
+  createdAt       DateTime @default(now())
+}

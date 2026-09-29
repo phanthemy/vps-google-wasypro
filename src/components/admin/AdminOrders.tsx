@@ -124,6 +124,11 @@ export const AdminOrders: React.FC = () => {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [expandedWebId, setExpandedWebId] = useState<string | null>(null);
 
+  // Modals
+  const [showAssignModal, setShowAssignModal] = useState<string | null>(null); // websiteOrderId
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showHistoryModal, setShowHistoryModal] = useState<string | null>(null); // websiteOrderId
+
   // Fetch CTV orders
   const fetchCtvOrders = async () => {
     setCtvLoading(true);
@@ -290,6 +295,10 @@ export const AdminOrders: React.FC = () => {
               </p>
             </div>
             <div className="flex items-center gap-2 text-xs flex-wrap">
+              <button
+                onClick={() => setShowCreateModal(true)}
+                className="px-4 py-2 rounded-xl text-xs font-bold transition-all border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+              >➕ Tạo Đơn Mới</button>
               <span className="px-3 py-1.5 rounded-xl bg-blue-50 text-blue-700 font-bold border border-blue-200">
                 {webOrders.filter(o => o.status === 'NEW').length} Mới
               </span>
@@ -537,6 +546,20 @@ export const AdminOrders: React.FC = () => {
                                       {new Intl.NumberFormat('vi-VN').format(order.productPrice)}đ × {order.qty}
                                     </div>
                                   </div>
+                                </div>
+                                <div className="mt-3 flex gap-2">
+                                  <button
+                                    onClick={(e) => { e.stopPropagation(); setShowAssignModal(order.id); }}
+                                    className="px-3 py-1.5 rounded-xl text-xs font-bold border border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100"
+                                  >
+                                    {order.sponsorUserId ? '🔄 Đổi CTV/NPP' : '🔗 Gán CTV/NPP'}
+                                  </button>
+                                  <button
+                                    onClick={(e) => { e.stopPropagation(); setShowHistoryModal(order.id); }}
+                                    className="px-3 py-1.5 rounded-xl text-xs font-bold border border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100 flex items-center gap-1"
+                                  >
+                                    📋 Lịch Sử
+                                  </button>
                                 </div>
                               </td>
                             </tr>
@@ -923,6 +946,407 @@ export const AdminOrders: React.FC = () => {
           )}
         </>
       )}
+      {showAssignModal && (
+        <AssignSponsorModal
+          orderId={showAssignModal}
+          currentSponsor={webOrders.find(o => o.id === showAssignModal)?.sponsorUserId}
+          onClose={() => setShowAssignModal(null)}
+          onSuccess={() => { fetchWebOrders(); fetchCtvOrders(); }}
+        />
+      )}
+      {showCreateModal && (
+        <AdminCreateOrderModal
+          onClose={() => setShowCreateModal(false)}
+          onSuccess={() => { fetchWebOrders(); fetchCtvOrders(); }}
+        />
+      )}
+      {showHistoryModal && (
+        <OrderHistoryModal
+          orderId={showHistoryModal}
+          onClose={() => setShowHistoryModal(null)}
+        />
+      )}
     </div>
   );
 };
+
+function AssignSponsorModal({ orderId, currentSponsor, onClose, onSuccess }: { orderId: string; currentSponsor?: string | null; onClose: () => void; onSuccess: () => void; }) {
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [selectedCtv, setSelectedCtv] = useState<any>(null);
+  const [reason, setReason] = useState('');
+  const [attachmentUrl, setAttachmentUrl] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  
+  useEffect(() => {
+    if (searchQuery.length < 2) { setSearchResults([]); return; }
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/admin/ctv-search?q=${encodeURIComponent(searchQuery)}`, { credentials: 'include' });
+        const body = await res.json();
+        setSearchResults(body.data || []);
+      } catch (e) {}
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+  
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await fetch('/api/admin/upload-attachment', {
+        method: 'POST',
+        credentials: 'include',
+        body: formData,
+      });
+      const body = await res.json();
+      if (body.success) {
+        setAttachmentUrl(body.url);
+      } else {
+        setError('Upload thất bại: ' + body.message);
+      }
+    } catch (e) {
+      setError('Lỗi upload file');
+    } finally {
+      setUploading(false);
+    }
+  };
+  
+  const handleSubmit = async () => {
+    if (!selectedCtv) { setError('Vui lòng chọn CTV/NPP'); return; }
+    if (currentSponsor && !reason.trim()) { setError('Vui lòng nêu lý do đổi CTV/NPP'); return; }
+    setSubmitting(true);
+    setError(null);
+    try {
+      const csrf = (document.cookie.match(/(?:^|;\s*)csrf_token=([^;]*)/) || [])[1] || '';
+      const res = await fetch(`/api/admin/website-orders/${orderId}/assign-sponsor`, {
+        method: 'PUT',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrf },
+        body: JSON.stringify({
+          sponsorUserId: selectedCtv.userId,
+          reason: reason.trim() || undefined,
+          attachmentUrl: attachmentUrl || undefined,
+        }),
+      });
+      const body = await res.json();
+      if (body.success) {
+        alert(body.message || 'Thành công!');
+        onSuccess();
+        onClose();
+      } else {
+        setError(body.message || 'Lỗi');
+      }
+    } catch (e) {
+      setError('Lỗi kết nối');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+  
+  return (
+    <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
+      <div className="bg-white rounded-3xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto p-6">
+        <h3 className="text-xl font-bold text-slate-900 mb-4">{currentSponsor ? 'Đổi CTV/NPP' : 'Gán CTV/NPP cho đơn hàng'}</h3>
+        {currentSponsor && (
+          <div className="bg-amber-50 text-amber-800 p-3 rounded-xl text-sm mb-4 border border-amber-200">
+            ⚠️ Đơn hàng đang gán cho: <strong>{currentSponsor}</strong>
+          </div>
+        )}
+        
+        {error && <div className="bg-rose-50 text-rose-600 p-3 rounded-xl text-sm mb-4">{error}</div>}
+        
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-bold text-slate-700 mb-1">Tìm CTV/NPP</label>
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              placeholder="Nhập tên, SĐT hoặc mã..."
+              className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none"
+            />
+            {searchResults.length > 0 && !selectedCtv && (
+              <div className="mt-2 border border-slate-200 rounded-xl overflow-hidden max-h-40 overflow-y-auto">
+                {searchResults.map(ctv => (
+                  <div
+                    key={ctv.userId}
+                    onClick={() => { setSelectedCtv(ctv); setSearchResults([]); setSearchQuery(''); }}
+                    className="p-3 hover:bg-slate-50 cursor-pointer border-b border-slate-100 last:border-0"
+                  >
+                    <div className="font-bold text-slate-800">{ctv.fullName}</div>
+                    <div className="text-xs text-slate-500">{ctv.phone} - {ctv.userId}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+          
+          {selectedCtv && (
+            <div className="bg-blue-50 border border-blue-200 p-4 rounded-xl flex justify-between items-center">
+              <div>
+                <div className="text-xs text-blue-600 font-bold mb-1">Đã chọn:</div>
+                <div className="font-bold text-slate-800">{selectedCtv.fullName}</div>
+                <div className="text-xs text-slate-500">{selectedCtv.phone} - {selectedCtv.userId}</div>
+              </div>
+              <button onClick={() => setSelectedCtv(null)} className="text-rose-500 hover:bg-rose-50 p-2 rounded-xl text-xs font-bold">Xóa</button>
+            </div>
+          )}
+          
+          <div>
+            <label className="block text-sm font-bold text-slate-700 mb-1">
+              Lý do (Bắt buộc khi đổi)
+            </label>
+            <textarea
+              value={reason}
+              onChange={e => setReason(e.target.value)}
+              className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none min-h-[80px]"
+              placeholder="Nhập lý do gán/đổi..."
+            />
+          </div>
+          
+          <div>
+            <label className="block text-sm font-bold text-slate-700 mb-1">Đính kèm chứng từ (Ảnh/Video)</label>
+            <input type="file" onChange={handleFileUpload} accept="image/*,video/*" className="text-sm w-full" disabled={uploading} />
+            {uploading && <div className="text-xs text-blue-600 mt-1">Đang tải lên...</div>}
+            {attachmentUrl && <div className="text-xs text-emerald-600 mt-1 font-bold">✅ Đã tải lên thành công</div>}
+          </div>
+        </div>
+        
+        <div className="mt-6 flex gap-3 justify-end">
+          <button onClick={onClose} className="px-4 py-2 text-sm font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl">Hủy</button>
+          <button onClick={handleSubmit} disabled={submitting || uploading} className="px-4 py-2 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl disabled:opacity-50">
+            {submitting ? 'Đang xử lý...' : 'Xác nhận'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AdminCreateOrderModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: () => void; }) {
+  const [formData, setFormData] = useState({
+    customerName: '',
+    customerPhone: '',
+    productId: '',
+    qty: 1,
+    sponsorUserId: '',
+    shippingAddress: '',
+    recipientPhone: '',
+    recipientEmail: '',
+    contactHotline: '',
+    note: ''
+  });
+  const [products, setProducts] = useState<any[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [selectedCtv, setSelectedCtv] = useState<any>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch('/api/admin/products-list', { credentials: 'include' })
+      .then(r => r.json())
+      .then(d => setProducts(d.data || []))
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    if (searchQuery.length < 2) { setSearchResults([]); return; }
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/admin/ctv-search?q=${encodeURIComponent(searchQuery)}`, { credentials: 'include' });
+        const body = await res.json();
+        setSearchResults(body.data || []);
+      } catch (e) {}
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  const handleSubmit = async () => {
+    if (!formData.customerName || !formData.customerPhone || !formData.productId) {
+      setError('Vui lòng điền đủ thông tin bắt buộc (Tên, SĐT, Sản phẩm)');
+      return;
+    }
+    setSubmitting(true);
+    setError(null);
+    try {
+      const csrf = (document.cookie.match(/(?:^|;\s*)csrf_token=([^;]*)/) || [])[1] || '';
+      const payload = {
+        ...formData,
+        sponsorUserId: selectedCtv?.userId || formData.sponsorUserId || undefined,
+      };
+      const res = await fetch(`/api/admin/orders/create`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrf },
+        body: JSON.stringify(payload),
+      });
+      const body = await res.json();
+      if (body.success) {
+        alert('Tạo đơn thành công!');
+        onSuccess();
+        onClose();
+      } else {
+        setError(body.message || 'Lỗi');
+      }
+    } catch (e) {
+      setError('Lỗi kết nối');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
+      <div className="bg-white rounded-3xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto p-6">
+        <h3 className="text-xl font-bold text-slate-900 mb-4">Tạo Đơn Mới</h3>
+        
+        {error && <div className="bg-rose-50 text-rose-600 p-3 rounded-xl text-sm mb-4">{error}</div>}
+        
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">Tên khách hàng *</label>
+              <input type="text" value={formData.customerName} onChange={e => setFormData({...formData, customerName: e.target.value})} className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-sm" />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">SĐT khách hàng *</label>
+              <input type="text" value={formData.customerPhone} onChange={e => setFormData({...formData, customerPhone: e.target.value})} className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-sm" />
+            </div>
+          </div>
+          
+          <div className="grid grid-cols-3 gap-3">
+            <div className="col-span-2">
+              <label className="block text-xs font-bold text-slate-700 mb-1">Sản phẩm *</label>
+              <select value={formData.productId} onChange={e => setFormData({...formData, productId: e.target.value})} className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-sm bg-white">
+                <option value="">-- Chọn --</option>
+                {products.map(p => <option key={p.id} value={p.id}>{p.title}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">Số lượng *</label>
+              <input type="number" min="1" value={formData.qty} onChange={e => setFormData({...formData, qty: parseInt(e.target.value) || 1})} className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-sm" />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-slate-700 mb-1">Sponsor / CTV quản lý (Không bắt buộc)</label>
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              placeholder="Nhập tên, SĐT hoặc mã để tìm..."
+              className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-sm"
+            />
+            {searchResults.length > 0 && !selectedCtv && (
+              <div className="mt-1 border border-slate-200 rounded-xl overflow-hidden max-h-32 overflow-y-auto">
+                {searchResults.map(ctv => (
+                  <div key={ctv.userId} onClick={() => { setSelectedCtv(ctv); setSearchResults([]); setSearchQuery(''); }} className="p-2 hover:bg-slate-50 cursor-pointer border-b border-slate-100 last:border-0 text-sm">
+                    <span className="font-bold">{ctv.fullName}</span> <span className="text-slate-500">- {ctv.phone} ({ctv.userId})</span>
+                  </div>
+                ))}
+              </div>
+            )}
+            {selectedCtv && (
+              <div className="mt-2 bg-blue-50 border border-blue-200 p-2 rounded-xl flex justify-between items-center">
+                <div className="text-sm font-bold text-slate-800">{selectedCtv.fullName} <span className="text-slate-500 font-normal">({selectedCtv.userId})</span></div>
+                <button onClick={() => setSelectedCtv(null)} className="text-rose-500 text-xs font-bold">Xóa</button>
+              </div>
+            )}
+          </div>
+          
+          <div>
+            <label className="block text-xs font-bold text-slate-700 mb-1">Địa chỉ giao hàng</label>
+            <input type="text" value={formData.shippingAddress} onChange={e => setFormData({...formData, shippingAddress: e.target.value})} className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-sm" />
+          </div>
+          
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">SĐT người nhận</label>
+              <input type="text" value={formData.recipientPhone} onChange={e => setFormData({...formData, recipientPhone: e.target.value})} className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-sm" />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">Hotline liên hệ</label>
+              <input type="text" value={formData.contactHotline} onChange={e => setFormData({...formData, contactHotline: e.target.value})} className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-sm" />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-slate-700 mb-1">Ghi chú</label>
+            <textarea value={formData.note} onChange={e => setFormData({...formData, note: e.target.value})} className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-sm h-20" />
+          </div>
+        </div>
+        
+        <div className="mt-6 flex gap-3 justify-end">
+          <button onClick={onClose} className="px-4 py-2 text-sm font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl">Hủy</button>
+          <button onClick={handleSubmit} disabled={submitting} className="px-4 py-2 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl disabled:opacity-50">
+            {submitting ? 'Đang xử lý...' : 'Tạo Đơn'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function OrderHistoryModal({ orderId, onClose }: { orderId: string; onClose: () => void; }) {
+  const [history, setHistory] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch(`/api/admin/website-orders/${orderId}/history`, { credentials: 'include' })
+      .then(r => r.json())
+      .then(d => { setHistory(d.data || []); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, [orderId]);
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
+      <div className="bg-white rounded-3xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto p-6">
+        <div className="flex justify-between items-center mb-6">
+          <h3 className="text-xl font-bold text-slate-900">📋 Lịch Sử Đơn Hàng</h3>
+          <button onClick={onClose} className="text-slate-400 hover:bg-slate-100 p-1.5 rounded-full"><X className="w-5 h-5" /></button>
+        </div>
+        
+        {loading ? (
+          <div className="text-center py-8 text-slate-500 text-sm">Đang tải...</div>
+        ) : history.length === 0 ? (
+          <div className="text-center py-8 text-slate-500 text-sm">Chưa có lịch sử.</div>
+        ) : (
+          <div className="space-y-3">
+            {history.map((item, idx) => (
+              <div key={idx} className="bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm">
+                <div className="flex justify-between items-start mb-2">
+                  <span className="font-bold text-blue-700">{item.action}</span>
+                  <span className="text-[11px] text-slate-400 bg-white px-2 py-1 rounded border border-slate-100">{new Date(item.createdAt).toLocaleString('vi-VN')}</span>
+                </div>
+                <div className="text-xs text-slate-600 mb-1">Thực hiện: <strong>{item.performedBy || 'Hệ thống'}</strong></div>
+                {item.reason && <div className="text-xs text-amber-700 mt-1.5 bg-amber-100/50 p-1.5 rounded">📝 {item.reason}</div>}
+                {item.attachmentUrl && (
+                  <a href={item.attachmentUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:underline mt-1.5 inline-block">
+                    📎 Xem đính kèm
+                  </a>
+                )}
+                <div className="grid grid-cols-2 gap-2 mt-2 pt-2 border-t border-slate-200 text-[11px]">
+                  <div>
+                    <div className="font-bold text-slate-500 mb-0.5">Cũ</div>
+                    <div className="break-all text-slate-600 bg-white p-1.5 rounded border border-slate-100">{item.previousValue || '—'}</div>
+                  </div>
+                  <div>
+                    <div className="font-bold text-emerald-600 mb-0.5">Mới</div>
+                    <div className="break-all text-slate-700 bg-emerald-50 p-1.5 rounded border border-emerald-100">{item.newValue || '—'}</div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
