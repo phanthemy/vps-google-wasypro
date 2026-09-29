@@ -1,3 +1,5 @@
+import AdminNppDownlineModal from './AdminNppDownlineModal';
+import { GitFork } from 'lucide-react';
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   Shield, Search, CheckCircle2, AlertCircle, X, Loader2,
@@ -51,6 +53,7 @@ const AdminNppManagement: React.FC = () => {
   const [packages, setPackages] = useState<NppPackage[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [selectedDownlineNpp, setSelectedDownlineNpp] = useState<{ id: string; fullName: string } | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState('');
   const [submitting, setSubmitting] = useState(false);

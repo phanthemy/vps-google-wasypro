@@ -7530,3 +7530,133 @@ if (require.main === module) {
     console.log('[SECURE BACKEND ENGINE] Running on port ' + PORT);
   });
 }
+
+// ?? GET /api/admin/npp/:id/downline ? L?y s? ?? c?y tuy?n d??i c?a NPP ??
+app.get('/api/admin/npp/:id/downline', authenticateToken, requireRole(['admin', 'accountant']), async (req, res) => {
+  try {
+    const { id } = req.params; // userId (e.g. "U898", "U912") or cuid
+    const targetUser = await prisma.user.findFirst({
+      where: { OR: [{ userId: id }, { id }] },
+      select: { id: true, userId: true, fullName: true, phone: true, rank: true, isNpp: true, businessId: true }
+    });
+
+    if (!targetUser) {
+      return res.status(404).json({ success: false, message: 'Kh?ng t?m th?y th?ng tin NPP.' });
+    }
+
+    // L?y F1 tr?c ti?p
+    const f1Users = await prisma.user.findMany({
+      where: { parentId: targetUser.userId },
+      select: {
+        id: true,
+        userId: true,
+        fullName: true,
+        phone: true,
+        rank: true,
+        tier: true,
+        isNpp: true,
+        businessId: true,
+        createdAt: true,
+        qualifyingPoints: true,
+        nppPurchases: {
+          where: { status: 'COMPLETED' },
+          select: { netPayableAmount: true }
+        },
+        orders: {
+          where: { status: 'COMPLETED' },
+          select: { totalAmount: true }
+        }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    const f1UserIds = f1Users.map(u => u.userId);
+
+    // L?y F2 gi?n ti?p (con c?a F1)
+    let f2Users = [];
+    if (f1UserIds.length > 0) {
+      f2Users = await prisma.user.findMany({
+        where: { parentId: { in: f1UserIds } },
+        select: {
+          id: true,
+          userId: true,
+          fullName: true,
+          phone: true,
+          rank: true,
+          tier: true,
+          isNpp: true,
+          businessId: true,
+          parentId: true,
+          createdAt: true,
+          qualifyingPoints: true,
+          nppPurchases: {
+            where: { status: 'COMPLETED' },
+            select: { netPayableAmount: true }
+          },
+          orders: {
+            where: { status: 'COMPLETED' },
+            select: { totalAmount: true }
+          }
+        },
+        orderBy: { createdAt: 'desc' }
+      });
+    }
+
+    // Helper map data th?nh vi?n
+    const mapMember = (m, level, sponsorUserId) => {
+      const orderSales = (m.orders || []).reduce((sum, o) => sum + (o.totalAmount || 0), 0);
+      const nppSales = (m.nppPurchases || []).reduce((sum, p) => sum + (Number(p.netPayableAmount) || 0), 0);
+      const totalSales = orderSales + nppSales;
+      const partnerType = m.isNpp ? 'NPP' : (m.qualifyingPoints > 0 || m.rank ? 'CTV' : 'CUSTOMER');
+
+      return {
+        id: m.id,
+        userId: m.userId,
+        fullName: m.fullName || '?',
+        phone: m.phone || '?',
+        rank: m.rank,
+        businessId: m.businessId,
+        partnerType,
+        level, // 1 for F1, 2 for F2
+        sponsorUserId: sponsorUserId || m.parentId,
+        totalSales,
+        createdAt: m.createdAt
+      };
+    };
+
+    const directList = f1Users.map(u => mapMember(u, 1, targetUser.userId));
+    const indirectList = f2Users.map(u => mapMember(u, 2, u.parentId));
+    const allDownline = [...directList, ...indirectList];
+
+    // Th?ng k? nhanh KPI
+    const totalMembers = allDownline.length;
+    const totalNpp = allDownline.filter(m => m.partnerType === 'NPP').length;
+    const totalCtv = allDownline.filter(m => m.partnerType === 'CTV').length;
+    const totalGroupSales = allDownline.reduce((sum, m) => sum + m.totalSales, 0);
+
+    return res.json({
+      success: true,
+      data: {
+        npp: {
+          userId: targetUser.userId,
+          fullName: targetUser.fullName,
+          phone: targetUser.phone,
+          businessId: targetUser.businessId,
+          rank: targetUser.rank
+        },
+        stats: {
+          totalMembers,
+          f1Count: directList.length,
+          f2Count: indirectList.length,
+          totalNpp,
+          totalCtv,
+          totalGroupSales
+        },
+        downline: allDownline
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching NPP downline:', error);
+    return res.status(500).json({ success: false, message: 'L?i m?y ch? khi l?y tuy?n d??i NPP.' });
+  }
+});

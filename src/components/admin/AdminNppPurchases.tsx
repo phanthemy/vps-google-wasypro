@@ -1,3 +1,5 @@
+import AdminNppDownlineModal from './AdminNppDownlineModal';
+import { GitFork } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
 import { 
   Plus, Search, CheckCircle, XCircle, ChevronDown, ChevronUp, 
@@ -43,6 +45,7 @@ export default function AdminNppPurchases() {
   const [purchases, setPurchases] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [selectedDownlineNpp, setSelectedDownlineNpp] = useState<{ id: string; fullName: string } | null>(null);
   
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -318,6 +321,13 @@ export default function AdminNppPurchases() {
                             <XCircle className="w-4 h-4" />
                           </button>
                         )}
+                        <button
+                          onClick={() => setSelectedDownlineNpp({ id: p.userId || p.user?.userId || p.user?.id, fullName: p.user?.fullName || 'NPP' })}
+                          className="p-1.5 bg-purple-100 text-purple-700 rounded hover:bg-purple-200 transition"
+                          title="Xem s? ?? tuy?n d??i (Downline)"
+                        >
+                          <GitFork className="w-4 h-4" />
+                        </button>
                         {expandedId === p.id ? <ChevronUp className="w-5 h-5 text-slate-400" /> : <ChevronDown className="w-5 h-5 text-slate-400" />}
                       </div>
                     </td>
@@ -409,6 +419,12 @@ export default function AdminNppPurchases() {
         </div>
       </div>
 
+      {selectedDownlineNpp && (
+        <AdminNppDownlineModal
+          userId={selectedDownlineNpp.id}
+          onClose={() => setSelectedDownlineNpp(null)}
+        />
+      )}
       {showCreateModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-3xl max-h-[90vh] flex flex-col">
