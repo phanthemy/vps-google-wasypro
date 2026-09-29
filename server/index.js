@@ -1387,7 +1387,34 @@ app.get('/api/admin/periods/:periodId/commissions', authenticateToken, requireRo
       },
       orderBy: { createdAt: 'desc' },
     });
-    res.json({ success: true, data: commissions });
+    // Also fetch NPP referral commissions for this period
+    const nppCommissions = await prisma.nppCommission.findMany({
+      where: { periodId },
+      include: {
+        beneficiary: { select: { userId: true, fullName: true, rank: true } },
+        purchase: {
+          select: { code: true, netPayableAmount: true, user: { select: { userId: true, fullName: true, phone: true } } }
+        }
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    // Merge NPP commissions into a unified format for the frontend
+    const nppMapped = nppCommissions.map(c => ({
+      id: c.id,
+      ruleKey: `NPP_D${c.level}_${c.rateBps / 100}%`,
+      rateSnapshot: c.rateBps / 10000,
+      basePoints: Number(c.commissionBase),
+      earnedPoints: c.earnedPoints,
+      earnedMoney: Number(c.earnedMoney),
+      status: c.status,
+      createdAt: c.createdAt,
+      periodId: c.periodId,
+      receiver: c.beneficiary,
+      _type: 'NPP_REFERRAL',
+      _nppPurchaseCode: c.purchase?.code,
+      _nppBuyer: c.purchase?.user,
+    }));
+    res.json({ success: true, data: [...commissions, ...nppMapped] });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
@@ -7886,6 +7913,12 @@ app.post('/api/admin/npp/purchases/:id/complete', authenticateToken, requireRole
       // 8. NPP Referral Commission — D1 (10%), D2 (5%)
       const nppCommissions = [];
       const commissionBase = purchase.netPayableAmount; // BigInt
+      // Find current open period for NppCommission assignment
+      const currentPeriod = await tx.commissionPeriod.findFirst({
+        where: { status: 'OPEN' },
+        orderBy: { startAt: 'desc' }
+      });
+      const currentPeriodId = currentPeriod ? currentPeriod.id : null;
       if (user.parentId && commissionBase > 0n) {
         // D1 = direct sponsor of C
         const d1 = await tx.user.findFirst({ where: { userId: user.parentId } });
@@ -7904,6 +7937,7 @@ app.post('/api/admin/npp/purchases/:id/complete', authenticateToken, requireRole
               earnedPoints: 0,
               rankAtCommission: d1.rank,
               status: 'PENDING_CLEARING',
+              periodId: currentPeriodId,
             },
           });
           nppCommissions.push(d1Commission);
@@ -7927,6 +7961,7 @@ app.post('/api/admin/npp/purchases/:id/complete', authenticateToken, requireRole
                   earnedPoints: 0,
                   rankAtCommission: d2.rank,
                   status: 'PENDING_CLEARING',
+                  periodId: currentPeriodId,
                 },
               });
               nppCommissions.push(d2Commission);
