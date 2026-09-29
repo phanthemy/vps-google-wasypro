@@ -2,6 +2,15 @@
 
 > Lịch sử cập nhật dự án. Mỗi session ghi nhận các thay đổi quan trọng.
 
+## 2026-09-29
+
+### Feat & Security
+- **Phân tách luồng Đăng ký & Khóa bảo trợ link ref**:
+  - Khách vãng lai: Ẩn mã ref và tùy chọn CTV/NPP, hiển thị CTA Box liên hệ Zalo OA & Hotline 1900 989878 để xin cấp mã.
+  - Khách qua link ref `?ref=U1xxx`: Khóa cứng mã giới thiệu (readOnly + icon 🔒), hiện đầy đủ tùy chọn CTV & NPP.
+  - Backend: Chặn đăng ký CTV/NPP nếu không có mã bảo trợ hợp lệ (HTTP 400).
+- **Khóa tài khoản bất biến Nguyễn Đức Quang (0968616263 / U1001)** trong Factory Reset và User Delete.
+
 ## 2026-09-26
 
 ### Docs (evening session)

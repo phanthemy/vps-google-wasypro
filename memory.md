@@ -13,6 +13,11 @@
      - Hàm `preserveOrSeedQuangAccount` tự động bảo vệ, đưa điểm về 0, gỡ sponsor và duy trì `role: 'ctv'`, hoặc re-seed nếu chưa có.
      - Sau khi reset, người đăng ký tiếp theo sẽ tự động nhận `U1002`.
 2. **Cập nhật AGENTS.md**: Bổ sung quy định bất biến cho tài khoản Nguyễn Đức Quang.
+3. **Phân tách luồng Đăng ký Khách vãng lai & Khóa bảo trợ link ref**:
+   - Khi vào trực tiếp `wasypro.com` (không có link ref): Ẩn ô nhập Mã giới thiệu, ẩn 2 lựa chọn tham gia CTV/NPP. Thay thế bằng Box thông tin nổi bật kèm nút bấm liên hệ Zalo OA (`https://zalo.me/2928413591064686973`) hoặc Hotline `1900 989878` để được cấp mã. Đăng ký chỉ tạo tài khoản khách hàng thông thường.
+   - Khi vào qua link ref (`?ref=U1xxx`): Khóa chết ô Mã giới thiệu (`readOnly`, badge ổ khóa 🔒 không thể chỉnh sửa), hiện đầy đủ tùy chọn đăng ký CTV và NPP.
+   - Backend `POST /api/auth/register`: Bổ sung Security Guard chặn đăng ký `joinSystem` hoặc `registerNpp` nếu không có `parentId` hợp lệ (HTTP 400).
+   - Test tự động `server/scripts/test_registration_guard.cjs` PASS 100%.
 
 
 ## Cập nhật: 2026-09-27

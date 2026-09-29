@@ -12,13 +12,7 @@ export function useReferralAttribution() {
         return urlRef.trim().toUpperCase();
       }
       const sessionRef = sessionStorage.getItem(REF_STORAGE_KEY);
-      if (sessionRef) return sessionRef;
-
-      const localRef = localStorage.getItem(REF_STORAGE_KEY);
-      if (localRef) return localRef;
-
-      const match = document.cookie.match(new RegExp('(^| )' + REF_COOKIE_NAME + '=([^;]+)'));
-      if (match) return decodeURIComponent(match[2]);
+      if (sessionRef && sessionRef.trim()) return sessionRef.trim().toUpperCase();
     }
     return '';
   });

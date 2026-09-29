@@ -586,6 +586,14 @@ app.post('/api/auth/register', authLimiter, async (req, res) => {
       if (sponsor) parentId = sponsor.userId;
     }
 
+    // Security Guard: Prevent guests without sponsor from registering as CTV or NPP
+    if ((willJoinSystem || wantNpp) && !parentId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Để tham gia chương trình Cộng Tác Viên hoặc Nhà Phân Phối, bạn cần có Mã người giới thiệu hợp lệ. Vui lòng liên hệ Hotline 1900989878 hoặc Zalo OA để được hỗ trợ.'
+      });
+    }
+
     // Generate userId: Sequential U1001, U1002...
     const generatedId = await getNextUserId('U', 1001);
 
