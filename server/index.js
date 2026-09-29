@@ -4151,6 +4151,80 @@ async function calculateAndCreateCommissions(tx, context) {
   }
 
   // -------------------------------------------------------------
+  // 0. NPP COMBO ORDER COMMISSION (NPP_D1 10%, NPP_D2 5%)
+  // -------------------------------------------------------------
+  // Rules 4, 5, 6 in NPP_BUSINESS_RULE_RECONCILIATION.md:
+  // - Tuyệt đối không chạy engine hoa hồng CTV lên đơn combo NPP.
+  // - Người mua không nhận hoa hồng SELF_BUY (đã chiết khấu trực tiếp).
+  // - F1 / D1 (Sponsor trực tiếp) nhận 10% trên SỐ TIỀN THỰC THU (order.totalAmount).
+  // - F2 / D2 (Sponsor của F1) nhận 5% trên SỐ TIỀN THỰC THU (order.totalAmount).
+  const isNppCombo = order.orderType === 'NPP_COMBO' || order.orderType === 'NPP_DISCOUNT';
+  if (isNppCombo) {
+    const netAmount = Math.round(Number(order.totalAmount));
+    console.log(`[NPP SETTLEMENT] Processing NPP Combo Order ${order.id} with netAmount: ${netAmount}`);
+
+    if (netAmount > 0 && directSponsor) {
+      // D1 = Direct Sponsor (10%)
+      const d1Amount = Math.round(netAmount * 0.1);
+      const commD1 = await tx.commission.create({
+        data: {
+          orderId: order.id,
+          receiverId: directSponsor.userId,
+          amount: d1Amount,
+          type: 'NPP_D1',
+          status: 'PAID',
+          rateSnapshot: 0.1,
+          rankSnapshot: directSponsor.rank || 'AMBASSADOR',
+          baseAmount: netAmount,
+          policyRef: 'NPP_D1_10%',
+          ruleKey: 'NPP_D1_10%',
+          policyVersion,
+          role: 'DIRECT_SPONSOR',
+          basePoints: Math.round(netAmount / 1000), // displays in CP column (e.g. 77.350)
+          earnedPoints: 0,
+          earnedMoney: d1Amount,
+          metadata: JSON.stringify({ isNppCombo: true, rate: 0.1, netAmount }),
+          periodId: order.periodId || null,
+        }
+      });
+      createdCommissions.push(commD1);
+      console.log(`[NPP SETTLEMENT] D1 ${directSponsor.userId} earned ${d1Amount} (10% of ${netAmount})`);
+
+      // D2 = Sponsor of D1 (5%)
+      if (directSponsor.parentId) {
+        const d2 = await tx.user.findFirst({ where: { userId: directSponsor.parentId } });
+        if (d2 && d2.rank && ['AMBASSADOR', 'MANAGER', 'DIRECTOR'].includes(d2.rank)) {
+          const d2Amount = Math.round(netAmount * 0.05);
+          const commD2 = await tx.commission.create({
+            data: {
+              orderId: order.id,
+              receiverId: d2.userId,
+              amount: d2Amount,
+              type: 'NPP_D2',
+              status: 'PAID',
+              rateSnapshot: 0.05,
+              rankSnapshot: d2.rank || null,
+              baseAmount: netAmount,
+              policyRef: 'NPP_D2_5%',
+              ruleKey: 'NPP_D2_5%',
+              policyVersion,
+              role: 'UPSTREAM_SPONSOR',
+              basePoints: Math.round(netAmount / 1000),
+              earnedPoints: 0,
+              earnedMoney: d2Amount,
+              metadata: JSON.stringify({ isNppCombo: true, rate: 0.05, netAmount }),
+              periodId: order.periodId || null,
+            }
+          });
+          createdCommissions.push(commD2);
+          console.log(`[NPP SETTLEMENT] D2 ${d2.userId} earned ${d2Amount} (5% of ${netAmount})`);
+        }
+      }
+    }
+    return createdCommissions;
+  }
+
+  // -------------------------------------------------------------
   // 1. SELF COMMISSION
   // -------------------------------------------------------------
   // SELF only when Customer.linkedUserId == Orderer.id
@@ -4166,7 +4240,7 @@ async function calculateAndCreateCommissions(tx, context) {
   const selfRecipientBID = priorBusinessId;
   const selfRecipientRankAchievedAt = selfRecipient ? selfRecipient.rankAchievedAt : null;
   const orderPlacedBeforeSelfBid = selfRecipientRankAchievedAt && order.createdAt < selfRecipientRankAchievedAt;
-  if (isSelf && selfRecipient && selfRecipientBID && !orderPlacedBeforeSelfBid) {
+  if (order.orderType !== 'SELF_DISCOUNT_20' && isSelf && selfRecipient && selfRecipientBID && !orderPlacedBeforeSelfBid) {
     const effectiveRank = priorRank || orderer.rank;
     const rankPrefix = normalizeRankPrefix(effectiveRank);
 
@@ -4602,7 +4676,8 @@ async function executeOrderSettlement(orderId, options = {}) {
       }
     }
 
-    if (orderTotalCP > 0 && qualifyingMember) {
+    const isNppComboOrder = order.orderType === 'NPP_COMBO' || order.orderType === 'NPP_DISCOUNT';
+    if (!isNppComboOrder && orderTotalCP > 0 && qualifyingMember) {
       const currentUser = await tx.user.findUnique({ where: { id: qualifyingMember.id } });
       const isQualifying = !!currentUser.isSystemParticipant || !!currentUser.isNpp;
       const newQualifyingPoints = isQualifying

@@ -2,6 +2,15 @@ import React from "react";
 
 const RULE_CONFIG = {
   // Phase 2C Standard Rule Keys
+  'NPP_D1_10%': {
+    label: "Bảo trợ NPP F1 (10%)",
+    color: "bg-purple-500/20 text-purple-300 border-purple-500/40"
+  },
+  'NPP_D2_5%': {
+    label: "Bảo trợ NPP F2 (5%)",
+    color: "bg-fuchsia-500/20 text-fuchsia-300 border-fuchsia-500/40"
+  },
+
   SELF: {
     label: "Tự tiêu dùng",
     color: "bg-yellow-500/20 text-yellow-300 border-yellow-500/40"
