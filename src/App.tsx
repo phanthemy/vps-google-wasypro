@@ -55,7 +55,7 @@ export const App: React.FC = () => {
 
   // Unified Auth & Referral Hooks
   const { user, setUser, logout, checkSession } = useUnifiedAuth();
-  const { referralCode } = useReferralAttribution();
+  const { referralCode, setReferralCode } = useReferralAttribution();
 
   // Auth Modal State
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
@@ -186,6 +186,12 @@ export const App: React.FC = () => {
 
   const handleLogout = async () => {
     await logout();
+    setReferralCode('');
+    try {
+      localStorage.removeItem('wasy_ref_code');
+      sessionStorage.removeItem('wasy_ref_code');
+      document.cookie = 'wasy_ref=; max-age=0; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax;';
+    } catch (e) {}
     showToast('Đã đăng xuất khỏi hệ thống.');
     setActiveSection('hero');
     window.history.pushState(null, '', '/');
@@ -208,6 +214,19 @@ export const App: React.FC = () => {
   const handleOpenAuthModal = (tab: 'login' | 'register' = 'login', mode: 'ctv' | 'system' = 'ctv') => {
     setAuthModalTab(tab);
     setAuthModalMode(mode);
+    // Instant real-time ref sync so opening modal never requires F5
+    const params = new URLSearchParams(window.location.search);
+    const urlRef = params.get('ref') || params.get('refCode') || params.get('referral');
+    if (!urlRef || !urlRef.trim()) {
+      setReferralCode('');
+      try {
+        localStorage.removeItem('wasy_ref_code');
+        sessionStorage.removeItem('wasy_ref_code');
+        document.cookie = 'wasy_ref=; max-age=0; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax;';
+      } catch (e) {}
+    } else {
+      setReferralCode(urlRef.trim().toUpperCase());
+    }
     setIsAuthModalOpen(true);
   };
 

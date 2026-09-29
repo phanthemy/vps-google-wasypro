@@ -26,23 +26,39 @@ export default function UnifiedAuthModal({ isOpen, onClose, initialTab = 'login'
   // Register
   const [regFullName, setRegFullName] = useState('');
   const [regPhone, setRegPhone] = useState('');
-  const [regRefCode, setRegRefCode] = useState(referralCode);
   const [regType, setRegType] = useState<'none' | 'ctv' | 'npp'>('none');
   const [selectedPackageId, setSelectedPackageId] = useState('');
   const [nppPackages, setNppPackages] = useState<NppPackage[]>([]);
 
-  const hasReferral = Boolean(referralCode && referralCode.trim());
+  // Check live URL parameter immediately so opening the modal never depends on F5 / page reload
+  const getLiveUrlRef = () => {
+    if (typeof window === 'undefined') return '';
+    const params = new URLSearchParams(window.location.search);
+    const u = params.get('ref') || params.get('refCode') || params.get('referral');
+    if (u && u.trim()) return u.trim().toUpperCase();
+    return '';
+  };
+
+  const liveRef = getLiveUrlRef();
+  const effectiveRefCode = liveRef || (referralCode ? referralCode.trim().toUpperCase() : '');
+  const hasReferral = Boolean(effectiveRefCode);
+  const [regRefCode, setRegRefCode] = useState(effectiveRefCode);
 
   useEffect(() => { setTab(initialTab); }, [initialTab]);
   useEffect(() => {
-    if (referralCode && referralCode.trim()) {
-      setRegRefCode(referralCode.trim().toUpperCase());
+    if (effectiveRefCode) {
+      setRegRefCode(effectiveRefCode);
     } else {
       setRegRefCode('');
       setRegType('none');
       setSelectedPackageId('');
+      try {
+        localStorage.removeItem('wasy_ref_code');
+        sessionStorage.removeItem('wasy_ref_code');
+        document.cookie = 'wasy_ref=; max-age=0; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax;';
+      } catch (e) {}
     }
-  }, [referralCode, isOpen]);
+  }, [effectiveRefCode, isOpen]);
 
   // Load NPP packages from PUBLIC endpoint (no auth required)
   useEffect(() => {
@@ -90,7 +106,7 @@ export default function UnifiedAuthModal({ isOpen, onClose, initialTab = 'login'
         fullName: regFullName.trim(),
         phone: regPhone.trim(),
         password: '123456',
-        referralCode: hasReferral ? (referralCode.trim().toUpperCase() || undefined) : undefined,
+        referralCode: hasReferral ? (effectiveRefCode || undefined) : undefined,
       };
       if (hasReferral && regType === 'ctv') body.joinSystem = true;
       if (hasReferral && regType === 'npp') {
@@ -206,7 +222,7 @@ export default function UnifiedAuthModal({ isOpen, onClose, initialTab = 'login'
                     <UserPlus className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-emerald-600" />
                     <input
                       type="text"
-                      value={referralCode.trim().toUpperCase()}
+                      value={effectiveRefCode}
                       readOnly
                       disabled
                       className="w-full pl-10 pr-10 py-3 border border-emerald-300 bg-emerald-50/70 rounded-xl text-sm font-bold text-emerald-900 cursor-not-allowed select-none"

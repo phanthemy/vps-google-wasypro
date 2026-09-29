@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ShoppingCart, Trash2, Package, RefreshCw, Plus } from 'lucide-react';
+import { ShoppingCart, Trash2, Package, RefreshCw, Plus, Users } from 'lucide-react';
 import CreateOrderModal from './CreateOrderModal';
 
 export default function OrdersView({ currentUser }) {
@@ -12,6 +12,7 @@ export default function OrdersView({ currentUser }) {
   const [exactDate, setExactDate] = useState(new Date().toISOString().slice(0, 10));
   const [searchQuery, setSearchQuery] = useState('');
   const [orderType, setOrderType] = useState('all');
+  const [activeOrderTab, setActiveOrderTab] = useState('self'); // 'self' | 'for_others'
   const [showCreateModal, setShowCreateModal] = useState(false);
 
   const isAdmin = currentUser?.role === 'admin' || currentUser?.role === 'accountant';
@@ -157,22 +158,30 @@ export default function OrdersView({ currentUser }) {
       return true;
   });
 
-  // Separate self-orders (I bought for myself) vs orders-for-others (I bought for someone else)
-  const myUserId = currentUser?.id || currentUser?.userId;
-  const selfOrders = filteredOrders.filter(o => {
-    // Self-order: customer is ME (linkedUserId matches my user record id)
+  // Determine if order is a self-order (bought for oneself) vs bought for customer
+  const isOrderSelfBuy = (o) => {
+    if (typeof o.isSelfBuy === 'boolean') return o.isSelfBuy;
+    if (o.purchaseType === 'SELF_PURCHASE') return true;
+    if (o.purchaseType === 'CUSTOMER_PURCHASE') return false;
     const custLinkedId = o.customer?.linkedUserId || o.customer?.linkedUser?.id;
     const custLinkedUserId = o.customer?.linkedUser?.userId;
-    return custLinkedId === myUserId || custLinkedUserId === myUserId || 
-           o.customer?.fullName === currentUser?.fullName;
-  });
-  const ordersForOthers = filteredOrders.filter(o => !selfOrders.includes(o));
+    const myId = currentUser?.id || currentUser?.userId;
+    if (custLinkedId && (custLinkedId === myId || custLinkedId === currentUser?.id)) return true;
+    if (custLinkedUserId && custLinkedUserId === myId) return true;
+    if (currentUser?.phone && o.customer?.phone === currentUser?.phone) return true;
+    return false;
+  };
+
+  const selfOrders = filteredOrders.filter(isOrderSelfBuy);
+  const ordersForOthers = filteredOrders.filter(o => !isOrderSelfBuy(o));
   
   const totalOrders = selfOrders.length;
   const totalRevenue = selfOrders.reduce((acc, o) => acc + (o.totalAmount || 0), 0);
   const totalItemsSold = selfOrders.reduce((acc, o) => acc + (o.items?.reduce((sum, item) => sum + (item.qty || 1), 0) || 0), 0);
   const ordersForOthersCount = ordersForOthers.length;
   const ordersForOthersRevenue = ordersForOthers.reduce((acc, o) => acc + (o.totalAmount || 0), 0);
+
+  const displayedOrders = activeOrderTab === 'self' ? selfOrders : ordersForOthers;
 
   const statusLabel = (status) => {
     const map = {
@@ -197,7 +206,13 @@ export default function OrdersView({ currentUser }) {
        <div className="card glass-panel flex-col gap-4">
           <div className="flex-col gap-4 mb-2">
              <div className="flex justify-between items-center">
-                <h2 className="text-xl font-bold text-primary flex items-center gap-2"><ShoppingCart className="text-blue-500"/> Đơn Hàng Của Tôi</h2>
+                <h2 className="text-xl font-bold text-primary flex items-center gap-2">
+                  {activeOrderTab === 'self' ? (
+                    <><ShoppingCart className="text-blue-500"/> Đơn Cá Nhân Của Tôi</>
+                  ) : (
+                    <><Users className="text-emerald-500"/> Đơn Mua Hộ Khách Hàng</>
+                  )}
+                </h2>
                 {isParticipant && (
                   <button
                     onClick={() => setShowCreateModal(true)}
@@ -235,6 +250,31 @@ export default function OrdersView({ currentUser }) {
                  </div>
              </div>
 
+             {/* Sub-tabs: Đơn Cá Nhân vs Đơn Mua Hộ Khách Hàng */}
+             <div className="flex border-b border-slate-200 gap-2 mt-2">
+                 <button 
+                   type="button" 
+                   onClick={() => setActiveOrderTab('self')}
+                   className={`pb-3 px-4 font-bold text-sm border-b-2 flex items-center gap-2 transition-all ${activeOrderTab === 'self' ? 'border-blue-600 text-blue-700' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+                 >
+                   <ShoppingCart size={16} />
+                   <span>Đơn Cá Nhân (Tôi Tự Mua)</span>
+                   <span className="ml-1 px-2 py-0.5 rounded-full text-xs bg-blue-100 text-blue-700 font-extrabold">{totalOrders}</span>
+                 </button>
+
+                 {isParticipant && (
+                   <button 
+                     type="button" 
+                     onClick={() => setActiveOrderTab('for_others')}
+                     className={`pb-3 px-4 font-bold text-sm border-b-2 flex items-center gap-2 transition-all ${activeOrderTab === 'for_others' ? 'border-emerald-600 text-emerald-700' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+                   >
+                     <Users size={16} />
+                     <span>Đơn Mua Hộ Khách Hàng</span>
+                     <span className="ml-1 px-2 py-0.5 rounded-full text-xs bg-emerald-100 text-emerald-700 font-extrabold">{ordersForOthersCount}</span>
+                   </button>
+                 )}
+             </div>
+
              <div className="flex gap-4 items-center flex-wrap p-3 rounded-lg" style={{ background: '#f8fafc', border: '1px solid #e2e8f0' }}>
                  <select className="input-field" value={orderType} onChange={e => setOrderType(e.target.value)} style={{ padding: '6px 10px', maxWidth: '180px', borderRadius: '8px', border: '1px solid #cbd5e1' }}>
                     <option value="all">Tất cả đơn hàng</option>
@@ -254,15 +294,21 @@ export default function OrdersView({ currentUser }) {
              </div>
           </div>
           
-          {filteredOrders.length === 0 ? (
+          {displayedOrders.length === 0 ? (
             <div className="text-center p-12" style={{ background: '#f8fafc', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
               <Package size={48} className="mx-auto mb-3" style={{ color: '#94a3b8' }} />
-              <p className="text-lg font-bold" style={{ color: '#475569' }}>Chưa có đơn hàng nào</p>
-              <p className="text-sm mt-1" style={{ color: '#94a3b8' }}>Đơn hàng bạn đặt trên website hoặc qua CTV sẽ hiển thị tại đây</p>
+              <p className="text-lg font-bold" style={{ color: '#475569' }}>
+                {activeOrderTab === 'self' ? 'Chưa có đơn hàng cá nhân nào' : 'Chưa có đơn hàng mua hộ khách nào'}
+              </p>
+              <p className="text-sm mt-1" style={{ color: '#94a3b8' }}>
+                {activeOrderTab === 'self' 
+                  ? 'Các đơn hàng do bạn tự mua cho chính mình sẽ hiển thị tại đây' 
+                  : 'Các đơn hàng bạn tạo giúp khách hàng sẽ hiển thị tại đây'}
+              </p>
             </div>
           ) : (
             <div className="flex-col gap-3">
-              {filteredOrders.map(order => (
+              {displayedOrders.map(order => (
                 <div key={order.id} className="rounded-xl p-4 hover-scale" style={{ background: '#ffffff', border: '1px solid #e2e8f0', transition: 'all 0.2s' }}>
                   <div className="flex justify-between items-start mb-3">
                     <div>
@@ -284,6 +330,19 @@ export default function OrdersView({ currentUser }) {
                       </button>
                     )}
                   </div>
+
+                  {!isOrderSelfBuy(order) && (
+                    <div className="mb-3 px-3.5 py-2 bg-emerald-50/90 border border-emerald-200 rounded-xl flex items-center justify-between text-xs text-emerald-900 font-medium">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="font-bold text-emerald-700 flex items-center gap-1">👥 Đơn mua hộ khách:</span>
+                        <strong className="text-emerald-950 font-bold">{order.customer?.fullName || 'Khách Hàng'}</strong>
+                        {order.customer?.phone && <span className="text-emerald-700">({order.customer?.phone})</span>}
+                      </div>
+                      <span className="text-[11px] text-emerald-700 font-bold bg-emerald-100/80 px-2 py-0.5 rounded-full shrink-0">
+                        Thuộc tài khoản khách
+                      </span>
+                    </div>
+                  )}
                   
                   <div className="flex-col gap-2">
                     {order.items?.map((item, idx) => {
