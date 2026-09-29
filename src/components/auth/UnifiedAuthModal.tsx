@@ -42,7 +42,7 @@ export default function UnifiedAuthModal({ isOpen, onClose, initialTab = 'login'
       setRegType('none');
       setSelectedPackageId('');
     }
-  }, [referralCode]);
+  }, [referralCode, isOpen]);
 
   // Load NPP packages from PUBLIC endpoint (no auth required)
   useEffect(() => {

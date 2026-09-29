@@ -9,10 +9,20 @@ export function useReferralAttribution() {
       const params = new URLSearchParams(window.location.search);
       const urlRef = params.get('ref') || params.get('refCode') || params.get('referral');
       if (urlRef && urlRef.trim()) {
-        return urlRef.trim().toUpperCase();
+        const cleanRef = urlRef.trim().toUpperCase();
+        try {
+          sessionStorage.setItem(REF_STORAGE_KEY, cleanRef);
+        } catch (e) {}
+        return cleanRef;
       }
-      const sessionRef = sessionStorage.getItem(REF_STORAGE_KEY);
-      if (sessionRef && sessionRef.trim()) return sessionRef.trim().toUpperCase();
+
+      // Khách vãng lai trực tiếp (URL không có param ref)
+      // Dọn sạch toàn bộ cache / storage / cookie cũ để không bao giờ bị dính ref mặc định
+      try {
+        localStorage.removeItem(REF_STORAGE_KEY);
+        sessionStorage.removeItem(REF_STORAGE_KEY);
+        document.cookie = `${REF_COOKIE_NAME}=; max-age=0; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax;`;
+      } catch (e) {}
     }
     return '';
   });
@@ -24,9 +34,19 @@ export function useReferralAttribution() {
     if (urlRef && urlRef.trim()) {
       const cleanRef = urlRef.trim().toUpperCase();
       setReferralCode(cleanRef);
-      document.cookie = `${REF_COOKIE_NAME}=${encodeURIComponent(cleanRef)}; max-age=${30 * 24 * 60 * 60}; path=/; SameSite=Lax;`;
-      localStorage.setItem(REF_STORAGE_KEY, cleanRef);
-      sessionStorage.setItem(REF_STORAGE_KEY, cleanRef);
+      try {
+        sessionStorage.setItem(REF_STORAGE_KEY, cleanRef);
+        localStorage.setItem(REF_STORAGE_KEY, cleanRef);
+        document.cookie = `${REF_COOKIE_NAME}=${encodeURIComponent(cleanRef)}; path=/; SameSite=Lax;`;
+      } catch (e) {}
+    } else {
+      // Khi URL không có ref, lập tức reset state và xóa sạch mọi lưu trữ
+      setReferralCode('');
+      try {
+        localStorage.removeItem(REF_STORAGE_KEY);
+        sessionStorage.removeItem(REF_STORAGE_KEY);
+        document.cookie = `${REF_COOKIE_NAME}=; max-age=0; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax;`;
+      } catch (e) {}
     }
   }, []);
 
@@ -37,9 +57,11 @@ export function useReferralAttribution() {
 
   const clearReferralCode = () => {
     setReferralCode('');
-    document.cookie = `${REF_COOKIE_NAME}=; max-age=0; path=/;`;
-    localStorage.removeItem(REF_STORAGE_KEY);
-    sessionStorage.removeItem(REF_STORAGE_KEY);
+    try {
+      localStorage.removeItem(REF_STORAGE_KEY);
+      sessionStorage.removeItem(REF_STORAGE_KEY);
+      document.cookie = `${REF_COOKIE_NAME}=; max-age=0; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax;`;
+    } catch (e) {}
   };
 
   return {

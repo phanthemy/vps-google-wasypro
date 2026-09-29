@@ -24,6 +24,15 @@
           for (let name of names) caches.delete(name);
         });
       }
+      // Khách vãng lai: Tự động dọn sạch wasy_ref_code nếu URL không có param ref
+      try {
+        var p = new URLSearchParams(window.location.search);
+        if (!p.get('ref') && !p.get('refCode') && !p.get('referral')) {
+          localStorage.removeItem('wasy_ref_code');
+          sessionStorage.removeItem('wasy_ref_code');
+          document.cookie = 'wasy_ref=; max-age=0; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax;';
+        }
+      } catch (e) {}
     </script>
   </head>
   <body class="bg-slate-50 text-slate-800 antialiased selection:bg-ocean-500 selection:text-white">
