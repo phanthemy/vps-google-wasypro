@@ -29,14 +29,14 @@
 
 ## 2026-09-26
 
-### L05: San pham khong hien hinh anh (Anh tai len 404 + Anh mau thieu)
-- **Trieu chung**: Hinh anh san pham (dac biet anh tai len tu Admin) bi loi 404, hien thi HTML trang. Cac may loc "Water King" bi loi khong hien thi hinh anh.
-- **Nguyen nhan**: 
-  1. Nginx proxy /uploads/ sang backend (3011). Tuy nhien server/index.js chi phuc vu anh tinh tu ../public/uploads (noi chua avatars). Cac san pham upload tu Frontend PM2 (server.cjs) lai luu vao ../uploads/products, dan den mismatch duong dan va tra ve 404.
-  2. Nhieu san pham trong CSDL tham chieu file water-king-pro-9.jpg, nhung file nay khong he ton tai tren VPS (/dist va /public).
+### L05: Sản phẩm không hiện hình ảnh (Ảnh tải lên 404 + Ảnh mẫu thiếu)
+- **Triệu chứng**: Hình ảnh sản phẩm (đặc biệt ảnh tải lên từ Admin) bị lỗi 404, hiển thị HTML trắng. Các máy lọc "Water King" bị lỗi không hiển thị hình ảnh.
+- **Nguyên nhân**: 
+  1. Nginx proxy /uploads/ sang backend (3011). Tuy nhiên server/index.js chỉ phục vụ ảnh tĩnh từ ../public/uploads (nơi chứa avatars). Các sản phẩm upload từ Frontend PM2 (server.cjs) lại lưu vào ../uploads/products, dẫn đến mismatch đường dẫn và trả về 404.
+  2. Nhiều sản phẩm trong CSDL tham chiếu file water-king-pro-9.jpg, nhưng file này không hề tồn tại trên VPS (/dist và /public).
 - **Fix**: 
-  1. Them express static mount ../uploads vao backend index.js de phuc vu anh san pham dung luong Nginx.
-  2. Copy anh WebP cua may WS-03 thanh water-king-pro-9.jpg lam placeholder.
+  1. Thêm express static mount ../uploads vào backend index.js để phục vụ ảnh sản phẩm đúng luồng Nginx.
+  2. Copy ảnh WebP của máy WS-03 thành water-king-pro-9.jpg làm placeholder.
 - **Commit**: e43cefd
 
 ## 2026-09-25
@@ -84,16 +84,17 @@
 ### L09: CreateOrderModal build error
 - **Fix**: React Fragment wrapper cho multi-child JSX — commit `bc80fac`
 
-### L?i 29/09/2026: T?i kho?n NPP b? hi?n th? nh?m t?ch l?y 5.000 CP v? rank ??i s? s?m
-- **Hi?n t??ng**: Khi t?o/??ng k? t?i kho?n NPP m?i (ch?a thanh to?n/ch? duy?t), m?n h?nh "Th?ng Tin T?i Kho?n" hi?n th? nh?n "?i?m T?ch L?y (CP): 0 / 5.000 CP", thanh ti?n tr?nh c?p b?c CTV 5.000 CP, v? rank "?? ??i s?" s?m.
-- **Nguy?n nh?n**:
-  1. Backend `computeNppRank` truy v?n c? registration status `['PENDING', 'APPROVED']` v? tr? v? `assignedRank` c?a g?i tr??c khi ng??i d?ng thanh to?n/k?ch ho?t.
-  2. Frontend `SettingsView.jsx` ch? ?n th? CP v? thanh ti?n tr?nh khi status l? `ACTIVE`, b? s?t c?c tr?ng th?i ??ng k? NPP (`PENDING`, `APPROVED`, `PURCHASING`, `PAID`).
-- **C?ch fix**:
-  1. `server/index.js`: ?i?u ch?nh `computeNppRank` ch? tr? v? rank khi purchase status l? `COMPLETED` ho?c registration status l? `CONVERTED`.
-  2. `src/components/ctv/views/SettingsView.jsx`: B? sung ki?m tra `isNppUser`. NPP ch?a k?ch ho?t hi?n th? badge "? Ch? k?ch ho?t", th? s? 4 hi?n th? "Tr?ng th?i NPP" (Ch? Admin duy?t ??ng k? / ?? duy?t / ?ang mua g?i), ?n ho?n to?n thanh t?ch l?y 5.000 CP. Gi? nguy?n 100% logic cho CTV th??ng.
+### Lỗi 29/09/2026: Tài khoản NPP bị hiện thị nhầm tích lũy 5.000 CP và rank Đại sứ sớm
+- **Hiện tượng**: Khi tạo/đăng ký tài khoản NPP mới (chưa thanh toán/chờ duyệt), màn hình "Thông Tin Tài Khoản" hiện thị nhầm "Điểm Tích Lũy (CP): 0 / 5.000 CP", thanh tiến trình cấp bậc CTV 5.000 CP, và rank "Đại sứ" sớm.
+- **Nguyên nhân**:
+  1. Backend `computeNppRank` truy vấn cả registration status `['PENDING', 'APPROVED']` và trả về `assignedRank` của gói trước khi người dùng thanh toán/kích hoạt.
+  2. Frontend `SettingsView.jsx` chỉ ẩn thẻ CP và thanh tiến trình khi status là `ACTIVE`, bỏ sót các trạng thái đăng ký NPP (`PENDING`, `APPROVED`, `PURCHASING`, `PAID`).
+- **Cách fix**:
+  1. `server/index.js`: Điều chỉnh `computeNppRank` chỉ trả về rank khi purchase status là `COMPLETED` hoặc registration status là `CONVERTED`.
+  2. `src/components/ctv/views/SettingsView.jsx`: Bổ sung kiểm tra `isNppUser`. NPP chưa kích hoạt hiện thị badge "Chờ kích hoạt", thẻ số 4 hiện thị "Trạng thái NPP" (Chờ Admin duyệt đăng ký / Đã duyệt / Đang mua gói), ẩn hoàn toàn thanh tích lũy 5.000 CP. Giữ nguyên 100% logic cho CTV thường.
 
-### L?i 29/09/2026: L?i font ch? ti?ng Vi?t (?) trong SettingsView.jsx
-- **Hi?n t??ng**: Sau khi c?p nh?t giao di?n, c?c ch? ti?ng Vi?t c? d?u bi?n th?nh d?u h?i ch?m "?".
-- **Nguy?n nh?n**: Script ghi file qua PowerShell b? l?ch chu?n m? h?a sang ANSI/Windows-1252 khi pipe qua SSH.
-- **C?ch fix**: So?n th?o script b?ng UTF-8 nguy?n b?n, ??y file tr?c ti?p l?n VPS v? build l?i b?ng Vite. ?? ki?m tra l?i `git diff` ??m b?o 100% ti?ng Vi?t c? d?u chu?n x?c.
+### Lỗi 29/09/2026: Lỗi font chữ tiếng Việt (?) trong SettingsView.jsx
+- **Hiện tượng**: Sau khi cập nhật giao diện, các chữ tiếng Việt có dấu biến thành dấu hỏi chấm "?".
+- **Nguyên nhân**: Script ghi file qua PowerShell bị lệch chuẩn mã hóa sang ANSI/Windows-1252 khi pipe qua SSH.
+- **Cách fix**: Soạn thảo script bằng UTF-8 nguyên bản, đẩy file trực tiếp lên VPS và build lại bằng Vite. Để kiểm tra lại `git diff` đảm bảo 100% tiếng Việt có dấu chuẩn xác.
+
