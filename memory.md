@@ -18,6 +18,10 @@
    - Khi vào qua link ref (`?ref=U1xxx`): Khóa chết ô Mã giới thiệu (`readOnly`, badge ổ khóa 🔒 không thể chỉnh sửa), hiện đầy đủ tùy chọn đăng ký CTV và NPP.
    - Backend `POST /api/auth/register`: Bổ sung Security Guard chặn đăng ký `joinSystem` hoặc `registerNpp` nếu không có `parentId` hợp lệ (HTTP 400).
    - Test tự động `server/scripts/test_registration_guard.cjs` PASS 100%.
+4. **Ẩn nút Xóa CTV tài khoản Nguyễn Đức Quang (UI Invariant)**:
+   - Trong `AdminCTVManagement.tsx`: Đã ẩn hoàn toàn nút "🗑️ Xóa CTV" khi hiển thị chi tiết tài khoản Nguyễn Đức Quang (`U1001` / `0968616263`).
+   - Cập nhật Điều 5 vào `AGENTS.md` (INVARIANT RULES).
+
 
 
 ## Cập nhật: 2026-09-27

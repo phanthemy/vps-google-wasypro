@@ -269,28 +269,31 @@ export const AdminCTVManagement: React.FC = () => {
                   <KeyRound className="w-4 h-4" />
                   {resetPwLoading ? 'Đang reset...' : 'Reset Mật Khẩu'}
                 </button>
-                <button
-                  onClick={async () => {
-                    if (!window.confirm(`⚠️ XÓA HOÀN TOÀN tài khoản "\n${detail.ctv.fullName}" (\n${detail.ctv.userId})?\n\nSẽ xóa: đơn hàng, hoa hồng, điểm, khách hàng liên kết.\nThao tác KHÔNG THỂ hoàn tác!`)) return;
-                    if (!window.confirm('Xác nhận lần cuối: XÓA VĨNH VIỄN?')) return;
-                    try {
-                      const csrf = (document.cookie.match(/(?:^|;\s*)csrf_token=([^;]*)/) || [])[1] || '';
-                      const r = await fetch(`/api/admin/users/${detail.ctv.userId}`, {
-                        method: 'DELETE',
-                        headers: { 'X-CSRF-Token': csrf },
-                        credentials: 'include',
-                      }).then(r => r.json());
-                      if (r.success) {
-                        alert('✅ Đã xóa ' + detail.ctv.fullName + '\n\n' + Object.entries(r.summary).map(([k,v]) => k + ': ' + v).join('\n'));
-                        setSelectedCtvId(null);
-                        fetchList();
-                      } else { alert('Lỗi: ' + r.message); }
-                    } catch { alert('Lỗi kết nối'); }
-                  }}
-                  className="flex items-center gap-2 px-4 py-2 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-sm font-bold hover:bg-rose-100 transition-all"
-                >
-                  🗑️ Xóa CTV
-                </button>
+                {/* 🔒 BẢO VỆ VĨNH VIỄN: Ẩn nút Xóa tài khoản cho Nguyễn Đức Quang (U1001 / 0968616263) */}
+                {detail.ctv.userId !== 'U1001' && detail.ctv.phone !== '0968616263' && (
+                  <button
+                    onClick={async () => {
+                      if (!window.confirm(`⚠️ XÓA HOÀN TOÀN tài khoản "\n${detail.ctv.fullName}" (\n${detail.ctv.userId})?\n\nSẽ xóa: đơn hàng, hoa hồng, điểm, khách hàng liên kết.\nThao tác KHÔNG THỂ hoàn tác!`)) return;
+                      if (!window.confirm('Xác nhận lần cuối: XÓA VĨNH VIỄN?')) return;
+                      try {
+                        const csrf = (document.cookie.match(/(?:^|;\s*)csrf_token=([^;]*)/) || [])[1] || '';
+                        const r = await fetch(`/api/admin/users/${detail.ctv.userId}`, {
+                          method: 'DELETE',
+                          headers: { 'X-CSRF-Token': csrf },
+                          credentials: 'include',
+                        }).then(r => r.json());
+                        if (r.success) {
+                          alert('✅ Đã xóa ' + detail.ctv.fullName + '\n\n' + Object.entries(r.summary).map(([k,v]) => k + ': ' + v).join('\n'));
+                          setSelectedCtvId(null);
+                          fetchList();
+                        } else { alert('Lỗi: ' + r.message); }
+                      } catch { alert('Lỗi kết nối'); }
+                    }}
+                    className="flex items-center gap-2 px-4 py-2 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-sm font-bold hover:bg-rose-100 transition-all"
+                  >
+                    🗑️ Xóa CTV
+                  </button>
+                )}
               </div>
             </div>
 

@@ -133,3 +133,8 @@ KHÔNG tính từ price. KHÔNG phần trăm trên giá tiền.
 4. **Đánh số thứ tự UID (getNextUserId)**:
    - Hệ thống sinh User ID tự động dạng `U1001`, `U1002`, `U1003`...
    - Do `U1001` thuộc về Nguyễn Đức Quang, tài khoản đăng ký mới tiếp theo sẽ nhận mã `U1002`.
+
+5. **Ẩn nút Xóa trên giao diện quản trị (UI Invariant)**:
+   - Trong trang Quản Lý CTV (`AdminCTVManagement.tsx`) hoặc bất kỳ màn hình quản lý nào:
+   - Tuyệt đối **ẨN HOÀN TOÀN** nút "Xóa CTV" / "Xóa tài khoản" khi giao diện hiển thị thông tin tài khoản `Nguyễn Đức Quang` (`userId === 'U1001'` hoặc `phone === '0968616263'`).
+
