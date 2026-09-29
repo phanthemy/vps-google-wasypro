@@ -1,5 +1,20 @@
 # WasyPro — Memory Log
 
+## Cập nhật: 2026-09-29
+
+### Phiên 29/09/2026
+
+#### Đã làm:
+1. **Khóa bất biến tài khoản Nguyễn Đức Quang (0968616263 / U1001)**:
+   - Đưa tài khoản vào `project-workflow.md` (Section XIX) và Skill `wasypro-rules`.
+   - Cập nhật backend `server/index.js` trên cả hai VPS (Oracle & Google):
+     - Chặn xóa tài khoản trong `DELETE /api/users/:userId`.
+     - Loại trừ khỏi câu lệnh xóa trong `POST /api/admin/factory-reset` và `POST /api/admin/reset-members`.
+     - Hàm `preserveOrSeedQuangAccount` tự động bảo vệ, đưa điểm về 0, gỡ sponsor và duy trì `role: 'ctv'`, hoặc re-seed nếu chưa có.
+     - Sau khi reset, người đăng ký tiếp theo sẽ tự động nhận `U1002`.
+2. **Cập nhật AGENTS.md**: Bổ sung quy định bất biến cho tài khoản Nguyễn Đức Quang.
+
+
 ## Cập nhật: 2026-09-27
 
 ### Phiên 27/09/2026

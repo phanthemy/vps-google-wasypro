@@ -478,6 +478,74 @@ async function getNextUserId(prefix = 'U', startNum = 1001) {
   return prefix + (maxNum + 1);
 }
 
+// ─── INVARIANT ACCOUNT PROTECTION: NGUYỄN ĐỨC QUANG ─────────────────────────
+// Quy tắc bất biến hệ thống: Tài khoản Nguyễn Đức Quang (0968616263) luôn luôn mặc định là CTV (U1001).
+// Không bao giờ bị xóa khi reset test / Factory Reset.
+const QUANG_PHONE = '0968616263';
+const QUANG_UID = 'U1001';
+const QUANG_NAME = 'Nguyễn Đức Quang';
+
+async function preserveOrSeedQuangAccount(prismaClient) {
+  try {
+    const existing = await prismaClient.user.findFirst({
+      where: {
+        OR: [
+          { phone: QUANG_PHONE },
+          { userId: QUANG_UID }
+        ]
+      }
+    });
+
+    if (existing) {
+      await prismaClient.user.update({
+        where: { id: existing.id },
+        data: {
+          userId: QUANG_UID,
+          fullName: QUANG_NAME,
+          phone: QUANG_PHONE,
+          role: 'ctv',
+          isSystemParticipant: true,
+          status: 'ACTIVE',
+          qualifyingPoints: 0,
+          sPoints: 0,
+          rank: null,
+          rankStatus: null,
+          rankAchievedAt: null,
+          rankActivationMethod: null,
+          rankActivatedBy: null,
+          totalMachinesBought: 0,
+          wholesaleEligible: false,
+          businessId: null,
+          parentId: null,
+          isNpp: false,
+        }
+      });
+      console.log(`[INVARIANT] Bảo toàn & làm sạch tài khoản ${QUANG_NAME} (${QUANG_PHONE} / ${QUANG_UID}) làm CTV`);
+      return { status: 'preserved', userId: QUANG_UID, phone: QUANG_PHONE };
+    } else {
+      const defaultHashedPassword = await bcrypt.hash('123456', 10);
+      await prismaClient.user.create({
+        data: {
+          userId: QUANG_UID,
+          fullName: QUANG_NAME,
+          phone: QUANG_PHONE,
+          password: defaultHashedPassword,
+          role: 'ctv',
+          isSystemParticipant: true,
+          status: 'ACTIVE',
+          qualifyingPoints: 0,
+          sPoints: 0
+        }
+      });
+      console.log(`[INVARIANT] Khởi tạo tài khoản bất biến ${QUANG_NAME} (${QUANG_PHONE} / ${QUANG_UID}) làm CTV`);
+      return { status: 'seeded', userId: QUANG_UID, phone: QUANG_PHONE };
+    }
+  } catch (err) {
+    console.error(`[INVARIANT ERROR] preserveOrSeedQuangAccount:`, err.message);
+    return { status: 'error', error: err.message };
+  }
+}
+
 // ─── SELF REGISTRATION (public — no auth required) ───────────────────────────
 // POST /api/auth/register
 // Creates a User account (role=ctv, isSystemParticipant=false by default).
@@ -1936,6 +2004,9 @@ app.delete('/api/admin/users/:userId', authenticateToken, requireRole(['admin'])
     const user = await prisma.user.findFirst({ where: { OR: [{ userId }, { id: userId }] } });
     if (!user) return res.status(404).json({ success: false, message: 'User không tồn tại.' });
     if (user.role === 'admin') return res.status(400).json({ success: false, message: 'Không thể xóa tài khoản admin.' });
+    if (user.phone === QUANG_PHONE || user.userId === QUANG_UID) {
+      return res.status(400).json({ success: false, message: `Tài khoản ${QUANG_NAME} (${QUANG_PHONE} / ${QUANG_UID}) được bảo vệ vĩnh viễn trong hệ thống, không thể xóa.` });
+    }
 
     console.log('[DELETE USER]', user.userId, user.fullName, 'by', req.user.id);
     const r = {};
@@ -2954,6 +3025,8 @@ app.post('/api/admin/reset-ctv', authenticateToken, async (req, res) => {
       } catch(e) {}
     }
     r.usersReset = resetCount;
+    // 🔒 Bảo toàn tài khoản Nguyễn Đức Quang (0968616263 / U1001) làm CTV mặc định
+    r.quangProtection = await preserveOrSeedQuangAccount(prisma);
     
     res.json({ success: true, summary: r });
   } catch(e) { console.error('[RESET CTV]', e); res.status(500).json({ success: false, message: e.message }); }
@@ -2981,8 +3054,21 @@ app.post('/api/admin/reset-members', authenticateToken, async (req, res) => {
     try { r.sPointTx = (await prisma.sPointTransaction.deleteMany({})).count; } catch(e) { r.sPointTx = 0; }
     try { r.rankHistory = (await prisma.rankHistory.deleteMany({})).count; } catch(e) { r.rankHistory = 0; }
     try { r.customerAuditLog = (await prisma.customerAuditLog.deleteMany({})).count; } catch(e) { r.customerAuditLog = 0; }
-    try { r.customers = (await prisma.customer.deleteMany({})).count; } catch(e) { r.customers = 0; }
-    try { r.usersDeleted = (await prisma.user.deleteMany({ where: { role: { not: 'admin' } } })).count; } catch(e) { console.error('[RESET] User delete FAILED:', e.message); r.usersDeleted = 'FAILED: ' + e.message; }
+    try { r.customers = (await prisma.customer.deleteMany({ where: { phone: { not: QUANG_PHONE } } })).count; } catch(e) { r.customers = 0; }
+    try {
+      r.usersDeleted = (await prisma.user.deleteMany({
+        where: {
+          role: { not: 'admin' },
+          phone: { not: QUANG_PHONE },
+          userId: { not: QUANG_UID }
+        }
+      })).count;
+    } catch(e) {
+      console.error('[RESET] User delete FAILED:', e.message);
+      r.usersDeleted = 'FAILED: ' + e.message;
+    }
+    // 🔒 Bảo toàn tài khoản Nguyễn Đức Quang (0968616263 / U1001) làm CTV mặc định
+    r.quangProtection = await preserveOrSeedQuangAccount(prisma);
     
     res.json({ success: true, summary: r });
   } catch(e) { console.error('[RESET MEMBERS]', e); res.status(500).json({ success: false, message: e.message }); }
@@ -3046,7 +3132,7 @@ app.post('/api/admin/factory-reset', authenticateToken, async (req, res) => {
     // ── Customer / Consultation / Warranty ──
     try { r.customerAudit = (await prisma.customerAuditLog.deleteMany({})).count; } catch(e) { r.customerAudit = 0; }
     try { r.appointments  = (await prisma.appointment.deleteMany({})).count; }      catch(e) { r.appointments = 0; }
-    try { r.customers     = (await prisma.customer.deleteMany({})).count; }         catch(e) { r.customers = 0; }
+    try { r.customers     = (await prisma.customer.deleteMany({ where: { phone: { not: QUANG_PHONE } } })).count; } catch(e) { r.customers = 0; }
     try { r.leads         = (await prisma.lead.deleteMany({})).count; }             catch(e) { r.leads = 0; }
 
     // ── NPP (Nhà Phân Phối) — xóa dữ liệu vận hành, GIỮ NppPackage + NppPackageItem ──
@@ -3057,8 +3143,22 @@ app.post('/api/admin/factory-reset', authenticateToken, async (req, res) => {
     try { r.nppActivation    = (await prisma.nppActivation.deleteMany({})).count; }    catch(e) { r.nppActivation = 0; }
     try { r.nppRegistration  = (await prisma.nppRegistration.deleteMany({})).count; }  catch(e) { r.nppRegistration = 0; }
 
-    // ── Users (non-admin) ──
-    try { r.usersDeleted = (await prisma.user.deleteMany({ where: { role: { not: 'admin' } } })).count; } catch(e) { console.error('[RESET] User delete FAILED:', e.message); r.usersDeleted = 'FAILED: ' + e.message; }
+    // ── Users (non-admin, excluding protected account 0968616263 / U1001) ──
+    try {
+      r.usersDeleted = (await prisma.user.deleteMany({
+        where: {
+          role: { not: 'admin' },
+          phone: { not: QUANG_PHONE },
+          userId: { not: QUANG_UID }
+        }
+      })).count;
+    } catch(e) {
+      console.error('[RESET] User delete FAILED:', e.message);
+      r.usersDeleted = 'FAILED: ' + e.message;
+    }
+
+    // 🔒 Bảo toàn tài khoản Nguyễn Đức Quang (0968616263 / U1001) làm CTV mặc định
+    r.quangProtection = await preserveOrSeedQuangAccount(prisma);
 
     // ── Reset admin users (points/rank only) ──
     const admins = await prisma.user.findMany({ where: { role: 'admin' }, select: { id: true } });
