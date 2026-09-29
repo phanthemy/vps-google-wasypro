@@ -376,12 +376,17 @@ Agent tự động thực hiện toàn bộ **Startup Checklist**:
    - Đọc tracking remote & branch.
 3. **Phân nhánh xử lý Workspace**:
    - **Nếu project ĐÃ TỒN TẠI**:
-     - `git pull` (đồng bộ bản mới nhất).
+     - `git pull` (đồng bộ bản mới nhất từ GitHub — bao gồm docs/lỗi từ phiên trước).
      - Kiểm tra branch và `git status`.
      - Kiểm tra commit local và remote.
      - Đọc `.antigravity/STATE.md` (nếu có).
      - Đọc `README.md` và `AGENTS.md`.
      - Đọc `.antigravity/project.json` (nếu có).
+     - **⭐ ĐỌC BỘ NHỚ DỰ ÁN (BẮT BUỘC — KHÔNG ĐƯỢC BỎ QUA)**:
+       - Đọc `memory.md` — Nhật ký bộ nhớ & quyết định kỹ thuật.
+       - Đọc `loi.md` — Sổ tay lỗi & cách fix (để tránh lặp lỗi cũ).
+       - Đọc `changelog.md` — Lịch sử cập nhật.
+       - Nếu file nào không tồn tại local → `git pull` lại hoặc tải từ VPS.
      - Chạy script doctor của dự án nếu tồn tại.
      - **Plan Resume**: Khôi phục `Unfinished Plans`, `Blocked Tasks`, `Dependencies`.
      - Đồng bộ workspace và báo cáo trạng thái ngắn gọn: Branch, Working tree, Commit HEAD, Local = Remote, Task đang làm, Blocker (nếu có).
@@ -430,11 +435,15 @@ Agent tự động thực hiện toàn bộ **Finish Protocol**:
 8. **Test Tracking & Regression Scope**:
    - Test Count: `Previous Count -> Current Count (Delta)`.
    - Regression Scope: `Affected Tests`, `Regression Scope`, `Skipped Tests & Reason`.
-9. **Git State Convergence**:
+9. **Git State Convergence & Docs Sync (BẮT BUỘC)**:
    - Kiểm tra `git status --porcelain`.
-   - Nếu working tree sạch: Không commit, không push.
-   - Nếu có thay đổi: `git add` có chọn lọc $\rightarrow$ Conventional commit có scope $\rightarrow$ `git push`.
-   - Đối soát mã Hash: `git rev-parse HEAD` $\equiv$ `git ls-remote origin HEAD`.
+   - **⭐ ĐẢM BẢO DOCS ĐƯỢC COMMIT & PUSH**: `memory.md`, `loi.md`, `changelog.md`, `.antigravity/STATE.md` PHẢI được commit và push lên GitHub trước khi kết thúc phiên.
+   - Nếu Source of Truth = VPS:
+     - Upload docs lên VPS → `git add -A` → Conventional commit → `git push origin main` (trên VPS).
+     - Sync local: `git fetch origin` → `git reset --hard origin/main` (trên local).
+   - Nếu Source of Truth = Local:
+     - `git add` có chọn lọc → Conventional commit có scope → `git push`.
+   - Đối soát mã Hash: `git rev-parse HEAD` ≡ `git ls-remote origin HEAD`.
 10. **Xuất Finish Protocol Summary & Session Termination Envelope**:
     ```markdown
     ### 📊 FINISH PROTOCOL SUMMARY
