@@ -4195,7 +4195,7 @@ async function calculateAndCreateCommissions(tx, context) {
     const netAmount = Math.round(Number(order.totalAmount));
     console.log(`[NPP SETTLEMENT] Processing NPP Combo Order ${order.id} with netAmount: ${netAmount}`);
 
-    if (netAmount > 0 && directSponsor) {
+    if (netAmount > 0 && directSponsor && directSponsor.businessId) {
       // D1 = Direct Sponsor (10%)
       const d1Amount = Math.round(netAmount * 0.1);
       const commD1 = await tx.commission.create({
@@ -4301,7 +4301,9 @@ async function calculateAndCreateCommissions(tx, context) {
   // DIRECT commission: sponsor gets commission when their downline buys
   // Applies to BOTH self-purchase AND customer-purchase
   // For self-purchase: directSponsor = customer.sponsorUser (same as orderer's sponsor)
-  if (directSponsor) {
+  // BOSS RULE: Sponsor must have Business ID to receive DIRECT commission.
+  // No BID = no commission, regardless of CTV role.
+  if (directSponsor && directSponsor.businessId) {
     const sponsorRank = directSponsor.rank || (directSponsor.role === 'ctv' ? 'AMBASSADOR' : null);
     const sponsorPrefix = normalizeRankPrefix(sponsorRank);
     if (sponsorPrefix) {
@@ -4377,7 +4379,7 @@ async function calculateAndCreateCommissions(tx, context) {
     // --- Depth-1: parent trực tiếp của member ---
     const d1User = await tx.user.findUnique({ where: { userId: memberForUpstream.parentId } });
 
-    if (d1User) {
+    if (d1User && d1User.businessId) {
       const d1Rank = d1User.rank || (d1User.role === 'ctv' ? 'AMBASSADOR' : null);
       const d1Prefix = normalizeRankPrefix(d1Rank);
 
@@ -4409,7 +4411,7 @@ async function calculateAndCreateCommissions(tx, context) {
       if (d1User.parentId) {
         const d2User = await tx.user.findUnique({ where: { userId: d1User.parentId } });
 
-        if (d2User) {
+        if (d2User && d2User.businessId) {
           const d2Rank = d2User.rank || (d2User.role === 'ctv' ? 'AMBASSADOR' : null);
           const d2Prefix = normalizeRankPrefix(d2Rank);
 
