@@ -133,20 +133,32 @@ export default function CreateOrderModal({ currentUser, onClose, onSuccess }) {
   const comboTotal = comboItems.reduce((sum, ci) => sum + ci.discountedPrice * (ci.qty || 0), 0);
   const comboDiscountAmount = comboRetailTotal - comboTotal;
 
-  // RETAIL Calculations
+  // RETAIL Calculations & Rank-based Policy (Spec v1.4 & AGENTS.md)
+  const ctvRank = (currentUser?.rank || '').toUpperCase();
+  const isDirector = ctvRank === 'DIRECTOR' || ctvRank === 'SALES_DIRECTOR';
+  const isManager = ctvRank === 'MANAGER' || ctvRank === 'SALES_MANAGER';
+  const selfDiscountRate = isDirector ? 0.3 : (isManager ? 0.25 : 0.2);
+  const selfDiscountPercent = Math.round(selfDiscountRate * 100);
+  const ctvRankTitle = isDirector ? 'Quản Lý (30%)' : (isManager ? 'Trưởng Nhóm (25%)' : 'Đại Sứ (20%)');
+
+  // Customer commission rate:
+  // If customer has Business ID: 10% (DIRECT_WITH_ID)
+  // If customer does NOT have Business ID: Amb=20%, Mgr=25%, Dir=30% (DIRECT_NO_ID)
+  const customerHasId = Boolean(selectedCustomer?.linkedUser?.businessId || selectedCustomer?.businessId);
+  const customerCommissionRate = customerHasId ? 0.10 : selfDiscountRate;
+  const customerCommissionTitle = customerHasId 
+    ? '10% (Khách đã có BID)' 
+    : `${ctvRankTitle} (Khách chưa có BID)`;
+
   const retailProductPrice = selectedProduct ? selectedProduct.price : 0;
   const retailRawTotal = retailProductPrice * qty;
-  // If SELF in RETAIL mode -> 20% lifetime self-buy discount for CTV/NPP
+  // If SELF in RETAIL mode -> lifetime self-buy discount according to Rank
   const isSelfRetailDiscount = purchaseSubject === 'SELF' && pricingMode === 'RETAIL';
-  const selfDiscountAmount = isSelfRetailDiscount ? Math.round(retailRawTotal * 0.2) : 0;
+  const selfDiscountAmount = isSelfRetailDiscount ? Math.round(retailRawTotal * selfDiscountRate) : 0;
   const retailNetTotal = retailRawTotal - selfDiscountAmount;
 
-  // Expected CTV commission for Customer purchases
-  const ctvRank = currentUser?.rank || 'AMBASSADOR';
-  const ctvRate = ctvRank === 'DIRECTOR' ? 0.3 : (ctvRank === 'MANAGER' ? 0.25 : 0.2);
-  const ctvRankTitle = ctvRank === 'DIRECTOR' ? 'Giám Đốc (30%)' : (ctvRank === 'MANAGER' ? 'Quản Lý (25%)' : 'Đại Sứ (20%)');
   const totalCP = selectedProduct ? (selectedProduct.commissionPoints || 0) * qty : 0;
-  const expectedCommission = Math.round(totalCP * ctvRate * 1000);
+  const expectedCommission = Math.round(totalCP * customerCommissionRate * 1000);
 
   // Final total amount depending on active mode
   const totalAmount = (purchaseSubject === 'SELF' && pricingMode === 'COMBO') ? comboTotal : retailNetTotal;
@@ -322,7 +334,7 @@ export default function CreateOrderModal({ currentUser, onClose, onSuccess }) {
                     border: pricingMode === 'RETAIL' ? '2px solid #f59e0b' : '1px solid #e2e8f0',
                   }}
                 >
-                  🛍️ Mua Lẻ (Giảm 20%)
+                  🛍️ Mua Lẻ (Giảm {selfDiscountPercent}%)
                 </button>
               </div>
             </div>
@@ -472,7 +484,7 @@ export default function CreateOrderModal({ currentUser, onClose, onSuccess }) {
               <div className="p-3 rounded-xl flex items-start gap-2" style={{ background: '#f0fdf4', border: '1px solid #bbf7d0' }}>
                 <Info size={16} className="mt-0.5 flex-shrink-0" style={{ color: '#16a34a' }} />
                 <div className="text-xs" style={{ color: '#166534' }}>
-                  <strong>Bán Cho Khách Lẻ:</strong> Đơn hàng tính theo <strong>Giá Niêm Yết</strong>. Bạn nhận hoa hồng trực tiếp theo cấp bậc CTV tương đương ({ctvRankTitle}).
+                  <strong>Bán Cho Khách Lẻ:</strong> Đơn hàng tính theo <strong>Giá Niêm Yết</strong>. Bạn nhận hoa hồng trực tiếp ({customerCommissionTitle}).
                 </div>
               </div>
 
@@ -658,16 +670,14 @@ export default function CreateOrderModal({ currentUser, onClose, onSuccess }) {
             </div>
           )}
 
-          {/* ========================================================================= */}
-          {/* TRƯỜNG HỢP 3: TỰ MUA — MUA LẺ (Giảm 20% đơn hàng cho chính mình suốt đời) */}
-          {/* ========================================================================= */}
+          {/* TRƯỜNG HỢP 3: TỰ MUA — MUA LẺ (Giảm theo cấp bậc trực tiếp vào đơn hàng suốt đời) */}
           {purchaseSubject === 'SELF' && pricingMode === 'RETAIL' && (
             <div className="space-y-3">
-              {/* Thông báo giảm 20% tự mua */}
+              {/* Thông báo giảm giá tự mua theo cấp bậc */}
               <div className="p-3 rounded-xl flex items-start gap-2" style={{ background: '#fffbeb', border: '1px solid #fde68a' }}>
                 <Info size={16} className="mt-0.5 flex-shrink-0" style={{ color: '#d97706' }} />
                 <div className="text-xs" style={{ color: '#92400e' }}>
-                  <strong>Chính Sách Tự Mua:</strong> Mua lẻ cho chính mình được <strong>giảm ngay 20%</strong> trực tiếp vào đơn hàng suốt đời.
+                  <strong>Chính Sách Tự Mua ({ctvRankTitle}):</strong> Mua lẻ cho chính mình được <strong>giảm ngay {selfDiscountPercent}%</strong> trực tiếp vào đơn hàng suốt đời.
                 </div>
               </div>
 
@@ -698,7 +708,7 @@ export default function CreateOrderModal({ currentUser, onClose, onSuccess }) {
                           {new Intl.NumberFormat('vi-VN').format(p.price)}đ
                         </div>
                         <div className="font-extrabold text-sm" style={{ color: '#059669' }}>
-                          {new Intl.NumberFormat('vi-VN').format(Math.round(p.price * 0.8))}đ
+                          {new Intl.NumberFormat('vi-VN').format(Math.round(p.price * (1 - selfDiscountRate)))}đ
                         </div>
                         {selectedProduct?.id === p.id && <CheckCircle size={14} className="ml-auto mt-1" style={{ color: '#10b981' }} />}
                       </div>
@@ -810,7 +820,7 @@ export default function CreateOrderModal({ currentUser, onClose, onSuccess }) {
                       </span>
                     </div>
                     <div className="flex justify-between">
-                      <span style={{ color: '#d97706' }}>Giảm 20% tự mua CTV</span>
+                      <span style={{ color: '#d97706' }}>Giảm {selfDiscountPercent}% tự mua ({ctvRankTitle})</span>
                       <span className="font-bold" style={{ color: '#d97706' }}>
                         -{new Intl.NumberFormat('vi-VN').format(selfDiscountAmount)}đ
                       </span>
@@ -829,7 +839,7 @@ export default function CreateOrderModal({ currentUser, onClose, onSuccess }) {
                 {/* Hoa hồng CTV dự kiến khi bán cho khách */}
                 {purchaseSubject === 'CUSTOMER' && expectedCommission > 0 && (
                   <div className="flex justify-between pt-1">
-                    <span style={{ color: '#6366f1' }}>Hoa hồng CTV dự kiến ({ctvRankTitle})</span>
+                    <span style={{ color: '#6366f1' }}>Hoa hồng CTV dự kiến ({customerCommissionTitle})</span>
                     <span className="font-bold" style={{ color: '#4f46e5' }}>
                       +{new Intl.NumberFormat('vi-VN').format(expectedCommission)}đ
                     </span>
@@ -927,7 +937,7 @@ export default function CreateOrderModal({ currentUser, onClose, onSuccess }) {
                 buttonLabel = `✅ Tạo Đơn Combo (${requiredComboQty} máy)`;
               }
             } else if (purchaseSubject === 'SELF' && pricingMode === 'RETAIL') {
-              buttonLabel = '✅ Tạo Đơn Tự Mua (Giảm 20%)';
+              buttonLabel = `✅ Tạo Đơn Tự Mua (Giảm ${selfDiscountPercent}%)`;
             } else if (purchaseSubject === 'CUSTOMER') {
               if (!selectedCustomer) {
                 buttonLabel = 'Vui lòng chọn khách hàng';

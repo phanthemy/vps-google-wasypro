@@ -2166,7 +2166,10 @@ app.get('/api/customers', authenticateToken, async (req, res) => {
 
     const customers = await prisma.customer.findMany({
       where: whereFilter,
-      include: { sourceCtv: { select: { userId: true, fullName: true, phone: true, tier: true } } },
+      include: {
+        sourceCtv: { select: { userId: true, fullName: true, phone: true, tier: true } },
+        linkedUser: { select: { id: true, userId: true, fullName: true, phone: true, businessId: true, rank: true } }
+      },
       orderBy: { registeredAt: 'desc' }
     });
 
@@ -2605,9 +2608,26 @@ app.post('/api/orders', authenticateToken, async (req, res) => {
         appliedDiscountBps = nppPurchase.package.defaultDiscount || 3500;
         nppDiscountLabel = nppPurchase.package.name + ' (-' + (appliedDiscountBps / 100) + '%)';
       } else {
-        // 🛍️ Mua lẻ cho chính mình: CTV/NPP được giảm 20% đơn hàng cho chính mình suốt đời
-        appliedDiscountBps = 2000;
-        nppDiscountLabel = 'Chiết khấu tự mua CTV (-20%)';
+        // 🛍️ Mua lẻ cho chính mình: CTV/NPP được giảm theo cấp bậc (Đại sứ: 20%, Quản lý: 25%, Giám đốc: 30%)
+        const orderer = await prisma.user.findFirst({
+          where: {
+            OR: [
+              { id: ordererUserId },
+              { userId: ordererUserId }
+            ]
+          }
+        });
+        const r = (orderer?.rank || '').toUpperCase();
+        if (r === 'DIRECTOR' || r === 'SALES_DIRECTOR') {
+          appliedDiscountBps = 3000;
+          nppDiscountLabel = 'Chiết khấu tự mua Quản Lý (-30%)';
+        } else if (r === 'MANAGER' || r === 'SALES_MANAGER') {
+          appliedDiscountBps = 2500;
+          nppDiscountLabel = 'Chiết khấu tự mua Trưởng Nhóm (-25%)';
+        } else {
+          appliedDiscountBps = 2000;
+          nppDiscountLabel = 'Chiết khấu tự mua Đại Sứ/CTV (-20%)';
+        }
       }
     }
 
