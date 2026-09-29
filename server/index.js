@@ -5931,16 +5931,15 @@ async function computeNppStatus(userId, userDbId, isNpp) {
 
 // Compute NPP assigned rank from purchase or registration package
 async function computeNppRank(userDbId) {
-  // Check purchase first (higher priority)
+  // Only grant active rank if purchase is completed OR registration is converted
   const purchase = await prisma.nppPurchase.findFirst({
-    where: { userId: userDbId, status: { notIn: ['CANCELLED'] } },
+    where: { userId: userDbId, status: 'COMPLETED' },
     orderBy: { createdAt: 'desc' },
   });
   if (purchase && purchase.assignedRank) return purchase.assignedRank;
   
-  // Fallback to registration package
   const reg = await prisma.nppRegistration.findFirst({
-    where: { userId: userDbId, status: { in: ['PENDING', 'APPROVED', 'CONVERTED'] } },
+    where: { userId: userDbId, status: 'CONVERTED' },
     include: { package: { select: { assignedRank: true } } },
     orderBy: { createdAt: 'desc' },
   });

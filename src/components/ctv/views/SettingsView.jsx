@@ -20,8 +20,9 @@ export default function SettingsView({ currentUser: initialUser }) {
   const currentUser = user || initialUser;
   if (!currentUser) return null;
 
-  // isParticipant = CTV (joined system) OR NPP ACTIVE OR has nppRank (purchased package)
-  const isParticipant = !!currentUser.isSystemParticipant || currentUser.nppStatus === 'ACTIVE' || !!currentUser.nppRank;
+  const isNppUser = !!currentUser.isNpp || (currentUser.nppStatus && currentUser.nppStatus !== 'NONE');
+  // isParticipant = CTV (joined system) OR NPP ACTIVE
+  const isParticipant = !isNppUser ? !!currentUser.isSystemParticipant : (currentUser.isNpp || currentUser.nppStatus === 'ACTIVE');
   const qp = currentUser.qualifyingPoints || 0;
 
   const nppRoleMapS = { ACTIVE: 'Nhà Phân Phối (NPP)', PAID: 'NPP — Chờ Admin kích hoạt', PURCHASING: 'NPP — Đang mua gói', APPROVED: 'NPP — Đã duyệt', PENDING: 'NPP — Chờ duyệt' };
@@ -210,18 +211,25 @@ function getCsrfToken() {
 
         {/* Stats grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 mt-1">
-          {/* Cấp Bậc */}
+          {/* C?p B?c */}
           <div className="bg-gray-50/80 border border-gray-200/60 rounded-xl p-3.5 flex flex-col justify-between">
             <div className="text-[11px] font-bold text-secondary uppercase tracking-wider mb-2 flex items-center gap-1.5">
-              <Award size={14} className="text-primary" /> Cấp Bậc
+              <Award size={14} className="text-primary" /> C?p B?c
             </div>
-            <RankBadge tier={currentUser.tier} rank={currentUser.rank} nppRank={currentUser.nppRank} isSystemParticipant={isParticipant} size="md" />
+            {isNppUser && !currentUser.rank && !currentUser.nppRank ? (
+              <span className="inline-flex items-center rounded-full font-bold whitespace-nowrap shadow-sm text-xs px-2.5 py-1 gap-1.5 text-amber-700 bg-amber-50 border border-amber-300">
+                <span>?</span>
+                <span>Ch? k?ch ho?t</span>
+              </span>
+            ) : (
+              <RankBadge tier={currentUser.tier} rank={currentUser.rank} nppRank={currentUser.nppRank} isSystemParticipant={isParticipant} size="md" />
+            )}
           </div>
 
-          {/* Vai Trò */}
+          {/* Vai Tr? */}
           <div className="bg-gray-50/80 border border-gray-200/60 rounded-xl p-3.5 flex flex-col justify-between">
             <div className="text-[11px] font-bold text-secondary uppercase tracking-wider mb-2 flex items-center gap-1.5">
-              <ShieldCheck size={14} className="text-primary" /> Vai Trò
+              <ShieldCheck size={14} className="text-primary" /> Vai Tr?
             </div>
             <div className="font-extrabold text-primary text-sm">{roleText}</div>
           </div>
@@ -237,7 +245,13 @@ function getCsrfToken() {
                   {currentUser.businessId}
                 </span>
               ) : (
-                <span className="text-xs font-semibold text-amber-600 italic">{currentUser.nppStatus === "PAID" ? "Chờ Admin kích hoạt để nhận BID" : currentUser.nppStatus && currentUser.nppStatus !== "NONE" && currentUser.nppStatus !== "ACTIVE" ? "Chọn gói NPP và mua để nhận BID" : "Chưa cấp (Cần đạt 5.000 CP)"}</span>
+                <span className="text-xs font-semibold text-amber-600 italic">
+                  {currentUser.nppStatus === "PAID" ? "Ch? Admin k?ch ho?t ?? nh?n BID" :
+                   currentUser.nppStatus === "PURCHASING" ? "Ho?n t?t thanh to?n g?i ?? nh?n BID" :
+                   currentUser.nppStatus === "APPROVED" ? "??t mua g?i NPP ?? nh?n BID" :
+                   currentUser.nppStatus === "PENDING" ? "Ch? duy?t ??ng k? ?? mua g?i nh?n BID" :
+                   "Ch?a c?p (C?n ??t 5.000 CP)"}
+                </span>
               )}
             </div>
           </div>
@@ -245,15 +259,21 @@ function getCsrfToken() {
           {/* Qualifying Points (CTV) or NPP Status */}
           <div className="bg-gray-50/80 border border-gray-200/60 rounded-xl p-3.5 flex flex-col justify-between">
             <div className="text-[11px] font-bold text-secondary uppercase tracking-wider mb-2 flex items-center gap-1.5">
-              <User size={14} className="text-blue-500" /> {currentUser.isNpp || currentUser.nppStatus === 'ACTIVE' || currentUser.nppStatus === 'PURCHASING' || currentUser.nppStatus === 'PAID' ? "Trạng thái NPP" : "Điểm Tích Lũy (CP)"}
+              <User size={14} className="text-blue-500" /> {isNppUser ? "Tr?ng th?i NPP" : "?i?m T?ch L?y (CP)"}
             </div>
             <div className="font-extrabold text-blue-600 text-sm">
-              {currentUser.isNpp || currentUser.nppStatus === 'ACTIVE' ? (
-                <span className="text-emerald-600">NPP Đã Kích Hoạt</span>
-              ) : currentUser.nppStatus === "PAID" ? (
-                <span className="text-amber-600">Chờ Admin kích hoạt</span>
-              ) : currentUser.nppStatus === "PURCHASING" ? (
-                <span className="text-blue-600">Đang thanh toán gói NPP</span>
+              {isNppUser ? (
+                currentUser.isNpp || currentUser.nppStatus === 'ACTIVE' ? (
+                  <span className="text-emerald-600">NPP ?? K?ch Ho?t</span>
+                ) : currentUser.nppStatus === "PAID" ? (
+                  <span className="text-amber-600">Ch? Admin k?ch ho?t</span>
+                ) : currentUser.nppStatus === "PURCHASING" ? (
+                  <span className="text-blue-600">?ang thanh to?n g?i NPP</span>
+                ) : currentUser.nppStatus === "APPROVED" ? (
+                  <span className="text-sky-600">?? duy?t ? Ch? mua g?i</span>
+                ) : (
+                  <span className="text-amber-600">Ch? Admin duy?t ??ng k?</span>
+                )
               ) : (
                 <>{qp.toLocaleString("vi-VN")} <span className="text-xs text-secondary font-normal">/ 5.000 CP</span></>
               )}
@@ -262,49 +282,73 @@ function getCsrfToken() {
         </div>
       </div>
 
-      {/* Trạng thái tham gia — ẩn cho NPP vì NPP không dùng hệ thống CTV */}
-      {!(currentUser.isNpp || currentUser.nppStatus === 'ACTIVE') && (
-      <div className="glass-panel p-5 rounded-2xl border border-gray-100 bg-white shadow-sm">
-        <div className="text-xs font-bold text-secondary uppercase tracking-wider mb-3">
-          Trạng Thái Tham Gia Hệ Thống Đối Tác
-        </div>
-        {isParticipant ? (
-          <div className="flex items-start gap-3 p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800">
-            <CheckCircle size={20} className="text-emerald-600 shrink-0 mt-0.5" />
-            <div>
-              <div className="font-bold text-sm text-emerald-900">Đang tham gia hệ thống đối tác WasyPro</div>
-              {currentUser.participantAt && (
-                <div className="text-xs text-emerald-700 mt-0.5">
-                  Kích hoạt ngày: {new Date(currentUser.participantAt).toLocaleDateString('vi-VN')}
-                </div>
-              )}
-              <p className="text-xs text-emerald-700/80 mt-1">
-                Tài khoản được tích lũy Qualifying Points (CP) khi phát sinh đơn hàng cá nhân.
-              </p>
+      {/* Tr?ng th?i tham gia: CTV hi?n box CP, NPP hi?n th?ng tin theo d?i g?i */}
+      {isNppUser ? (
+        currentUser.nppStatus !== 'ACTIVE' && (
+          <div className="glass-panel p-5 rounded-2xl border border-gray-100 bg-white shadow-sm">
+            <div className="text-xs font-bold text-secondary uppercase tracking-wider mb-3">
+              Th?ng Tin K?ch Ho?t Nh? Ph?n Ph?i (NPP)
             </div>
-          </div>
-        ) : (
-          <div className="flex items-start gap-3 p-3.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-800">
-            <AlertCircle size={20} className="text-amber-600 shrink-0 mt-0.5" />
-            <div>
-              <div className="font-bold text-sm text-amber-900">{currentUser.nppStatus && currentUser.nppStatus !== "NONE" ? `NPP — ${currentUser.nppStatus}` : "Chưa tham gia hệ thống đối tác"}</div>
-              <div className="text-xs text-amber-700 mt-0.5">
-                Vào tab <strong>Gói NPP</strong> để xem trạng thái đăng ký và mua gói NPP.
+            <div className="flex items-start gap-3 p-3.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-800">
+              <AlertCircle size={20} className="text-amber-600 shrink-0 mt-0.5" />
+              <div>
+                <div className="font-bold text-sm text-amber-900">
+                  {currentUser.nppStatus === 'PENDING' ? 'H? s? ??ng k? NPP ?ang ch? Admin ph? duy?t' :
+                   currentUser.nppStatus === 'APPROVED' ? '??ng k? ?? ???c duy?t ? Vui l?ng ??t mua g?i NPP' :
+                   currentUser.nppStatus === 'PURCHASING' ? '?ang trong qu? tr?nh mua & thanh to?n g?i NPP' :
+                   currentUser.nppStatus === 'PAID' ? '?? ho?n t?t thanh to?n ? Ch? Admin duy?t k?ch ho?t' :
+                   'Nh? Ph?n Ph?i'}
+                </div>
+                <div className="text-xs text-amber-700 mt-1">
+                  C?p b?c v? Business ID c?a Nh? Ph?n Ph?i ???c k?ch ho?t tr?c ti?p t? G?i NPP (kh?ng qua t?ch l?y 5.000 CP).
+                  Vui l?ng theo d?i chi ti?t t?i tab <strong>G?i NPP</strong>.
+                </div>
               </div>
             </div>
           </div>
-        )}
-      </div>
+        )
+      ) : (
+        <div className="glass-panel p-5 rounded-2xl border border-gray-100 bg-white shadow-sm">
+          <div className="text-xs font-bold text-secondary uppercase tracking-wider mb-3">
+            Tr?ng Th?i Tham Gia H? Th?ng ??i T?c
+          </div>
+          {isParticipant ? (
+            <div className="flex items-start gap-3 p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800">
+              <CheckCircle size={20} className="text-emerald-600 shrink-0 mt-0.5" />
+              <div>
+                <div className="font-bold text-sm text-emerald-900">?ang tham gia h? th?ng ??i t?c WasyPro</div>
+                {currentUser.participantAt && (
+                  <div className="text-xs text-emerald-700 mt-0.5">
+                    K?ch ho?t ng?y: {new Date(currentUser.participantAt).toLocaleDateString('vi-VN')}
+                  </div>
+                )}
+                <p className="text-xs text-emerald-700/80 mt-1">
+                  T?i kho?n ???c t?ch l?y Qualifying Points (CP) khi ph?t sinh ??n h?ng c? nh?n.
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-start gap-3 p-3.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-800">
+              <AlertCircle size={20} className="text-amber-600 shrink-0 mt-0.5" />
+              <div>
+                <div className="font-bold text-sm text-amber-900">Ch?a tham gia h? th?ng ??i t?c</div>
+                <div className="text-xs text-amber-700 mt-0.5">
+                  ??ng k? tham gia h? th?ng CTV ho?c Nh? Ph?n Ph?i ?? nh?n quy?n l?i hoa h?ng.
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
       )}
 
-      {/* Tiến độ cấp bậc — chỉ cho CTV, NPP rank từ gói mua */}
-      {!(currentUser.isNpp || currentUser.nppStatus === 'ACTIVE') && (
-      <div className="space-y-2">
-        <div className="text-xs font-bold text-secondary uppercase tracking-wider px-1">
-          Tiến Trình Cấp Bậc
+      {/* Ti?n ?? c?p b?c ? CH? D?NH CHO CTV TH??NG, NPP KH?NG D?NG CP */}
+      {!isNppUser && (
+        <div className="space-y-2">
+          <div className="text-xs font-bold text-secondary uppercase tracking-wider px-1">
+            Ti?n Tr?nh C?p B?c
+          </div>
+          <AmbassadorProgressCard userId={currentUser.id || currentUser.userId} />
         </div>
-        <AmbassadorProgressCard userId={currentUser.id || currentUser.userId} />
-      </div>
       )}
     </div>
   );
