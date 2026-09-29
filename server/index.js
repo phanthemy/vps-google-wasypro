@@ -4673,7 +4673,11 @@ async function checkAndPromoteUplines(client, startUserId) {
           parentId: parent.userId,
           businessId: { not: null },
           rank: { in: ['AMBASSADOR', 'MANAGER', 'DIRECTOR', 'SALES_MANAGER', 'SALES_DIRECTOR'] },
-          rankStatus: { in: ['ACTIVE_RANK', 'MANUAL_APPROVED'] }
+          OR: [
+            { rankStatus: { in: ['ACTIVE_RANK', 'MANUAL_APPROVED'] } },
+            { rankStatus: null },
+            { isNpp: true }
+          ]
         }
       });
 
@@ -4847,7 +4851,11 @@ app.get('/api/rank/promotion-progress/:userId', authenticateToken, async (req, r
           parentId: user.userId,
           businessId: { not: null },
           rank: { in: ['AMBASSADOR', 'MANAGER', 'DIRECTOR', 'SALES_MANAGER', 'SALES_DIRECTOR'] },
-          rankStatus: { in: ['ACTIVE_RANK', 'MANUAL_APPROVED'] }
+          OR: [
+            { rankStatus: { in: ['ACTIVE_RANK', 'MANUAL_APPROVED'] } },
+            { rankStatus: null },
+            { isNpp: true }
+          ]
         },
         select: { userId: true, fullName: true, phone: true, businessId: true, rank: true, rankAchievedAt: true }
       });
@@ -7077,6 +7085,7 @@ app.post('/api/admin/npp/purchases/:id/complete', authenticateToken, requireRole
           participantAt: user.participantAt || new Date(),
           nppActivatedAt: user.nppActivatedAt || new Date(),
           rank: newRank,
+          rankStatus: 'ACTIVE_RANK',
         },
       });
 
