@@ -2,6 +2,21 @@
 
 ## 2026-09-29
 
+### L11: CTV/NPP chưa có Business ID (BID) vẫn nhận hoa hồng
+- **Triệu chứng**: Tài khoản Nguyễn Đức Quang (U1001) chưa có `rank`, chưa có `businessId` nhưng vẫn nhận 3 khoản hoa hồng: DIRECT_NO_ID (1.000.000đ), NPP_D1 (3.600.000đ), DIRECT_WITH_ID (500.000đ).
+- **Nguyên nhân**: Code settlement (`calculateAndCreateCommissions`) có 4 điểm không kiểm tra `businessId` của người nhận:
+  1. **DIRECT commission**: `if (directSponsor)` → thiếu `directSponsor.businessId`
+  2. **NPP D1**: `if (netAmount > 0 && directSponsor)` → thiếu `directSponsor.businessId`
+  3. **Upstream F1**: `if (d1User)` → thiếu `d1User.businessId`
+  4. **Upstream F2**: `if (d2User)` → thiếu `d2User.businessId`
+  - Đồng thời có fallback sai: `directSponsor.role === 'ctv' ? 'AMBASSADOR' : null` cho phép CTV chưa có rank được gán AMBASSADOR ngầm.
+- **Fix**:
+  1. Thêm gate `&& directSponsor.businessId` cho DIRECT và NPP D1
+  2. Thêm gate `&& d1User.businessId` và `&& d2User.businessId` cho F1/F2
+  3. Xóa 3 commission sai đã phát sinh cho U1001
+- **Quy tắc vĩnh viễn**: **Không có BID = Không nhận bất kỳ commission nào** (DIRECT, NPP_D1, NPP_D2, F1, F2)
+- **Commit**: `bbfb655`
+
 ### L10: Tạo khách hàng mới trong Modal Tạo Đơn Hàng bị chặn CSRF Token
 - **Triệu chứng**: Khi CTV/NPP tạo đơn hàng, tại form "TẠO KHÁCH HÀNG MỚI", bấm nút "✅ Tạo" thì popup alert báo lỗi: `"Lỗi: Yêu cầu bị từ chối do thiếu hoặc không khớp mã CSRF Token."`
 - **Nguyên nhân**:
