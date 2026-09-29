@@ -278,10 +278,10 @@ const AdminNppManagement: React.FC = () => {
                         </div>
                       )}
 
-                      {/* NPP Ref Link */}
-                      {reg.user?.userId && (
+                      {/* NPP Ref Link — chỉ hiện khi đã kích hoạt (có BID) */}
+                      {reg.user?.businessId ? (
                         <div className="mt-2 bg-blue-50 border border-blue-200 rounded-xl p-2.5">
-                          <div className="text-[10px] font-bold text-blue-700 mb-1.5">🔗 Link Giới Thiệu (Ref Link)</div>
+                          <div className="text-[10px] font-bold text-blue-700 mb-1.5">🔗 Link Giới Thiệu (Ref Link) — <span className="text-emerald-600">NPP chính thức (BID: {reg.user.businessId})</span></div>
                           <div className="space-y-1.5">
                             <div className="flex items-center gap-2">
                               <span className="text-[10px] text-slate-500 w-16 shrink-0">CTV Portal:</span>
@@ -304,6 +304,10 @@ const AdminNppManagement: React.FC = () => {
                               >Copy</button>
                             </div>
                           </div>
+                        </div>
+                      ) : (
+                        <div className="mt-2 bg-amber-50 border border-amber-200 rounded-xl p-2 text-xs text-amber-700">
+                          ⏳ Chưa kích hoạt NPP — Chưa mua gói Combo/Tiền mặt nên chưa có Link Ref
                         </div>
                       )}
                     </div>

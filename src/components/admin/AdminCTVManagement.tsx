@@ -230,10 +230,11 @@ export const AdminCTVManagement: React.FC = () => {
                 ))}
               </div>
 
-              {/* Referral Link */}
+              {/* Referral Link — chỉ hiện khi đã kích hoạt (có BID) */}
+              {detail.ctv.businessId ? (
               <div className="mt-4 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-4">
                 <div className="text-xs font-bold text-blue-700 mb-2 flex items-center gap-1.5">
-                  🔗 Link Giới Thiệu (Ref Link)
+                  🔗 Link Giới Thiệu (Ref Link) — <span className="text-emerald-600">BID: {detail.ctv.businessId}</span>
                 </div>
                 <div className="space-y-2">
                   <div className="flex items-center gap-2">
@@ -258,6 +259,11 @@ export const AdminCTVManagement: React.FC = () => {
                   </div>
                 </div>
               </div>
+              ) : (
+              <div className="mt-4 bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-700">
+                ⏳ CTV chưa kích hoạt — Chưa có mã kinh doanh (BID) nên chưa có Link Ref
+              </div>
+              )}
 
               {detail.ctv.note && (
                 <div className="mt-4 p-3 bg-amber-50 border border-amber-100 rounded-xl text-sm text-amber-800">
