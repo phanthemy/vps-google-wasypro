@@ -460,6 +460,24 @@ app.delete('/api/users/me/avatar', authenticateToken, async (req, res) => {
   }
 });
 
+// ─── SEQUENTIAL USER ID GENERATOR ─────────────────────────────────────────────
+// Generates U1001, U1002, U1003... Sequentially.
+// Auto-resets back to U1001 whenever test users are reset via Factory Reset.
+async function getNextUserId(prefix = 'U', startNum = 1001) {
+  const users = await prisma.user.findMany({
+    where: { userId: { startsWith: prefix } },
+    select: { userId: true }
+  });
+  let maxNum = startNum - 1;
+  for (const u of users) {
+    const numPart = parseInt(u.userId.slice(prefix.length), 10);
+    if (!isNaN(numPart) && numPart > maxNum) {
+      maxNum = numPart;
+    }
+  }
+  return prefix + (maxNum + 1);
+}
+
 // ─── SELF REGISTRATION (public — no auth required) ───────────────────────────
 // POST /api/auth/register
 // Creates a User account (role=ctv, isSystemParticipant=false by default).
@@ -485,20 +503,23 @@ app.post('/api/auth/register', authLimiter, async (req, res) => {
       return res.status(400).json({ success: false, message: 'Số điện thoại này đã được đăng ký. Vui lòng đăng nhập.' });
     }
 
-    // Resolve sponsor from refCode
+    // Resolve sponsor from refCode (supports both userId e.g. U1001 and businessId/BID e.g. WK-10001)
     let parentId = null;
     if (refCode && refCode.trim()) {
-      const sponsor = await prisma.user.findUnique({ where: { userId: refCode.trim() } });
+      const cleanRef = refCode.trim();
+      const sponsor = await prisma.user.findFirst({
+        where: {
+          OR: [
+            { userId: cleanRef },
+            { businessId: cleanRef }
+          ]
+        }
+      });
       if (sponsor) parentId = sponsor.userId;
     }
 
-    // Generate userId: prefix U + 3 digits
-    let generatedId = '', isUnique = false;
-    while (!isUnique) {
-      generatedId = 'U' + Math.floor(100 + Math.random() * 900);
-      const check = await prisma.user.findUnique({ where: { userId: generatedId } });
-      if (!check) isUnique = true;
-    }
+    // Generate userId: Sequential U1001, U1002...
+    const generatedId = await getNextUserId('U', 1001);
 
     const hashedPassword = await bcrypt.hash(rawPwd, 10);
     const now = new Date();
@@ -2621,13 +2642,8 @@ app.post('/api/ctv/customers', authenticateToken, async (req, res) => {
         return res.status(400).json({ success: false, message: 'SĐT này đã đăng ký tài khoản.' });
       }
 
-      // Generate userId
-      let generatedId = '', isUnique = false;
-      while (!isUnique) {
-        generatedId = 'U' + Math.floor(100 + Math.random() * 900);
-        const check = await prisma.user.findUnique({ where: { userId: generatedId } });
-        if (!check) isUnique = true;
-      }
+      // Generate userId: Sequential U1001, U1002...
+      const generatedId = await getNextUserId('U', 1001);
 
       // Create User (downline of CTV)
       const bcrypt = require('bcryptjs');
