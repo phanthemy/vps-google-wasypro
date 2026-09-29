@@ -2609,6 +2609,7 @@ app.post('/api/orders', authenticateToken, async (req, res) => {
         nppDiscountLabel = nppPurchase.package.name + ' (-' + (appliedDiscountBps / 100) + '%)';
       } else {
         // 🛍️ Mua lẻ cho chính mình: CTV/NPP được giảm theo cấp bậc (Đại sứ: 20%, Quản lý: 25%, Giám đốc: 30%)
+        // RULE: No BID = No discount. Chưa đạt ngưỡng 5.000 CP → mua giá niêm yết 100%.
         const orderer = await prisma.user.findFirst({
           where: {
             OR: [
@@ -2617,16 +2618,22 @@ app.post('/api/orders', authenticateToken, async (req, res) => {
             ]
           }
         });
-        const r = (orderer?.rank || '').toUpperCase();
-        if (r === 'DIRECTOR' || r === 'SALES_DIRECTOR') {
-          appliedDiscountBps = 3000;
-          nppDiscountLabel = 'Chiết khấu tự mua Quản Lý (-30%)';
-        } else if (r === 'MANAGER' || r === 'SALES_MANAGER') {
-          appliedDiscountBps = 2500;
-          nppDiscountLabel = 'Chiết khấu tự mua Trưởng Nhóm (-25%)';
+        if (!orderer?.businessId) {
+          // CTV chưa có BID → không được giảm giá
+          appliedDiscountBps = 0;
+          nppDiscountLabel = 'Giá niêm yết (Chưa có BID)';
         } else {
-          appliedDiscountBps = 2000;
-          nppDiscountLabel = 'Chiết khấu tự mua Đại Sứ/CTV (-20%)';
+          const r = (orderer?.rank || '').toUpperCase();
+          if (r === 'DIRECTOR' || r === 'SALES_DIRECTOR') {
+            appliedDiscountBps = 3000;
+            nppDiscountLabel = 'Chiết khấu tự mua Quản Lý (-30%)';
+          } else if (r === 'MANAGER' || r === 'SALES_MANAGER') {
+            appliedDiscountBps = 2500;
+            nppDiscountLabel = 'Chiết khấu tự mua Trưởng Nhóm (-25%)';
+          } else {
+            appliedDiscountBps = 2000;
+            nppDiscountLabel = 'Chiết khấu tự mua Đại Sứ/CTV (-20%)';
+          }
         }
       }
     }

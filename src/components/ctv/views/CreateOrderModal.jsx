@@ -134,26 +134,31 @@ export default function CreateOrderModal({ currentUser, onClose, onSuccess }) {
   const comboDiscountAmount = comboRetailTotal - comboTotal;
 
   // RETAIL Calculations & Rank-based Policy (Spec v1.4 & AGENTS.md)
+  // RULE: No BID = No discount. CTV chưa đạt 5.000 CP → chưa có BID → mua giá niêm yết 100%.
+  const hasBID = Boolean(currentUser?.businessId);
   const ctvRank = (currentUser?.rank || '').toUpperCase();
   const isDirector = ctvRank === 'DIRECTOR' || ctvRank === 'SALES_DIRECTOR';
   const isManager = ctvRank === 'MANAGER' || ctvRank === 'SALES_MANAGER';
-  const selfDiscountRate = isDirector ? 0.3 : (isManager ? 0.25 : 0.2);
+  const selfDiscountRate = !hasBID ? 0 : (isDirector ? 0.3 : (isManager ? 0.25 : 0.2));
   const selfDiscountPercent = Math.round(selfDiscountRate * 100);
-  const ctvRankTitle = isDirector ? 'Quản Lý (30%)' : (isManager ? 'Trưởng Nhóm (25%)' : 'Đại Sứ (20%)');
+  const ctvRankTitle = !hasBID ? 'Thành viên (0%)' : (isDirector ? 'Quản Lý (30%)' : (isManager ? 'Trưởng Nhóm (25%)' : 'Đại Sứ (20%)'));
 
   // Customer commission rate:
   // If customer has Business ID: 10% (DIRECT_WITH_ID)
   // If customer does NOT have Business ID: Amb=20%, Mgr=25%, Dir=30% (DIRECT_NO_ID)
+  // If CTV itself has no BID: commission rate = 0 (no commission either)
   const customerHasId = Boolean(selectedCustomer?.linkedUser?.businessId || selectedCustomer?.businessId);
-  const customerCommissionRate = customerHasId ? 0.10 : selfDiscountRate;
-  const customerCommissionTitle = customerHasId 
-    ? '10% (Khách đã có BID)' 
-    : `${ctvRankTitle} (Khách chưa có BID)`;
+  const customerCommissionRate = !hasBID ? 0 : (customerHasId ? 0.10 : selfDiscountRate);
+  const customerCommissionTitle = !hasBID 
+    ? 'Chưa có BID — không nhận hoa hồng'
+    : (customerHasId 
+      ? '10% (Khách đã có BID)' 
+      : `${ctvRankTitle} (Khách chưa có BID)`);
 
   const retailProductPrice = selectedProduct ? selectedProduct.price : 0;
   const retailRawTotal = retailProductPrice * qty;
-  // If SELF in RETAIL mode -> lifetime self-buy discount according to Rank
-  const isSelfRetailDiscount = purchaseSubject === 'SELF' && pricingMode === 'RETAIL';
+  // If SELF in RETAIL mode -> lifetime self-buy discount according to Rank (ONLY if has BID)
+  const isSelfRetailDiscount = purchaseSubject === 'SELF' && pricingMode === 'RETAIL' && hasBID;
   const selfDiscountAmount = isSelfRetailDiscount ? Math.round(retailRawTotal * selfDiscountRate) : 0;
   const retailNetTotal = retailRawTotal - selfDiscountAmount;
 
