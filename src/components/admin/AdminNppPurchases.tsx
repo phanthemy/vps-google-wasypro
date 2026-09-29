@@ -260,6 +260,7 @@ export default function AdminNppPurchases() {
             <thead className="bg-slate-50 border-b border-slate-200">
               <tr>
                 <th className="text-left py-3 px-4 text-sm font-semibold text-slate-600">NPP</th>
+                <th className="text-left py-3 px-4 text-sm font-semibold text-slate-600">Người GT</th>
                 <th className="text-left py-3 px-4 text-sm font-semibold text-slate-600">Gói</th>
                 <th className="text-right py-3 px-4 text-sm font-semibold text-slate-600">Tổng/Còn Lại</th>
                 <th className="text-center py-3 px-4 text-sm font-semibold text-slate-600">Trạng Thái</th>
@@ -274,6 +275,30 @@ export default function AdminNppPurchases() {
                       <div className="font-semibold text-gray-800">{p.user?.fullName}</div>
                       <div className="text-sm text-slate-500">Mã: {p.userId}</div>
                       <div className="text-sm text-slate-500">{p.user?.phone}</div>
+                    </td>
+                    <td className="py-3 px-4">
+                      {p.user?.parent ? (
+                        <div>
+                          <div className="font-bold text-slate-800 text-sm">{p.user.parent.fullName}</div>
+                          <div className="text-xs text-slate-500 font-mono">{p.user.parent.userId} · {p.user.parent.phone}</div>
+                          <div className="flex items-center gap-1 mt-1">
+                            <span className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-extrabold ${
+                              p.user.parent.isNpp ? 'bg-amber-100 text-amber-800 border border-amber-300' : 'bg-blue-100 text-blue-800 border border-blue-200'
+                            }`}>
+                              {p.user.parent.isNpp ? '🏷️ NPP' : '🏷️ CTV'}
+                            </span>
+                            {p.user.parent.rank && (
+                              <span className="text-[10px] font-bold text-purple-700">
+                                ⭐ {p.user.parent.rank === 'AMBASSADOR' ? 'Đại sứ' : p.user.parent.rank === 'MANAGER' ? 'Trưởng nhóm' : p.user.parent.rank === 'DIRECTOR' ? 'Quản lý' : p.user.parent.rank}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      ) : (
+                        <span className="inline-block px-2 py-0.5 rounded text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200">
+                          🏛️ Trực tiếp Cty (F0)
+                        </span>
+                      )}
                     </td>
                     <td className="py-3 px-4">
                       <div className="font-medium text-gray-800">{p.package?.name}</div>
@@ -324,7 +349,7 @@ export default function AdminNppPurchases() {
                         <button
                           onClick={() => setSelectedDownlineNpp({ id: p.userId || p.user?.userId || p.user?.id, fullName: p.user?.fullName || 'NPP' })}
                           className="p-1.5 bg-purple-100 text-purple-700 rounded hover:bg-purple-200 transition"
-                          title="Xem s? ?? tuy?n d??i (Downline)"
+                          title="Xem sơ đồ tuyến dưới (Downline)"
                         >
                           <GitFork className="w-4 h-4" />
                         </button>
@@ -335,7 +360,7 @@ export default function AdminNppPurchases() {
                   
                   {expandedId === p.id && (
                     <tr className="bg-slate-50 border-b border-slate-200">
-                      <td colSpan={5} className="p-4">
+                      <td colSpan={6} className="p-4">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                           <div>
                             <h4 className="font-semibold text-slate-700 mb-2 flex items-center gap-2"><Package className="w-4 h-4" /> Chi tiết đơn hàng</h4>
@@ -587,6 +612,13 @@ export default function AdminNppPurchases() {
             </div>
           </div>
         </div>
+      )}
+
+      {selectedDownlineNpp && (
+        <AdminNppDownlineModal
+          userId={selectedDownlineNpp.id}
+          onClose={() => setSelectedDownlineNpp(null)}
+        />
       )}
     </div>
   );

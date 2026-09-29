@@ -6638,7 +6638,13 @@ app.get('/api/admin/npp/registrations', authenticateToken, requireRole(['admin']
     const registrations = await prisma.nppRegistration.findMany({
       where,
       include: {
-        user: { select: { id: true, userId: true, fullName: true, phone: true, isNpp: true, businessId: true, rank: true } },
+        user: {
+          select: {
+            id: true, userId: true, fullName: true, phone: true, isNpp: true, businessId: true, rank: true,
+            parentId: true,
+            parent: { select: { id: true, userId: true, fullName: true, phone: true, isNpp: true, businessId: true, rank: true } }
+          }
+        },
         package: true,
       },
       orderBy: { createdAt: 'desc' },
@@ -6683,7 +6689,13 @@ app.get('/api/admin/npp/activations', authenticateToken, requireRole(['admin']),
   try {
     const activations = await prisma.nppActivation.findMany({
       include: {
-        user: { select: { id: true, userId: true, fullName: true, phone: true, businessId: true, rank: true } },
+        user: {
+          select: {
+            id: true, userId: true, fullName: true, phone: true, businessId: true, rank: true,
+            parentId: true,
+            parent: { select: { id: true, userId: true, fullName: true, phone: true, isNpp: true, businessId: true, rank: true } }
+          }
+        },
         package: true,
       },
       orderBy: { createdAt: 'desc' },
@@ -6868,7 +6880,13 @@ app.get('/api/admin/npp/purchases', authenticateToken, requireRole(['admin']), a
   try {
     const purchases = await prisma.nppPurchase.findMany({
       include: {
-        user: { select: { userId: true, fullName: true, phone: true } },
+        user: {
+          select: {
+            userId: true, fullName: true, phone: true, isNpp: true, businessId: true, rank: true,
+            parentId: true,
+            parent: { select: { userId: true, fullName: true, phone: true, isNpp: true, businessId: true, rank: true } }
+          }
+        },
         package: { select: { code: true, name: true, packageType: true, assignedRank: true } },
         payments: { select: { id: true, amount: true, paidAt: true, paymentMethod: true } },
       },
@@ -7546,7 +7564,11 @@ app.get('/api/admin/npp/:id/downline', authenticateToken, requireRole(['admin', 
     const { id } = req.params; // userId (e.g. "U898", "U912") or cuid
     const targetUser = await prisma.user.findFirst({
       where: { OR: [{ userId: id }, { id }] },
-      select: { id: true, userId: true, fullName: true, phone: true, rank: true, isNpp: true, businessId: true }
+      select: {
+        id: true, userId: true, fullName: true, phone: true, rank: true, isNpp: true, businessId: true,
+        parentId: true,
+        parent: { select: { id: true, userId: true, fullName: true, phone: true, rank: true, isNpp: true, businessId: true } }
+      }
     });
 
     if (!targetUser) {
@@ -7651,7 +7673,9 @@ app.get('/api/admin/npp/:id/downline', authenticateToken, requireRole(['admin', 
           fullName: targetUser.fullName,
           phone: targetUser.phone,
           businessId: targetUser.businessId,
-          rank: targetUser.rank
+          rank: targetUser.rank,
+          isNpp: targetUser.isNpp,
+          parent: targetUser.parent || null
         },
         stats: {
           totalMembers,

@@ -25,6 +25,15 @@ interface DownlineData {
     phone: string;
     businessId?: string | null;
     rank?: string | null;
+    isNpp?: boolean;
+    parent?: {
+      userId: string;
+      fullName: string;
+      phone: string;
+      isNpp: boolean;
+      rank?: string | null;
+      businessId?: string | null;
+    } | null;
   };
   stats: {
     totalMembers: number;
@@ -156,6 +165,47 @@ export default function AdminNppDownlineModal({ userId, onClose }: Props) {
         {/* BODY CONTAINER */}
         <div className="p-6 overflow-y-auto space-y-6 flex-1 bg-slate-50/50">
           
+          {/* KHUNG THÔNG TIN NGƯỜI GIỚI THIỆU (UPLINE / BẢO TRỢ) */}
+          <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-300 text-amber-700 flex items-center justify-center font-bold">
+                <ShieldCheck className="w-5 h-5 text-amber-600" />
+              </div>
+              <div>
+                <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                  Người Giới Thiệu (Tuyến Trên Trực Tiếp)
+                </div>
+                {data.npp.parent ? (
+                  <div className="flex flex-wrap items-center gap-2 mt-0.5">
+                    <span className="font-bold text-slate-800 text-base">{data.npp.parent.fullName}</span>
+                    <span className="text-xs font-mono text-slate-500 font-semibold">({data.npp.parent.userId} · {data.npp.parent.phone})</span>
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
+                      data.npp.parent.isNpp
+                        ? 'bg-amber-100 text-amber-800 border border-amber-300'
+                        : 'bg-blue-100 text-blue-800 border border-blue-200'
+                    }`}>
+                      {data.npp.parent.isNpp ? '🏷️ NPP' : '🏷️ CTV'}
+                    </span>
+                    {data.npp.parent.rank && (
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-100 text-purple-700">
+                        ⭐ {RANK_LABELS[data.npp.parent.rank] || data.npp.parent.rank}
+                      </span>
+                    )}
+                  </div>
+                ) : (
+                  <div className="text-sm font-semibold text-emerald-700 flex items-center gap-1.5 mt-0.5">
+                    <span>🏛️ Trực tiếp Công ty (F0 - Không qua người bảo trợ)</span>
+                  </div>
+                )}
+              </div>
+            </div>
+            {data.npp.parent && (
+              <div className="text-xs text-slate-500 sm:text-right">
+                Bảo trợ trực tiếp cho <strong className="text-cyan-700">{data.npp.fullName}</strong>
+              </div>
+            )}
+          </div>
+
           {/* STATS OVERVIEW CARDS */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5">
             <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between">

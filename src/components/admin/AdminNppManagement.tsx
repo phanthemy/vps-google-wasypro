@@ -32,7 +32,10 @@ interface NppPackage { id: string; code: string; name: string; packageType: stri
 interface Registration {
   id: string; userId: string; packageId: string; status: string; note: string | null;
   cancelReason: string | null; createdAt: string; updatedAt: string;
-  user: { id: string; userId: string; fullName: string; phone: string; isNpp: boolean; businessId: string | null; rank: string | null; };
+  user: {
+    id: string; userId: string; fullName: string; phone: string; isNpp: boolean; businessId: string | null; rank: string | null;
+    parent?: { id: string; userId: string; fullName: string; phone: string; isNpp: boolean; businessId: string | null; rank: string | null; } | null;
+  };
   package: NppPackage;
 }
 interface Activation {
@@ -40,7 +43,10 @@ interface Activation {
   assignedRank: string; previousRank: string | null; allocatedBid: string | null;
   activatedBy: string; reason: string | null; note: string | null; paymentStatus: string | null;
   createdAt: string;
-  user: { id: string; userId: string; fullName: string; phone: string; businessId: string | null; rank: string | null; };
+  user: {
+    id: string; userId: string; fullName: string; phone: string; businessId: string | null; rank: string | null;
+    parent?: { id: string; userId: string; fullName: string; phone: string; isNpp: boolean; businessId: string | null; rank: string | null; } | null;
+  };
   package: NppPackage | null;
 }
 
@@ -215,32 +221,88 @@ const AdminNppManagement: React.FC = () => {
           ) : (
             <div className="space-y-3">
               {registrations.map(reg => (
-                <div key={reg.id} className="bg-white rounded-xl border border-slate-200 p-4">
+                <div key={reg.id} className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm hover:border-cyan-300 transition">
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${statusColors[reg.status] || 'bg-slate-100'}`}>{reg.status}</span>
+                      <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                        <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold ${statusColors[reg.status] || 'bg-slate-100 text-slate-700'}`}>{reg.status}</span>
                         <span className="text-xs text-slate-400">{new Date(reg.createdAt).toLocaleString('vi-VN')}</span>
-                      </div>
-                      <p className="font-semibold text-slate-800">{reg.user?.fullName || 'N/A'}</p>
-                      <p className="text-xs text-slate-500">{reg.user?.userId} · {reg.user?.phone} {reg.user?.businessId ? ` · BID: ${reg.user.businessId}` : ''}</p>
-                      <p className="text-sm text-slate-600 mt-1">Gói: <span className="font-semibold">{reg.package?.name || reg.packageId}</span> ({reg.package?.code})</p>
-                      {reg.cancelReason && <p className="text-xs text-red-500 mt-1">Lý do: {reg.cancelReason}</p>}
-                    </div>
-                    {(reg.status === 'PENDING' || reg.status === 'APPROVED') && (
-                      <div className="flex gap-2">
-                        {reg.status === 'PENDING' && (
-                          <button disabled={submitting} onClick={() => handleApproveCancel(reg.id, 'APPROVED')}
-                            className="px-3 py-1.5 bg-emerald-50 text-emerald-700 rounded-lg text-xs font-semibold hover:bg-emerald-100 disabled:opacity-50">
-                            ✓ Duyệt
-                          </button>
+                        {reg.user?.isNpp && (
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-100 text-amber-800 border border-amber-300">
+                            🏷️ NPP CHÍNH THỨC
+                          </span>
                         )}
-                        <button disabled={submitting} onClick={() => handleApproveCancel(reg.id, 'CANCELLED', 'Admin hủy')}
-                          className="px-3 py-1.5 bg-red-50 text-red-600 rounded-lg text-xs font-semibold hover:bg-red-100 disabled:opacity-50">
-                          ✕ Hủy
-                        </button>
+                        {reg.user?.rank && (
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-100 text-purple-700">
+                            ⭐ {RANK_LABELS[reg.user.rank] || reg.user.rank}
+                          </span>
+                        )}
                       </div>
-                    )}
+
+                      <div className="flex items-baseline gap-2">
+                        <p className="font-bold text-slate-900 text-base">{reg.user?.fullName || 'N/A'}</p>
+                        <span className="text-xs font-mono text-slate-500 font-semibold">{reg.user?.userId}</span>
+                      </div>
+                      <p className="text-xs text-slate-500 mt-0.5">SĐT: <strong className="text-slate-700">{reg.user?.phone}</strong> {reg.user?.businessId ? ` · BID: ${reg.user.businessId}` : ''}</p>
+                      <p className="text-sm text-slate-700 mt-1">Gói đăng ký: <span className="font-bold text-cyan-700">{reg.package?.name || reg.packageId}</span> ({reg.package?.code})</p>
+                      {reg.cancelReason && <p className="text-xs text-red-500 mt-1">Lý do: {reg.cancelReason}</p>}
+
+                      {/* KHUNG NGƯỜI GIỚI THIỆU (UPLINE / SPONSOR) */}
+                      {reg.user?.parent ? (
+                        <div className="mt-3 p-2.5 rounded-xl bg-slate-50 border border-slate-200 flex flex-wrap items-center justify-between gap-2">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1">
+                              🔗 Người giới thiệu:
+                            </span>
+                            <span className="text-sm font-bold text-slate-800">{reg.user.parent.fullName}</span>
+                            <span className="text-xs font-mono text-slate-500 font-semibold">({reg.user.parent.userId} · {reg.user.parent.phone})</span>
+                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
+                              reg.user.parent.isNpp
+                                ? 'bg-amber-100 text-amber-800 border border-amber-300'
+                                : 'bg-blue-100 text-blue-800 border border-blue-200'
+                            }`}>
+                              {reg.user.parent.isNpp ? '🏷️ NPP' : '🏷️ CTV'}
+                            </span>
+                            {reg.user.parent.rank && (
+                              <span className="text-xs text-purple-700 font-semibold">
+                                ⭐ {RANK_LABELS[reg.user.parent.rank] || reg.user.parent.rank}
+                              </span>
+                            )}
+                          </div>
+                          <span className="text-[11px] text-slate-400 font-medium">Bảo trợ trực tiếp</span>
+                        </div>
+                      ) : (
+                        <div className="mt-3 p-2 rounded-xl bg-emerald-50/70 border border-emerald-200 flex items-center gap-2 text-xs">
+                          <span className="font-bold text-slate-500 uppercase tracking-wider text-[11px]">🔗 Người giới thiệu:</span>
+                          <span className="font-bold text-emerald-800">🏛️ Trực tiếp Công ty (F0 - Không qua tuyến trên)</span>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="flex flex-col sm:flex-row items-end sm:items-center gap-2">
+                      <button
+                        onClick={() => setSelectedDownlineNpp({ id: reg.user?.userId || reg.userId, fullName: reg.user?.fullName || 'NPP' })}
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-lg text-xs font-bold hover:bg-indigo-100 transition shadow-sm"
+                        title="Xem sơ đồ cây tuyến dưới (Downline)"
+                      >
+                        <GitFork className="w-3.5 h-3.5" /> Tuyến dưới
+                      </button>
+
+                      {(reg.status === 'PENDING' || reg.status === 'APPROVED') && (
+                        <div className="flex gap-2">
+                          {reg.status === 'PENDING' && (
+                            <button disabled={submitting} onClick={() => handleApproveCancel(reg.id, 'APPROVED')}
+                              className="px-3 py-1.5 bg-emerald-50 text-emerald-700 rounded-lg text-xs font-semibold hover:bg-emerald-100 disabled:opacity-50">
+                              ✓ Duyệt
+                            </button>
+                          )}
+                          <button disabled={submitting} onClick={() => handleApproveCancel(reg.id, 'CANCELLED', 'Admin hủy')}
+                            className="px-3 py-1.5 bg-red-50 text-red-600 rounded-lg text-xs font-semibold hover:bg-red-100 disabled:opacity-50">
+                            ✕ Hủy
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               ))}
@@ -280,6 +342,38 @@ const AdminNppManagement: React.FC = () => {
               {act.reason && <p className="text-xs text-slate-500 mt-1">Lý do: {act.reason}</p>}
               {act.note && <p className="text-xs text-slate-400 mt-0.5">Ghi chú: {act.note}</p>}
               <p className="text-xs text-slate-400 mt-1">Bởi: {act.activatedBy}</p>
+
+              {/* KHUNG NGƯỜI GIỚI THIỆU & NÚT XEM TUYẾN DƯỚI */}
+              {act.user?.parent ? (
+                <div className="mt-2.5 p-2 rounded-lg bg-slate-50 border border-slate-200 flex flex-wrap items-center justify-between gap-2 text-xs">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="font-bold text-slate-500">🔗 Người GT:</span>
+                    <strong className="text-slate-800">{act.user.parent.fullName}</strong>
+                    <span className="text-slate-500 font-mono">({act.user.parent.userId} · {act.user.parent.phone})</span>
+                    <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
+                      act.user.parent.isNpp ? 'bg-amber-100 text-amber-800' : 'bg-blue-100 text-blue-800'
+                    }`}>
+                      {act.user.parent.isNpp ? 'NPP' : 'CTV'}
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => setSelectedDownlineNpp({ id: act.user?.userId || act.userId, fullName: act.user?.fullName || 'NPP' })}
+                    className="flex items-center gap-1 px-2.5 py-1 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 rounded text-xs font-bold transition"
+                  >
+                    <GitFork className="w-3 h-3" /> Xem tuyến dưới
+                  </button>
+                </div>
+              ) : (
+                <div className="mt-2.5 p-2 rounded-lg bg-emerald-50/70 border border-emerald-200 flex items-center justify-between text-xs">
+                  <span className="font-semibold text-emerald-800">🏛️ Trực tiếp Công ty (F0)</span>
+                  <button
+                    onClick={() => setSelectedDownlineNpp({ id: act.user?.userId || act.userId, fullName: act.user?.fullName || 'NPP' })}
+                    className="flex items-center gap-1 px-2.5 py-1 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 rounded text-xs font-bold transition"
+                  >
+                    <GitFork className="w-3 h-3" /> Xem tuyến dưới
+                  </button>
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -378,6 +472,12 @@ const AdminNppManagement: React.FC = () => {
       )}
       {subTab === 'purchases' && (
         <AdminNppPurchases />
+      )}
+      {selectedDownlineNpp && (
+        <AdminNppDownlineModal
+          userId={selectedDownlineNpp.id}
+          onClose={() => setSelectedDownlineNpp(null)}
+        />
       )}
     </div>
   );
