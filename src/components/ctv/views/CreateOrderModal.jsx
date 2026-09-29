@@ -3,7 +3,8 @@ import { X, ShoppingCart, User, Package, Loader2, CheckCircle, AlertCircle, Plus
 
 function getCsrfToken() {
   const m = document.cookie.match(/(?:^|;\s*)csrf_token=([^;]*)/);
-  return m ? m[1] : '';
+  if (m && m[1]) return decodeURIComponent(m[1]);
+  return localStorage.getItem('csrf_token') || '';
 }
 
 export default function CreateOrderModal({ currentUser, onClose, onSuccess }) {

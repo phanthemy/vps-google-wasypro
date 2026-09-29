@@ -77,8 +77,12 @@ const csrfProtection = (req, res, next) => {
     req.path === '/api/npp/my-purchase' ||        // NPP purchase creation
     req.path.startsWith('/api/orders') ||          // CTV portal — order creation (same-origin cookie POST)
     req.path.startsWith('/api/customers') ||       // CTV portal — customer management
-    req.path.startsWith('/api/users/me') ||        // CTV portal — user profile updates
-    req.path.startsWith('/api/admin/')              // Admin panel — all admin operations
+    req.path.startsWith('/api/ctv') ||             // CTV portal — customer creation & ctv actions (/api/ctv/customers)
+    req.path.startsWith('/api/users') ||           // CTV portal & admin user management
+    req.path.startsWith('/api/admin') ||           // Admin panel — all admin operations
+    req.path.startsWith('/api/leads') ||           // Leads management
+    req.path.startsWith('/api/internal-users') ||  // Internal users
+    req.path.startsWith('/api/services')           // Services
   ) {
     return next();
   }

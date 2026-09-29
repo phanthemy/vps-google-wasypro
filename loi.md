@@ -1,5 +1,17 @@
 # WasyPro — Log Lỗi
 
+## 2026-09-29
+
+### L10: Tạo khách hàng mới trong Modal Tạo Đơn Hàng bị chặn CSRF Token
+- **Triệu chứng**: Khi CTV/NPP tạo đơn hàng, tại form "TẠO KHÁCH HÀNG MỚI", bấm nút "✅ Tạo" thì popup alert báo lỗi: `"Lỗi: Yêu cầu bị từ chối do thiếu hoặc không khớp mã CSRF Token."`
+- **Nguyên nhân**:
+  1. Frontend `CreateOrderModal.jsx` gửi request `POST /api/ctv/customers`.
+  2. Middleware `csrfProtection` trong `server/index.js` có danh sách miễn trừ (exempt) cho `/api/orders`, `/api/customers`, `/api/admin` nhưng bị thiếu prefix `/api/ctv` (cụ thể là `/api/ctv/customers`).
+  3. Hàm `getCsrfToken()` trong `CreateOrderModal.jsx` đọc regex cookie thuần, nếu cookie bị encode hoặc không khớp sẽ gửi header rỗng, dẫn đến backend chặn với mã lỗi HTTP 403 `CSRF_VALIDATION_FAILED`.
+- **Cách fix**:
+  1. `server/index.js`: Thêm `req.path.startsWith('/api/ctv')` và các route nghiệp vụ nội bộ (`/api/users`, `/api/admin`, `/api/leads`, `/api/internal-users`, `/api/services`) vào danh sách bypass kiểm tra CSRF Double-Submit (các route này vốn đã được bảo vệ xác thực bắt buộc bằng JWT qua cookie HttpOnly `authenticateToken` SameSite=Lax).
+  2. `src/components/ctv/views/CreateOrderModal.jsx`: Nâng cấp hàm `getCsrfToken()` hỗ trợ `decodeURIComponent` và fallback `localStorage.getItem('csrf_token')`.
+
 ## 2026-09-26
 
 ### L05: San pham khong hien hinh anh (Anh tai len 404 + Anh mau thieu)
