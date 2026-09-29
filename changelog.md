@@ -4,7 +4,14 @@
 
 ## 2026-09-29
 
-### Feat & Security
+- **Cấu hình chiết khấu tự mua & hoa hồng bán khách động theo cấp bậc (20%, 25%, 30%)**:
+  - Khắc phục lỗi hardcode 20% trong modal tạo đơn (`CreateOrderModal.jsx`) và backend (`server/index.js`).
+  - Áp dụng đúng cấu hình hệ thống:
+    - **Đại sứ (Ambassador)**: Tự mua giảm 20% | Bán khách chưa ID: Hoa hồng 20%
+    - **Trưởng nhóm (Manager)**: Tự mua giảm 25% | Bán khách chưa ID: Hoa hồng 25%
+    - **Quản lý (Director)**: Tự mua giảm 30% | Bán khách chưa ID: Hoa hồng 30%
+    - **Khách đã có Business ID**: Hoa hồng 10% cho tất cả các cấp
+  - Cập nhật API `GET /api/customers` trả về thông tin `linkedUser` (kèm BID, rank) để modal phân biệt chính xác khách có ID / chưa có ID.
 - **Phân tách luồng Đăng ký & Khóa bảo trợ link ref**:
   - Khách vãng lai: Ẩn mã ref và tùy chọn CTV/NPP, hiển thị CTA Box liên hệ Zalo OA & Hotline 1900 989878 để xin cấp mã.
   - Khách qua link ref `?ref=U1xxx`: Khóa cứng mã giới thiệu (readOnly + icon 🔒), hiện đầy đủ tùy chọn CTV & NPP.
