@@ -1,5 +1,18 @@
 # WasyPro — Log Lỗi
 
+## 2026-09-30
+
+### L12: CTV chưa có BID vẫn được giảm giá 20% khi tự mua
+- **Triệu chứng**: Tài khoản Nguyễn Đức Quang (U1001) chưa có `rank`, chưa có `businessId` (chưa đạt 5.000 CP) nhưng CTV Portal vẫn hiện "Giảm 20% tự mua (Đại Sứ 20%)" và cho phép mua với giá 20.000.000đ thay vì 25.000.000đ.
+- **Nguyên nhân**: Cùng pattern với L11.
+  1. **Frontend** `CreateOrderModal.jsx` dòng 140: `selfDiscountRate = isDirector ? 0.3 : (isManager ? 0.25 : 0.2)` → Mặc định `else` = 20% cho mọi CTV kể cả không có BID.
+  2. **Backend** `server/index.js` dòng 2627: `else { appliedDiscountBps = 2000 }` → Cũng mặc định 20%.
+- **Fix**:
+  1. Frontend: Thêm `const hasBID = Boolean(currentUser?.businessId)` → `selfDiscountRate = !hasBID ? 0 : ...` → Không có BID = 0% giảm giá.
+  2. Backend: Thêm `if (!orderer?.businessId) { appliedDiscountBps = 0 }` → Mua giá niêm yết 100%.
+- **Quy tắc vĩnh viễn**: **Không có BID = Không được giảm giá = Mua giá 100%**. Chiết khấu tự mua chỉ áp dụng khi đã có BID (Đại Sứ 20%, Trưởng Nhóm 25%, Quản Lý 30%).
+- **Commit**: `6a740be`
+
 ## 2026-09-29
 
 ### L11: CTV/NPP chưa có Business ID (BID) vẫn nhận hoa hồng
