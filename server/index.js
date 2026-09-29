@@ -7983,6 +7983,17 @@ app.post('/api/admin/npp/purchases/:id/complete', authenticateToken, requireRole
     });
 
     console.log(`[NPP COMPLETE] ${purchase.code}: ${user.userId} activated as ${result.newRank} BID=${result.allocatedBid || user.businessId}`);
+
+    // Trigger rank promotion check for uplines (5 F1 rule)
+    try {
+      const promos = await checkAndPromoteUplines(prisma, user.userId);
+      if (promos.length > 0) {
+        console.log(`[NPP PROMOTION] After NPP activation of ${user.userId}:`, promos);
+      }
+    } catch (promoErr) {
+      console.error('[NPP PROMOTION HOOK ERROR]', promoErr.message);
+    }
+
     res.json({
       success: true,
       message: `NPP kích hoạt thành công. Rank: ${result.newRank}. BID: ${result.allocatedBid || user.businessId}`,
