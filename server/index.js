@@ -2563,18 +2563,39 @@ app.post('/api/orders', authenticateToken, async (req, res) => {
     }
     // ─── END PHASE 2D VALIDATION ──────────────────────────────────────────
 
-    // NPP Pricing Mode — apply discount from NPP package
+    // NPP & Retail Pricing Mode
     let appliedDiscountBps = 0;
     let nppDiscountLabel = '';
-    if (pricingMode === 'NPP') {
-      const nppPurchase = await prisma.nppPurchase.findFirst({
-        where: { userId: ordererUserId, status: { notIn: ['CANCELLED'] } },
-        include: { package: true },
-        orderBy: { createdAt: 'desc' },
-      });
-      if (nppPurchase && nppPurchase.package && nppPurchase.package.defaultDiscount > 0) {
-        appliedDiscountBps = nppPurchase.package.defaultDiscount;
+
+    if (purchaseSubject === 'CUSTOMER') {
+      // 👤 Bán cho khách lẻ: Bán 100% Giá Niêm Yết Retail (không áp dụng chiết khấu NPP)
+      pricingMode = 'RETAIL';
+      appliedDiscountBps = 0;
+    } else if (purchaseSubject === 'SELF') {
+      if (pricingMode === 'COMBO') {
+        // 📦 Tự mua Combo NPP: Phải chọn đúng số lượng máy quy định của gói (ví dụ 5 máy)
+        const nppPurchase = await prisma.nppPurchase.findFirst({
+          where: { userId: ordererUserId, status: { notIn: ['CANCELLED'] } },
+          include: { package: true, items: true },
+          orderBy: { createdAt: 'desc' },
+        });
+        if (!nppPurchase || !nppPurchase.package) {
+          return res.status(400).json({ success: false, message: 'Bạn chưa có gói Combo NPP hợp lệ.' });
+        }
+        const requiredQty = nppPurchase.package.requiredQuantity || (nppPurchase.items && nppPurchase.items.length > 0 ? nppPurchase.items.reduce((s, i) => s + i.quantity, 0) : 5);
+        const totalOrderQty = items.reduce((sum, item) => sum + (parseInt(item.qty, 10) || 1), 0);
+        if (totalOrderQty !== requiredQty) {
+          return res.status(400).json({
+            success: false,
+            message: `Gói Combo NPP yêu cầu chọn đúng ${requiredQty} máy (Hiện tại đã chọn: ${totalOrderQty} máy).`
+          });
+        }
+        appliedDiscountBps = nppPurchase.package.defaultDiscount || 3500;
         nppDiscountLabel = nppPurchase.package.name + ' (-' + (appliedDiscountBps / 100) + '%)';
+      } else {
+        // 🛍️ Mua lẻ cho chính mình: CTV/NPP được giảm 20% đơn hàng cho chính mình suốt đời
+        appliedDiscountBps = 2000;
+        nppDiscountLabel = 'Chiết khấu tự mua CTV (-20%)';
       }
     }
 
@@ -7413,49 +7434,41 @@ app.get('/api/npp/my-combo', authenticateToken, async (req, res) => {
     const pkg = purchase.package;
     const discountBps = pkg.defaultDiscount || 0;
     const discountPercent = discountBps / 100;
-    
-    // Build combo items from purchase items
-    const comboItems = (purchase.items || []).map(item => {
-      const price = Number(item.unitPrice);
+    const requiredQuantity = pkg.requiredQuantity || (purchase.items && purchase.items.length > 0 ? purchase.items.reduce((s, i) => s + i.quantity, 0) : 5);
+
+    // Lấy tất cả sản phẩm máy trong danh mục để NPP tự do lựa chọn cho gói combo
+    const allProducts = await prisma.product.findMany({
+      where: { price: { gt: 0 } },
+      orderBy: { price: 'desc' }
+    });
+
+    const availableProducts = allProducts.map(p => {
+      const price = Number(p.price);
       const discountedPrice = discountBps > 0 ? Math.round(price * (10000 - discountBps) / 10000) : price;
       return {
-        productId: item.productId,
-        productName: item.productName || (item.product ? item.product.title : 'Unknown'),
+        productId: p.id,
+        productName: p.title,
         price,
         discountedPrice,
-        originalQty: item.quantity,
+        commissionPoints: p.commissionPoints || 0,
       };
     });
     
-    // If no items in purchase, fall back to all products (for CAPITAL packages)
-    if (comboItems.length === 0) {
-      const allProducts = await prisma.product.findMany({ where: { price: { gt: 0 } } });
-      for (const p of allProducts) {
-        const price = Number(p.price);
-        const discountedPrice = discountBps > 0 ? Math.round(price * (10000 - discountBps) / 10000) : price;
-        comboItems.push({
-          productId: p.id,
-          productName: p.title,
-          price,
-          discountedPrice,
-          originalQty: 0,
-        });
-      }
-    }
-    
     res.json({
       success: true,
-      hasCombo: comboItems.length > 0 && discountBps > 0,
+      hasCombo: availableProducts.length > 0 && discountBps > 0,
       combo: {
         packageCode: pkg.code,
         packageName: pkg.name,
         packageType: pkg.packageType,
+        requiredQuantity,
         discountBps,
         discountPercent,
         assignedRank: pkg.assignedRank,
         purchaseCode: purchase.code,
         purchaseStatus: purchase.status,
-        items: comboItems,
+        availableProducts,
+        items: availableProducts,
       },
     });
   } catch (e) {

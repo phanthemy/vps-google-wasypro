@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, ShoppingCart, User, Package, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
+import { X, ShoppingCart, User, Package, Loader2, CheckCircle, AlertCircle, Plus, Minus, Info } from 'lucide-react';
 
 function getCsrfToken() {
   const m = document.cookie.match(/(?:^|;\s*)csrf_token=([^;]*)/);
@@ -7,8 +7,7 @@ function getCsrfToken() {
 }
 
 export default function CreateOrderModal({ currentUser, onClose, onSuccess }) {
-  const [step, setStep] = useState(1); // 1=subject, 2=product, 3=confirm
-  const [purchaseSubject, setPurchaseSubject] = useState('SELF');
+  const [purchaseSubject, setPurchaseSubject] = useState('SELF'); // 'SELF' | 'CUSTOMER'
   const [customers, setCustomers] = useState([]);
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [showNewCustomerForm, setShowNewCustomerForm] = useState(false);
@@ -16,6 +15,7 @@ export default function CreateOrderModal({ currentUser, onClose, onSuccess }) {
   const [newCustPhone, setNewCustPhone] = useState('');
   const [newCustJoinCTV, setNewCustJoinCTV] = useState(false);
   const [creatingCustomer, setCreatingCustomer] = useState(false);
+
   const [products, setProducts] = useState([]);
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [qty, setQty] = useState(1);
@@ -24,67 +24,63 @@ export default function CreateOrderModal({ currentUser, onClose, onSuccess }) {
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(false);
   const [customerSearch, setCustomerSearch] = useState('');
-  // NPP Pricing
-  const [pricingMode, setPricingMode] = useState('RETAIL'); // 'RETAIL' | 'NPP' | 'COMBO'
-  const [nppDiscount, setNppDiscount] = useState(null); // { rateBps, ratePercent, packageName }
-  const [nppCombo, setNppCombo] = useState(null); // { packageName, discountPercent, items: [...] }
-  const [comboItems, setComboItems] = useState([]); // [{ productId, qty }] for combo mode
+
+  // NPP Pricing Modes: 'COMBO' | 'RETAIL'
+  const [pricingMode, setPricingMode] = useState('RETAIL');
+  const [nppCombo, setNppCombo] = useState(null); // { packageName, discountPercent, requiredQuantity, availableProducts: [...] }
+  const [comboItems, setComboItems] = useState([]); // [{ productId, productName, price, discountedPrice, qty }]
 
   // Shipping info
   const [shippingAddress, setShippingAddress] = useState('');
-  const [recipientPhone, setRecipientPhone] = useState('');
+  const [recipientPhone, setRecipientPhone] = useState(currentUser?.phone || '');
   const [recipientEmail, setRecipientEmail] = useState('');
   const [contactHotline, setContactHotline] = useState('');
 
-  // Load NPP discount + combo info if user has nppRank
+  // Check if current user is an active NPP
+  const isNppUser = !!(currentUser?.nppRank || currentUser?.nppStatus === 'ACTIVE' || currentUser?.isNpp);
+
+  // Load NPP combo info
   useEffect(() => {
-    if (currentUser?.nppRank) {
-      // Fetch discount info
-      fetch('/api/npp/my-discount', { credentials: 'include' })
-        .then(r => r.json())
-        .then(data => {
-          if (data.success && data.hasDiscount) {
-            setNppDiscount(data.discount);
-          }
-        })
-        .catch(() => {});
-      // Fetch combo package info
+    if (isNppUser) {
       fetch('/api/npp/my-combo', { credentials: 'include' })
         .then(r => r.json())
         .then(data => {
           if (data.success && data.hasCombo) {
             setNppCombo(data.combo);
-            // Default to combo mode for NPP users with combo package
-            setPricingMode('COMBO');
-            // Pre-fill combo items with original quantities
-            setComboItems(data.combo.items.map(item => ({
-              productId: item.productId,
-              productName: item.productName,
-              price: item.price,
-              discountedPrice: item.discountedPrice,
-              qty: item.originalQty,
+            // Default to COMBO mode when buying for SELF as NPP
+            if (purchaseSubject === 'SELF') {
+              setPricingMode('COMBO');
+            }
+            const prods = data.combo.availableProducts || data.combo.items || [];
+            setComboItems(prods.map(p => ({
+              productId: p.productId,
+              productName: p.productName,
+              price: p.price,
+              discountedPrice: p.discountedPrice,
+              qty: 0,
             })));
-          } else if (data.success) {
-            // No combo, use NPP discount if available
-            setPricingMode('NPP');
           }
         })
         .catch(() => {});
     }
-  }, [currentUser]);
+  }, [currentUser, isNppUser]);
 
-  // Load products
+  // Load products list for retail selection
   useEffect(() => {
     fetch('/api/products', { credentials: 'include' })
       .then(r => r.json())
       .then(data => {
         const list = Array.isArray(data) ? data : (data.data || []);
-        setProducts(list.filter(p => p.price > 0));
+        const filtered = list.filter(p => p.price > 0);
+        setProducts(filtered);
+        if (filtered.length > 0 && !selectedProduct) {
+          setSelectedProduct(filtered[0]);
+        }
       })
       .catch(() => {});
   }, []);
 
-  // Load customers when CUSTOMER mode
+  // Load customers when CUSTOMER mode is active
   useEffect(() => {
     if (purchaseSubject === 'CUSTOMER') {
       setLoading(true);
@@ -99,6 +95,28 @@ export default function CreateOrderModal({ currentUser, onClose, onSuccess }) {
     }
   }, [purchaseSubject]);
 
+  // Switch between SELF and CUSTOMER tabs
+  const handleSelectSelf = () => {
+    setPurchaseSubject('SELF');
+    setSelectedCustomer(null);
+    setRecipientPhone(currentUser?.phone || '');
+    if (nppCombo) {
+      setPricingMode('COMBO');
+    } else {
+      setPricingMode('RETAIL');
+    }
+  };
+
+  const handleSelectCustomer = () => {
+    setPurchaseSubject('CUSTOMER');
+    setPricingMode('RETAIL'); // Customers always buy RETAIL
+    if (selectedCustomer) {
+      setRecipientPhone(selectedCustomer.phone || '');
+    } else {
+      setRecipientPhone('');
+    }
+  };
+
   const filteredCustomers = customers.filter(c => {
     if (!customerSearch) return true;
     const q = customerSearch.toLowerCase();
@@ -106,22 +124,60 @@ export default function CreateOrderModal({ currentUser, onClose, onSuccess }) {
            (c.phone || '').toLowerCase().includes(q);
   });
 
+  // COMBO Calculations
+  const requiredComboQty = nppCombo?.requiredQuantity || 5;
+  const totalComboQty = comboItems.reduce((s, ci) => s + (ci.qty || 0), 0);
+  const isComboQtyValid = totalComboQty === requiredComboQty;
+  const comboRetailTotal = comboItems.reduce((sum, ci) => sum + ci.price * (ci.qty || 0), 0);
+  const comboTotal = comboItems.reduce((sum, ci) => sum + ci.discountedPrice * (ci.qty || 0), 0);
+  const comboDiscountAmount = comboRetailTotal - comboTotal;
+
+  // RETAIL Calculations
+  const retailProductPrice = selectedProduct ? selectedProduct.price : 0;
+  const retailRawTotal = retailProductPrice * qty;
+  // If SELF in RETAIL mode -> 20% lifetime self-buy discount for CTV/NPP
+  const isSelfRetailDiscount = purchaseSubject === 'SELF' && pricingMode === 'RETAIL';
+  const selfDiscountAmount = isSelfRetailDiscount ? Math.round(retailRawTotal * 0.2) : 0;
+  const retailNetTotal = retailRawTotal - selfDiscountAmount;
+
+  // Expected CTV commission for Customer purchases
+  const ctvRank = currentUser?.rank || 'AMBASSADOR';
+  const ctvRate = ctvRank === 'DIRECTOR' ? 0.3 : (ctvRank === 'MANAGER' ? 0.25 : 0.2);
+  const ctvRankTitle = ctvRank === 'DIRECTOR' ? 'Giám Đốc (30%)' : (ctvRank === 'MANAGER' ? 'Quản Lý (25%)' : 'Đại Sứ (20%)');
+  const totalCP = selectedProduct ? (selectedProduct.commissionPoints || 0) * qty : 0;
+  const expectedCommission = Math.round(totalCP * ctvRate * 1000);
+
+  // Final total amount depending on active mode
+  const totalAmount = (purchaseSubject === 'SELF' && pricingMode === 'COMBO') ? comboTotal : retailNetTotal;
+
   const handleSubmit = async () => {
     setSubmitting(true);
     setError(null);
     try {
-      // Validate shipping fields
-      // Validate combo items
-      if (pricingMode === 'COMBO' && comboItems.every(ci => ci.qty <= 0)) {
-        setError('Vui lòng chọn ít nhất 1 sản phẩm trong combo.');
+      // Validate customer in CUSTOMER mode
+      if (purchaseSubject === 'CUSTOMER' && !selectedCustomer) {
+        setError('Vui lòng chọn khách hàng.');
         setSubmitting(false);
         return;
       }
+
+      // Validate COMBO quantity in COMBO mode
+      if (purchaseSubject === 'SELF' && pricingMode === 'COMBO') {
+        if (!isComboQtyValid) {
+          setError(`Vui lòng chọn đúng ${requiredComboQty} máy cho gói combo (Hiện tại đã chọn: ${totalComboQty} máy).`);
+          setSubmitting(false);
+          return;
+        }
+      }
+
+      // Validate selected product in RETAIL mode
       if (pricingMode !== 'COMBO' && !selectedProduct) {
         setError('Vui lòng chọn sản phẩm.');
         setSubmitting(false);
         return;
       }
+
+      // Validate recipient info
       if (!recipientPhone.trim()) {
         setError('Vui lòng nhập số điện thoại người nhận.');
         setSubmitting(false);
@@ -135,8 +191,8 @@ export default function CreateOrderModal({ currentUser, onClose, onSuccess }) {
 
       const body = {
         purchaseSubject,
-        pricingMode: pricingMode,
-        items: pricingMode === 'COMBO'
+        pricingMode: purchaseSubject === 'CUSTOMER' ? 'RETAIL' : pricingMode,
+        items: (purchaseSubject === 'SELF' && pricingMode === 'COMBO')
           ? comboItems.filter(ci => ci.qty > 0).map(ci => ({ productId: ci.productId, qty: ci.qty }))
           : [{ productId: selectedProduct.id, qty }],
         shippingAddress: shippingAddress.trim(),
@@ -144,6 +200,7 @@ export default function CreateOrderModal({ currentUser, onClose, onSuccess }) {
         recipientEmail: recipientEmail.trim() || null,
         contactHotline: contactHotline.trim() || null,
       };
+
       if (purchaseSubject === 'CUSTOMER' && selectedCustomer) {
         body.customerId = selectedCustomer.id;
       }
@@ -172,20 +229,13 @@ export default function CreateOrderModal({ currentUser, onClose, onSuccess }) {
     }
   };
 
-  const discountRate = (pricingMode === 'NPP' || pricingMode === 'COMBO') && nppDiscount ? nppDiscount.rateBps : 0;
-  const retailTotal = selectedProduct ? selectedProduct.price * qty : 0;
-  const comboTotal = pricingMode === 'COMBO' ? comboItems.reduce((sum, ci) => sum + ci.discountedPrice * ci.qty, 0) : 0;
-  const comboRetailTotal = pricingMode === 'COMBO' ? comboItems.reduce((sum, ci) => sum + ci.price * ci.qty, 0) : 0;
-  const totalAmount = pricingMode === 'COMBO' ? comboTotal : (discountRate > 0 ? Math.round(retailTotal * (10000 - discountRate) / 10000) : retailTotal);
-  const totalCP = selectedProduct ? (selectedProduct.commissionPoints || 0) * qty : 0;
-
   if (success) {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.5)' }}>
-        <div className="bg-white rounded-2xl p-8 max-w-md w-full text-center animate-fadeIn">
+        <div className="bg-white rounded-2xl p-8 max-w-md w-full text-center animate-fadeIn shadow-2xl">
           <CheckCircle size={56} className="mx-auto mb-4" style={{ color: '#10b981' }} />
           <h3 className="text-xl font-extrabold" style={{ color: '#065f46' }}>Tạo Đơn Thành Công!</h3>
-          <p className="text-sm mt-2" style={{ color: '#64748b' }}>Đơn hàng đã được ghi nhận và tính hoa hồng.</p>
+          <p className="text-sm mt-2" style={{ color: '#64748b' }}>Đơn hàng đã được lưu và gửi tới hệ thống xử lý.</p>
         </div>
       </div>
     );
@@ -200,7 +250,7 @@ export default function CreateOrderModal({ currentUser, onClose, onSuccess }) {
             <ShoppingCart size={20} style={{ color: '#6366f1' }} />
             <h2 className="text-lg font-extrabold" style={{ color: '#1e293b' }}>Tạo Đơn Hàng</h2>
           </div>
-          <button onClick={onClose} className="p-1 rounded-lg hover:bg-gray-100">
+          <button onClick={onClose} className="p-1 rounded-lg hover:bg-gray-100 transition-colors">
             <X size={20} style={{ color: '#94a3b8' }} />
           </button>
         </div>
@@ -213,12 +263,13 @@ export default function CreateOrderModal({ currentUser, onClose, onSuccess }) {
             </div>
           )}
 
-          {/* STEP 1: Purchase Subject */}
+          {/* STEP 1: MUA CHO (Chính Mình vs Khách Hàng) */}
           <div>
             <label className="text-xs font-bold uppercase tracking-wider" style={{ color: '#64748b' }}>Mua cho</label>
             <div className="flex gap-2 mt-2">
               <button
-                onClick={() => { setPurchaseSubject('SELF'); setSelectedCustomer(null); }}
+                type="button"
+                onClick={handleSelectSelf}
                 className="flex-1 py-3 rounded-xl font-bold text-sm transition-all"
                 style={{
                   background: purchaseSubject === 'SELF' ? '#ede9fe' : '#f8fafc',
@@ -229,7 +280,8 @@ export default function CreateOrderModal({ currentUser, onClose, onSuccess }) {
                 🛒 Chính Mình
               </button>
               <button
-                onClick={() => setPurchaseSubject('CUSTOMER')}
+                type="button"
+                onClick={handleSelectCustomer}
                 className="flex-1 py-3 rounded-xl font-bold text-sm transition-all"
                 style={{
                   background: purchaseSubject === 'CUSTOMER' ? '#dbeafe' : '#f8fafc',
@@ -242,375 +294,562 @@ export default function CreateOrderModal({ currentUser, onClose, onSuccess }) {
             </div>
           </div>
 
-          {/* Customer Selection (if CUSTOMER) */}
-          {purchaseSubject === 'CUSTOMER' && (
+          {/* CHẾ ĐỘ MUA HÀNG CHO NPP: CHỈ HIỂN THỊ KHI CHỌN "CHÍNH MÌNH" VÀ LÀ NPP CÓ COMBO */}
+          {purchaseSubject === 'SELF' && nppCombo && (
             <div>
-              <label className="text-xs font-bold uppercase tracking-wider" style={{ color: '#64748b' }}>Chọn Khách Hàng</label>
-              <input
-                type="text"
-                placeholder="🔎 Tìm tên hoặc SĐT..."
-                value={customerSearch}
-                onChange={e => setCustomerSearch(e.target.value)}
-                className="w-full mt-2 p-2.5 rounded-xl text-sm"
-                style={{ border: '1px solid #e2e8f0' }}
-              />
-              {loading ? (
-                <div className="flex items-center justify-center py-4">
-                  <Loader2 size={20} className="animate-spin" style={{ color: '#94a3b8' }} />
-                </div>
-              ) : null}
-
-              {/* Danh sách khách hàng - luôn hiển thị nếu có kết quả */}
-              {!loading && filteredCustomers.length > 0 && (
-                <div className="mt-2 max-h-40 overflow-y-auto rounded-xl" style={{ border: '1px solid #e2e8f0' }}>
-                  {filteredCustomers.map(c => (
-                    <button
-                      key={c.id}
-                      onClick={() => setSelectedCustomer(c)}
-                      className="w-full flex items-center gap-2 p-2.5 text-left hover:bg-blue-50 transition-colors text-sm"
-                      style={{
-                        background: selectedCustomer?.id === c.id ? '#dbeafe' : 'transparent',
-                        borderBottom: '1px solid #f1f5f9',
-                      }}
-                    >
-                      <User size={14} style={{ color: '#6366f1' }} />
-                      <div>
-                        <div className="font-bold" style={{ color: '#1e293b' }}>{c.fullName}</div>
-                        <div className="text-xs" style={{ color: '#94a3b8' }}>{c.phone}</div>
-                      </div>
-                      {selectedCustomer?.id === c.id && <CheckCircle size={14} style={{ color: '#10b981', marginLeft: 'auto' }} />}
-                    </button>
-                  ))}
-                </div>
-              )}
-              {!loading && filteredCustomers.length === 0 && customerSearch.trim() && (
-                <div className="mt-2 text-sm text-center py-2" style={{ color: '#94a3b8' }}>Không tìm thấy khách hàng</div>
-              )}
-
-              {/* Tạo khách mới - LUÔN HIỆN khi ở chế độ CUSTOMER */}
-              {!loading && (!showNewCustomerForm ? (
+              <label className="text-xs font-bold uppercase tracking-wider" style={{ color: '#64748b' }}>Chế Độ Mua Hàng NPP</label>
+              <div className="flex gap-2 mt-2">
                 <button
-                  onClick={() => { setShowNewCustomerForm(true); setNewCustName(customerSearch); }}
-                  className="mt-2 w-full px-4 py-2 rounded-xl text-sm font-bold transition-all"
-                  style={{ background: '#f0f0ff', color: '#6366f1', border: '1.5px dashed #6366f1' }}
+                  type="button"
+                  onClick={() => setPricingMode('COMBO')}
+                  className="flex-1 py-2.5 rounded-xl font-bold text-sm transition-all"
+                  style={{
+                    background: pricingMode === 'COMBO' ? '#dbeafe' : '#f8fafc',
+                    color: pricingMode === 'COMBO' ? '#1e40af' : '#64748b',
+                    border: pricingMode === 'COMBO' ? '2px solid #3b82f6' : '1px solid #e2e8f0',
+                  }}
                 >
-                  + Tạo Khách Mới
+                  📦 Combo NPP ({requiredComboQty} máy)
                 </button>
-              ) : (
-                <div className="mt-2 text-left space-y-2 p-3 rounded-xl" style={{ background: '#f8fafc', border: '1px solid #e2e8f0' }}>
-                  <div className="text-xs font-bold uppercase" style={{ color: '#6366f1' }}>Tạo Khách Hàng Mới</div>
-                  <input
-                    type="text"
-                    placeholder="Họ tên khách"
-                    value={newCustName}
-                    onChange={e => setNewCustName(e.target.value)}
-                    className="w-full px-3 py-2 rounded-lg text-sm"
-                    style={{ border: '1px solid #e2e8f0' }}
-                  />
-                  <input
-                    type="tel"
-                    placeholder="Số điện thoại"
-                    value={newCustPhone}
-                    onChange={e => setNewCustPhone(e.target.value)}
-                    className="w-full px-3 py-2 rounded-lg text-sm"
-                    style={{ border: '1px solid #e2e8f0' }}
-                  />
-                  <label className="flex items-center gap-2 text-sm cursor-pointer py-1">
-                    <input
-                      type="checkbox"
-                      checked={newCustJoinCTV}
-                      onChange={e => setNewCustJoinCTV(e.target.checked)}
-                      className="w-4 h-4 accent-indigo-500"
-                    />
-                    <span style={{ color: '#475569' }}>Tham gia CTV (tạo tài khoản đối tác)</span>
-                  </label>
-                  <div className="flex gap-2">
-                    <button
-                      disabled={creatingCustomer || !newCustName.trim() || !newCustPhone.trim()}
-                      onClick={async () => {
-                        setCreatingCustomer(true);
-                        try {
-                          const csrf = document.cookie.match(/csrf_token=([^;]*)/)?.[1] || '';
-                          const r = await fetch('/api/ctv/customers', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrf },
-                            credentials: 'include',
-                            body: JSON.stringify({ fullName: newCustName.trim(), phone: newCustPhone.trim(), joinCTV: newCustJoinCTV }),
-                          }).then(r => r.json());
-                          if (r.success) {
-                            setSelectedCustomer(r.customer);
-                            setShowNewCustomerForm(false);
-                            setNewCustName(''); setNewCustPhone(''); setNewCustJoinCTV(false);
-                            setCustomerSearch('');
-                            const listRes = await fetch('/api/customers', { credentials: 'include' }).then(r => r.json());
-                            if (listRes.success) setCustomers(listRes.data);
-                            alert(r.message + (r.user ? '\nUser ID: ' + r.user.userId : ''));
-                          } else { alert('Lỗi: ' + r.message); }
-                        } catch(e) { alert('Lỗi kết nối'); }
-                        setCreatingCustomer(false);
-                      }}
-                      className="flex-1 py-2 rounded-lg text-sm font-bold text-white transition-all"
-                      style={{ background: creatingCustomer || !newCustName.trim() || !newCustPhone.trim() ? '#cbd5e1' : '#10b981' }}
-                    >
-                      {creatingCustomer ? '⏳ Đang tạo...' : '✅ Tạo'}
-                    </button>
-                    <button
-                      onClick={() => setShowNewCustomerForm(false)}
-                      className="px-4 py-2 rounded-lg text-sm font-bold"
-                      style={{ background: '#f1f5f9', color: '#64748b' }}
-                    >
-                      Hủy
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* PRICING MODE — for NPP users with combo or discount */}
-          {(nppCombo || nppDiscount) && (
-            <div>
-              <label className="text-xs font-bold uppercase tracking-wider" style={{ color: '#64748b' }}>Chế Độ Mua Hàng</label>
-              <div className="flex gap-2 mt-2 flex-wrap">
-                {nppCombo && (
-                  <button
-                    onClick={() => setPricingMode('COMBO')}
-                    className="flex-1 py-2.5 rounded-xl font-bold text-sm transition-all min-w-[120px]"
-                    style={{
-                      background: pricingMode === 'COMBO' ? '#dbeafe' : '#f8fafc',
-                      color: pricingMode === 'COMBO' ? '#1e40af' : '#64748b',
-                      border: pricingMode === 'COMBO' ? '2px solid #3b82f6' : '1px solid #e2e8f0',
-                    }}
-                  >
-                    📦 Combo NPP
-                  </button>
-                )}
-                {nppDiscount && (
-                  <button
-                    onClick={() => setPricingMode('NPP')}
-                    className="flex-1 py-2.5 rounded-xl font-bold text-sm transition-all min-w-[120px]"
-                    style={{
-                      background: pricingMode === 'NPP' ? '#dcfce7' : '#f8fafc',
-                      color: pricingMode === 'NPP' ? '#166534' : '#64748b',
-                      border: pricingMode === 'NPP' ? '2px solid #22c55e' : '1px solid #e2e8f0',
-                    }}
-                  >
-                    🏷️ Mua Lẻ CK (-{nppDiscount.ratePercent}%)
-                  </button>
-                )}
                 <button
+                  type="button"
                   onClick={() => setPricingMode('RETAIL')}
-                  className="flex-1 py-2.5 rounded-xl font-bold text-sm transition-all min-w-[120px]"
+                  className="flex-1 py-2.5 rounded-xl font-bold text-sm transition-all"
                   style={{
                     background: pricingMode === 'RETAIL' ? '#fef3c7' : '#f8fafc',
                     color: pricingMode === 'RETAIL' ? '#92400e' : '#64748b',
                     border: pricingMode === 'RETAIL' ? '2px solid #f59e0b' : '1px solid #e2e8f0',
                   }}
                 >
-                  💰 Giá Retail
+                  🛍️ Mua Lẻ (Giảm 20%)
                 </button>
               </div>
-              {pricingMode === 'COMBO' && nppCombo && (
-                <p className="text-xs mt-1.5 font-medium" style={{ color: '#2563eb' }}>
-                  📦 {nppCombo.packageName} — CK {nppCombo.discountPercent}% — Chọn sản phẩm và số lượng bên dưới
-                </p>
-              )}
-              {pricingMode === 'NPP' && nppDiscount && (
-                <p className="text-xs mt-1.5 font-medium" style={{ color: '#16a34a' }}>
-                  Gói: {nppDiscount.packageName} — Chiết khấu {nppDiscount.ratePercent}%
-                </p>
-              )}
             </div>
           )}
 
-          {/* COMBO MODE: Product selection from combo package */}
-          {pricingMode === 'COMBO' && nppCombo && (
-            <div>
-              <label className="text-xs font-bold uppercase tracking-wider" style={{ color: '#64748b' }}>Sản Phẩm Combo — {nppCombo.packageName}</label>
-              <div className="mt-2 rounded-xl overflow-hidden" style={{ border: '1px solid #bfdbfe' }}>
-                {comboItems.map((ci, idx) => (
-                  <div key={ci.productId} className="flex items-center justify-between p-3" style={{ borderBottom: idx < comboItems.length - 1 ? '1px solid #f1f5f9' : 'none', background: ci.qty > 0 ? '#eff6ff' : 'transparent' }}>
-                    <div className="flex-1 min-w-0">
-                      <div className="font-bold text-sm" style={{ color: '#1e293b' }}>{ci.productName}</div>
-                      <div className="flex items-center gap-2 mt-0.5">
-                        <span className="text-xs line-through" style={{ color: '#94a3b8' }}>{new Intl.NumberFormat('vi-VN').format(ci.price)}đ</span>
-                        <span className="text-xs font-bold" style={{ color: '#16a34a' }}>{new Intl.NumberFormat('vi-VN').format(ci.discountedPrice)}đ</span>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-1 ml-2">
-                      <button onClick={() => { const next = [...comboItems]; next[idx] = {...next[idx], qty: Math.max(0, next[idx].qty - 1)}; setComboItems(next); }} className="w-7 h-7 rounded-lg flex items-center justify-center text-sm font-bold" style={{ background: '#e2e8f0', color: '#475569' }}>−</button>
-                      <span className="w-8 text-center font-bold text-sm">{ci.qty}</span>
-                      <button onClick={() => { const next = [...comboItems]; next[idx] = {...next[idx], qty: next[idx].qty + 1}; setComboItems(next); }} className="w-7 h-7 rounded-lg flex items-center justify-center text-sm font-bold" style={{ background: '#3b82f6', color: '#fff' }}>+</button>
+          {/* ========================================================================= */}
+          {/* TRƯỜNG HỢP 1: MUA CHO KHÁCH HÀNG (Tab Khách Hàng)                         */}
+          {/* ========================================================================= */}
+          {purchaseSubject === 'CUSTOMER' && (
+            <div className="space-y-4">
+              {/* Chọn khách hàng */}
+              <div>
+                <label className="text-xs font-bold uppercase tracking-wider" style={{ color: '#64748b' }}>Chọn Khách Hàng</label>
+                <input
+                  type="text"
+                  placeholder="🔎 Tìm tên hoặc SĐT khách..."
+                  value={customerSearch}
+                  onChange={e => setCustomerSearch(e.target.value)}
+                  className="w-full mt-2 p-2.5 rounded-xl text-sm"
+                  style={{ border: '1px solid #e2e8f0' }}
+                />
+                {loading && (
+                  <div className="flex items-center justify-center py-4">
+                    <Loader2 size={20} className="animate-spin" style={{ color: '#94a3b8' }} />
+                  </div>
+                )}
+
+                {/* Danh sách khách hàng */}
+                {!loading && filteredCustomers.length > 0 && (
+                  <div className="mt-2 max-h-40 overflow-y-auto rounded-xl" style={{ border: '1px solid #e2e8f0' }}>
+                    {filteredCustomers.map(c => (
+                      <button
+                        key={c.id}
+                        type="button"
+                        onClick={() => {
+                          setSelectedCustomer(c);
+                          if (c.phone) setRecipientPhone(c.phone);
+                        }}
+                        className="w-full flex items-center gap-2 p-2.5 text-left hover:bg-blue-50 transition-colors text-sm"
+                        style={{
+                          background: selectedCustomer?.id === c.id ? '#dbeafe' : 'transparent',
+                          borderBottom: '1px solid #f1f5f9',
+                        }}
+                      >
+                        <User size={14} style={{ color: '#6366f1' }} />
+                        <div className="flex-1">
+                          <div className="font-bold" style={{ color: '#1e293b' }}>{c.fullName}</div>
+                          <div className="text-xs" style={{ color: '#94a3b8' }}>{c.phone}</div>
+                        </div>
+                        {selectedCustomer?.id === c.id && <CheckCircle size={14} style={{ color: '#10b981' }} />}
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {!loading && filteredCustomers.length === 0 && customerSearch.trim() && (
+                  <div className="mt-2 text-sm text-center py-2" style={{ color: '#94a3b8' }}>Không tìm thấy khách hàng</div>
+                )}
+
+                {/* Nút Tạo Khách Mới */}
+                {!loading && (!showNewCustomerForm ? (
+                  <button
+                    type="button"
+                    onClick={() => { setShowNewCustomerForm(true); setNewCustName(customerSearch); }}
+                    className="mt-2 w-full px-4 py-2 rounded-xl text-sm font-bold transition-all"
+                    style={{ background: '#f0f0ff', color: '#6366f1', border: '1.5px dashed #6366f1' }}
+                  >
+                    + Tạo Khách Mới
+                  </button>
+                ) : (
+                  <div className="mt-2 text-left space-y-2 p-3 rounded-xl" style={{ background: '#f8fafc', border: '1px solid #e2e8f0' }}>
+                    <div className="text-xs font-bold uppercase" style={{ color: '#6366f1' }}>Tạo Khách Hàng Mới</div>
+                    <input
+                      type="text"
+                      placeholder="Họ tên khách"
+                      value={newCustName}
+                      onChange={e => setNewCustName(e.target.value)}
+                      className="w-full px-3 py-2 rounded-lg text-sm"
+                      style={{ border: '1px solid #e2e8f0' }}
+                    />
+                    <input
+                      type="tel"
+                      placeholder="Số điện thoại"
+                      value={newCustPhone}
+                      onChange={e => setNewCustPhone(e.target.value)}
+                      className="w-full px-3 py-2 rounded-lg text-sm"
+                      style={{ border: '1px solid #e2e8f0' }}
+                    />
+                    <label className="flex items-center gap-2 text-sm cursor-pointer py-1">
+                      <input
+                        type="checkbox"
+                        checked={newCustJoinCTV}
+                        onChange={e => setNewCustJoinCTV(e.target.checked)}
+                        className="w-4 h-4 accent-indigo-500"
+                      />
+                      <span style={{ color: '#475569' }}>Tham gia CTV (tạo tài khoản đối tác)</span>
+                    </label>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        disabled={creatingCustomer || !newCustName.trim() || !newCustPhone.trim()}
+                        onClick={async () => {
+                          setCreatingCustomer(true);
+                          try {
+                            const csrf = getCsrfToken();
+                            const r = await fetch('/api/ctv/customers', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrf },
+                              credentials: 'include',
+                              body: JSON.stringify({ fullName: newCustName.trim(), phone: newCustPhone.trim(), joinCTV: newCustJoinCTV }),
+                            }).then(res => res.json());
+                            if (r.success) {
+                              setSelectedCustomer(r.customer);
+                              setRecipientPhone(r.customer.phone || newCustPhone.trim());
+                              setShowNewCustomerForm(false);
+                              setNewCustName(''); setNewCustPhone(''); setNewCustJoinCTV(false);
+                              setCustomerSearch('');
+                              const listRes = await fetch('/api/customers', { credentials: 'include' }).then(res => res.json());
+                              if (listRes.success) setCustomers(listRes.data);
+                            } else {
+                              alert('Lỗi: ' + r.message);
+                            }
+                          } catch {
+                            alert('Lỗi kết nối máy chủ');
+                          }
+                          setCreatingCustomer(false);
+                        }}
+                        className="flex-1 py-2 rounded-lg text-sm font-bold text-white transition-all"
+                        style={{ background: creatingCustomer || !newCustName.trim() || !newCustPhone.trim() ? '#cbd5e1' : '#10b981' }}
+                      >
+                        {creatingCustomer ? '⏳ Đang tạo...' : '✅ Tạo'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setShowNewCustomerForm(false)}
+                        className="px-4 py-2 rounded-lg text-sm font-bold"
+                        style={{ background: '#f1f5f9', color: '#64748b' }}
+                      >
+                        Hủy
+                      </button>
                     </div>
                   </div>
                 ))}
               </div>
-              {comboItems.some(ci => ci.qty > 0) && (
-                <div className="mt-2 p-3 rounded-xl" style={{ background: '#eff6ff', border: '1px solid #bfdbfe' }}>
-                  <div className="flex justify-between text-xs" style={{ color: '#64748b' }}>
-                    <span>Tổng SL: {comboItems.reduce((s, ci) => s + ci.qty, 0)} sản phẩm</span>
-                    <span>Giá gốc: <span className="line-through">{new Intl.NumberFormat('vi-VN').format(comboRetailTotal)}đ</span></span>
-                  </div>
-                  <div className="flex justify-between mt-1">
-                    <span className="text-xs font-bold" style={{ color: '#16a34a' }}>CK {nppCombo.discountPercent}%: -{new Intl.NumberFormat('vi-VN').format(comboRetailTotal - comboTotal)}đ</span>
-                    <span className="font-extrabold text-sm" style={{ color: '#059669' }}>{new Intl.NumberFormat('vi-VN').format(comboTotal)}đ</span>
+
+              {/* Thông báo chính sách bán khách */}
+              <div className="p-3 rounded-xl flex items-start gap-2" style={{ background: '#f0fdf4', border: '1px solid #bbf7d0' }}>
+                <Info size={16} className="mt-0.5 flex-shrink-0" style={{ color: '#16a34a' }} />
+                <div className="text-xs" style={{ color: '#166534' }}>
+                  <strong>Bán Cho Khách Lẻ:</strong> Đơn hàng tính theo <strong>Giá Niêm Yết</strong>. Bạn nhận hoa hồng trực tiếp theo cấp bậc CTV tương đương ({ctvRankTitle}).
+                </div>
+              </div>
+
+              {/* Chọn sản phẩm lẻ bán khách */}
+              <div>
+                <label className="text-xs font-bold uppercase tracking-wider" style={{ color: '#64748b' }}>Sản Phẩm</label>
+                <div className="mt-2 max-h-48 overflow-y-auto rounded-xl" style={{ border: '1px solid #e2e8f0' }}>
+                  {products.map(p => (
+                    <button
+                      key={p.id}
+                      type="button"
+                      onClick={() => setSelectedProduct(p)}
+                      className="w-full flex items-center justify-between p-3 text-left hover:bg-blue-50 transition-colors"
+                      style={{
+                        background: selectedProduct?.id === p.id ? '#eff6ff' : 'transparent',
+                        borderBottom: '1px solid #f1f5f9',
+                      }}
+                    >
+                      <div className="flex items-center gap-2">
+                        <Package size={16} style={{ color: '#3b82f6' }} />
+                        <div>
+                          <div className="font-bold text-sm" style={{ color: '#1e293b' }}>{p.title}</div>
+                          <div className="text-xs" style={{ color: '#94a3b8' }}>CP: {p.commissionPoints || 0}</div>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="font-extrabold text-sm" style={{ color: '#059669' }}>
+                          {new Intl.NumberFormat('vi-VN').format(p.price)}đ
+                        </div>
+                        {selectedProduct?.id === p.id && <CheckCircle size={14} className="ml-auto mt-1" style={{ color: '#10b981' }} />}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Số lượng */}
+              {selectedProduct && (
+                <div>
+                  <label className="text-xs font-bold uppercase tracking-wider" style={{ color: '#64748b' }}>Số Lượng</label>
+                  <div className="flex items-center gap-3 mt-2">
+                    <button
+                      type="button"
+                      onClick={() => setQty(Math.max(1, qty - 1))}
+                      className="w-10 h-10 rounded-xl font-bold text-lg"
+                      style={{ background: '#f1f5f9', color: '#475569', border: '1px solid #e2e8f0' }}
+                    >−</button>
+                    <input
+                      type="number"
+                      min="1"
+                      value={qty}
+                      onChange={e => setQty(Math.max(1, parseInt(e.target.value) || 1))}
+                      className="w-20 text-center py-2 rounded-xl font-bold"
+                      style={{ border: '1px solid #e2e8f0' }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setQty(qty + 1)}
+                      className="w-10 h-10 rounded-xl font-bold text-lg"
+                      style={{ background: '#f1f5f9', color: '#475569', border: '1px solid #e2e8f0' }}
+                    >+</button>
                   </div>
                 </div>
               )}
             </div>
           )}
 
-          {/* STEP 2: Product Selection (for NPP/RETAIL modes) */}
-          {pricingMode !== 'COMBO' && (<>
-          <div>
-            <label className="text-xs font-bold uppercase tracking-wider" style={{ color: '#64748b' }}>Sản Phẩm</label>
-            <div className="mt-2 max-h-48 overflow-y-auto rounded-xl" style={{ border: '1px solid #e2e8f0' }}>
-              {products.length === 0 ? (
-                <div className="p-3 text-center text-sm" style={{ color: '#94a3b8' }}>Đang tải sản phẩm...</div>
-              ) : products.map(p => (
-                <button
-                  key={p.id}
-                  onClick={() => setSelectedProduct(p)}
-                  className="w-full flex items-center justify-between p-3 text-left hover:bg-purple-50 transition-colors"
-                  style={{
-                    background: selectedProduct?.id === p.id ? '#f5f3ff' : 'transparent',
-                    borderBottom: '1px solid #f1f5f9',
-                  }}
-                >
-                  <div className="flex items-center gap-2">
-                    <Package size={16} style={{ color: '#8b5cf6' }} />
-                    <div>
-                      <div className="font-bold text-sm" style={{ color: '#1e293b' }}>{p.title}</div>
-                      <div className="text-xs" style={{ color: '#94a3b8' }}>
-                        CP: {p.commissionPoints || 0}
-                      </div>
+          {/* ========================================================================= */}
+          {/* TRƯỜNG HỢP 2: TỰ MUA — COMBO NPP (Được chọn tùy ý đúng số lượng gói)      */}
+          {/* ========================================================================= */}
+          {purchaseSubject === 'SELF' && pricingMode === 'COMBO' && nppCombo && (
+            <div className="space-y-3">
+              {/* Thẻ hướng dẫn & đếm số lượng */}
+              <div
+                className="p-3.5 rounded-xl transition-all"
+                style={{
+                  background: isComboQtyValid ? '#f0fdf4' : (totalComboQty < requiredComboQty ? '#fffbeb' : '#fef2f2'),
+                  border: isComboQtyValid ? '1.5px solid #86efac' : (totalComboQty < requiredComboQty ? '1.5px solid #fde68a' : '1.5px solid #fca5a5'),
+                }}
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-xs font-extrabold uppercase tracking-wide" style={{ color: '#1e3a8a' }}>
+                      📦 {nppCombo.packageName} (Chiết khấu -{nppCombo.discountPercent}%)
+                    </div>
+                    <div className="text-xs mt-0.5" style={{ color: '#64748b' }}>
+                      Chọn tùy ý các mẫu máy dưới đây, tổng đúng <strong>{requiredComboQty} máy</strong>.
                     </div>
                   </div>
                   <div className="text-right">
-                    {pricingMode === 'NPP' && discountRate > 0 ? (
-                      <>
-                        <div className="text-xs line-through" style={{ color: '#94a3b8' }}>
-                          {new Intl.NumberFormat('vi-VN').format(p.price)}đ
-                        </div>
-                        <div className="font-bold text-sm" style={{ color: '#16a34a' }}>
-                          {new Intl.NumberFormat('vi-VN').format(Math.round(p.price * (10000 - discountRate) / 10000))}đ
-                        </div>
-                      </>
-                    ) : (
-                      <div className="font-bold text-sm" style={{ color: '#059669' }}>
-                        {new Intl.NumberFormat('vi-VN').format(p.price)}đ
-                      </div>
-                    )}
-                    {selectedProduct?.id === p.id && <CheckCircle size={14} style={{ color: '#10b981' }} />}
+                    <span
+                      className="inline-block px-2.5 py-1 rounded-full text-xs font-black"
+                      style={{
+                        background: isComboQtyValid ? '#10b981' : (totalComboQty < requiredComboQty ? '#f59e0b' : '#ef4444'),
+                        color: '#fff',
+                      }}
+                    >
+                      {totalComboQty} / {requiredComboQty} máy
+                    </span>
                   </div>
-                </button>
-              ))}
-            </div>
-          </div>
+                </div>
 
-          {/* Quantity */}
-          {selectedProduct && (
-            <div>
-              <label className="text-xs font-bold uppercase tracking-wider" style={{ color: '#64748b' }}>Số Lượng</label>
-              <div className="flex items-center gap-3 mt-2">
-                <button
-                  onClick={() => setQty(Math.max(1, qty - 1))}
-                  className="w-10 h-10 rounded-xl font-bold text-lg"
-                  style={{ background: '#f1f5f9', color: '#475569', border: '1px solid #e2e8f0' }}
-                >−</button>
-                <input
-                  type="number"
-                  min="1"
-                  value={qty}
-                  onChange={e => setQty(Math.max(1, parseInt(e.target.value) || 1))}
-                  className="w-20 text-center py-2 rounded-xl font-bold"
-                  style={{ border: '1px solid #e2e8f0' }}
-                />
-                <button
-                  onClick={() => setQty(qty + 1)}
-                  className="w-10 h-10 rounded-xl font-bold text-lg"
-                  style={{ background: '#f1f5f9', color: '#475569', border: '1px solid #e2e8f0' }}
-                >+</button>
+                {/* Trạng thái nhắc nhở số lượng */}
+                <div className="mt-2 text-xs font-bold">
+                  {isComboQtyValid && (
+                    <span style={{ color: '#16a34a' }}>✅ Đã chọn chuẩn xác {requiredComboQty} máy. Sẵn sàng tạo đơn!</span>
+                  )}
+                  {totalComboQty < requiredComboQty && (
+                    <span style={{ color: '#b45309' }}>⏳ Vui lòng chọn thêm {requiredComboQty - totalComboQty} máy nữa để đủ gói.</span>
+                  )}
+                  {totalComboQty > requiredComboQty && (
+                    <span style={{ color: '#dc2626' }}>⚠️ Đang vượt quá {totalComboQty - requiredComboQty} máy so với gói {requiredComboQty} máy!</span>
+                  )}
+                </div>
+              </div>
+
+              {/* Danh sách máy để NPP tự do chọn */}
+              <div>
+                <label className="text-xs font-bold uppercase tracking-wider" style={{ color: '#64748b' }}>
+                  Danh Sách Các Loại Máy Lựa Chọn
+                </label>
+                <div className="mt-2 max-h-56 overflow-y-auto rounded-xl" style={{ border: '1px solid #bfdbfe' }}>
+                  {comboItems.map((ci, idx) => (
+                    <div
+                      key={ci.productId}
+                      className="flex items-center justify-between p-3 transition-colors"
+                      style={{
+                        borderBottom: idx < comboItems.length - 1 ? '1px solid #f1f5f9' : 'none',
+                        background: ci.qty > 0 ? '#eff6ff' : '#ffffff',
+                      }}
+                    >
+                      <div className="flex-1 min-w-0 pr-2">
+                        <div className="font-bold text-sm" style={{ color: '#1e293b' }}>{ci.productName}</div>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <span className="text-xs line-through" style={{ color: '#94a3b8' }}>
+                            {new Intl.NumberFormat('vi-VN').format(ci.price)}đ
+                          </span>
+                          <span className="text-xs font-extrabold" style={{ color: '#16a34a' }}>
+                            {new Intl.NumberFormat('vi-VN').format(ci.discountedPrice)}đ
+                          </span>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1.5 flex-shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const next = [...comboItems];
+                            next[idx] = { ...next[idx], qty: Math.max(0, (next[idx].qty || 0) - 1) };
+                            setComboItems(next);
+                          }}
+                          className="w-8 h-8 rounded-lg flex items-center justify-center font-bold text-base transition-colors"
+                          style={{ background: '#e2e8f0', color: '#475569' }}
+                        >
+                          <Minus size={14} />
+                        </button>
+                        <span className="w-8 text-center font-black text-sm" style={{ color: ci.qty > 0 ? '#1d4ed8' : '#64748b' }}>
+                          {ci.qty || 0}
+                        </span>
+                        <button
+                          type="button"
+                          disabled={totalComboQty >= requiredComboQty}
+                          onClick={() => {
+                            if (totalComboQty < requiredComboQty) {
+                              const next = [...comboItems];
+                              next[idx] = { ...next[idx], qty: (next[idx].qty || 0) + 1 };
+                              setComboItems(next);
+                            }
+                          }}
+                          className="w-8 h-8 rounded-lg flex items-center justify-center font-bold text-base transition-colors"
+                          style={{
+                            background: totalComboQty >= requiredComboQty ? '#cbd5e1' : '#3b82f6',
+                            color: '#fff',
+                            cursor: totalComboQty >= requiredComboQty ? 'not-allowed' : 'pointer',
+                          }}
+                        >
+                          <Plus size={14} />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
           )}
-          </>)}
 
-          {/* STEP 3: Summary */}
-          {((pricingMode === 'COMBO' && comboItems.some(ci => ci.qty > 0)) || (pricingMode !== 'COMBO' && selectedProduct)) && (purchaseSubject === 'SELF' || selectedCustomer) && (
+          {/* ========================================================================= */}
+          {/* TRƯỜNG HỢP 3: TỰ MUA — MUA LẺ (Giảm 20% đơn hàng cho chính mình suốt đời) */}
+          {/* ========================================================================= */}
+          {purchaseSubject === 'SELF' && pricingMode === 'RETAIL' && (
+            <div className="space-y-3">
+              {/* Thông báo giảm 20% tự mua */}
+              <div className="p-3 rounded-xl flex items-start gap-2" style={{ background: '#fffbeb', border: '1px solid #fde68a' }}>
+                <Info size={16} className="mt-0.5 flex-shrink-0" style={{ color: '#d97706' }} />
+                <div className="text-xs" style={{ color: '#92400e' }}>
+                  <strong>Chính Sách Tự Mua:</strong> Mua lẻ cho chính mình được <strong>giảm ngay 20%</strong> trực tiếp vào đơn hàng suốt đời.
+                </div>
+              </div>
+
+              {/* Chọn sản phẩm */}
+              <div>
+                <label className="text-xs font-bold uppercase tracking-wider" style={{ color: '#64748b' }}>Sản Phẩm</label>
+                <div className="mt-2 max-h-48 overflow-y-auto rounded-xl" style={{ border: '1px solid #e2e8f0' }}>
+                  {products.map(p => (
+                    <button
+                      key={p.id}
+                      type="button"
+                      onClick={() => setSelectedProduct(p)}
+                      className="w-full flex items-center justify-between p-3 text-left hover:bg-amber-50 transition-colors"
+                      style={{
+                        background: selectedProduct?.id === p.id ? '#fef3c7' : 'transparent',
+                        borderBottom: '1px solid #f1f5f9',
+                      }}
+                    >
+                      <div className="flex items-center gap-2">
+                        <Package size={16} style={{ color: '#d97706' }} />
+                        <div>
+                          <div className="font-bold text-sm" style={{ color: '#1e293b' }}>{p.title}</div>
+                          <div className="text-xs" style={{ color: '#94a3b8' }}>CP: {p.commissionPoints || 0}</div>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-xs line-through" style={{ color: '#94a3b8' }}>
+                          {new Intl.NumberFormat('vi-VN').format(p.price)}đ
+                        </div>
+                        <div className="font-extrabold text-sm" style={{ color: '#059669' }}>
+                          {new Intl.NumberFormat('vi-VN').format(Math.round(p.price * 0.8))}đ
+                        </div>
+                        {selectedProduct?.id === p.id && <CheckCircle size={14} className="ml-auto mt-1" style={{ color: '#10b981' }} />}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Số lượng */}
+              {selectedProduct && (
+                <div>
+                  <label className="text-xs font-bold uppercase tracking-wider" style={{ color: '#64748b' }}>Số Lượng</label>
+                  <div className="flex items-center gap-3 mt-2">
+                    <button
+                      type="button"
+                      onClick={() => setQty(Math.max(1, qty - 1))}
+                      className="w-10 h-10 rounded-xl font-bold text-lg"
+                      style={{ background: '#f1f5f9', color: '#475569', border: '1px solid #e2e8f0' }}
+                    >−</button>
+                    <input
+                      type="number"
+                      min="1"
+                      value={qty}
+                      onChange={e => setQty(Math.max(1, parseInt(e.target.value) || 1))}
+                      className="w-20 text-center py-2 rounded-xl font-bold"
+                      style={{ border: '1px solid #e2e8f0' }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setQty(qty + 1)}
+                      className="w-10 h-10 rounded-xl font-bold text-lg"
+                      style={{ background: '#f1f5f9', color: '#475569', border: '1px solid #e2e8f0' }}
+                    >+</button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ========================================================================= */}
+          {/* TÓM TẮT ĐƠN HÀNG                                                          */}
+          {/* ========================================================================= */}
+          {((purchaseSubject === 'SELF' && pricingMode === 'COMBO' && totalComboQty > 0) ||
+            (purchaseSubject === 'SELF' && pricingMode === 'RETAIL' && selectedProduct) ||
+            (purchaseSubject === 'CUSTOMER' && selectedProduct && selectedCustomer)) && (
             <div className="rounded-xl p-4" style={{ background: '#f8fafc', border: '1px solid #e2e8f0' }}>
               <div className="text-xs font-bold uppercase tracking-wider mb-3" style={{ color: '#64748b' }}>Tóm Tắt Đơn Hàng</div>
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
                   <span style={{ color: '#64748b' }}>Loại đơn</span>
                   <span className="font-bold" style={{ color: purchaseSubject === 'SELF' ? '#7c3aed' : '#2563eb' }}>
-                    {purchaseSubject === 'SELF' ? '🛒 Tự mua' : '👤 Khách mua'}
+                    {purchaseSubject === 'SELF' ? (pricingMode === 'COMBO' ? '📦 Tự mua Combo NPP' : '🛒 Tự mua lẻ CTV') : '👤 Khách hàng mua'}
                   </span>
                 </div>
+
                 <div className="flex justify-between">
-                  <span style={{ color: '#64748b' }}>CTV Tạo Đơn</span>
+                  <span style={{ color: '#64748b' }}>Người tạo đơn</span>
                   <span className="font-bold" style={{ color: '#1e293b' }}>{currentUser.fullName}</span>
                 </div>
+
                 {purchaseSubject === 'CUSTOMER' && selectedCustomer && (
                   <div className="flex justify-between">
                     <span style={{ color: '#64748b' }}>Khách hàng</span>
-                    <span className="font-bold" style={{ color: '#1e293b' }}>{selectedCustomer.fullName}</span>
+                    <span className="font-bold" style={{ color: '#1e293b' }}>{selectedCustomer.fullName} ({selectedCustomer.phone})</span>
                   </div>
                 )}
+
                 <div className="flex justify-between">
                   <span style={{ color: '#64748b' }}>Sản phẩm</span>
                   <span className="font-bold" style={{ color: '#1e293b' }}>
-                    {pricingMode === 'COMBO' ? `Combo ${comboItems.filter(ci => ci.qty > 0).length} SP` : selectedProduct.title}
+                    {purchaseSubject === 'SELF' && pricingMode === 'COMBO'
+                      ? `Combo ${comboItems.filter(ci => ci.qty > 0).length} loại máy`
+                      : selectedProduct?.title}
                   </span>
                 </div>
+
                 <div className="flex justify-between">
                   <span style={{ color: '#64748b' }}>Số lượng</span>
                   <span className="font-bold">
-                    {pricingMode === 'COMBO' ? comboItems.reduce((s, ci) => s + ci.qty, 0) : qty}
+                    {purchaseSubject === 'SELF' && pricingMode === 'COMBO' ? `${totalComboQty} máy` : `${qty} cái`}
                   </span>
                 </div>
-                {pricingMode === 'NPP' && discountRate > 0 && (
-                  <div className="flex justify-between">
-                    <span style={{ color: '#64748b' }}>Giá gốc</span>
-                    <span className="line-through" style={{ color: '#94a3b8' }}>
-                      {new Intl.NumberFormat('vi-VN').format(retailTotal)}đ
-                    </span>
-                  </div>
+
+                {/* Chiết khấu COMBO NPP */}
+                {purchaseSubject === 'SELF' && pricingMode === 'COMBO' && (
+                  <>
+                    <div className="flex justify-between">
+                      <span style={{ color: '#64748b' }}>Giá gốc niêm yết</span>
+                      <span className="line-through" style={{ color: '#94a3b8' }}>
+                        {new Intl.NumberFormat('vi-VN').format(comboRetailTotal)}đ
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span style={{ color: '#16a34a' }}>Chiết khấu Combo (-{nppCombo?.discountPercent}%)</span>
+                      <span className="font-bold" style={{ color: '#16a34a' }}>
+                        -{new Intl.NumberFormat('vi-VN').format(comboDiscountAmount)}đ
+                      </span>
+                    </div>
+                  </>
                 )}
-                {pricingMode === 'NPP' && discountRate > 0 && (
-                  <div className="flex justify-between">
-                    <span style={{ color: '#16a34a' }}>Chiết khấu NPP (-{nppDiscount?.ratePercent}%)</span>
-                    <span className="font-bold" style={{ color: '#16a34a' }}>
-                      -{new Intl.NumberFormat('vi-VN').format(retailTotal - totalAmount)}đ
-                    </span>
-                  </div>
+
+                {/* Chiết khấu tự mua RETAIL (20%) */}
+                {purchaseSubject === 'SELF' && pricingMode === 'RETAIL' && (
+                  <>
+                    <div className="flex justify-between">
+                      <span style={{ color: '#64748b' }}>Giá niêm yết</span>
+                      <span className="line-through" style={{ color: '#94a3b8' }}>
+                        {new Intl.NumberFormat('vi-VN').format(retailRawTotal)}đ
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span style={{ color: '#d97706' }}>Giảm 20% tự mua CTV</span>
+                      <span className="font-bold" style={{ color: '#d97706' }}>
+                        -{new Intl.NumberFormat('vi-VN').format(selfDiscountAmount)}đ
+                      </span>
+                    </div>
+                  </>
                 )}
+
+                {/* Tổng thanh toán */}
                 <div className="flex justify-between pt-2" style={{ borderTop: '1px dashed #e2e8f0' }}>
-                  <span className="font-bold" style={{ color: '#475569' }}>Tổng tiền</span>
-                  <span className="font-extrabold text-lg" style={{ color: '#059669' }}>
+                  <span className="font-extrabold text-base" style={{ color: '#1e293b' }}>Tổng tiền thanh toán</span>
+                  <span className="font-black text-lg" style={{ color: '#059669' }}>
                     {new Intl.NumberFormat('vi-VN').format(totalAmount)}đ
                   </span>
                 </div>
-                {totalCP > 0 && (
-                  <div className="flex justify-between">
-                    <span style={{ color: '#64748b' }}>Commission Points</span>
-                    <span className="font-bold" style={{ color: '#d97706' }}>+{totalCP} CP</span>
+
+                {/* Hoa hồng CTV dự kiến khi bán cho khách */}
+                {purchaseSubject === 'CUSTOMER' && expectedCommission > 0 && (
+                  <div className="flex justify-between pt-1">
+                    <span style={{ color: '#6366f1' }}>Hoa hồng CTV dự kiến ({ctvRankTitle})</span>
+                    <span className="font-bold" style={{ color: '#4f46e5' }}>
+                      +{new Intl.NumberFormat('vi-VN').format(expectedCommission)}đ
+                    </span>
                   </div>
                 )}
               </div>
             </div>
           )}
 
-
-          {/* SHIPPING SECTION */}
-          {((pricingMode === 'COMBO' && comboItems.some(ci => ci.qty > 0)) || (pricingMode !== 'COMBO' && selectedProduct)) && (purchaseSubject === 'SELF' || selectedCustomer) && (
+          {/* ========================================================================= */}
+          {/* THÔNG TIN GIAO HÀNG                                                       */}
+          {/* ========================================================================= */}
+          {((purchaseSubject === 'SELF' && pricingMode === 'COMBO' && totalComboQty > 0) ||
+            (purchaseSubject === 'SELF' && pricingMode === 'RETAIL' && selectedProduct) ||
+            (purchaseSubject === 'CUSTOMER' && selectedProduct && selectedCustomer)) && (
             <div className="rounded-xl p-4" style={{ background: '#f0f9ff', border: '1.5px solid #bae6fd' }}>
               <div className="text-xs font-bold uppercase tracking-wider mb-3 flex items-center gap-1.5" style={{ color: '#0369a1' }}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
                 Thông Tin Giao Hàng
               </div>
               <div className="space-y-3">
-                {/* SĐT người nhận — bắt buộc */}
                 <div>
                   <label className="block text-xs font-semibold mb-1" style={{ color: '#0369a1' }}>
                     Số Điện Thoại Người Nhận <span style={{ color: '#ef4444' }}>*</span>
@@ -624,7 +863,6 @@ export default function CreateOrderModal({ currentUser, onClose, onSuccess }) {
                     style={{ border: '1.5px solid #7dd3fc', background: '#fff', color: '#0c4a6e' }}
                   />
                 </div>
-                {/* Địa chỉ — bắt buộc */}
                 <div>
                   <label className="block text-xs font-semibold mb-1" style={{ color: '#0369a1' }}>
                     Địa Chỉ Giao Hàng <span style={{ color: '#ef4444' }}>*</span>
@@ -638,7 +876,6 @@ export default function CreateOrderModal({ currentUser, onClose, onSuccess }) {
                     style={{ border: '1.5px solid #7dd3fc', background: '#fff', color: '#0c4a6e' }}
                   />
                 </div>
-                {/* Email — tùy chọn */}
                 <div>
                   <label className="block text-xs font-semibold mb-1" style={{ color: '#64748b' }}>
                     Email <span style={{ color: '#94a3b8' }}>(tuỳ chọn)</span>
@@ -652,7 +889,6 @@ export default function CreateOrderModal({ currentUser, onClose, onSuccess }) {
                     style={{ border: '1px solid #e2e8f0', background: '#fff', color: '#1e293b' }}
                   />
                 </div>
-                {/* Hotline — tùy chọn */}
                 <div>
                   <label className="block text-xs font-semibold mb-1" style={{ color: '#64748b' }}>
                     Hotline Liên Hệ <span style={{ color: '#94a3b8' }}>(tuỳ chọn)</span>
@@ -670,26 +906,57 @@ export default function CreateOrderModal({ currentUser, onClose, onSuccess }) {
             </div>
           )}
 
-          {/* Submit */}
-          <button
-            onClick={handleSubmit}
-            disabled={submitting || (pricingMode !== 'COMBO' && !selectedProduct) || (pricingMode === 'COMBO' && comboItems.every(ci => ci.qty <= 0)) || (purchaseSubject === 'CUSTOMER' && !selectedCustomer)}
-            className="w-full py-3.5 rounded-xl font-bold text-white text-sm uppercase tracking-wider transition-all"
-            style={{
-              background: submitting || (pricingMode !== 'COMBO' && !selectedProduct) || (pricingMode === 'COMBO' && comboItems.every(ci => ci.qty <= 0)) || (purchaseSubject === 'CUSTOMER' && !selectedCustomer)
-                ? '#cbd5e1' : '#6366f1',
-              cursor: submitting || (pricingMode !== 'COMBO' && !selectedProduct) || (pricingMode === 'COMBO' && comboItems.every(ci => ci.qty <= 0)) || (purchaseSubject === 'CUSTOMER' && !selectedCustomer)
-                ? 'not-allowed' : 'pointer',
-            }}
-          >
-            {submitting ? (
-              <span className="flex items-center justify-center gap-2">
-                <Loader2 size={16} className="animate-spin" /> Đang tạo đơn...
-              </span>
-            ) : (
-              '✅ Tạo Đơn Hàng'
-            )}
-          </button>
+          {/* ========================================================================= */}
+          {/* NÚT TẠO ĐƠN HÀNG (SUBMIT)                                                 */}
+          {/* ========================================================================= */}
+          {(() => {
+            const isComboInvalid = purchaseSubject === 'SELF' && pricingMode === 'COMBO' && !isComboQtyValid;
+            const isRetailInvalid = pricingMode !== 'COMBO' && !selectedProduct;
+            const isCustomerMissing = purchaseSubject === 'CUSTOMER' && !selectedCustomer;
+            const isShippingMissing = !recipientPhone.trim() || !shippingAddress.trim();
+            const isDisabled = submitting || isComboInvalid || isRetailInvalid || isCustomerMissing || isShippingMissing;
+
+            let buttonLabel = '✅ Tạo Đơn Hàng';
+            if (submitting) {
+              buttonLabel = '⏳ Đang tạo đơn...';
+            } else if (purchaseSubject === 'SELF' && pricingMode === 'COMBO') {
+              if (totalComboQty !== requiredComboQty) {
+                buttonLabel = `Vui lòng chọn đúng ${requiredComboQty} máy (${totalComboQty}/${requiredComboQty})`;
+              } else {
+                buttonLabel = `✅ Tạo Đơn Combo (${requiredComboQty} máy)`;
+              }
+            } else if (purchaseSubject === 'SELF' && pricingMode === 'RETAIL') {
+              buttonLabel = '✅ Tạo Đơn Tự Mua (Giảm 20%)';
+            } else if (purchaseSubject === 'CUSTOMER') {
+              if (!selectedCustomer) {
+                buttonLabel = 'Vui lòng chọn khách hàng';
+              } else {
+                buttonLabel = '✅ Tạo Đơn Cho Khách Hàng';
+              }
+            }
+
+            return (
+              <button
+                type="button"
+                onClick={handleSubmit}
+                disabled={isDisabled}
+                className="w-full py-3.5 rounded-xl font-black text-white text-sm uppercase tracking-wider transition-all"
+                style={{
+                  background: isDisabled ? '#cbd5e1' : '#6366f1',
+                  cursor: isDisabled ? 'not-allowed' : 'pointer',
+                  boxShadow: isDisabled ? 'none' : '0 4px 12px rgba(99, 102, 241, 0.3)',
+                }}
+              >
+                {submitting ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <Loader2 size={16} className="animate-spin" /> Đang tạo đơn...
+                  </span>
+                ) : (
+                  buttonLabel
+                )}
+              </button>
+            );
+          })()}
         </div>
       </div>
     </div>
