@@ -2171,13 +2171,30 @@ app.get('/api/customers', authenticateToken, async (req, res) => {
     const customers = await prisma.customer.findMany({
       where: whereFilter,
       include: {
-        sourceCtv: { select: { userId: true, fullName: true, phone: true, tier: true } },
-        linkedUser: { select: { id: true, userId: true, fullName: true, phone: true, businessId: true, rank: true } }
+        sourceCtv: { select: { userId: true, fullName: true, phone: true, tier: true, businessId: true, rank: true } },
+        linkedUser: { select: { id: true, userId: true, fullName: true, phone: true, businessId: true, rank: true, parentId: true } }
       },
       orderBy: { registeredAt: 'desc' }
     });
 
-    res.json({ success: true, data: customers });
+    // Enrich: For customers linked to a User, resolve the ACTUAL network parent (F0)
+    // sourceCtv may point to themselves if CTV self-purchased; real sponsor = parent in User tree
+    const enriched = await Promise.all(customers.map(async (c) => {
+      const cObj = { ...c };
+      if (c.linkedUser && c.linkedUser.parentId) {
+        // Customer is linked to a User → get their PARENT from User table
+        const parentUser = await prisma.user.findUnique({
+          where: { userId: c.linkedUser.parentId },
+          select: { userId: true, fullName: true, phone: true, businessId: true, rank: true, tier: true }
+        });
+        if (parentUser) {
+          cObj.networkParent = parentUser; // The real F0 in the sponsor tree
+        }
+      }
+      return cObj;
+    }));
+
+    res.json({ success: true, data: enriched });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }

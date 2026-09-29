@@ -1182,12 +1182,18 @@ function AdminCreateOrderModal({ onClose, onSuccess }: { onClose: () => void; on
             recipientPhone: prev.recipientPhone || c.phone || prev.recipientPhone,
           }));
           setCustomerFound(true);
-          // Auto-load sponsor from customer's sourceCtv
-          if (c.sourceCtv) {
-            setCustomerSponsor(c.sourceCtv);
-            setSelectedCtv(c.sourceCtv);
+          // Auto-load sponsor: prefer networkParent (real F0 in tree) over sourceCtv
+          const sponsor = c.networkParent || c.sourceCtv;
+          if (sponsor && sponsor.userId !== c.linkedUser?.userId) {
+            // Only auto-load if sponsor is NOT the customer themselves
+            setCustomerSponsor(sponsor);
+            setSelectedCtv(sponsor);
             setSponsorLocked(true);
             setEditingSponsor(false);
+          } else if (sponsor) {
+            // Sponsor = self (CTV buying for themselves), don't auto-lock
+            setCustomerSponsor(null);
+            setSponsorLocked(false);
           } else {
             setCustomerSponsor(null);
             setSponsorLocked(false);
