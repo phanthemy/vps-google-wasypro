@@ -2,6 +2,33 @@
 
 ## 2026-09-30
 
+### L24: Swap tài khoản mặc định (0968616263 → admin, 0937353535 → CTV U1001) thiếu nhiều bước
+- **Triệu chứng**: Sau khi đổi role admin/ctv giữa 2 tài khoản, giao diện hiện sai:
+  1. `0937353535` vẫn hiện userId `ADMIN_SUPER` thay vì `U1001`
+  2. `0937353535` rank = null (không lên cấp) dù có 8+ F1 đủ điều kiện
+  3. `0937353535` thiếu BID (`WK-10001`) → không có ref link
+  4. BID `WK-10001` bị conflict vì vẫn nằm trên tài khoản cũ `0968616263`
+- **Nguyên nhân gốc**: Khi swap 2 tài khoản, chỉ đổi `role` mà **KHÔNG swap kèm**:
+  - `userId` (ADMIN_SUPER ↔ U1001)
+  - `businessId` (WK-10001)
+  - `rank`, `rankStatus`, `rankAchievedAt`
+  - `isSystemParticipant`
+- **Checklist bắt buộc khi swap tài khoản** (tránh lặp lỗi):
+  1. ✅ Swap `role` (admin ↔ ctv)
+  2. ✅ Swap `userId` (phải dùng temp vì UNIQUE: A→TEMP, B→A, TEMP→B)
+  3. ✅ Swap `businessId` (xóa BID cũ trước, gán BID mới sau)
+  4. ✅ Gán `rank` + `rankStatus` cho CTV mới (chạy promotion check hoặc manual)
+  5. ✅ Set `isSystemParticipant` cho CTV, clear cho admin
+  6. ✅ Cập nhật constants trong code (`DEFAULT_CTV_PHONE`, `DEFAULT_CTV_UID`)
+  7. ✅ Cập nhật AGENTS.md invariant rules
+  8. ✅ Cập nhật UI protect check (ẩn nút Xóa)
+  9. ✅ Backend: restrict reset endpoints cho đúng phone
+  10. ✅ Frontend: ẩn menu "Hệ Thống" cho admin không phải 0999999999
+  11. ✅ `pm2 reload` backend sau mọi DB change
+- **Quy tắc vĩnh viễn**: Khi swap tài khoản → phải swap **TẤT CẢ** trường liên quan, không chỉ `role`.
+- **Commit**: `fc29a86`, `7884d4c`
+
+
 ### L23: Zalo OA chưa mua gói trả phí ZNS/ZBS khiến gửi mã OTP thất bại khi đăng ký
 - **Triệu chứng**: Khi người dùng nhấn Đăng Ký, hệ thống cố gắng gửi mã OTP qua ZNS/Zalo nhưng nhận thông báo lỗi từ Zalo API hoặc không nhận được tin nhắn xác thực.
 - **Nguyên nhân**: Zalo OA của Mall Ok hiện chưa đăng ký gói tin trả phí ZNS (Zalo Notification Service) hoặc ZBS (Zalo Business Solution) trên cổng đối tác của Zalo.
