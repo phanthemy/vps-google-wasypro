@@ -297,6 +297,7 @@ export const App: React.FC = () => {
           isMobileOpen={isMobileAdminSidebarOpen}
           onCloseMobile={() => setIsMobileAdminSidebarOpen(false)}
           onSwitchToClient={() => setIsAdminMode(false)}
+          userPhone={user?.phone}
         />
 
         <div className="flex-1 flex flex-col min-w-0 min-h-screen">

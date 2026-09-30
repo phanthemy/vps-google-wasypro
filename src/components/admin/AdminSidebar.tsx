@@ -7,6 +7,7 @@ interface AdminSidebarProps {
   isMobileOpen: boolean;
   onCloseMobile: () => void;
   onSwitchToClient: () => void;
+  userPhone?: string;
 }
 
 export const NAV_ITEMS = [
@@ -32,7 +33,12 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
   isMobileOpen,
   onCloseMobile,
   onSwitchToClient,
+  userPhone,
 }) => {
+  // Only phone 0999999999 can see "Hệ Thống" (system) menu
+  const visibleNavItems = NAV_ITEMS.filter(item =>
+    item.id !== 'system' || userPhone === '0999999999'
+  );
   const content = (
     <div className="flex flex-col h-full bg-slate-900 text-slate-300">
       {/* Brand Header */}
@@ -62,7 +68,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
           Menu Điều Hướng
         </div>
 
-        {NAV_ITEMS.map((item) => {
+        {visibleNavItems.map((item) => {
           const Icon = item.icon;
           const isActive = activeTab === item.id;
           return (
