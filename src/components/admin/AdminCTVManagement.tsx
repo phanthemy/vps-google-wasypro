@@ -344,8 +344,8 @@ export const AdminCTVManagement: React.FC = () => {
                   <KeyRound className="w-4 h-4" />
                   {resetPwLoading ? 'Đang reset...' : 'Reset Mật Khẩu'}
                 </button>
-                {/* 🔒 BẢO VỆ VĨNH VIỄN: Ẩn nút Xóa tài khoản cho Nguyễn Đức Quang (U1001 / 0968616263) */}
-                {detail.ctv.userId !== 'U1001' && detail.ctv.phone !== '0968616263' && (
+                {/* 🔒 BẢO VỆ VĨNH VIỄN: Ẩn nút Xóa tài khoản cho CTV mặc định (U1001 / 0937353535) */}
+                {detail.ctv.userId !== 'U1001' && detail.ctv.phone !== '0937353535' && (
                   <button
                     onClick={async () => {
                       if (!window.confirm(`⚠️ XÓA HOÀN TOÀN tài khoản "\n${detail.ctv.fullName}" (\n${detail.ctv.userId})?\n\nSẽ xóa: đơn hàng, hoa hồng, điểm, khách hàng liên kết.\nThao tác KHÔNG THỂ hoàn tác!`)) return;

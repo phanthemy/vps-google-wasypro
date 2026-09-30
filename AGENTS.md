@@ -108,33 +108,37 @@ KHÔNG tính từ price. KHÔNG phần trăm trên giá tiền.
 
 ---
 
-## 🔒 INVARIANT RULES: TÀI KHOẢN NGUYỄN ĐỨC QUANG (0968616263 / U1001) ⭐⭐⭐⭐⭐
+## 🔒 INVARIANT RULES: TÀI KHOẢN HỆ THỐNG ⭐⭐⭐⭐⭐
 
 > ⚠️ **BẢO VỆ VĨNH VIỄN — KHÔNG ĐƯỢC XÓA TRONG MỌI TRƯỜNG HỢP**
 
+### Tài khoản Admin chính: Nguyễn Đức Quang (0968616263)
+- **Vai trò**: Admin (`role: 'admin'`)
+- **Quyền đặc biệt**: Đổi mật khẩu trong bảng quản trị Admin (Tài Khoản Admin)
+- **KHÔNG BAO GIỜ bị xóa** khi reset
+
+### Tài khoản CTV mặc định: 0937353535 (U1001)
 1. **Thông tin định danh**:
-   - **Họ và tên**: `Nguyễn Đức Quang`
-   - **Số điện thoại**: `0968616263`
-   - **User ID**: `U1001` (Tài khoản người dùng CTV số 1 của hệ thống)
+   - **Số điện thoại**: `0937353535`
+   - **User ID**: `U1001` (Tài khoản CTV mặc định số 1 của hệ thống)
    - **Vai trò (Role)**: Mặc định luôn luôn là **CTV** (`role: 'ctv'`, `isSystemParticipant: true`).
 
 2. **Chính sách Reset Test & Factory Reset**:
-   - Khi Admin hoặc hệ thống chạy Reset Test / Factory Reset (`POST /api/admin/factory-reset`), Reset Members (`POST /api/admin/reset-members`), hoặc chạy script dọn dẹp dữ liệu:
-     - **KHÔNG ĐƯỢC XÓA** tài khoản `0968616263` / `U1001`.
-     - Lệnh xóa người dùng phải luôn có điều kiện loại trừ:
-       `role: { not: 'admin' }, phone: { not: '0968616263' }, userId: { not: 'U1001' }`
-     - Làm sạch dữ liệu giao dịch của tài khoản (đưa về trạng thái ban đầu):
-       `qualifyingPoints: 0, sPoints: 0, rank: null, parentId: null, role: 'ctv', isSystemParticipant: true`.
-     - Nếu cơ sở dữ liệu chưa có tài khoản này (ví dụ khởi tạo DB mới), Factory Reset tự động tạo mới tài khoản `U1001` - `Nguyễn Đức Quang` - `0968616263` với vai trò CTV.
+   - Khi chạy Factory Reset / Reset Members:
+     - **KHÔNG ĐƯỢC XÓA** tài khoản `0937353535` / `U1001`.
+     - Lệnh xóa: `phone: { not: '0937353535' }, userId: { not: 'U1001' }`
+     - Làm sạch dữ liệu: `qualifyingPoints: 0, sPoints: 0, rank: null, parentId: null, role: 'ctv', isSystemParticipant: true`.
+     - Nếu DB chưa có → tự động seed tài khoản `U1001`.
 
 3. **Chống xóa đơn lẻ**:
-   - Route xóa người dùng `DELETE /api/users/:userId` tuyệt đối không cho phép xóa tài khoản `0968616263` / `U1001`.
+   - `DELETE /api/users/:userId` không cho phép xóa `0937353535` / `U1001`.
 
-4. **Đánh số thứ tự UID (getNextUserId)**:
-   - Hệ thống sinh User ID tự động dạng `U1001`, `U1002`, `U1003`...
-   - Do `U1001` thuộc về Nguyễn Đức Quang, tài khoản đăng ký mới tiếp theo sẽ nhận mã `U1002`.
+4. **Đánh số UID**: `U1001` → `U1002` → `U1003`...
 
-5. **Ẩn nút Xóa trên giao diện quản trị (UI Invariant)**:
-   - Trong trang Quản Lý CTV (`AdminCTVManagement.tsx`) hoặc bất kỳ màn hình quản lý nào:
-   - Tuyệt đối **ẨN HOÀN TOÀN** nút "Xóa CTV" / "Xóa tài khoản" khi giao diện hiển thị thông tin tài khoản `Nguyễn Đức Quang` (`userId === 'U1001'` hoặc `phone === '0968616263'`).
+5. **Ẩn nút Xóa** khi hiển thị tài khoản `U1001` hoặc `0937353535`.
+
+### Tài khoản Reset hệ thống: 0999999999
+- **CHỈ tài khoản 0999999999** mới thấy và sử dụng menu "Hệ Thống" (Factory Reset, Reset Members, Reset CTV).
+- Các tài khoản admin khác **KHÔNG thấy** menu này.
+- Backend enforce: `if (req.user.phone !== '0999999999') → 403`
 
