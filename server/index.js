@@ -3618,7 +3618,7 @@ app.post('/api/admin/upload-attachment', authenticateToken, orderAttachmentUploa
 });
 
 // ── Product Media Upload (Images & Videos) ──────────────────────────────────
-const productUploadDir = path.join(__dirname, '..', 'public', 'uploads', 'products');
+const productUploadDir = path.join(__dirname, '..', 'uploads', 'products');
 if (!fs.existsSync(productUploadDir)) fs.mkdirSync(productUploadDir, { recursive: true });
 
 const productMediaUpload = multer({
@@ -4430,12 +4430,153 @@ app.get('/api/products/:slugOrId', async (req, res) => {
   }
 });
 
+
+// ProductCategory CRUD
+app.post('/api/product-categories', async (req, res) => {
+  try {
+    const { name, slug, description, icon } = req.body;
+    if (!name) return res.status(400).json({ error: 'Tên danh mục là bắt buộc' });
+    const finalSlug = slug || name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+    const newCat = await prisma.productCategory.create({
+      data: {
+        name,
+        slug: finalSlug,
+        description: description || '',
+        icon: icon || 'tag'
+      }
+    });
+    res.json({ success: true, category: newCat });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.put('/api/product-categories/:id', async (req, res) => {
+  try {
+    const { name, slug, description, icon } = req.body;
+    const finalSlug = slug ? slug : (name ? name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '') : undefined);
+    const updated = await prisma.productCategory.update({
+      where: { id: req.params.id },
+      data: {
+        ...(name && { name }),
+        ...(finalSlug && { slug: finalSlug }),
+        ...(description !== undefined && { description }),
+        ...(icon && { icon })
+      }
+    });
+    res.json({ success: true, category: updated });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/product-categories/:id', async (req, res) => {
+  try {
+    const defaultCat = await prisma.productCategory.findFirst({ where: { id: { not: req.params.id } } });
+    if (defaultCat) {
+      await prisma.product.updateMany({
+        where: { categoryId: req.params.id },
+        data: { categoryId: defaultCat.id }
+      });
+    }
+    await prisma.productCategory.delete({ where: { id: req.params.id } });
+    res.json({ success: true, message: 'Đã xóa danh mục' });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 app.get('/api/product-categories', async (req, res) => {
   try {
     const cats = await prisma.productCategory.findMany({
       include: { _count: { select: { products: true } } }
     });
     res.json(cats);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+
+// ============ ARTICLES / NEWS API ============
+app.get('/api/articles', async (req, res) => {
+  try {
+    const { category, search } = req.query;
+    let query = 'SELECT * FROM NewsArticle WHERE 1=1';
+    const params = [];
+    if (category) {
+      query += ' AND category = ?';
+      params.push(category);
+    }
+    if (search) {
+      query += ' AND (title LIKE ? OR excerpt LIKE ? OR content LIKE ?)';
+      params.push(`%${search}%`, `%${search}%`, `%${search}%`);
+    }
+    query += ' ORDER BY createdAt DESC, id ASC';
+    const articles = await prisma.$queryRawUnsafe(query, ...params);
+    res.json(articles);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.get('/api/articles/:slugOrId', async (req, res) => {
+  try {
+    const articles = await prisma.$queryRawUnsafe(
+      'SELECT * FROM NewsArticle WHERE id = ? OR slug = ? LIMIT 1',
+      req.params.slugOrId, req.params.slugOrId
+    );
+    if (!articles || articles.length === 0) return res.status(404).json({ error: 'Không tìm thấy bài viết' });
+    res.json(articles[0]);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/api/articles', async (req, res) => {
+  try {
+    const { title, slug, excerpt, content, category, author, date, image, videoUrl, readTime } = req.body;
+    if (!title) return res.status(400).json({ error: 'Tiêu đề là bắt buộc' });
+    const finalId = 'art-' + Date.now();
+    const finalSlug = slug || title.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+    const now = new Date().toISOString();
+    await prisma.$executeRawUnsafe(
+      `INSERT INTO NewsArticle (id, title, slug, excerpt, content, category, author, date, image, videoUrl, readTime, createdAt, updatedAt)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      finalId, title, finalSlug, excerpt || '', content || '', category || 'Sự Kiện', author || 'Ban Truyền Thông', date || new Date().toLocaleDateString('vi-VN'), image || '', videoUrl || '', readTime || 'Video', now, now
+    );
+    const newArt = await prisma.$queryRawUnsafe('SELECT * FROM NewsArticle WHERE id = ?', finalId);
+    res.json({ success: true, article: newArt[0] });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.put('/api/articles/:id', async (req, res) => {
+  try {
+    const { title, slug, excerpt, content, category, author, date, image, videoUrl, readTime } = req.body;
+    const now = new Date().toISOString();
+    await prisma.$executeRawUnsafe(
+      `UPDATE NewsArticle SET
+        title = COALESCE(?, title),
+        slug = COALESCE(?, slug),
+        excerpt = COALESCE(?, excerpt),
+        content = COALESCE(?, content),
+        category = COALESCE(?, category),
+        author = COALESCE(?, author),
+        date = COALESCE(?, date),
+        image = COALESCE(?, image),
+        videoUrl = COALESCE(?, videoUrl),
+        readTime = COALESCE(?, readTime),
+        updatedAt = ?
+       WHERE id = ?`,
+      title, slug, excerpt, content, category, author, date, image, videoUrl, readTime, now, req.params.id
+    );
+    const updated = await prisma.$queryRawUnsafe('SELECT * FROM NewsArticle WHERE id = ?', req.params.id);
+    res.json({ success: true, article: updated[0] });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.delete('/api/articles/:id', async (req, res) => {
+  try {
+    await prisma.$executeRawUnsafe('DELETE FROM NewsArticle WHERE id = ?', req.params.id);
+    res.json({ success: true, message: 'Đã xóa bài viết thành công' });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }

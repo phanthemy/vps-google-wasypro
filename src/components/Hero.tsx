@@ -1,9 +1,34 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { ArrowRight, PhoneCall, Droplets, Zap, Activity, ShieldCheck, Award, ChevronLeft, ChevronRight } from 'lucide-react';
+import { 
+  ArrowRight, 
+  PhoneCall, 
+  Droplets, 
+  Zap, 
+  Activity, 
+  ShieldCheck, 
+  Award, 
+  ChevronLeft, 
+  ChevronRight,
+  Volume2,
+  VolumeX,
+  Play,
+  Pause,
+  Video as VideoIcon,
+  Image as ImageIcon
+} from 'lucide-react';
 
 interface HeroProps {
   onExploreClick: () => void;
   onContactClick: () => void;
+}
+
+interface SlideItem {
+  id: string;
+  type: 'video' | 'image';
+  src: string;
+  poster?: string;
+  badge: string;
+  title: string;
 }
 
 const useCounter = (end: number, duration: number = 2200) => {
@@ -39,41 +64,48 @@ const useCounter = (end: number, duration: number = 2200) => {
   return { count, ref };
 };
 
-const slides = [
+const slides: SlideItem[] = [
   {
-    image: '/images/banner-web.webp',
-    badge: 'Công nghệ Hàn Quốc & Nhật Bản',
-    headline1: 'Nước Hydrogen',
-    headline2: 'Giàu Ion Kiềm Sạch',
-    subtitle: 'Giải pháp nước uống khoẻ chống lão hóa, bảo vệ sức khỏe toàn diện cho cả gia đình.',
-    highlight: 'Bảo hành 5 năm tại nhà.',
+    id: 'slide-backdrop',
+    type: 'image',
+    src: '/images/backdrop_banner.webp',
+    badge: 'Chính Hãng Wasy Pro',
+    title: 'Wasy Pro Hydrogen - Nước Tốt, Thân An, Trí Sáng'
   },
   {
-    image: '/images/banner-web.webp',
-    badge: 'Máy Lọc Nước Cao Cấp',
-    headline1: '9 Cấp Lọc',
-    headline2: 'Chuẩn Y Tế Quốc Tế',
-    subtitle: 'Hệ thống lọc 9 cấp loại bỏ 99.9% tạp chất, vi khuẩn, kim loại nặng. Giữ lại khoáng chất có lợi.',
-    highlight: 'Miễn phí lắp đặt tận nhà.',
-  },
-  {
-    image: '/images/banner-web.webp',
-    badge: 'Khuyến Mãi Đặc Biệt',
-    headline1: 'Ưu Đãi Lên Đến',
-    headline2: '50% Cho Gia Đình Việt',
-    subtitle: 'Đầu tư cho sức khỏe gia đình với máy lọc nước Water King chính hãng. Trả góp 0% lãi suất.',
-    highlight: 'Hotline tư vấn 1900 98 98 78.',
-  },
+    id: 'slide-video',
+    type: 'video',
+    src: '/videos/hero-video.mp4',
+    poster: '/images/video-thumb.jpg',
+    badge: 'Video Trải Nghiệm',
+    title: 'Công Nghệ Hydrogen Tươi Đột Phá'
+  }
 ];
 
 export const Hero: React.FC<HeroProps> = ({ onExploreClick, onContactClick }) => {
   const [current, setCurrent] = useState(0);
   const [isTransitioning, setIsTransitioning] = useState(false);
+  const [isMuted, setIsMuted] = useState(true);
+  const [isPlaying, setIsPlaying] = useState(true);
   const timerRef = useRef<ReturnType<typeof setInterval>>();
+  const videoRef = useRef<HTMLVideoElement>(null);
 
   const { count: phCount, ref: phRef } = useCounter(95, 2200);
   const { count: orpCount, ref: orpRef } = useCounter(600, 2200);
   const { count: h2Count, ref: h2Ref } = useCounter(1600, 2200);
+
+  // Điều khiển Video theo slide
+  useEffect(() => {
+    if (!videoRef.current) return;
+    const currentSlide = slides[current];
+    if (currentSlide.type === 'video') {
+      if (isPlaying) {
+        videoRef.current.play().catch(() => {});
+      }
+    } else {
+      videoRef.current.pause();
+    }
+  }, [current, isPlaying]);
 
   const goToSlide = useCallback((index: number) => {
     if (isTransitioning) return;
@@ -85,182 +117,219 @@ export const Hero: React.FC<HeroProps> = ({ onExploreClick, onContactClick }) =>
   const next = useCallback(() => goToSlide((current + 1) % slides.length), [current, goToSlide]);
   const prev = useCallback(() => goToSlide((current - 1 + slides.length) % slides.length), [current, goToSlide]);
 
-  // Auto-play
+  // Tự động chuyển slide sau mỗi 9 giây
   useEffect(() => {
-    timerRef.current = setInterval(next, 6000);
+    timerRef.current = setInterval(next, 9000);
     return () => clearInterval(timerRef.current);
   }, [next]);
 
-  // Touch swipe for mobile
-  const touchStartX = useRef(0);
-  const handleTouchStart = (e: React.TouchEvent) => { touchStartX.current = e.touches[0].clientX; };
-  const handleTouchEnd = (e: React.TouchEvent) => {
-    const diff = touchStartX.current - e.changedTouches[0].clientX;
-    if (Math.abs(diff) > 50) { diff > 0 ? next() : prev(); }
+  const toggleMute = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (videoRef.current) {
+      videoRef.current.muted = !isMuted;
+      setIsMuted(!isMuted);
+    }
   };
 
-  const slide = slides[current];
+  const togglePlay = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (videoRef.current) {
+      if (isPlaying) {
+        videoRef.current.pause();
+        setIsPlaying(false);
+      } else {
+        videoRef.current.play();
+        setIsPlaying(true);
+      }
+    }
+  };
 
   return (
-    <section
-      id="hero"
-      className="relative pt-[88px] overflow-hidden"
-      onTouchStart={handleTouchStart}
-      onTouchEnd={handleTouchEnd}
-    >
-      {/* Background images — stacked for transition */}
-      {slides.map((s, i) => (
-        <div
-          key={i}
-          className="absolute inset-0 transition-opacity duration-700 ease-in-out"
-          style={{ opacity: i === current ? 1 : 0 }}
-        >
-          <img src={s.image} alt="" className="w-full h-full object-cover" />
-        </div>
-      ))}
+    <section className="relative w-full bg-slate-950 text-white overflow-hidden">
+      {/* ===== HERO BANNER SLIDER SẮC NÉT (KHÔNG PHỦ LỚP MỜ) ===== */}
+      <div className="relative w-full overflow-hidden bg-black">
+        {/* Khung chứa tỉ lệ chuẩn theo Backdrop 1.92:1 (256x133cm) */}
+        <div className="relative w-full aspect-[256/133] min-h-[220px] max-h-[820px] flex items-center justify-center">
+          {slides.map((s, i) => {
+            const isActive = i === current;
+            return (
+              <div
+                key={s.id}
+                className={`absolute inset-0 w-full h-full transition-opacity duration-700 ease-in-out ${
+                  isActive ? 'opacity-100 z-10 pointer-events-auto' : 'opacity-0 z-0 pointer-events-none'
+                }`}
+              >
+                {s.type === 'video' ? (
+                  <div className="relative w-full h-full flex items-center justify-center bg-black">
+                    <video
+                      ref={videoRef}
+                      src={s.src}
+                      poster={s.poster}
+                      autoPlay
+                      loop
+                      muted={isMuted}
+                      playsInline
+                      preload="auto"
+                      className="w-full h-full object-cover object-center"
+                    />
 
-      {/* Dark overlay — stronger on mobile for readability */}
-      <div className="absolute inset-0 bg-gradient-to-r from-[#0a1f12]/70 via-[#0f2d1a]/55 to-[#1a472a]/30 md:from-[#0a1f12]/65 md:via-[#0f2d1a]/45 md:to-transparent" />
-      
-      {/* Bottom fade */}
-      <div className="absolute bottom-0 left-0 right-0 h-20 bg-gradient-to-t from-slate-50 to-transparent z-10" />
-
-      {/* Content */}
-      <div className="relative z-20 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16 lg:py-24">
-        <div className="max-w-2xl">
-          {/* Badge */}
-          <div
-            key={`badge-${current}`}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 backdrop-blur-sm text-white/90 font-semibold text-[12px] sm:text-[13px] mb-6 sm:mb-8 border border-white/15 animate-[fadeInUp_0.5s_ease-out]"
-          >
-            <Award className="w-4 h-4 text-accent" />
-            <span>{slide.badge}</span>
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-          </div>
-          
-          {/* Headline */}
-          <h1
-            key={`h1-${current}`}
-            className="font-heading leading-[1.08] mb-4 sm:mb-6 animate-[fadeInUp_0.6s_ease-out]"
-          >
-            <span className="block text-[32px] sm:text-[44px] lg:text-[58px] font-extrabold text-white drop-shadow-lg">
-              {slide.headline1}
-            </span>
-            <span className="block text-[32px] sm:text-[44px] lg:text-[58px] font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-emerald-300 to-accent">
-              {slide.headline2}
-            </span>
-          </h1>
-          
-          {/* Subtitle */}
-          <p
-            key={`sub-${current}`}
-            className="text-white/70 text-[14px] sm:text-[16px] lg:text-[18px] leading-relaxed mb-8 sm:mb-10 max-w-lg animate-[fadeInUp_0.7s_ease-out]"
-          >
-            {slide.subtitle}{' '}
-            <span className="text-accent font-bold">{slide.highlight}</span>
-          </p>
-
-          {/* Counter Cards */}
-          <div ref={phRef} className="grid grid-cols-3 gap-2 sm:gap-3 mb-8 sm:mb-10">
-            <div className="bg-white/[0.08] backdrop-blur-md rounded-xl sm:rounded-2xl p-3 sm:p-4 border border-white/10 hover:bg-white/[0.12] transition-all group">
-              <Droplets className="w-5 h-5 sm:w-6 sm:h-6 text-emerald-400 mb-1.5 sm:mb-2 group-hover:scale-110 transition-transform" />
-              <div className="font-extrabold text-[20px] sm:text-[26px] lg:text-[30px] text-white tracking-tight leading-none">
-                pH {(phCount / 10).toFixed(1)}
+                    {/* Nút điều khiển Video */}
+                    <div className="absolute bottom-3 sm:bottom-5 right-3 sm:right-5 z-20 flex items-center gap-1.5 sm:gap-2">
+                      <button
+                        onClick={togglePlay}
+                        className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-black/60 hover:bg-black/90 text-white backdrop-blur-md border border-white/20 transition-all flex items-center justify-center shadow-lg active:scale-95"
+                        title={isPlaying ? 'Tạm dừng video' : 'Phát tiếp video'}
+                      >
+                        {isPlaying ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5 ml-0.5 text-accent" />}
+                      </button>
+                      <button
+                        onClick={toggleMute}
+                        className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-black/60 hover:bg-black/90 text-white backdrop-blur-md border border-white/20 transition-all flex items-center justify-center shadow-lg active:scale-95"
+                        title={isMuted ? 'Bật âm thanh' : 'Tắt âm thanh'}
+                      >
+                        {isMuted ? <VolumeX className="w-3.5 h-3.5 text-slate-300" /> : <Volume2 className="w-3.5 h-3.5 text-emerald-400" />}
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  // Slide Backdrop PDF: Ảnh 4K sắc nét 100% nguyên bản
+                  <div className="relative w-full h-full flex items-center justify-center bg-slate-950">
+                    <img
+                      src={s.src}
+                      alt={s.title}
+                      className="w-full h-full object-cover sm:object-contain object-center"
+                    />
+                  </div>
+                )}
               </div>
-              <div className="text-[9px] sm:text-[10px] text-white/40 font-bold uppercase tracking-widest mt-1">Nước kiềm</div>
-            </div>
-            
-            <div ref={orpRef} className="bg-white/[0.08] backdrop-blur-md rounded-xl sm:rounded-2xl p-3 sm:p-4 border border-white/10 hover:bg-white/[0.12] transition-all group">
-              <Zap className="w-5 h-5 sm:w-6 sm:h-6 text-accent mb-1.5 sm:mb-2 group-hover:scale-110 transition-transform" />
-              <div className="font-extrabold text-[20px] sm:text-[26px] lg:text-[30px] text-white tracking-tight leading-none">
-                -{orpCount}<span className="text-[13px] sm:text-[16px]">mV</span>
-              </div>
-              <div className="text-[9px] sm:text-[10px] text-white/40 font-bold uppercase tracking-widest mt-1">Chống oxy hóa</div>
-            </div>
-
-            <div ref={h2Ref} className="bg-white/[0.08] backdrop-blur-md rounded-xl sm:rounded-2xl p-3 sm:p-4 border border-white/10 hover:bg-white/[0.12] transition-all group">
-              <Activity className="w-5 h-5 sm:w-6 sm:h-6 text-sky-400 mb-1.5 sm:mb-2 group-hover:scale-110 transition-transform" />
-              <div className="font-extrabold text-[20px] sm:text-[26px] lg:text-[30px] text-white tracking-tight leading-none">
-                {h2Count}<span className="text-[13px] sm:text-[16px]">ppb</span>
-              </div>
-              <div className="text-[9px] sm:text-[10px] text-white/40 font-bold uppercase tracking-widest mt-1">Hydrogen</div>
-            </div>
-          </div>
-
-          {/* CTA Buttons */}
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 mb-6 sm:mb-8">
-            <button
-              onClick={onExploreClick}
-              className="px-6 sm:px-8 py-3.5 sm:py-4 rounded-xl font-bold text-white bg-gradient-to-r from-primary to-emerald-500 hover:from-primary-dark hover:to-primary transition-all duration-300 flex items-center justify-center gap-2 text-[14px] sm:text-[15px] shadow-lg shadow-emerald-900/40 hover:shadow-xl hover:-translate-y-0.5"
-            >
-              Khám Phá Sản Phẩm
-              <ArrowRight className="w-5 h-5" />
-            </button>
-            <button
-              onClick={onContactClick}
-              className="px-6 sm:px-8 py-3.5 sm:py-4 rounded-xl font-bold text-white bg-white/10 backdrop-blur-sm border border-white/20 hover:bg-white/20 transition-all duration-300 flex items-center justify-center gap-2 text-[14px] sm:text-[15px] hover:-translate-y-0.5"
-            >
-              <PhoneCall className="w-5 h-5 text-accent" />
-              Tư Vấn Miễn Phí
-            </button>
-          </div>
-
-          {/* Trust row */}
-          <div className="hidden sm:flex flex-wrap items-center gap-4">
-            <div className="flex items-center gap-1.5 text-white/40 text-[12px] font-medium">
-              <ShieldCheck className="w-4 h-4 text-emerald-400/70" /> ISO 13485
-            </div>
-            <div className="w-px h-3 bg-white/15" />
-            <div className="flex items-center gap-1.5 text-white/40 text-[12px] font-medium">
-              <Award className="w-4 h-4 text-accent/70" /> KFDA Korea
-            </div>
-            <div className="w-px h-3 bg-white/15" />
-            <div className="flex items-center gap-1.5 text-white/40 text-[12px] font-medium">
-              <ShieldCheck className="w-4 h-4 text-emerald-400/70" /> Lắp đặt miễn phí
-            </div>
-          </div>
+            );
+          })}
         </div>
 
-        {/* Slide Navigation — arrows */}
+        {/* Nút Prev / Next */}
         <button
           onClick={prev}
-          className="absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-white/10 backdrop-blur-sm border border-white/15 text-white/70 hover:text-white hover:bg-white/20 transition-all flex items-center justify-center z-30"
-          aria-label="Banner trước"
+          className="absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 w-8 h-8 sm:w-11 sm:h-11 rounded-full bg-black/50 hover:bg-black/80 text-white backdrop-blur-md border border-white/15 transition-all flex items-center justify-center z-20 shadow-xl active:scale-95"
+          aria-label="Slide trước"
         >
-          <ChevronLeft className="w-5 h-5 sm:w-6 sm:h-6" />
+          <ChevronLeft className="w-4 h-4 sm:w-5 sm:h-5" />
         </button>
         <button
           onClick={next}
-          className="absolute right-2 sm:right-4 top-1/2 -translate-y-1/2 w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-white/10 backdrop-blur-sm border border-white/15 text-white/70 hover:text-white hover:bg-white/20 transition-all flex items-center justify-center z-30"
-          aria-label="Banner sau"
+          className="absolute right-2 sm:right-4 top-1/2 -translate-y-1/2 w-8 h-8 sm:w-11 sm:h-11 rounded-full bg-black/50 hover:bg-black/80 text-white backdrop-blur-md border border-white/15 transition-all flex items-center justify-center z-20 shadow-xl active:scale-95"
+          aria-label="Slide sau"
         >
-          <ChevronRight className="w-5 h-5 sm:w-6 sm:h-6" />
+          <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5" />
         </button>
 
-        {/* Dots Indicator */}
-        <div className="absolute bottom-8 sm:bottom-10 left-1/2 -translate-x-1/2 flex items-center gap-2 z-30">
-          {slides.map((_, i) => (
+        {/* Thanh chuyển slide nhanh (Dots có icon) */}
+        <div className="absolute bottom-2.5 sm:bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-1.5 sm:gap-2 z-20 bg-black/50 backdrop-blur-md px-3 py-1 rounded-full border border-white/10">
+          {slides.map((s, i) => (
             <button
-              key={i}
+              key={s.id}
               onClick={() => goToSlide(i)}
-              className={`transition-all duration-300 rounded-full ${
+              className={`flex items-center gap-1.5 px-2.5 py-0.5 sm:py-1 rounded-full text-xs font-semibold transition-all duration-300 ${
                 i === current
-                  ? 'w-8 h-2.5 bg-accent'
-                  : 'w-2.5 h-2.5 bg-white/30 hover:bg-white/50'
+                  ? 'bg-gradient-to-r from-primary to-emerald-500 text-white shadow-sm'
+                  : 'text-slate-300 hover:text-white hover:bg-white/10'
               }`}
-              aria-label={`Slide ${i + 1}`}
-            />
+            >
+              {s.type === 'video' ? <VideoIcon className="w-3 h-3 text-accent" /> : <ImageIcon className="w-3 h-3" />}
+              <span className="hidden sm:inline text-[11px]">{s.badge}</span>
+            </button>
           ))}
         </div>
       </div>
 
-      {/* CSS animation */}
-      <style>{`
-        @keyframes fadeInUp {
-          from { opacity: 0; transform: translateY(20px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-      `}</style>
+      {/* ===== KHU VỰC THÔNG SỐ & HÀNH ĐỘNG (TÁCH BIỆT, KHÔNG CHE BANNER) ===== */}
+      <div className="relative z-10 bg-white text-slate-800 border-b border-slate-100 shadow-xs">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5 sm:py-6">
+          
+          {/* Hàng thông số & Nút hành động */}
+          <div className="flex flex-col lg:flex-row items-center justify-between gap-6 lg:gap-8">
+            
+            {/* 3 Thông số cốt lõi */}
+            <div ref={phRef} className="grid grid-cols-3 gap-3 sm:gap-6 w-full lg:w-auto flex-1 divide-x divide-slate-100">
+              <div className="flex items-center justify-center sm:justify-start gap-2.5 sm:gap-3.5 px-1">
+                <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-emerald-50 flex items-center justify-center text-primary flex-shrink-0 shadow-xs">
+                  <Droplets className="w-5 h-5 sm:w-5 sm:h-5" />
+                </div>
+                <div>
+                  <div className="font-black text-[20px] sm:text-[26px] text-slate-900 leading-none">
+                    pH {(phCount / 10).toFixed(1)}
+                  </div>
+                  <div className="text-[10px] sm:text-[11px] text-slate-500 font-bold uppercase tracking-wider mt-1">Nước kiềm giàu ion</div>
+                </div>
+              </div>
+              
+              <div ref={orpRef} className="flex items-center justify-center sm:justify-start gap-2.5 sm:gap-3.5 px-2">
+                <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-amber-50 flex items-center justify-center text-accent flex-shrink-0 shadow-xs">
+                  <Zap className="w-5 h-5 sm:w-5 sm:h-5" />
+                </div>
+                <div>
+                  <div className="font-black text-[20px] sm:text-[26px] text-slate-900 leading-none">
+                    -{orpCount}<span className="text-[13px] sm:text-[14px] font-bold ml-0.5">mV</span>
+                  </div>
+                  <div className="text-[10px] sm:text-[11px] text-slate-500 font-bold uppercase tracking-wider mt-1">Chống oxy hoá</div>
+                </div>
+              </div>
+
+              <div ref={h2Ref} className="flex items-center justify-center sm:justify-start gap-2.5 sm:gap-3.5 px-2">
+                <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-sky-50 flex items-center justify-center text-sky-500 flex-shrink-0 shadow-xs">
+                  <Activity className="w-5 h-5 sm:w-5 sm:h-5" />
+                </div>
+                <div>
+                  <div className="font-black text-[20px] sm:text-[26px] text-slate-900 leading-none">
+                    {h2Count}<span className="text-[13px] sm:text-[14px] font-bold ml-0.5">ppb</span>
+                  </div>
+                  <div className="text-[10px] sm:text-[11px] text-slate-500 font-bold uppercase tracking-wider mt-1">Hàm lượng Hydrogen</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Dải phân cách trên màn hình lớn */}
+            <div className="hidden lg:block w-px h-12 bg-slate-200 flex-shrink-0" />
+
+            {/* Cụm nút CTA */}
+            <div className="flex items-center gap-3 w-full sm:w-auto justify-center flex-shrink-0">
+              <button
+                onClick={onExploreClick}
+                className="flex-1 sm:flex-none px-6 sm:px-7 py-3 rounded-xl font-bold text-white bg-gradient-to-r from-primary to-emerald-600 hover:from-primary-dark hover:to-primary transition-all duration-300 flex items-center justify-center gap-2 text-sm shadow-md shadow-emerald-500/20 active:scale-95"
+              >
+                Khám Phá Sản Phẩm
+                <ArrowRight className="w-4 h-4" />
+              </button>
+              <button
+                onClick={onContactClick}
+                className="flex-1 sm:flex-none px-5 sm:px-6 py-3 rounded-xl font-bold text-primary bg-slate-50 border border-primary/20 hover:bg-emerald-50 transition-all duration-300 flex items-center justify-center gap-2 text-sm active:scale-95"
+              >
+                <PhoneCall className="w-4 h-4 text-accent" />
+                Tư Vấn Miễn Phí
+              </button>
+            </div>
+          </div>
+
+          {/* Dòng cam kết chứng nhận */}
+          <div className="flex items-center justify-center gap-3 sm:gap-6 mt-4 pt-3.5 border-t border-slate-100 text-slate-500 text-[11px] sm:text-[12px] font-medium flex-wrap">
+            <div className="flex items-center gap-1.5">
+              <ShieldCheck className="w-3.5 h-3.5 text-primary" /> Chuẩn Y tế ISO 13485
+            </div>
+            <span className="text-slate-200 hidden sm:inline">•</span>
+            <div className="flex items-center gap-1.5">
+              <Award className="w-3.5 h-3.5 text-accent" /> Chứng nhận KFDA Hàn Quốc
+            </div>
+            <span className="text-slate-200 hidden sm:inline">•</span>
+            <div className="flex items-center gap-1.5">
+              <ShieldCheck className="w-3.5 h-3.5 text-primary" /> Miễn phí vận chuyển & Lắp đặt
+            </div>
+            <span className="text-slate-200 hidden sm:inline">•</span>
+            <div className="flex items-center gap-1.5">
+              <Award className="w-3.5 h-3.5 text-accent" /> Bảo hành 5 năm chính hãng
+            </div>
+          </div>
+
+        </div>
+      </div>
     </section>
   );
 };

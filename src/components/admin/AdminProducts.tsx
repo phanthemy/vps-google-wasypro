@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import ImageUpload from './ImageUpload';
 import {
   Package,
+  Layers,
+  FolderPlus,
   Plus,
   Search,
   Edit2,
@@ -35,6 +37,82 @@ export const AdminProducts: React.FC = () => {
   const [deletingProduct, setDeletingProduct] = useState<Product | null>(null);
   const [submitting, setSubmitting] = useState<boolean>(false);
   const [modalError, setModalError] = useState<string | null>(null);
+  // Category Management State
+  const [isCategoryModalOpen, setIsCategoryModalOpen] = useState<boolean>(false);
+  const [newCategoryName, setNewCategoryName] = useState<string>('');
+  const [editingCategory, setEditingCategory] = useState<Category | null>(null);
+  const [editCategoryName, setEditCategoryName] = useState<string>('');
+  const [categoryLoading, setCategoryLoading] = useState<boolean>(false);
+  const [isQuickAddCategory, setIsQuickAddCategory] = useState<boolean>(false);
+  const [quickCategoryName, setQuickCategoryName] = useState<string>('');
+
+  const handleCreateCategory = async (name: string) => {
+    if (!name.trim()) return;
+    setCategoryLoading(true);
+    try {
+      const res = await fetch('/api/product-categories', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: name.trim() })
+      });
+      const data = await res.json();
+      if (data.success && data.category) {
+        await fetchData();
+        setFormData(prev => ({ ...prev, categoryId: data.category.id }));
+        setNewCategoryName('');
+        setQuickCategoryName('');
+        setIsQuickAddCategory(false);
+      } else {
+        alert(data.error || 'Lỗi tạo danh mục');
+      }
+    } catch (err: any) {
+      alert('Không thể tạo danh mục: ' + err.message);
+    } finally {
+      setCategoryLoading(false);
+    }
+  };
+
+  const handleUpdateCategory = async (id: string, name: string) => {
+    if (!name.trim()) return;
+    setCategoryLoading(true);
+    try {
+      const res = await fetch(`/api/product-categories/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: name.trim() })
+      });
+      const data = await res.json();
+      if (data.success) {
+        await fetchData();
+        setEditingCategory(null);
+      } else {
+        alert(data.error || 'Lỗi cập nhật danh mục');
+      }
+    } catch (err: any) {
+      alert('Lỗi cập nhật: ' + err.message);
+    } finally {
+      setCategoryLoading(false);
+    }
+  };
+
+  const handleDeleteCategory = async (id: string) => {
+    if (!confirm('Bạn có chắc chắn muốn xóa danh mục này? Các sản phẩm thuộc danh mục sẽ được chuyển về danh mục khác.')) return;
+    setCategoryLoading(true);
+    try {
+      const res = await fetch(`/api/product-categories/${id}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (data.success) {
+        await fetchData();
+      } else {
+        alert(data.error || 'Lỗi xóa danh mục');
+      }
+    } catch (err: any) {
+      alert('Lỗi xóa: ' + err.message);
+    } finally {
+      setCategoryLoading(false);
+    }
+  };
+
 
   // Form Fields
   const [formData, setFormData] = useState<ProductInput>({
@@ -220,13 +298,22 @@ export const AdminProducts: React.FC = () => {
           </h2>
           <p className="text-xs text-slate-500">Quản lý danh sách máy lọc nước, lõi lọc & thiết bị đo</p>
         </div>
-        <button
-          onClick={openCreateModal}
-          className="px-5 py-3 rounded-2xl bg-gradient-to-r from-ocean-600 to-cyan-600 hover:from-ocean-700 hover:to-cyan-700 text-white font-bold text-sm shadow-md shadow-ocean-500/20 hover:shadow-ocean-500/30 transition-all flex items-center justify-center gap-2"
-        >
-          <Plus className="w-5 h-5" />
-          Thêm Sản Phẩm Mới
-        </button>
+        <div className="flex items-center gap-2.5">
+          <button
+            onClick={() => setIsCategoryModalOpen(true)}
+            className="px-4 py-3 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-sm transition-all flex items-center justify-center gap-2 border border-slate-200"
+          >
+            <Layers className="w-4 h-4 text-ocean-600" />
+            Quản Lý Danh Mục
+          </button>
+          <button
+            onClick={openCreateModal}
+            className="px-5 py-3 rounded-2xl bg-gradient-to-r from-ocean-600 to-cyan-600 hover:from-ocean-700 hover:to-cyan-700 text-white font-bold text-sm shadow-md shadow-ocean-500/20 hover:shadow-ocean-500/30 transition-all flex items-center justify-center gap-2"
+          >
+            <Plus className="w-5 h-5" />
+            Thêm Sản Phẩm Mới
+          </button>
+        </div>
       </div>
 
       {/* Filter & Search Bar */}
@@ -483,9 +570,53 @@ export const AdminProducts: React.FC = () => {
                   </div>
 
                   <div>
-                    <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
-                      Danh Mục
-                    </label>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="block text-xs font-bold text-slate-700 uppercase">
+                        Danh Mục
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => setIsQuickAddCategory(!isQuickAddCategory)}
+                        className="text-xs text-ocean-600 hover:text-ocean-700 font-bold flex items-center gap-1 hover:underline"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        Tạo danh mục mới
+                      </button>
+                    </div>
+
+                    {isQuickAddCategory && (
+                      <div className="flex items-center gap-2 mb-2 p-2 bg-ocean-50 rounded-xl border border-ocean-200">
+                        <input
+                          type="text"
+                          value={quickCategoryName}
+                          onChange={(e) => setQuickCategoryName(e.target.value)}
+                          placeholder="Nhập tên danh mục mới..."
+                          className="flex-1 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-medium focus:outline-none focus:ring-1 focus:ring-ocean-500"
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              handleCreateCategory(quickCategoryName);
+                            }
+                          }}
+                        />
+                        <button
+                          type="button"
+                          disabled={categoryLoading || !quickCategoryName.trim()}
+                          onClick={() => handleCreateCategory(quickCategoryName)}
+                          className="px-3 py-1.5 rounded-lg bg-ocean-600 hover:bg-ocean-700 text-white text-xs font-bold disabled:opacity-50 flex items-center gap-1"
+                        >
+                          {categoryLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Lưu'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => { setIsQuickAddCategory(false); setQuickCategoryName(''); }}
+                          className="p-1 text-slate-400 hover:text-slate-600"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    )}
+
                     <select
                       value={formData.categoryId}
                       onChange={(e) => setFormData({ ...formData, categoryId: e.target.value })}
@@ -795,6 +926,160 @@ export const AdminProducts: React.FC = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      
+      {/* Category Management Modal */}
+      {isCategoryModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs animate-in fade-in duration-200">
+          <div className="relative w-full max-w-lg bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[90vh]">
+            {/* Header */}
+            <div className="flex items-center justify-between p-5 border-b border-slate-100 bg-slate-50/50">
+              <div className="flex items-center gap-2.5">
+                <div className="w-10 h-10 rounded-xl bg-ocean-100/80 text-ocean-600 flex items-center justify-center">
+                  <Layers className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900">Quản Lý Danh Mục Sản Phẩm</h3>
+                  <p className="text-xs text-slate-500">Thêm, sửa và sắp xếp các nhóm danh mục</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setIsCategoryModalOpen(false)}
+                className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="p-5 overflow-y-auto space-y-4 flex-1">
+              {/* Form thêm mới */}
+              <div className="bg-ocean-50/50 p-4 rounded-2xl border border-ocean-100 space-y-2">
+                <label className="block text-xs font-bold text-slate-700 uppercase">
+                  Tạo Danh Mục Mới
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={newCategoryName}
+                    onChange={(e) => setNewCategoryName(e.target.value)}
+                    placeholder="Ví dụ: Máy Lọc Nước Nóng Lạnh..."
+                    className="flex-1 px-3.5 py-2 bg-white border border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-ocean-500"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleCreateCategory(newCategoryName);
+                      }
+                    }}
+                  />
+                  <button
+                    disabled={categoryLoading || !newCategoryName.trim()}
+                    onClick={() => handleCreateCategory(newCategoryName)}
+                    className="px-4 py-2 rounded-xl bg-ocean-600 hover:bg-ocean-700 text-white text-xs font-bold disabled:opacity-50 flex items-center gap-1.5 shadow-sm"
+                  >
+                    {categoryLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
+                    <span>Thêm Mới</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Danh sách danh mục hiện tại */}
+              <div className="space-y-2">
+                <label className="block text-xs font-bold text-slate-500 uppercase px-1">
+                  Danh Sách Danh Mục ({categories.length})
+                </label>
+
+                {categories.map((c: any) => {
+                  const isEditing = editingCategory?.id === c.id;
+                  const prodCount = c._count?.products !== undefined 
+                    ? c._count.products 
+                    : products.filter(p => p.categoryId === c.id).length;
+
+                  return (
+                    <div
+                      key={c.id}
+                      className="flex items-center justify-between p-3.5 bg-slate-50 hover:bg-slate-100/80 rounded-2xl border border-slate-200/80 transition-all"
+                    >
+                      {isEditing ? (
+                        <div className="flex items-center gap-2 flex-1 mr-2">
+                          <input
+                            type="text"
+                            value={editCategoryName}
+                            onChange={(e) => setEditCategoryName(e.target.value)}
+                            className="flex-1 px-3 py-1 bg-white border border-ocean-300 rounded-lg text-sm font-medium focus:outline-none focus:ring-2 focus:ring-ocean-500"
+                            autoFocus
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') handleUpdateCategory(c.id, editCategoryName);
+                            }}
+                          />
+                          <button
+                            onClick={() => handleUpdateCategory(c.id, editCategoryName)}
+                            className="px-2.5 py-1 rounded-lg bg-emerald-600 text-white text-xs font-bold"
+                          >
+                            Lưu
+                          </button>
+                          <button
+                            onClick={() => setEditingCategory(null)}
+                            className="px-2.5 py-1 rounded-lg bg-slate-200 text-slate-600 text-xs font-bold"
+                          >
+                            Hủy
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-lg bg-white border border-slate-200 flex items-center justify-center text-ocean-600 font-bold text-xs shadow-2xs">
+                            <Droplet className="w-4 h-4" />
+                          </div>
+                          <div>
+                            <div className="text-sm font-bold text-slate-900">{c.name}</div>
+                            <div className="text-[11px] text-slate-400">
+                              Mã: <code className="text-slate-600">{c.id}</code> • {prodCount} sản phẩm
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {!isEditing && (
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={() => {
+                              setEditingCategory(c);
+                              setEditCategoryName(c.name);
+                            }}
+                            className="p-2 rounded-xl text-slate-500 hover:text-ocean-600 hover:bg-white transition-colors"
+                            title="Đổi tên danh mục"
+                          >
+                            <Edit2 className="w-3.5 h-3.5" />
+                          </button>
+                          {categories.length > 1 && (
+                            <button
+                              onClick={() => handleDeleteCategory(c.id)}
+                              className="p-2 rounded-xl text-slate-500 hover:text-rose-600 hover:bg-white transition-colors"
+                              title="Xóa danh mục"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="p-4 border-t border-slate-100 bg-slate-50/50 flex justify-end">
+              <button
+                onClick={() => setIsCategoryModalOpen(false)}
+                className="px-5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold"
+              >
+                Đóng
+              </button>
+            </div>
           </div>
         </div>
       )}

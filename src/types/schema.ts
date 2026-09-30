@@ -65,6 +65,7 @@ export interface Article {
   author: string;
   date: string;
   image: string;
+  videoUrl?: string;
   readTime: string;
 }
 

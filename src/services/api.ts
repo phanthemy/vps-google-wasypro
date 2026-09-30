@@ -73,6 +73,18 @@ export const api = {
   },
 
   getArticles: async (params?: { category?: string; search?: string }): Promise<Article[]> => {
+    try {
+      const q = new URLSearchParams();
+      if (params?.category) q.set('category', params.category);
+      if (params?.search) q.set('search', params.search);
+      const res = await fetch('/api/articles?' + q.toString(), { credentials: 'include' });
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data) && data.length > 0) return data;
+      }
+    } catch (e) {
+      console.warn('API getArticles fallback', e);
+    }
     let result = [...mockArticles];
     if (params?.category) {
       result = result.filter(a => a.category === params.category);
@@ -85,6 +97,10 @@ export const api = {
   },
 
   getArticleBySlug: async (slug: string): Promise<Article> => {
+    try {
+      const res = await fetch(`/api/articles/${slug}`, { credentials: 'include' });
+      if (res.ok) return await res.json();
+    } catch (e) {}
     const article = mockArticles.find(a => a.slug === slug);
     if (!article) throw new Error('Article not found');
     return article;
@@ -255,6 +271,20 @@ export const api = {
   },
 
   createArticle: async (articleInput: ArticleInput): Promise<Article> => {
+    try {
+      const res = await fetch('/api/articles', {
+        method: 'POST',
+        headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
+        credentials: 'include',
+        body: JSON.stringify(articleInput)
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.article) return data.article;
+      }
+    } catch (e) {
+      console.warn('API createArticle fallback', e);
+    }
     const newArticle: Article = {
       ...articleInput,
       id: `art-${Date.now()}`
@@ -264,6 +294,20 @@ export const api = {
   },
 
   updateArticle: async (id: string, articleInput: Partial<ArticleInput>): Promise<Article> => {
+    try {
+      const res = await fetch(`/api/articles/${id}`, {
+        method: 'PUT',
+        headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
+        credentials: 'include',
+        body: JSON.stringify(articleInput)
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.article) return data.article;
+      }
+    } catch (e) {
+      console.warn('API updateArticle fallback', e);
+    }
     const index = mockArticles.findIndex(a => a.id === id);
     if (index === -1) throw new Error('Không tìm thấy bài viết');
     mockArticles[index] = { ...mockArticles[index], ...articleInput };
@@ -271,6 +315,16 @@ export const api = {
   },
 
   deleteArticle: async (id: string): Promise<boolean> => {
+    try {
+      const res = await fetch(`/api/articles/${id}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders(),
+        credentials: 'include'
+      });
+      if (res.ok) return true;
+    } catch (e) {
+      console.warn('API deleteArticle fallback', e);
+    }
     const index = mockArticles.findIndex(a => a.id === id);
     if (index === -1) throw new Error('Không tìm thấy bài viết');
     mockArticles.splice(index, 1);
