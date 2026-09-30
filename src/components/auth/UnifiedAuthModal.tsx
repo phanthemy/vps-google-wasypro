@@ -298,35 +298,42 @@ export default function UnifiedAuthModal({ isOpen, onClose, initialTab = 'login'
                 </div>
               </>
             ) : (
-              /* Khách vãng lai trực tiếp từ website: Ẩn mã ref & CTV/NPP, hiển thị Call-To-Action */
-              <div className="p-4 rounded-xl bg-red-50 border-2 border-red-200 text-red-950 space-y-2.5 shadow-sm">
-                <div className="flex items-start gap-2.5">
-                  <span className="text-xl shrink-0">📢</span>
-                  <div className="flex-1">
-                    <h4 className="text-xs font-bold uppercase tracking-wider text-red-700">
-                      Bạn muốn tham gia CTV hoặc Nhà Phân Phối?
-                    </h4>
-                    <p className="text-xs text-red-950 mt-1 leading-relaxed">
-                      Để đăng ký tham gia mạng lưới kinh doanh <span className="font-bold text-red-700">Cộng Tác Viên (CTV)</span> hoặc <span className="font-bold text-red-700">Nhà Phân Phối (NPP)</span>, bạn cần có <span className="font-bold text-red-700">Mã Người Giới Thiệu (UID)</span>.
-                    </p>
-                    <p className="text-xs text-gray-600 mt-1">
-                      Vui lòng liên hệ Người bảo trợ của bạn hoặc liên hệ Water King để được hướng dẫn và cấp mã:
-                    </p>
+              /* Khách vãng lai trực tiếp: Ô Mã giới thiệu bị khóa + Nút liên hệ Zalo OA & Hotline */
+              <div className="space-y-3">
+                <div>
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold text-gray-600 uppercase tracking-wide">Mã người giới thiệu</label>
+                    <span className="text-[11px] font-semibold text-gray-400 flex items-center gap-1">
+                      <Lock className="w-3 h-3 text-gray-400" /> Đã khóa
+                    </span>
+                  </div>
+                  <div className="mt-1 relative">
+                    <UserPlus className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <input
+                      type="text"
+                      value=""
+                      placeholder="Chưa có mã giới thiệu"
+                      readOnly
+                      disabled
+                      className="w-full pl-10 pr-10 py-3 border border-gray-200 bg-gray-100 rounded-xl text-sm text-gray-400 cursor-not-allowed select-none focus:outline-none"
+                    />
+                    <Lock className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                   </div>
                 </div>
 
-                <div className="pt-1 flex flex-col sm:flex-row gap-2">
+                {/* Xuống dòng hiển thị Zalo OA và Hotline */}
+                <div className="flex flex-col sm:flex-row gap-2">
                   <a
                     href="https://zalo.me/2928413591064686973"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex-1 py-2 px-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 shadow-sm transition-colors text-center"
+                    className="flex-1 py-2.5 px-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 shadow-sm transition-colors text-center"
                   >
                     <span>💬 Zalo OA Water King</span>
                   </a>
                   <a
                     href="tel:1900989878"
-                    className="flex-1 py-2 px-3 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 shadow-sm transition-colors text-center"
+                    className="flex-1 py-2.5 px-3 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 shadow-sm transition-colors text-center"
                   >
                     <span>📞 Hotline: 1900 989878</span>
                   </a>
