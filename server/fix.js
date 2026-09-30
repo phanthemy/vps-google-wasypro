@@ -1,6 +1,7 @@
-const Database = require('better-sqlite3');
-const db = new Database('dev.db');
-db.prepare(`UPDATE ServiceCategory SET name = 'Máy Lọc Nước' WHERE name LIKE '%NỘI KHOA%'`).run();
-db.prepare(`UPDATE ServiceCategory SET name = 'Lõi Lọc' WHERE name LIKE '%Chăm sóc%'`).run();
-db.prepare(`UPDATE ServiceCategory SET name = 'Phụ Kiện' WHERE name LIKE '%Phẫu thuật%'`).run();
-console.log('Categories Updated');
+﻿import sqlite3 from 'sqlite3';
+import bcrypt from 'bcryptjs';
+const db = new sqlite3.Database('/var/www/wasypro/server/dev.db');
+const hash = await bcrypt.hash('123456', 10);
+db.run("UPDATE User SET password = ?, mustChangePassword = 1 WHERE businessId = 'U1009'", [hash], () => {
+    console.log('DONE');
+});

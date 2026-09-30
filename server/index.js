@@ -18,6 +18,7 @@ if (!JWT_SECRET) {
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '24h';
 
 const prisma = new PrismaClient();
+const znsService = require('./services/znsService');
 const app = express();
 const PORT = process.env.PORT || 3011;
 
@@ -69,6 +70,7 @@ const csrfProtection = (req, res, next) => {
     req.path === '/api/auth/login' ||
     req.path === '/api/auth/logout' ||
     req.path === '/api/auth/register' ||
+    req.path === '/api/auth/send-otp' ||
     req.path === '/api/upload' ||
     req.path === '/api/orders/website' ||   // Public order form
     req.path === '/api/leads' ||              // Public consultation form — accepts guest + logged-in users
@@ -555,16 +557,140 @@ async function preserveOrSeedQuangAccount(prismaClient) {
 // POST /api/auth/register
 // Creates a User account (role=ctv, isSystemParticipant=false by default).
 // refCode → parentId (sponsor). No business rights until "THAM GIA HỆ THỐNG".
+
+// ─── ZALO ZNS OTP VERIFICATION ──────────────────────────────────────────────
+// POST /api/auth/send-otp
+app.post('/api/auth/send-otp', authLimiter, async (req, res) => {
+  try {
+    let { phone } = req.body;
+    if (!phone || typeof phone !== 'string') {
+      return res.status(400).json({ success: false, message: 'Vui lòng cung cấp số điện thoại hợp lệ.' });
+    }
+    phone = phone.trim().replace(/\s+/g, '');
+    const phoneRegex = /^(0|84)(3|5|7|8|9)[0-9]{8}$/;
+    if (!phoneRegex.test(phone)) {
+      return res.status(400).json({ success: false, message: 'Số điện thoại không đúng định dạng di động Việt Nam.' });
+    }
+
+    // Cooldown check (60s)
+    const nowIso = new Date().toISOString();
+    const cooldownMs = 60 * 1000;
+    const cooldownLimitIso = new Date(Date.now() - cooldownMs).toISOString();
+
+    const recentOtps = await prisma.$queryRaw`
+      SELECT * FROM OtpCode
+      WHERE phone = ${phone} AND type = 'REGISTER' AND createdAt > ${cooldownLimitIso}
+      ORDER BY createdAt DESC LIMIT 1
+    `;
+
+    if (recentOtps && recentOtps.length > 0) {
+      const waitSeconds = Math.ceil((new Date(recentOtps[0].createdAt).getTime() + cooldownMs - Date.now()) / 1000);
+      return res.status(429).json({
+        success: false,
+        message: `Vui lòng đợi ${waitSeconds > 0 ? waitSeconds : 5} giây trước khi yêu cầu mã mới.`,
+        cooldown: waitSeconds > 0 ? waitSeconds : 5
+      });
+    }
+
+    // Generate 6-digit OTP
+    const otp = String(Math.floor(100000 + Math.random() * 900000));
+    const otpId = 'otp_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7);
+    const expiresAtIso = new Date(Date.now() + 5 * 60 * 1000).toISOString();
+
+    await prisma.$executeRaw`
+      INSERT INTO OtpCode (id, phone, code, type, verified, expiresAt, createdAt)
+      VALUES (${otpId}, ${phone}, ${otp}, 'REGISTER', 0, ${expiresAtIso}, ${nowIso})
+    `;
+
+    // Send via ZNS
+    let znsResult = null;
+    try {
+      znsResult = await znsService.sendOtpZns(phone, otp);
+    } catch (zErr) {
+      console.error('[OTP SEND ERROR]', zErr.message);
+    }
+
+    console.log(`[OTP] Generated for ${phone}: ${otp} | ZNS Result:`, znsResult?.error || 'SUCCESS');
+
+    return res.json({
+      success: true,
+      message: 'Mã xác thực OTP đã được gửi qua tin nhắn Zalo của bạn. Mã có hiệu lực trong 5 phút.',
+      cooldown: 60
+    });
+  } catch (err) {
+    console.error('[API send-otp error]:', err);
+    return res.status(500).json({ success: false, message: 'Lỗi khi gửi mã xác thực. Vui lòng thử lại sau.' });
+  }
+});
+
+// OAuth Callback Route for Zalo OA permission
+app.get('/api/auth/zalo/callback', async (req, res) => {
+  try {
+    const { code, oa_id } = req.query;
+    if (!code) return res.send('Thiếu mã code từ Zalo');
+    const appId = process.env.ZALO_APP_ID || '2470893331175666168';
+    const secretKey = process.env.ZALO_APP_SECRET || 'RdN7drFQAFVXf8187gHC';
+
+    const params = new URLSearchParams();
+    params.append('app_id', appId);
+    params.append('grant_type', 'authorization_code');
+    params.append('code', code);
+
+    const tokenRes = await fetch('https://oauth.zalo.me/v4/oa/access_token', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'secret_key': secretKey
+      },
+      body: params.toString()
+    });
+    const tokenData = await tokenRes.json();
+    if (tokenData.access_token) {
+      znsService.saveTokens({
+        accessToken: tokenData.access_token,
+        refreshToken: tokenData.refresh_token,
+        expiresIn: tokenData.expires_in
+      });
+      return res.send(`<h2>✅ Cấp quyền Zalo OA thành công!</h2><p>Hệ thống đã tự động lưu Access Token và Refresh Token.</p><a href="/admin">Về trang quản trị</a>`);
+    } else {
+      return res.send(`<h2>❌ Lỗi:</h2><pre>${JSON.stringify(tokenData, null, 2)}</pre>`);
+    }
+  } catch (e) {
+    return res.status(500).send('Lỗi: ' + e.message);
+  }
+});
+
+
 app.post('/api/auth/register', authLimiter, async (req, res) => {
   try {
-    let { fullName, phone, password, refCode, joinSystem, nppPackageId, referralCode } = req.body;
+    let { fullName, phone, password, refCode, joinSystem, nppPackageId, referralCode, otp } = req.body;
     // Frontend sends 'referralCode', backend used 'refCode' — accept both
     if (!refCode && referralCode) refCode = referralCode;
     if (!fullName || !fullName.trim()) return res.status(400).json({ success: false, message: 'Vui lòng nhập họ tên.' });
     if (!phone || !phone.trim()) return res.status(400).json({ success: false, message: 'Vui lòng nhập số điện thoại.' });
 
-    phone = phone.trim();
+phone = phone.trim();
     fullName = fullName.trim();
+
+    // [OTP DISABLED] Zalo OA chưa mua gói trả phí - tạm tắt OTP verification
+    // Khi mua gói Zalo OA rồi, bỏ comment block bên dưới để bật lại
+    /*
+    // Verify OTP from Zalo ZNS
+    if (!otp || !String(otp).trim()) {
+      return res.status(400).json({ success: false, message: 'Vui lòng nhập mã xác thực OTP được gửi qua Zalo.' });
+    }
+    const cleanOtp = String(otp).trim();
+    const validOtps = await prisma.$queryRaw`
+      SELECT * FROM OtpCode
+      WHERE phone = ${phone} AND code = ${cleanOtp} AND type = 'REGISTER' AND verified = 0 AND expiresAt > ${new Date().toISOString()}
+      ORDER BY createdAt DESC LIMIT 1
+    `;
+    if (!validOtps || validOtps.length === 0) {
+      return res.status(400).json({ success: false, message: 'Mã xác thực OTP không chính xác hoặc đã hết hạn.' });
+    }
+    // Mark OTP as verified
+    await prisma.$executeRaw`UPDATE OtpCode SET verified = 1 WHERE id = ${validOtps[0].id}`;
+    */
     if (password && password.trim().length < 8) {
       return res.status(400).json({ success: false, message: 'Mật khẩu phải có tối thiểu 8 ký tự.' });
     }

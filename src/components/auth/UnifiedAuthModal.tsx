@@ -44,6 +44,56 @@ export default function UnifiedAuthModal({ isOpen, onClose, initialTab = 'login'
   const [selectedPackageId, setSelectedPackageId] = useState('');
   const [nppPackages, setNppPackages] = useState<NppPackage[]>([]);
 
+  // OTP Verification (Zalo ZNS)
+  const [regOtp, setRegOtp] = useState('');
+  const [otpLoading, setOtpLoading] = useState(false);
+  const [otpCooldown, setOtpCooldown] = useState(0);
+  const [otpSent, setOtpSent] = useState(false);
+
+  useEffect(() => {
+    if (otpCooldown <= 0) return;
+    const timer = setInterval(() => {
+      setOtpCooldown(prev => (prev <= 1 ? 0 : prev - 1));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [otpCooldown]);
+
+  const handleSendOtp = async () => {
+    if (!regPhone || !regPhone.trim()) {
+      setError('Vui lòng nhập số điện thoại trước khi lấy mã OTP.');
+      return;
+    }
+    const cleanPhone = regPhone.trim().replace(/\s+/g, '');
+    const phoneRegex = /^(0|84)(3|5|7|8|9)[0-9]{8}$/;
+    if (!phoneRegex.test(cleanPhone)) {
+      setError('Số điện thoại không đúng định dạng di động Việt Nam.');
+      return;
+    }
+
+    setOtpLoading(true);
+    setError('');
+    try {
+      const res = await fetch('/api/auth/send-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone: cleanPhone }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setOtpSent(true);
+        setOtpCooldown(data.cooldown || 60);
+        setSuccessMsg(data.message || 'Mã xác thực đã được gửi qua Zalo.');
+      } else {
+        if (data.cooldown) setOtpCooldown(data.cooldown);
+        setError(data.message || 'Không thể gửi mã OTP.');
+      }
+    } catch {
+      setError('Lỗi kết nối máy chủ khi gửi OTP.');
+    } finally {
+      setOtpLoading(false);
+    }
+  };
+
   // Helpers
   const formatVND = (v: number | string | null | undefined) => {
     if (!v) return '';
@@ -155,12 +205,19 @@ export default function UnifiedAuthModal({ isOpen, onClose, initialTab = 'login'
       setLoading(false);
       return;
     }
+    // [OTP DISABLED] OTP validation disabled
+    // if (!regOtp || !regOtp.trim()) {
+    //   setError('Vui lòng nhập mã xác thực OTP gửi qua Zalo.');
+    //   setLoading(false);
+    //   return;
+    // }
 
     try {
       const body: any = {
         fullName: regFullName.trim(),
         phone: regPhone.trim(),
         password: regPassword.trim(),
+        // [OTP DISABLED] otp: regOtp.trim(),
         referralCode: hasReferral ? (effectiveRefCode || undefined) : undefined,
       };
       if (hasReferral && regType === 'ctv') body.joinSystem = true;
@@ -292,10 +349,41 @@ export default function UnifiedAuthModal({ isOpen, onClose, initialTab = 'login'
             </div>
             <div>
               <label className="text-xs font-bold text-gray-600 uppercase tracking-wide">Số điện thoại *</label>
+              {/* [OTP DISABLED] Removed OTP button, restored simple phone input */}
               <div className="mt-1 relative">
                 <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <input type="tel" value={regPhone} onChange={e => setRegPhone(e.target.value)} placeholder="0900000000" className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-primary/30 focus:border-primary" required />
+                <input
+                  type="tel"
+                  value={regPhone}
+                  onChange={e => setRegPhone(e.target.value)}
+                  placeholder="0900000000"
+                  className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-primary/30 focus:border-primary"
+                  required
+                />
               </div>
+            </div>
+
+            {/* [OTP DISABLED] Mã xác thực OTP Zalo - hidden until Zalo OA plan purchased */}
+            <div style={{display: 'none'}}>
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-bold text-gray-600 uppercase tracking-wide">Mã xác thực Zalo (OTP) *</label>
+                {otpSent && <span className="text-[11px] text-emerald-600 font-semibold flex items-center gap-1">✓ Đã gửi mã qua Zalo</span>}
+              </div>
+              <div className="mt-1 relative">
+                <Shield className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-cyan-600" />
+                <input
+                  type="text"
+                  value={regOtp}
+                  onChange={e => setRegOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                  placeholder="Nhập mã 6 số gửi từ Zalo Water King"
+                  className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl text-sm font-mono tracking-widest focus:ring-2 focus:ring-primary/30 focus:border-primary"
+                  required
+                  maxLength={6}
+                />
+              </div>
+              <p className="text-[11px] text-gray-400 mt-1">
+                * Tin nhắn từ Zalo OA <strong>Water King</strong> chứa mã xác thực gồm 6 số.
+              </p>
             </div>
 
             {/* Mật khẩu & Nhập lại mật khẩu */}
