@@ -2,6 +2,14 @@
 
 ## 2026-09-30
 
+### L25: Thêm cột DB bằng ALTER TABLE mà không chạy `prisma generate` → API PATCH zaloUid lỗi
+- **Triệu chứng**: Bấm "Lưu" Zalo UID trong admin → alert lỗi `Invalid prisma.user.update() invocation: zaloUid`.
+- **Nguyên nhân**: Thêm cột `zaloUid` bằng `ALTER TABLE User ADD COLUMN zaloUid TEXT` + cập nhật `schema.prisma`, nhưng **KHÔNG chạy `npx prisma generate`** → Prisma Client chưa biết cột mới.
+- **Khắc phục**: `cd /var/www/wasypro/server && npx prisma generate && pm2 reload happylife-backend`
+- **Quy tắc vĩnh viễn**: Mỗi khi thêm/sửa cột trong DB bằng SQL trực tiếp → **BẮT BUỘC** chạy `npx prisma generate` + `pm2 reload`.
+
+
+
 ### L24: Swap tài khoản mặc định (0968616263 → admin, 0937353535 → CTV U1001) thiếu nhiều bước
 - **Triệu chứng**: Sau khi đổi role admin/ctv giữa 2 tài khoản, giao diện hiện sai:
   1. `0937353535` vẫn hiện userId `ADMIN_SUPER` thay vì `U1001`
