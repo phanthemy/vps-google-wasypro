@@ -2,6 +2,34 @@
 
 ## 2026-09-30
 
+### L19: Hình ảnh sản phẩm không hiển thị khi sửa trong Admin & lỗi 'Lỗi upload server' thường xuyên
+- **Triệu chứng**:
+  1. Khi mở modal sửa sản phẩm trong Admin (`AdminProducts.tsx`), khung "HÌNH ẢNH SẢN PHẨM" không hiển thị ảnh hiện tại của sản phẩm.
+  2. Khi kéo thả hoặc chọn tải ảnh/video mới lên, xuất hiện ô báo lỗi đỏ: `(!) Lỗi upload server`. Lỗi này xảy ra thường xuyên.
+- **Nguyên nhân**:
+  1. **Thiếu route backend**: `server/index.js` hoàn toàn chưa khai báo endpoint `POST /api/upload`. Do đó mọi request upload ảnh sản phẩm từ `ImageUpload.tsx` đều nhận `404 Not Found`.
+  2. **Vi phạm CSRF Protection**: Middleware `csrfProtection` chặn request POST `/api/upload` (ghi nhận trong log `[CSRF VIOLATION] Blocked POST /api/upload from origin https://wasypro.com`) do route chưa được đưa vào danh sách ngoại lệ và `ImageUpload.tsx` dùng `XMLHttpRequest` thuần chưa gửi kèm `X-CSRF-Token` và `Authorization: Bearer <token>`.
+  3. **Ảnh chính không tự đồng bộ vào gallery**: Trong CSDL, trường `gallery` của nhiều sản phẩm cũ lưu `[]` (rỗng), trong khi ảnh thực tế chỉ nằm ở cột `image`. Khi mở form sửa, `formData.gallery` rỗng khiến component `ImageUpload` không render bất kỳ hình ảnh nào.
+- **Fix**:
+  1. Thêm middleware `productMediaUpload` bằng `multer` lưu file vào `/var/www/wasypro/public/uploads/products/` và viết route `POST /api/upload` trả về format `{ success: true, images: [{ url, thumbnail, originalName, size, type }] }`.
+  2. Thêm `/api/upload` vào danh sách ngoại lệ của `csrfProtection`.
+  3. Cập nhật `ImageUpload.tsx`: Bật `xhr.withCredentials = true;`, gắn `X-CSRF-Token` và `Authorization: Bearer <token>`, thêm xử lý fallback ảnh `onError`.
+  4. Cập nhật `AdminProducts.tsx`: Trong `openEditModal` và `openCreateModal`, nếu `gallery` chưa có `image`, tự động gán `product.image` vào `gallery` để luôn hiển thị ảnh đại diện hiện tại.
+- **Commit**: `a8f5743`
+
+### L18: Kéo thả sắp xếp gói NPP không lưu (F5 bị nhảy thứ tự)
+- **Triệu chứng**: Admin vào `/admin/npp-packages`, kéo thả hoặc bấm mũi tên đổi vị trí các gói nhưng khi F5 thì các gói vẫn nhảy về thứ tự cũ (`NPP-40` và `NPP-800` nhảy lên đầu danh sách).
+- **Nguyên nhân**:
+  1. Sau khi code endpoint `PUT /api/admin/npp/packages/reorder` trong `server/index.js`, tiến trình `happylife-backend` trên PM2 chưa được reload (`pm2 reload happylife-backend`). Do đó mọi request `PUT /api/admin/npp/packages/reorder` gửi từ trình duyệt đều nhận mã `404 Not Found`.
+  2. Hàm `getAuthHeaders` ở frontend `AdminNppPackages.tsx` chỉ gửi `X-CSRF-Token`, thiếu `Authorization: Bearer <token>` từ localStorage.
+  3. Giá trị `sortOrder` của `NPP-40` và `NPP-800` trong SQLite trước đó mặc định là `0` nên bị xếp lên đầu trước `NPP-001`.
+- **Fix**:
+  1. Chạy `pm2 reload happylife-backend` để nạp endpoint `PUT /api/admin/npp/packages/reorder`.
+  2. Bổ sung `Authorization: Bearer <token>` vào `getAuthHeaders` trong `AdminNppPackages.tsx`.
+  3. Cập nhật lại `sortOrder` chuẩn từ 1 đến 10 cho toàn bộ gói trong cơ sở dữ liệu (`dev.db`).
+  4. Bổ sung `isSavingOrder` hiển thị trạng thái "Đang lưu thứ tự..." và tối ưu `handleMove` di chuyển chính xác khi đang bật tab phân loại.
+- **Commit**: `9550282`
+
 ### L17: NppCommission không gán periodId khi tạo → admin Kỳ Hoa Hồng thiếu record
 - **Triệu chứng**: Admin Kỳ Hoa Hồng hiện 3 khoản, nhưng CTV Portal hiện 4 khoản. Record NPP D1 (7,995,000đ) bị mất.
 - **Nguyên nhân**: 
@@ -52,7 +80,25 @@
 - **Fix**: Chỉ hiện ref link khi `user.businessId` tồn tại. Nếu không → badge "⏳ Chưa kích hoạt".
 - **Commit**: `3921409`
 
-## 2026-09-30 (earlier)
+## 2026-09-30 (earlier & latest)
+
+### L20: JSX mismatched tags in CreateOrderModal khiến build frontend thất bại
+- **Triệu chứng**: `tsc && vite build` báo lỗi `JSX expressions must have one parent element` và `Expected corresponding JSX closing tag for 'button'`.
+- **Nguyên nhân**: Khi nâng cấp thumbnail sản phẩm và thêm popup hover zoom, thẻ `<div className="flex items-center gap-3 min-w-0 pr-2">` bọc ngoài ảnh và thông tin máy bị xóa thiếu mở thẻ trong danh sách sản phẩm bán khách lẻ.
+- **Fix**: Bổ sung đầy đủ thẻ mở `<div>`, đồng bộ thumbnail `w-16 h-16` kèm popup xem ảnh phóng to floating `hoveredImage`.
+- **Commit**: `a90f602`
+
+### L19: Mật khẩu form đăng ký người dùng quá đơn giản
+- **Triệu chứng**: Người dùng đặt mật khẩu ngắn, không đủ bảo mật.
+- **Yêu cầu sếp**: Mật khẩu ít nhất 8 ký tự, có ghi chú rõ ràng gồm chữ hoa, chữ thường, số, ký tự đặc biệt.
+- **Fix**: Cập nhật validator frontend (`UnifiedAuthModal.tsx`) và backend (`server/index.js`), thêm hướng dẫn trực quan dưới ô mật khẩu.
+- **Commit**: `a8f5743`
+
+### L18: Lỗi upload ảnh sản phẩm trong Quản trị Admin & ảnh cũ không hiện khi sửa
+- **Triệu chứng**: Khi sửa/tạo sản phẩm, chọn tải ảnh lên báo "Lỗi upload server", và khi mở modal sửa sản phẩm thì danh sách ảnh gallery bị trống.
+- **Nguyên nhân**: Backend thiếu route `POST /api/upload`, và component `AdminProducts.tsx` không nạp `product.image` vào mảng `gallery` khi mở modal edit.
+- **Fix**: Thêm middleware `multer` xử lý upload ảnh tại route `/api/upload` lưu vào `/var/www/wasypro/public/uploads/products/`. Thêm `withCredentials = true` và `X-CSRF-Token` vào `ImageUpload.tsx`. Đồng bộ `product.image` vào `gallery` trong `AdminProducts.tsx`.
+- **Commit**: `b0d4051`
 
 ### L12: CTV chưa có BID vẫn được giảm giá 20% khi tự mua
 - **Triệu chứng**: Tài khoản Nguyễn Đức Quang (U1001) chưa có `rank`, chưa có `businessId` (chưa đạt 5.000 CP) nhưng CTV Portal vẫn hiện "Giảm 20% tự mua (Đại Sứ 20%)".

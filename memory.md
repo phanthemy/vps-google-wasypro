@@ -2,6 +2,42 @@
 
 ## Cập nhật: 2026-09-30
 
+### Phiên 30/09/2026 (09:20 - 09:35)
+
+#### Đã làm:
+1. **Hiển thị hình ảnh sản phẩm & điểm CP trong Tạo Đơn Hàng (`CreateOrderModal.jsx`)** (Commit `a8f5743`):
+   - Thay thế icon hình hộp bằng ảnh thực tế của từng sản phẩm (`p.image` hoặc `ci.image`).
+   - Gắn nhãn điểm hoa hồng ⭐ CP trực quan cho từng sản phẩm trong danh sách bán lẻ và danh sách máy Combo NPP.
+   - Thêm trường `image` vào danh sách sản phẩm trả về từ `/api/npp/my-combo`.
+   - Bổ sung ô hiển thị nổi bật **⭐ Điểm tích lũy (CP)** trong phần "Tóm Tắt Đơn Hàng" (tính tổng CP = đơn giá CP × số lượng máy đối với bán lẻ hoặc tổng CP các máy chọn đối với Combo).
+2. **Khắc phục triệt để lỗi không hiện ảnh & 'Lỗi upload server' trong Admin Products** (Commit `a8f5743`):
+   - Thêm route `POST /api/upload` (multer lưu vào `/var/www/wasypro/public/uploads/products/`) vào `server/index.js` và miễn trừ khỏi `csrfProtection`.
+   - Cập nhật `ImageUpload.tsx`: Bật `xhr.withCredentials = true;`, gắn `X-CSRF-Token` và `Authorization: Bearer <token>`, thêm fallback `onError`.
+   - Cập nhật `AdminProducts.tsx`: Tự động nạp `product.image` vào `formData.gallery` khi mở modal chỉnh sửa để đảm bảo ảnh đại diện luôn hiển thị nếu gallery trống.
+3. **Quy định mật khẩu đăng ký tối thiểu 8 ký tự kèm độ phức tạp** (Commit `a8f5743`):
+   - Form Đăng Ký (`UnifiedAuthModal.tsx`): Bắt buộc mật khẩu tối thiểu 8 ký tự, kiểm tra gồm chữ thường, chữ HOA, số và ký tự đặc biệt (!@#$%...).
+   - Bổ sung dòng ghi chú hướng dẫn khách: `* Mật khẩu tối thiểu 8 ký tự, bao gồm: chữ thường, chữ HOA, số và ký tự đặc biệt (VD: Wasy@2026).`
+   - Backend `server/index.js` (`POST /api/auth/register`): Thêm guard chặn đăng ký nếu mật khẩu dưới 8 ký tự.
+
+### Phiên 30/09/2026 (08:50 - 09:00)
+
+#### Đã làm:
+1. **Kéo thả & Mũi tên sắp xếp thứ tự gói NPP (`sortOrder`)** (Commit `b0d4051`):
+   - Thêm cột `sortOrder INTEGER DEFAULT 0` vào model `NppPackage` trong `dev.db` và `schema.prisma`.
+   - Seed thứ tự chuẩn cho các gói cũ: Combo (1-5) trước, Gói Vốn/Cổ đông (6-10) sau.
+   - Thêm endpoint `PUT /api/admin/npp/packages/reorder` xử lý cập nhật batch thứ tự theo mảng `packageIds`.
+   - Cập nhật các API lấy danh sách gói (`GET /api/admin/npp/packages`, `GET /api/npp/packages/available-public`, `GET /api/npp/packages/available`) sắp xếp theo `sortOrder ASC, createdAt DESC`.
+   - UI Admin (`AdminNppPackages.tsx`):
+     - Bổ sung bộ lọc Tabs: Tất cả, Combo sản phẩm, Gói Cổ đông - Vốn.
+     - Tích hợp kéo thả thẻ trực quan (HTML5 Drag & Drop với hiệu ứng preview).
+     - Bổ sung cụm nút mũi tên ▲ / ▼ và số thứ tự `#index` giúp Admin thao tác thuận tiện cả trên desktop lẫn mobile.
+2. **Rà soát & Xác nhận Logic Chu kỳ hoa hồng khi tạo gói mới**:
+   - Gói mới khi tạo trong Admin được hệ thống nhận diện tự động và tính toán hoa hồng chuẩn theo cơ chế NPP/Vốn:
+     - D1 (Trực tiếp F1): 10%
+     - D2 (Tuyến trên F2): 5%
+   - Hệ thống tự động truy vấn `CommissionPeriod` có trạng thái `OPEN` để gán `periodId` vào bản ghi `NppCommission`.
+   - Kỳ hoa hồng (`/api/admin/periods/:id/commissions`) gộp cả `Commission` và `NppCommission` nên đảm bảo tính đầy đủ, chính xác khi đối soát và chi trả.
+
 ### Phiên 30/09/2026 (01:28 - 02:00)
 
 #### Đã làm:
@@ -36,6 +72,24 @@
 ---
 
 ## Cập nhật: 2026-09-29
+
+## Cập nhật: 2026-09-30
+
+### Phiên 30/09/2026
+
+#### Đã làm:
+1. **Fix Upload ảnh sản phẩm & Hiển thị ảnh cũ trong Quản trị Admin**:
+   - Backend `server/index.js`: Thêm route `POST /api/upload` bằng `multer` lưu file vào `/var/www/wasypro/public/uploads/products/`. Exempt route khỏi CSRF middleware.
+   - Frontend `ImageUpload.tsx`: Bổ sung header `X-CSRF-Token`, `Authorization: Bearer <token>`, và `withCredentials = true`.
+   - `AdminProducts.tsx`: Khi mở modal sửa sản phẩm (`openEditModal`), tự động đồng bộ `product.image` vào mảng `gallery` để ảnh luôn hiển thị trực quan.
+2. **Quy chuẩn mật khẩu khi đăng ký tài khoản (Bảo mật nâng cao)**:
+   - Form đăng ký `UnifiedAuthModal.tsx`: Bắt buộc mật khẩu tối thiểu 8 ký tự, bao gồm ít nhất 1 chữ thường, 1 chữ hoa, 1 số và 1 ký tự đặc biệt. Thêm gợi ý hướng dẫn trực quan.
+   - Backend `server/index.js`: Kiểm tra regex tương ứng cho endpoint `POST /api/auth/register`.
+3. **Phóng to thumbnail sản phẩm & Hover Zoom Popup trong Tạo Đơn Hàng (CTV/NPP)**:
+   - Trong `CreateOrderModal.jsx`: Tăng kích thước ảnh sản phẩm lên `w-16 h-16` (rounded-xl, viền nổi bật).
+   - Thêm tính năng hover zoom: Khi rê chuột vào bất kỳ ảnh sản phẩm nào (đơn khách lẻ, combo máy, tự mua lẻ), một floating popup phóng to ảnh chất lượng cao (kèm tên sản phẩm và số điểm CP ⭐) sẽ xuất hiện mượt mà ngay cạnh con trỏ chuột.
+
+---
 
 ### Phiên 29/09/2026
 
