@@ -2,6 +2,43 @@
 
 ## Cập nhật: 2026-09-30
 
+### Phiên 30/09/2026 (14:30 - 18:50) — Tổng kết cuối ngày & Chuẩn bị bàn giao về nhà
+
+#### Đã làm:
+1. **Tích hợp 9 Video YouTube sự kiện truyền hình & tin tức vào Trang Chủ và Quản Trị Admin**:
+   - Thêm bảng SQLite `NewsArticle` vào CSDL `server/dev.db`.
+   - Viết trọn bộ CRUD API `/api/articles` (`GET`, `POST`, `PUT`, `DELETE`, lọc theo `category`, tìm kiếm `search`) đồng bộ trên cả `server.cjs` và `server/index.js`.
+   - Seed đầy đủ 9 video YouTube sự kiện chính thức của tập đoàn (HTV9, New World Sài Gòn, Ký kết tri ân, Tham quan nhà máy Happy Life Phú Thọ, Demo kiểm tra nước, v.v.) kèm tiêu đề chuẩn, tóm tắt, ngày phát sóng và ảnh thumbnail HD.
+   - Redesign component `NewsSection.tsx`: Giao diện thẻ bài viết đa phương tiện sang trọng, gắn nhãn đỏ Play Video, bộ lọc chuyên mục (Sự kiện nổi bật, Truyền hình HTV, Nhà máy sản xuất, Trải nghiệm) và popup **Modal Player toàn màn hình** phát trực tiếp YouTube iframe không làm gián đoạn trải nghiệm người dùng.
+   - Nâng cấp màn hình Quản Trị `AdminNews.tsx`: Bổ sung ô nhập link YouTube, nút bấm tự động trích xuất Thumbnail từ YouTube ID, hiển thị badge Video và link mở video trực quan trong danh sách bài viết.
+
+2. **Tái cấu trúc Danh Mục Sản Phẩm Trang Chủ & Quản trị Danh Mục Admin**:
+   - Gom nhóm danh mục trên trang chủ: Hợp nhất "Máy lọc nước Ion kiềm" và "Máy lọc nước Hydrogen" thành 1 danh mục duy nhất: **"Máy lọc nước"** (`ProductSection.tsx`).
+   - Chuẩn hóa 3 tabs hiển thị sản phẩm trên trang chủ:
+     1. Máy lọc nước
+     2. Bình & Ly Hydrogen
+     3. Phụ kiện & Lõi lọc
+   - Xây dựng hoàn chỉnh tính năng Quản lý Danh mục Admin:
+     - Thêm API CRUD `/api/categories` (`GET`, `POST`, `PUT`, `DELETE`).
+     - Tích hợp Modal Quản lý Danh mục vào `AdminProducts.tsx` cho phép Admin thêm mới, sửa tên, mô tả danh mục để gán cho sản phẩm.
+
+3. **Tối ưu hình ảnh Banner Trang Chủ & Tích hợp Video Hero**:
+   - Thay thế banner cũ bị vỡ hạt mờ bằng vector chất lượng cao trích xuất từ file thiết kế `Backdrop 133 x 256cm.pdf` sang WebP 1920px (`backdrop_banner.webp`).
+   - Tối ưu hóa file `video.mp4` thành định dạng web, triển khai vào `Hero.tsx` hỗ trợ chạy ngầm mượt mà và nút bật/tắt âm thanh (Mute/Unmute).
+
+4. **Chuẩn hóa Logo Zalo Business Solution (ZBS) & Xác thực Domain**:
+   - Triển khai 2 file xác thực domain theo yêu cầu Zalo: `NjE12PILCpro_BiAfzGe2bVxX5oxZLy3CZWs.html` và `NjE12PlLCpro_BiAfzGe2bVxX5oxZLy3CZWs.html`.
+   - Xuất logo ZBS chuẩn tỉ lệ 1:1, vòng tròn an toàn lọt lòng 15% inner padding theo hướng dẫn Zalo: `zbs_logo_light.png` và `zbs_logo_dark.png` (sao lưu ra thư mục `C:\Users\editor02\Desktop\wasy` và VPS).
+   - Tạm thời vô hiệu hóa guard OTP ZNS (`POST /api/auth/register`) do Zalo OA công ty chưa kích hoạt gói tin trả phí, giúp việc đăng ký tài khoản không bị nghẽn.
+
+5. **Build & Triển Khai Production**:
+   - Biên dịch frontend (`npx vite build`) thành công trên VPS.
+   - Reload / restart tiến trình PM2 `wasypro` (port 5005) và `happylife-backend` (port 3011).
+   - Kiểm tra trực tiếp domain `https://wasypro.com` và `https://wasypro.com/api/articles` đạt chuẩn HTTP 200.
+   - Git commit & push mã nguồn lên repository GitHub `main` (`efb4bab`, `4007080`).
+
+---
+
 ### Phiên 30/09/2026 (09:20 - 09:35)
 
 #### Đã làm:
@@ -57,41 +94,9 @@
    - Fix: Tìm period OPEN khi tạo NppCommission + merge 2 bảng trong API response.
    - Data fix: Update record cũ periodId=null → kỳ 10/2026.
 
-#### Ghi chú kỹ thuật:
-- **2 bảng commission riêng biệt**: `Commission` (đơn bán lẻ) + `NppCommission` (hoa hồng giới thiệu NPP D1/D2). PHẢI query cả 2 ở mọi nơi hiện commission.
-- **sourceCtvId ≠ parentId**: `sourceCtvId` = CTV tạo Customer record, `parentId` = parent thật trong sponsor network. Luôn dùng `parentId` cho tuyến trên.
-- **NPP combo filter**: Dùng `title startsWith 'Máy'` vì "Bộ điện phân" cùng cat-01 nhưng KHÔNG phải máy.
-- **PM2 backend ID**: Hiện tại là 43 (đã bị delete/recreate phiên trước). Dùng `pm2 reload happylife-backend`.
-
-#### Chưa hoàn thành (Cần làm tiếp):
-1. **NPP order form khác trong Admin** — Khi tạo đơn cho NPP (Phan Thế Mỹ), form nên chuyển sang chế độ combo (chọn nhiều sản phẩm, chiết khấu combo) thay vì dropdown đơn lẻ.
-2. **Verify CTV tab** — Đơn admin tạo có CTV gán → phải hiện trong tab "Đơn CTV".
-3. **Test F0 hiện đúng** — F5 admin → Tạo Đơn → nhập SĐT → verify sponsor đúng.
-4. **Test Kỳ Hoa Hồng** — F5 → verify 4 khoản đủ.
-
 ---
 
 ## Cập nhật: 2026-09-29
-
-## Cập nhật: 2026-09-30
-
-### Phiên 30/09/2026
-
-#### Đã làm:
-1. **Fix Upload ảnh sản phẩm & Hiển thị ảnh cũ trong Quản trị Admin**:
-   - Backend `server/index.js`: Thêm route `POST /api/upload` bằng `multer` lưu file vào `/var/www/wasypro/public/uploads/products/`. Exempt route khỏi CSRF middleware.
-   - Frontend `ImageUpload.tsx`: Bổ sung header `X-CSRF-Token`, `Authorization: Bearer <token>`, và `withCredentials = true`.
-   - `AdminProducts.tsx`: Khi mở modal sửa sản phẩm (`openEditModal`), tự động đồng bộ `product.image` vào mảng `gallery` để ảnh luôn hiển thị trực quan.
-2. **Quy chuẩn mật khẩu khi đăng ký tài khoản (Bảo mật nâng cao)**:
-   - Form đăng ký `UnifiedAuthModal.tsx`: Bắt buộc mật khẩu tối thiểu 8 ký tự, bao gồm ít nhất 1 chữ thường, 1 chữ hoa, 1 số và 1 ký tự đặc biệt. Thêm gợi ý hướng dẫn trực quan.
-   - Backend `server/index.js`: Kiểm tra regex tương ứng cho endpoint `POST /api/auth/register`.
-3. **Phóng to thumbnail sản phẩm & Hover Zoom Popup trong Tạo Đơn Hàng (CTV/NPP)**:
-   - Trong `CreateOrderModal.jsx`: Tăng kích thước ảnh sản phẩm lên `w-16 h-16` (rounded-xl, viền nổi bật).
-   - Thêm tính năng hover zoom: Khi rê chuột vào bất kỳ ảnh sản phẩm nào (đơn khách lẻ, combo máy, tự mua lẻ), một floating popup phóng to ảnh chất lượng cao (kèm tên sản phẩm và số điểm CP ⭐) sẽ xuất hiện mượt mà ngay cạnh con trỏ chuột.
-
----
-
-### Phiên 29/09/2026
 
 #### Đã làm:
 1. **Khóa bất biến tài khoản Nguyễn Đức Quang (0968616263 / U1001)**:
@@ -108,16 +113,6 @@
    - Backend `POST /api/auth/register`: Bổ sung Security Guard chặn đăng ký `joinSystem` hoặc `registerNpp` nếu không có `parentId` hợp lệ (HTTP 400).
 4. **Ẩn nút Xóa CTV tài khoản Nguyễn Đức Quang (UI Invariant)**:
    - Trong `AdminCTVManagement.tsx`: Đã ẩn hoàn toàn nút "🗑️ Xóa CTV" khi hiển thị chi tiết tài khoản Nguyễn Đức Quang (`U1001` / `0968616263`).
-
----
-
-## Cập nhật: 2026-09-27
-
-### Phiên 27/09/2026
-
-#### Đã làm:
-1. **Setup test.wasypro.com trên Google Cloud VPS** — Thêm Nginx server block cho test.wasypro.com → port 5005 (frontend) + /api/ → port 3011 (backend). Thêm http/https test.wasypro.com vào CORS productionOrigins. Restart backend PM2. (commit `2116fbd`)
-2. **Tổng hợp tính năng dự án** — Đọc toàn bộ code trên VPS, tạo báo cáo 11 nhóm tính năng (130 API, 37 models, 67 components)
 
 ---
 
@@ -158,21 +153,3 @@ req.user = { id: "U199", userId: "U199", dbId: cuid, role, fullName, phone }
 - Báo cáo xong mà chưa test thật
 - Dùng `pm2 delete` rồi `pm2 start` → chỉ `pm2 reload`
 - Insert code gần JSDoc `/**` block → verify đã đóng `*/`
-\n
-
-### Cấu hình Zalo ZNS / ZBS OTP (Xác thực tài khoản) ⭐⭐⭐⭐⭐
-- **Official Account (OA)**: Water King
-- **Ứng dụng (App)**: Water King HCM
-- **Zalo App ID**: `2470893331175666168`
-- **Khóa bí mật (App Secret)**: `RdN7drFQAFVXf8187gHC`
-- **ID Mẫu ZBS (Template ID)**: `643438`
-- **Tên mẫu**: "Xác thực đăng ký tài khoản Water King" (Đã duyệt)
-- **Loại mẫu**: Mẫu OTP
-- **Tham số dữ liệu**: `<otp>` (chuỗi 6 số)
-- **Đơn giá gửi qua SĐT**: 400 đ/tin
-- **Token khởi tạo ban đầu**:
-  - `Access Token`: `cb2O3qoWF5MUKvC7JgGwKfbIbmT0l4ytbHMPC2I4IpoM2Re6ExjsBAiFl3q7fcykgWYt81k14ZI0UBXY0zaJMPT0_mqGiJSSja6UA0RvG16iTfavTCH62zPixbvIt29Vv5MJ3pJQNmwxKF8d5A1MDgLJY2KCoryZkNtr3YBMKLcwTxTqFivXG9GzkXGgXnyMZpIxFJwhQsUz9i5CDfCFNfGgvb15W2fznWBcLqFpGm7C1RDLOg0NUzTHocnP_Xf3z5kmUcFnPN76MSzB7zP-Jyb-psCUrZGsjNFE9ItbDJ-42COT4eKO9gK2uoiIgnW9f0YpF0p_UWl028XPOe5CR_OOipHIlcmQsmwAJ5kjVd_b9ASeJDHlEZZXm9nZJxusM0`
-  - `Refresh Token`: `nlOtAiRGCHd2zJmYnDGt7iNqE2BAp31ljeb82Dxv4pMgc1ndrheLL9cKQYhCvnzHlCbv1FAMSts9imGzvzD9HBcJE2hxpp5llEjVF_wlLtwimHuHuerdJENo3NBXibLAeCuaCEQQK7ZZn3q3ie11Nidm4Wkng6v9wCyP8PI1KXdxv09dlgXnNz3t7cQGZ74Ualj_H9oC0pJetWfvc_1OFSgU4G6Vi6HSykblDulE1r3AlmuWkTz-Vxk_5W7-c4jlgD4PCDcbI5U8_Iu8swHtNOk2C2VZtcnrj_eYAishNdE2yIyIy9vXSO_6DJhMbtn6akKp5k20V2oZpobGtkjMFO-jKL_PYISSX-LZMLTDDnO-2iNEEnG`
-- **Cơ chế kỹ thuật**:
-  - Endpoint gửi tin: `POST https://business.openapi.zalo.me/message/template` (header `access_token`)
-  - Endpoint tự động renew token: `POST https://oauth.zalo.me/v2/access_token` (grant_type `refresh_token`, header `secret_key`)

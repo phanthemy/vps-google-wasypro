@@ -2,6 +2,30 @@
 
 ## 2026-09-30
 
+### L23: Zalo OA chưa mua gói trả phí ZNS/ZBS khiến gửi mã OTP thất bại khi đăng ký
+- **Triệu chứng**: Khi người dùng nhấn Đăng Ký, hệ thống cố gắng gửi mã OTP qua ZNS/Zalo nhưng nhận thông báo lỗi từ Zalo API hoặc không nhận được tin nhắn xác thực.
+- **Nguyên nhân**: Zalo OA của Mall Ok hiện chưa đăng ký gói tin trả phí ZNS (Zalo Notification Service) hoặc ZBS (Zalo Business Solution) trên cổng đối tác của Zalo.
+- **Khắc phục**: Tạm thời vô hiệu hóa guard kiểm tra bắt buộc mã OTP trong `POST /api/auth/register`, cho phép đăng ký trực tiếp và kích hoạt tài khoản ngay. Khi nào Zalo OA hoàn tất thanh toán gói trả phí, chỉ cần bật lại middleware xác thực OTP.
+- **Commit**: `4007080`
+
+### L22: Quản trị Admin chưa có tính năng quản lý danh mục sản phẩm để phân loại lại
+- **Triệu chứng**: Admin muốn thay đổi hoặc tạo thêm danh mục sản phẩm (như Máy lọc nước, Bình & Ly Hydrogen, Phụ kiện) nhưng hệ thống chỉ hardcode danh mục cũ.
+- **Nguyên nhân**: Thiếu bộ API CRUD và giao diện quản lý danh mục (`Category`) trong Admin.
+- **Khắc phục**: Viết bộ endpoint CRUD `/api/categories` (`GET`, `POST`, `PUT`, `DELETE`) trên `server.cjs` và `server/index.js`. Tích hợp nút bấm và Modal "Quản Lý Danh Mục" ngay trên thanh công cụ của `AdminProducts.tsx`.
+- **Commit**: `efb4bab`
+
+### L21: Banner trang chủ mờ khi hiển thị trên màn hình rộng
+- **Triệu chứng**: Ảnh banner lớn trên trang chủ bị mờ, vỡ hạt khi xem trên màn hình máy tính để bàn (Desktop).
+- **Nguyên nhân**: Ảnh banner cũ là file raster JPG nén 72 DPI, không tối ưu cho kích thước màn hình lớn.
+- **Khắc phục**: Trích xuất trực tiếp bản vẽ vector từ file thiết kế in ấn `Backdrop 133 x 256cm.pdf` (kích thước gốc 7256x3770), tối ưu hóa sang WebP độ phân giải cao (`backdrop_banner.webp`, 560KB), tích hợp vào `Hero.tsx`. Đồng thời tích hợp video nền `hero-video.mp4` chạy mượt mà kèm nút bật/tắt tiếng.
+- **Commit**: `efb4bab`
+
+### L20: JSX mismatched tags in CreateOrderModal khiến build frontend thất bại
+- **Triệu chứng**: `tsc && vite build` báo lỗi `JSX expressions must have one parent element` và `Expected corresponding JSX closing tag for 'button'`.
+- **Nguyên nhân**: Khi nâng cấp thumbnail sản phẩm và thêm popup hover zoom, thẻ `<div className="flex items-center gap-3 min-w-0 pr-2">` bọc ngoài ảnh và thông tin máy bị xóa thiếu mở thẻ trong danh sách sản phẩm bán khách lẻ.
+- **Fix**: Bổ sung đầy đủ thẻ mở `<div>`, đồng bộ thumbnail `w-16 h-16` kèm popup xem ảnh phóng to floating `hoveredImage`.
+- **Commit**: `a90f602`
+
 ### L19: Hình ảnh sản phẩm không hiển thị khi sửa trong Admin & lỗi 'Lỗi upload server' thường xuyên
 - **Triệu chứng**:
   1. Khi mở modal sửa sản phẩm trong Admin (`AdminProducts.tsx`), khung "HÌNH ẢNH SẢN PHẨM" không hiển thị ảnh hiện tại của sản phẩm.
@@ -67,8 +91,6 @@
 - **Loại trừ**: Bộ điện phân (100k, cùng cat-01 nhưng không phải máy), Lõi Hydrogen, Lõi lọc thô, Màn chống sóng, Bút đo pH.
 - **Commit**: `71607ce`
 
-## 2026-09-30 (earlier)
-
 ### L14: JSDoc comment block nuốt 6 API endpoints → 404
 - **Triệu chứng**: 6 API mới (ctv-search, assign-sponsor, orders/create, history, upload-attachment, products-list) trả 404.
 - **Nguyên nhân**: JSDoc `/**` ở dòng 3141 mô tả factory-reset không được đóng `*/`. Code mới nằm trong comment block.
@@ -79,26 +101,6 @@
 - **Triệu chứng**: Ref link hiện cho NPP đã APPROVED nhưng chưa mua gói → chưa có businessId → link vô nghĩa.
 - **Fix**: Chỉ hiện ref link khi `user.businessId` tồn tại. Nếu không → badge "⏳ Chưa kích hoạt".
 - **Commit**: `3921409`
-
-## 2026-09-30 (earlier & latest)
-
-### L20: JSX mismatched tags in CreateOrderModal khiến build frontend thất bại
-- **Triệu chứng**: `tsc && vite build` báo lỗi `JSX expressions must have one parent element` và `Expected corresponding JSX closing tag for 'button'`.
-- **Nguyên nhân**: Khi nâng cấp thumbnail sản phẩm và thêm popup hover zoom, thẻ `<div className="flex items-center gap-3 min-w-0 pr-2">` bọc ngoài ảnh và thông tin máy bị xóa thiếu mở thẻ trong danh sách sản phẩm bán khách lẻ.
-- **Fix**: Bổ sung đầy đủ thẻ mở `<div>`, đồng bộ thumbnail `w-16 h-16` kèm popup xem ảnh phóng to floating `hoveredImage`.
-- **Commit**: `a90f602`
-
-### L19: Mật khẩu form đăng ký người dùng quá đơn giản
-- **Triệu chứng**: Người dùng đặt mật khẩu ngắn, không đủ bảo mật.
-- **Yêu cầu sếp**: Mật khẩu ít nhất 8 ký tự, có ghi chú rõ ràng gồm chữ hoa, chữ thường, số, ký tự đặc biệt.
-- **Fix**: Cập nhật validator frontend (`UnifiedAuthModal.tsx`) và backend (`server/index.js`), thêm hướng dẫn trực quan dưới ô mật khẩu.
-- **Commit**: `a8f5743`
-
-### L18: Lỗi upload ảnh sản phẩm trong Quản trị Admin & ảnh cũ không hiện khi sửa
-- **Triệu chứng**: Khi sửa/tạo sản phẩm, chọn tải ảnh lên báo "Lỗi upload server", và khi mở modal sửa sản phẩm thì danh sách ảnh gallery bị trống.
-- **Nguyên nhân**: Backend thiếu route `POST /api/upload`, và component `AdminProducts.tsx` không nạp `product.image` vào mảng `gallery` khi mở modal edit.
-- **Fix**: Thêm middleware `multer` xử lý upload ảnh tại route `/api/upload` lưu vào `/var/www/wasypro/public/uploads/products/`. Thêm `withCredentials = true` và `X-CSRF-Token` vào `ImageUpload.tsx`. Đồng bộ `product.image` vào `gallery` trong `AdminProducts.tsx`.
-- **Commit**: `b0d4051`
 
 ### L12: CTV chưa có BID vẫn được giảm giá 20% khi tự mua
 - **Triệu chứng**: Tài khoản Nguyễn Đức Quang (U1001) chưa có `rank`, chưa có `businessId` (chưa đạt 5.000 CP) nhưng CTV Portal vẫn hiện "Giảm 20% tự mua (Đại Sứ 20%)".

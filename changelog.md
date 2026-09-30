@@ -4,18 +4,29 @@
 
 ## 2026-09-30
 
-### Fix
-- **NPP Combo chỉ hiện máy lọc nước** — Filter `title startsWith 'Máy'` + `categoryId IN (cat-01, cat-02)`, loại bỏ linh kiện/phụ kiện. Frontend + Backend. (`71607ce`)
-- **F0 hiện sai trong Admin Tạo Đơn** — Thêm `networkParent` resolve từ `User.parentId` thay vì dùng `Customer.sourceCtvId` (trỏ chính mình khi CTV self-purchase). (`431e2be`)
-- **NppCommission thiếu trong Kỳ Hoa Hồng** — Gán `periodId` khi tạo NppCommission + merge NppCommission vào API `/api/admin/periods/:id/commissions`. Fix data cũ periodId=null. (`ade49e4`)
-- **JSDoc comment block nuốt 6 API** — Thêm `*/` đóng comment. (`dd7269f`)
-- **NPP Ref Link hiện cho NPP chưa kích hoạt** — Chỉ hiện khi có `businessId`. (`3921409`)
-- **CTV Ref Link hiện cho CTV chưa kích hoạt** — Tương tự NPP fix. (`3921409`)
-- **Smart Create Order Modal** — Auto-load sponsor, required address, auto-fill phone. (`fcd9c7d`)
-- **Nginx uploads location** — Thêm `/uploads/` serve static files. (`dd7269f`)
+### Feature & Optimization (Phiên Chiều - Bàn Giao Về Nhà)
+- **Tích hợp 9 Video YouTube sự kiện truyền hình & tin tức** — Đưa 9 video sự kiện tập đoàn (HTV9, New World Sài Gòn, Ký kết tri ân, Nhà máy Phú Thọ, v.v.) vào mục Tin tức & Sự kiện trang chủ với Modal Player xem video toàn màn hình mượt mà không làm chuyển trang (`efb4bab`).
+- **Quản Trị Tin Tức & Video YouTube trong Admin** — Thêm bảng SQLite `NewsArticle`, viết bộ API CRUD `/api/articles`, hỗ trợ nhập link YouTube, tự động lấy thumbnail HD từ YouTube ID và hiển thị badge Video (`efb4bab`).
+- **Tái cấu trúc Danh mục Sản phẩm Trang chủ & Quản lý Danh mục Admin** — Hợp nhất máy lọc nước ion kiềm và hydrogen thành mục duy nhất "Máy lọc nước" trên trang chủ; viết bộ API CRUD `/api/categories` và bổ sung Modal quản lý danh mục trong `AdminProducts.tsx` (`efb4bab`).
+- **Tối ưu hóa Banner Hero trang chủ từ bản vẽ PDF** — Trích xuất vector từ `Backdrop 133 x 256cm.pdf` sang WebP 1920px (`backdrop_banner.webp`, 560KB), khắc phục triệt để tình trạng mờ vỡ hạt khi phóng to màn hình lớn (`efb4bab`).
+- **Tích hợp Video Hero nền chạy ngầm** — Triển khai `hero-video.mp4` với hiệu ứng video nền sang trọng, có nút bật/tắt tiếng trực quan (`efb4bab`).
+- **Chuẩn hóa Logo Zalo Business (ZBS) & Xác thực Domain Zalo** — Triển khai 2 file xác thực domain (`NjE12PILCpro...`), xuất logo ZBS chuẩn tỉ lệ 1:1 vòng tròn an toàn 15% inner padding (`zbs_logo_light.png`, `zbs_logo_dark.png`) lưu vào desktop và VPS (`4007080`).
+- **Tạm thời vô hiệu hóa OTP Guard khi Đăng ký** — Tránh gián đoạn đăng ký tài khoản trong thời gian Zalo OA hoàn tất kích hoạt gói tin trả phí ZNS/ZBS (`4007080`).
 
-### Feature
-- **Admin Order Management** — 6 API endpoints + 3 modals (tạo đơn, gán CTV, lịch sử). (`0729a81`)
+### Feature & Fix (Phiên Sáng & Đầu Giờ)
+- **Hiển thị hình ảnh sản phẩm & điểm CP trong Tạo Đơn Hàng** — Modal `CreateOrderModal.jsx` hiện ảnh thực tế và điểm tích lũy ⭐ CP cho từng sản phẩm (`a8f5743`).
+- **Hover Zoom Popup Thumbnail** — Rê chuột vào ảnh sản phẩm trong Tạo Đơn Hàng để xem ảnh phóng to floating preview (`a90f602`).
+- **Khắc phục lỗi upload ảnh sản phẩm trong Admin** — Thêm route `POST /api/upload`, cấu hình multer và miễn trừ CSRF (`a8f5743`).
+- **Quy chuẩn mật khẩu bảo mật cao (8 ký tự)** — Tối thiểu 8 ký tự, có chữ hoa, chữ thường, số và ký tự đặc biệt (`a8f5743`).
+- **Kéo thả & Sắp xếp thứ tự Gói NPP (`sortOrder`)** — Thêm cột `sortOrder`, endpoint reorder và UI kéo thả, mũi tên di chuyển gói (`b0d4051`, `9550282`).
+- **NPP Combo chỉ hiện máy lọc nước** — Filter `title startsWith 'Máy'` + `categoryId IN (cat-01, cat-02)`, loại bỏ linh kiện/phụ kiện (`71607ce`).
+- **Fix F0 hiện sai trong Admin Tạo Đơn** — Thêm `networkParent` resolve từ `User.parentId` thay vì dùng `Customer.sourceCtvId` (`431e2be`).
+- **NppCommission thiếu trong Kỳ Hoa Hồng** — Gán `periodId` khi tạo NppCommission + merge NppCommission vào API `/api/admin/periods/:id/commissions` (`ade49e4`).
+- **JSDoc comment block nuốt 6 API** — Thêm `*/` đóng comment (`dd7269f`).
+- **NPP/CTV Ref Link chỉ hiện khi có businessId** — Badge ⏳ Chưa kích hoạt nếu chưa mua combo (`3921409`).
+- **Smart Admin Create Order Modal** — Auto sponsor, required address (`fcd9c7d`).
+- **Nginx uploads location cho attachments** — Thêm `/uploads/` serve static files (`dd7269f`).
+- **Admin Order Management** — 6 API endpoints + 3 modals (`0729a81`).
 
 ## 2026-09-29
 
@@ -32,48 +43,7 @@
 
 ## 2026-09-26
 
-### Docs
 - **Sync AI Workflow to Git** — .agents/rules/project-workflow.md (`5149efd`)
 - **Expand Startup Checklist** — AGENTS.md 6 → 13 steps
 - **Create changelog.md**
-
-### Fix
 - **Product images 404** — Mount `../uploads` vào Express static (`e43cefd`)
-
-## 2026-09-25
-
-### Fix
-- **APPROVED NPP tab** — Thêm APPROVED vào visibility list (`91bdebe`)
-- **Factory Reset NPP** — Thêm 6 bảng NPP (`7e8e0e3`, `3d76394`, `15afbc9`)
-- **NPP package sort** — Sắp xếp theo code (`a48c377`)
-- **Avatar 404** — Nginx thiếu proxy `/uploads/`
-- **Vietnamese font mojibake** — 21 text replacements (`aa0a638`, `440e5da`)
-- **TreeNode rank** — MEMBER thay vì AMBASSADOR cho user chưa có rank (`ee09106`)
-
-## 2026-09-23–24
-
-### Fix
-- **Referral code** — Backend accepts both `refCode` AND `referralCode` (`aa24fe1`)
-- **my-discount userId** — `req.user.id` → `req.user.dbId` (`4c31d06`)
-- **NPP tab visibility** — Systemic check nppStatus (`62c49a1`)
-- **SettingsView NPP** — Ẩn CP progress cho NPP user (`4190a26`)
-- **CreateOrderModal** — 3 chế độ Combo/CK/Retail (`16abcd1` → `bc80fac`)
-
-### Feature
-- `GET /api/npp/my-combo` endpoint (`4c31d06`)
-
-## 2026-09-21
-
-### Feature
-- **NPP Phase 3.2.1** — Registration + Activation Foundation
-
-## 2026-09-12
-
-### Fix
-- **React Hooks violation** — Sập trắng trang khi bấm MUA NGAY
-- **ErrorBoundary.tsx** — Tích hợp error boundary
-- **Pre-BID threshold-crossing** — Gia cố logic
-
-### Test
-- E2E test qua CDP — PASS
-- `test_threshold_4000_500_1000.cjs` — PASS 100%
