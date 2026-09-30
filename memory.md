@@ -158,3 +158,21 @@ req.user = { id: "U199", userId: "U199", dbId: cuid, role, fullName, phone }
 - Báo cáo xong mà chưa test thật
 - Dùng `pm2 delete` rồi `pm2 start` → chỉ `pm2 reload`
 - Insert code gần JSDoc `/**` block → verify đã đóng `*/`
+\n
+
+### Cấu hình Zalo ZNS / ZBS OTP (Xác thực tài khoản) ⭐⭐⭐⭐⭐
+- **Official Account (OA)**: Water King
+- **Ứng dụng (App)**: Water King HCM
+- **Zalo App ID**: `2470893331175666168`
+- **Khóa bí mật (App Secret)**: `RdN7drFQAFVXf8187gHC`
+- **ID Mẫu ZBS (Template ID)**: `643438`
+- **Tên mẫu**: "Xác thực đăng ký tài khoản Water King" (Đã duyệt)
+- **Loại mẫu**: Mẫu OTP
+- **Tham số dữ liệu**: `<otp>` (chuỗi 6 số)
+- **Đơn giá gửi qua SĐT**: 400 đ/tin
+- **Token khởi tạo ban đầu**:
+  - `Access Token`: `cb2O3qoWF5MUKvC7JgGwKfbIbmT0l4ytbHMPC2I4IpoM2Re6ExjsBAiFl3q7fcykgWYt81k14ZI0UBXY0zaJMPT0_mqGiJSSja6UA0RvG16iTfavTCH62zPixbvIt29Vv5MJ3pJQNmwxKF8d5A1MDgLJY2KCoryZkNtr3YBMKLcwTxTqFivXG9GzkXGgXnyMZpIxFJwhQsUz9i5CDfCFNfGgvb15W2fznWBcLqFpGm7C1RDLOg0NUzTHocnP_Xf3z5kmUcFnPN76MSzB7zP-Jyb-psCUrZGsjNFE9ItbDJ-42COT4eKO9gK2uoiIgnW9f0YpF0p_UWl028XPOe5CR_OOipHIlcmQsmwAJ5kjVd_b9ASeJDHlEZZXm9nZJxusM0`
+  - `Refresh Token`: `nlOtAiRGCHd2zJmYnDGt7iNqE2BAp31ljeb82Dxv4pMgc1ndrheLL9cKQYhCvnzHlCbv1FAMSts9imGzvzD9HBcJE2hxpp5llEjVF_wlLtwimHuHuerdJENo3NBXibLAeCuaCEQQK7ZZn3q3ie11Nidm4Wkng6v9wCyP8PI1KXdxv09dlgXnNz3t7cQGZ74Ualj_H9oC0pJetWfvc_1OFSgU4G6Vi6HSykblDulE1r3AlmuWkTz-Vxk_5W7-c4jlgD4PCDcbI5U8_Iu8swHtNOk2C2VZtcnrj_eYAishNdE2yIyIy9vXSO_6DJhMbtn6akKp5k20V2oZpobGtkjMFO-jKL_PYISSX-LZMLTDDnO-2iNEEnG`
+- **Cơ chế kỹ thuật**:
+  - Endpoint gửi tin: `POST https://business.openapi.zalo.me/message/template` (header `access_token`)
+  - Endpoint tự động renew token: `POST https://oauth.zalo.me/v2/access_token` (grant_type `refresh_token`, header `secret_key`)
