@@ -80,7 +80,11 @@ function getCsrfToken(): string {
 
 function getAuthHeaders(headers: Record<string, string> = {}): Record<string, string> {
   const csrfToken = getCsrfToken();
+  const token = typeof localStorage !== 'undefined' ? (localStorage.getItem('token') || localStorage.getItem('crm_token') || '') : '';
   const authHeaders: Record<string, string> = { ...headers };
+  if (token) {
+    authHeaders['Authorization'] = `Bearer ${token}`;
+  }
   if (csrfToken) {
     authHeaders['X-CSRF-Token'] = csrfToken;
   }
@@ -234,6 +238,7 @@ const AdminNppPackages: React.FC = () => {
   // Drag and drop state
   const [draggedPkgId, setDraggedPkgId] = useState<string | null>(null);
   const [dragOverPkgId, setDragOverPkgId] = useState<string | null>(null);
+  const [isSavingOrder, setIsSavingOrder] = useState<boolean>(false);
 
   // Filter
   const filtered = packages.filter(p => {
@@ -280,12 +285,15 @@ const AdminNppPackages: React.FC = () => {
     setPackages(updated);
     setDraggedPkgId(null);
     setDragOverPkgId(null);
+    setIsSavingOrder(true);
 
     try {
       await nppApi.reorder(updated.map(p => p.id));
       showSuccess('✅ Đã lưu thứ tự gói mới!');
     } catch (err: any) {
       setError(err.message || 'Lỗi lưu thứ tự gói');
+    } finally {
+      setIsSavingOrder(false);
     }
   };
 
@@ -295,21 +303,29 @@ const AdminNppPackages: React.FC = () => {
   };
 
   const handleMove = async (pkgId: string, direction: 'up' | 'down') => {
-    const index = packages.findIndex(p => p.id === pkgId);
-    if (index === -1) return;
-    const targetIndex = direction === 'up' ? index - 1 : index + 1;
-    if (targetIndex < 0 || targetIndex >= packages.length) return;
+    const filteredIndex = filtered.findIndex(p => p.id === pkgId);
+    if (filteredIndex === -1) return;
+    const targetFilteredIndex = direction === 'up' ? filteredIndex - 1 : filteredIndex + 1;
+    if (targetFilteredIndex < 0 || targetFilteredIndex >= filtered.length) return;
+
+    const targetPkgId = filtered[targetFilteredIndex].id;
+    const sourceIndex = packages.findIndex(p => p.id === pkgId);
+    const targetIndex = packages.findIndex(p => p.id === targetPkgId);
+    if (sourceIndex === -1 || targetIndex === -1) return;
 
     const updated = [...packages];
-    const [moved] = updated.splice(index, 1);
+    const [moved] = updated.splice(sourceIndex, 1);
     updated.splice(targetIndex, 0, moved);
 
     setPackages(updated);
+    setIsSavingOrder(true);
     try {
       await nppApi.reorder(updated.map(p => p.id));
       showSuccess('✅ Đã lưu thứ tự gói mới!');
     } catch (err: any) {
       setError(err.message || 'Lỗi lưu thứ tự gói');
+    } finally {
+      setIsSavingOrder(false);
     }
   };
 
@@ -527,9 +543,16 @@ const AdminNppPackages: React.FC = () => {
         </div>
       </div>
 
-      <div className="flex items-center justify-between text-xs text-slate-400 px-1">
-        <span>💡 Mẹo: Bạn có thể <b>kéo thả thẻ</b> hoặc dùng mũi tên <b>▲ / ▼</b> để đổi thứ tự hiển thị.</span>
-        <span>Tổng cộng: {filtered.length} gói</span>
+      <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500 px-1 bg-slate-50 p-2.5 rounded-xl border border-slate-200">
+        <div className="flex items-center gap-2">
+          <span>💡 Mẹo: Bạn có thể <b>kéo thả thẻ</b> hoặc dùng mũi tên <b>▲ / ▼</b> để đổi thứ tự.</span>
+          {isSavingOrder && (
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold bg-cyan-100 text-cyan-700 animate-pulse">
+              <Loader2 className="w-3.5 h-3.5 animate-spin" /> Đang lưu thứ tự...
+            </span>
+          )}
+        </div>
+        <span className="text-slate-400 font-medium">Tổng cộng: {filtered.length} gói</span>
       </div>
 
       {/* Package List */}
@@ -543,10 +566,10 @@ const AdminNppPackages: React.FC = () => {
         </div>
       ) : (
         <div className="grid gap-3">
-          {filtered.map(pkg => {
+          {filtered.map((pkg, idx) => {
             const globalIndex = packages.findIndex(p => p.id === pkg.id);
-            const isFirst = globalIndex === 0;
-            const isLast = globalIndex === packages.length - 1;
+            const isFirst = idx === 0;
+            const isLast = idx === filtered.length - 1;
             const isBeingDragged = draggedPkgId === pkg.id;
             const isDragOver = dragOverPkgId === pkg.id;
 
