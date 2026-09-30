@@ -25,6 +25,23 @@ export default function CreateOrderModal({ currentUser, onClose, onSuccess }) {
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(false);
   const [customerSearch, setCustomerSearch] = useState('');
+  const [hoveredImage, setHoveredImage] = useState(null); // { url, title, cp, x, y }
+
+  const handleImageHover = (e, item) => {
+    if (!item?.image) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    setHoveredImage({
+      url: item.image,
+      title: item.title || item.productName,
+      cp: item.commissionPoints || 0,
+      x: rect.right + 12,
+      y: rect.top - 30,
+    });
+  };
+
+  const handleImageLeave = () => {
+    setHoveredImage(null);
+  };
 
   // NPP Pricing Modes: 'COMBO' | 'RETAIL'
   const [pricingMode, setPricingMode] = useState('RETAIL');
@@ -510,16 +527,22 @@ export default function CreateOrderModal({ currentUser, onClose, onSuccess }) {
                       }}
                     >
                       <div className="flex items-center gap-3 min-w-0 pr-2">
-                        <div className="w-12 h-12 rounded-lg bg-slate-100 border border-slate-200 overflow-hidden flex-shrink-0 flex items-center justify-center">
+                        <div
+                          className="w-16 h-16 rounded-xl bg-white border border-slate-200 overflow-hidden flex-shrink-0 flex items-center justify-center p-0.5 cursor-zoom-in transition-all duration-200 hover:scale-105 hover:border-indigo-400 hover:shadow-md"
+                          onMouseEnter={(e) => handleImageHover(e, p)}
+                          onMouseLeave={handleImageLeave}
+                          onClick={(e) => { e.stopPropagation(); setSelectedProduct(p); handleImageHover(e, p); }}
+                          title="Rê chuột để phóng to ảnh sản phẩm"
+                        >
                           {p.image ? (
                             <img
                               src={p.image}
                               alt={p.title}
-                              className="w-full h-full object-cover"
+                              className="w-full h-full object-contain"
                               onError={(e) => { e.currentTarget.style.display = 'none'; }}
                             />
                           ) : (
-                            <Package size={20} className="text-slate-400" />
+                            <Package size={22} className="text-slate-400" />
                           )}
                         </div>
                         <div className="min-w-0">
@@ -641,16 +664,22 @@ export default function CreateOrderModal({ currentUser, onClose, onSuccess }) {
                       }}
                     >
                       <div className="flex items-center gap-3 flex-1 min-w-0 pr-2">
-                        <div className="w-11 h-11 rounded-lg bg-slate-100 border border-slate-200 overflow-hidden flex-shrink-0 flex items-center justify-center">
+                        <div
+                          className="w-16 h-16 rounded-xl bg-white border border-slate-200 overflow-hidden flex-shrink-0 flex items-center justify-center p-0.5 cursor-zoom-in transition-all duration-200 hover:scale-105 hover:border-indigo-400 hover:shadow-md"
+                          onMouseEnter={(e) => handleImageHover(e, ci)}
+                          onMouseLeave={handleImageLeave}
+                          onClick={(e) => { e.stopPropagation(); handleImageHover(e, ci); }}
+                          title="Rê chuột để phóng to ảnh sản phẩm"
+                        >
                           {ci.image ? (
                             <img
                               src={ci.image}
                               alt={ci.productName}
-                              className="w-full h-full object-cover"
+                              className="w-full h-full object-contain"
                               onError={(e) => { e.currentTarget.style.display = 'none'; }}
                             />
                           ) : (
-                            <Package size={18} className="text-blue-500" />
+                            <Package size={22} className="text-blue-500" />
                           )}
                         </div>
                         <div className="min-w-0">
@@ -740,16 +769,22 @@ export default function CreateOrderModal({ currentUser, onClose, onSuccess }) {
                       }}
                     >
                       <div className="flex items-center gap-3 min-w-0 pr-2">
-                        <div className="w-12 h-12 rounded-lg bg-slate-100 border border-slate-200 overflow-hidden flex-shrink-0 flex items-center justify-center">
+                        <div
+                          className="w-16 h-16 rounded-xl bg-white border border-slate-200 overflow-hidden flex-shrink-0 flex items-center justify-center p-0.5 cursor-zoom-in transition-all duration-200 hover:scale-105 hover:border-amber-400 hover:shadow-md"
+                          onMouseEnter={(e) => handleImageHover(e, p)}
+                          onMouseLeave={handleImageLeave}
+                          onClick={(e) => { e.stopPropagation(); setSelectedProduct(p); handleImageHover(e, p); }}
+                          title="Rê chuột để phóng to ảnh sản phẩm"
+                        >
                           {p.image ? (
                             <img
                               src={p.image}
                               alt={p.title}
-                              className="w-full h-full object-cover"
+                              className="w-full h-full object-contain"
                               onError={(e) => { e.currentTarget.style.display = 'none'; }}
                             />
                           ) : (
-                            <Package size={20} className="text-amber-500" />
+                            <Package size={22} className="text-amber-500" />
                           )}
                         </div>
                         <div className="min-w-0">
@@ -1041,6 +1076,34 @@ export default function CreateOrderModal({ currentUser, onClose, onSuccess }) {
           })()}
         </div>
       </div>
+
+      {/* Floating Zoom Preview Popup when hovering over any product image */}
+      {hoveredImage && (
+        <div
+          className="fixed pointer-events-none z-[10000] bg-white p-3 rounded-2xl shadow-2xl border-2 border-indigo-400 w-64 sm:w-72 flex flex-col items-center animate-in fade-in zoom-in-95 duration-150 backdrop-blur-md"
+          style={{
+            left: Math.min(typeof window !== 'undefined' ? window.innerWidth - 300 : 300, Math.max(16, hoveredImage.x)),
+            top: Math.min(typeof window !== 'undefined' ? window.innerHeight - 340 : 300, Math.max(16, hoveredImage.y)),
+          }}
+        >
+          <div className="w-56 h-56 sm:w-64 sm:h-64 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center p-2 overflow-hidden">
+            <img
+              src={hoveredImage.url}
+              alt={hoveredImage.title}
+              className="w-full h-full object-contain drop-shadow-md"
+            />
+          </div>
+          <div className="font-bold text-sm text-slate-900 text-center mt-2.5 px-1 line-clamp-2">
+            {hoveredImage.title}
+          </div>
+          {hoveredImage.cp > 0 && (
+            <span className="mt-1.5 text-xs font-black text-amber-700 bg-amber-50 px-2.5 py-0.5 rounded-full border border-amber-200">
+              ⭐ {new Intl.NumberFormat('vi-VN').format(hoveredImage.cp)} CP
+            </span>
+          )}
+          <span className="text-[10px] text-slate-400 mt-1 italic">Di chuột ra ngoài để đóng xem thử</span>
+        </div>
+      )}
     </div>
   );
 }
