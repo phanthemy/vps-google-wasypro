@@ -572,9 +572,9 @@ app.post('/api/auth/send-otp', authLimiter, async (req, res) => {
       return res.status(400).json({ success: false, message: 'Số điện thoại không đúng định dạng di động Việt Nam.' });
     }
 
-    // Cooldown check (60s)
+    // Cooldown check (120s)
     const nowIso = new Date().toISOString();
-    const cooldownMs = 60 * 1000;
+    const cooldownMs = 120 * 1000;
     const cooldownLimitIso = new Date(Date.now() - cooldownMs).toISOString();
 
     const recentOtps = await prisma.$queryRaw`
@@ -615,7 +615,7 @@ app.post('/api/auth/send-otp', authLimiter, async (req, res) => {
     return res.json({
       success: true,
       message: 'Mã xác thực OTP đã được gửi qua tin nhắn Zalo của bạn. Mã có hiệu lực trong 5 phút.',
-      cooldown: 60
+      cooldown: 120
     });
   } catch (err) {
     console.error('[API send-otp error]:', err);

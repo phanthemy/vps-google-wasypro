@@ -383,6 +383,8 @@ export default function UnifiedAuthModal({ isOpen, onClose, initialTab = 'login'
                 <Shield className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-cyan-600" />
                 <input
                   type="text"
+                  inputMode="numeric"
+                  autoComplete="off"
                   value={regOtp}
                   onChange={e => setRegOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
                   placeholder="Nhập mã 6 số gửi từ Zalo Water King"
