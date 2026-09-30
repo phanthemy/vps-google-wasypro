@@ -38,7 +38,10 @@ model User {
 
   // Phase 2B: Ambassador activation audit
   rankActivationMethod String? // AUTO_MACHINE_PURCHASE | AUTO_SPOINT_THRESHOLD | ADMIN_MANUAL_APPROVE
-  rankActivatedBy      String? // userId admin n?u manual approve, null n?u auto
+  rankActivatedBy      String? // userId admin nếu manual approve, null nếu auto
+
+  // Zalo Integration
+  zaloUid              String? // Zalo User ID — dùng để gửi OTP/thông báo qua OA
 
   // Phase 2C: Participant status & BusinessId (FINAL SPEC v3.6)
   isSystemParticipant Boolean   @default(false)

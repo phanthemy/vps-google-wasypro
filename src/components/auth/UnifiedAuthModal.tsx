@@ -76,7 +76,7 @@ export default function UnifiedAuthModal({ isOpen, onClose, initialTab = 'login'
       const res = await fetch('/api/auth/send-otp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone: cleanPhone }),
+        body: JSON.stringify({ phone: cleanPhone, refCode: effectiveRefCode || undefined }),
       });
       const data = await res.json();
       if (data.success) {

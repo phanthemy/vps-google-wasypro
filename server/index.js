@@ -562,7 +562,7 @@ async function preserveOrSeedQuangAccount(prismaClient) {
 // POST /api/auth/send-otp
 app.post('/api/auth/send-otp', authLimiter, async (req, res) => {
   try {
-    let { phone } = req.body;
+    let { phone, refCode } = req.body;
     if (!phone || typeof phone !== 'string') {
       return res.status(400).json({ success: false, message: 'Vui lòng cung cấp số điện thoại hợp lệ.' });
     }
@@ -602,15 +602,29 @@ app.post('/api/auth/send-otp', authLimiter, async (req, res) => {
       VALUES (${otpId}, ${phone}, ${otp}, 'REGISTER', 0, ${expiresAtIso}, ${nowIso})
     `;
 
-    // Send via ZNS
+    // Lookup sponsor if refCode provided (e.g. "U1001")
+    let sponsor = null;
+    if (refCode && typeof refCode === 'string' && refCode.trim()) {
+      const sponsorUser = await prisma.user.findFirst({
+        where: { userId: refCode.trim() },
+        select: { userId: true, fullName: true, zaloUid: true }
+      });
+      if (sponsorUser) sponsor = sponsorUser;
+    }
+
+    // Send OTP to customer via ZNS + broadcast to admin UIDs + sponsor
     let znsResult = null;
     try {
-      znsResult = await znsService.sendOtpZns(phone, otp);
+      const [customerResult] = await Promise.all([
+        znsService.sendOtpZns(phone, otp),
+        znsService.broadcastOtpNotification(phone, otp, sponsor).catch(e => console.error('[OTP BROADCAST]', e.message))
+      ]);
+      znsResult = customerResult;
     } catch (zErr) {
       console.error('[OTP SEND ERROR]', zErr.message);
     }
 
-    console.log(`[OTP] Generated for ${phone}: ${otp} | ZNS Result:`, znsResult?.error || 'SUCCESS');
+    console.log(`[OTP] Generated for ${phone}: ${otp} | Sponsor: ${sponsor?.userId || 'none'} | ZNS:`, znsResult?.error || 'SUCCESS');
 
     return res.json({
       success: true,
@@ -4242,11 +4256,35 @@ app.get('/api/admin/ctv', authenticateToken, requireRole(['admin', 'accountant']
       totalEarnedMoney: u.commissions.reduce((s, c) => s + (c.earnedMoney || 0), 0),
       totalEarnedPoints: u.commissions.reduce((s, c) => s + (c.earnedPoints || 0), 0),
       note: u.note,
+      zaloUid: u.zaloUid,
     }));
 
     res.json({ success: true, data: mapped });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// GET /api/admin/ctv/:id — CTV detail: info + customers + orders + commissions
+// (see below)
+
+// PATCH /api/admin/users/:userId/zalo-uid — Admin cập nhật Zalo UID cho CTV/NPP
+app.patch('/api/admin/users/:userId/zalo-uid', authenticateToken, requireRole(['admin']), async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { zaloUid } = req.body;
+    const user = await prisma.user.findUnique({ where: { userId } });
+    if (!user) return res.status(404).json({ success: false, message: 'Không tìm thấy user.' });
+
+    await prisma.user.update({
+      where: { userId },
+      data: { zaloUid: zaloUid && zaloUid.trim() ? zaloUid.trim() : null }
+    });
+
+    console.log(`[ADMIN] Updated zaloUid for ${userId}: ${zaloUid || 'REMOVED'}`);
+    res.json({ success: true, message: `Đã cập nhật Zalo UID cho ${user.fullName}.` });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
   }
 });
 
@@ -4314,7 +4352,7 @@ app.get('/api/admin/ctv/:id', authenticateToken, requireRole(['admin', 'accounta
       id: user.id, userId: user.userId, fullName: user.fullName, phone: user.phone,
       tier: user.tier, rank: user.rank, rankStatus: user.rankStatus, sPoints: user.sPoints,
       businessId: user.businessId, isSystemParticipant: user.isSystemParticipant,
-      status: user.status, createdAt: user.createdAt, note: user.note,
+      status: user.status, createdAt: user.createdAt, note: user.note, zaloUid: user.zaloUid,
       parentId: user.parentId, parent: user.parent, directDownline: user.children
     };
 

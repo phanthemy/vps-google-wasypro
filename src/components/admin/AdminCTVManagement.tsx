@@ -271,6 +271,46 @@ export const AdminCTVManagement: React.FC = () => {
                 </div>
               )}
 
+              {/* Zalo UID — Nhận OTP qua Zalo OA */}
+              <div className="mt-4 bg-blue-50 border border-blue-200 rounded-xl p-3">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-bold text-blue-700 uppercase tracking-wide">📱 Zalo UID (nhận OTP)</span>
+                  {(detail.ctv as any).zaloUid && <span className="text-[10px] text-emerald-600 font-semibold">✓ Đã cấu hình</span>}
+                </div>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    defaultValue={(detail.ctv as any).zaloUid || ''}
+                    placeholder="Nhập Zalo User ID"
+                    className="flex-1 px-3 py-2 text-sm border border-blue-200 rounded-lg focus:ring-2 focus:ring-blue-300 focus:border-blue-400 font-mono"
+                    id={`zalo-uid-input-${detail.ctv.userId}`}
+                  />
+                  <button
+                    className="px-3 py-2 bg-blue-600 text-white text-xs font-bold rounded-lg hover:bg-blue-700"
+                    onClick={async () => {
+                      const input = document.getElementById(`zalo-uid-input-${detail.ctv.userId}`) as HTMLInputElement;
+                      const val = input?.value?.trim() || '';
+                      try {
+                        const r = await fetch(`/api/admin/users/${detail.ctv.userId}/zalo-uid`, {
+                          method: 'PATCH',
+                          headers: { 'Content-Type': 'application/json' },
+                          credentials: 'include',
+                        body: JSON.stringify({ zaloUid: val || null }),
+                        });
+                        const d = await r.json();
+                        alert(d.success ? `✅ ${d.message}` : `❌ ${d.message || d.error}`);
+                        if (d.success) fetchDetail(detail.ctv.userId);
+                      } catch { alert('Lỗi kết nối'); }
+                    }}
+                  >
+                    Lưu
+                  </button>
+                </div>
+                <p className="text-[10px] text-blue-500 mt-1">
+                  Khi khách đăng ký qua link ref của CTV/NPP này, mã OTP sẽ được gửi song song đến Zalo UID trên.
+                </p>
+              </div>
+
               {/* Admin Actions */}
               <div className="mt-4 flex flex-wrap gap-2">
                 <button

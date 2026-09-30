@@ -1,4 +1,4 @@
-﻿const fs = require('fs');
+const fs = require('fs');
 const path = require('path');
 
 const TOKEN_FILE = path.join(__dirname, '../zalo_token.json');
@@ -115,10 +115,92 @@ async function sendOtpZns(rawPhone, otpCode) {
   return resData;
 }
 
+/**
+ * Gửi tin nhắn text qua Zalo OA đến 1 UID (miễn phí nếu user đã follow OA)
+ */
+async function sendOaTextMessage(recipientUid, text) {
+  let tokens = loadTokens();
+  let accessToken = tokens.accessToken;
+
+  async function callApi(token) {
+    return await fetch('https://openapi.zalo.me/v3.0/oa/message/cs', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'access_token': token
+      },
+      body: JSON.stringify({
+        recipient: { user_id: recipientUid },
+        message: { text }
+      })
+    });
+  }
+
+  let res = await callApi(accessToken);
+  let data = await res.json();
+
+  if (data.error === -124 || data.error === -216) {
+    accessToken = await refreshAccessToken();
+    res = await callApi(accessToken);
+    data = await res.json();
+  }
+
+  return data;
+}
+
+/**
+ * Gửi OTP song song cho: Admin UIDs + Sponsor (CTV/NPP) nếu có zaloUid
+ * @param {string} customerPhone - SĐT khách đăng ký
+ * @param {string} otpCode - Mã OTP 6 số
+ * @param {object|null} sponsor - { userId, fullName, zaloUid } của CTV/NPP giới thiệu
+ */
+async function broadcastOtpNotification(customerPhone, otpCode, sponsor) {
+  const recipients = [];
+
+  // 1. Admin UIDs from .env (comma-separated)
+  const adminUids = (process.env.ZALO_ADMIN_UIDS || process.env.ZALO_ADMIN_UID || '').split(',').map(s => s.trim()).filter(Boolean);
+  for (const uid of adminUids) {
+    recipients.push({ uid, label: 'ADMIN' });
+  }
+
+  // 2. Sponsor (CTV/NPP) if they have zaloUid
+  if (sponsor && sponsor.zaloUid) {
+    // Tránh trùng với admin
+    if (!adminUids.includes(sponsor.zaloUid)) {
+      recipients.push({ uid: sponsor.zaloUid, label: `CTV ${sponsor.userId} ${sponsor.fullName}` });
+    }
+  }
+
+  if (recipients.length === 0) {
+    console.log('[ZNS BROADCAST] No recipients configured');
+    return [];
+  }
+
+  const sponsorInfo = sponsor ? `\n👤 Người giới thiệu: ${sponsor.fullName} (${sponsor.userId})` : '';
+  const message = `🔐 MÃ OTP ĐĂNG KÝ\n━━━━━━━━━━━━━\n📱 SĐT khách: ${customerPhone}\n🔑 Mã OTP: ${otpCode}\n⏱ Hiệu lực: 5 phút${sponsorInfo}\n━━━━━━━━━━━━━\nCopy mã gửi cho khách nếu khách không nhận được qua Zalo.`;
+
+  const results = await Promise.allSettled(
+    recipients.map(async (r) => {
+      try {
+        const data = await sendOaTextMessage(r.uid, message);
+        console.log(`[ZNS BROADCAST] ${r.label} (${r.uid}):`, data.error === 0 ? 'SUCCESS' : data);
+        return { ...r, success: data.error === 0, data };
+      } catch (err) {
+        console.error(`[ZNS BROADCAST] ${r.label} (${r.uid}) ERROR:`, err.message);
+        return { ...r, success: false, error: err.message };
+      }
+    })
+  );
+
+  return results;
+}
+
 module.exports = {
   loadTokens,
   saveTokens,
   refreshAccessToken,
   formatPhoneForZns,
-  sendOtpZns
+  sendOtpZns,
+  sendOaTextMessage,
+  broadcastOtpNotification
 };
