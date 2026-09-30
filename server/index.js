@@ -672,10 +672,7 @@ app.post('/api/auth/register', authLimiter, async (req, res) => {
 phone = phone.trim();
     fullName = fullName.trim();
 
-    // [OTP DISABLED] Zalo OA chưa mua gói trả phí - tạm tắt OTP verification
-    // Khi mua gói Zalo OA rồi, bỏ comment block bên dưới để bật lại
-    /*
-    // Verify OTP from Zalo ZNS
+    // Verify OTP from Zalo ZNS (Zalo OA Gói Tăng Trưởng - activated 30/09/2026)
     if (!otp || !String(otp).trim()) {
       return res.status(400).json({ success: false, message: 'Vui lòng nhập mã xác thực OTP được gửi qua Zalo.' });
     }
@@ -690,7 +687,6 @@ phone = phone.trim();
     }
     // Mark OTP as verified
     await prisma.$executeRaw`UPDATE OtpCode SET verified = 1 WHERE id = ${validOtps[0].id}`;
-    */
     if (password && password.trim().length < 8) {
       return res.status(400).json({ success: false, message: 'Mật khẩu phải có tối thiểu 8 ký tự.' });
     }

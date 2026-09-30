@@ -205,19 +205,19 @@ export default function UnifiedAuthModal({ isOpen, onClose, initialTab = 'login'
       setLoading(false);
       return;
     }
-    // [OTP DISABLED] OTP validation disabled
-    // if (!regOtp || !regOtp.trim()) {
-    //   setError('Vui lòng nhập mã xác thực OTP gửi qua Zalo.');
-    //   setLoading(false);
-    //   return;
-    // }
+    // Verify OTP (Zalo ZNS)
+    if (!regOtp || !regOtp.trim()) {
+      setError('Vui lòng nhập mã xác thực OTP gửi qua Zalo.');
+      setLoading(false);
+      return;
+    }
 
     try {
       const body: any = {
         fullName: regFullName.trim(),
         phone: regPhone.trim(),
         password: regPassword.trim(),
-        // [OTP DISABLED] otp: regOtp.trim(),
+        otp: regOtp.trim(),
         referralCode: hasReferral ? (effectiveRefCode || undefined) : undefined,
       };
       if (hasReferral && regType === 'ctv') body.joinSystem = true;
@@ -349,22 +349,32 @@ export default function UnifiedAuthModal({ isOpen, onClose, initialTab = 'login'
             </div>
             <div>
               <label className="text-xs font-bold text-gray-600 uppercase tracking-wide">Số điện thoại *</label>
-              {/* [OTP DISABLED] Removed OTP button, restored simple phone input */}
-              <div className="mt-1 relative">
-                <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <input
-                  type="tel"
-                  value={regPhone}
-                  onChange={e => setRegPhone(e.target.value)}
-                  placeholder="0900000000"
-                  className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-primary/30 focus:border-primary"
-                  required
-                />
+              <div className="mt-1 relative flex gap-2">
+                <div className="relative flex-1">
+                  <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <input
+                    type="tel"
+                    value={regPhone}
+                    onChange={e => setRegPhone(e.target.value)}
+                    placeholder="0900000000"
+                    className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-primary/30 focus:border-primary"
+                    required
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={handleSendOtp}
+                  disabled={otpLoading || otpCooldown > 0 || !regPhone.trim()}
+                  className="px-3 py-2 bg-cyan-600 text-white text-xs font-bold rounded-xl hover:bg-cyan-700 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap flex items-center gap-1"
+                >
+                  <Shield className="w-3.5 h-3.5" />
+                  {otpLoading ? '...' : otpCooldown > 0 ? `${otpCooldown}s` : 'Gửi OTP'}
+                </button>
               </div>
             </div>
 
-            {/* [OTP DISABLED] Mã xác thực OTP Zalo - hidden until Zalo OA plan purchased */}
-            <div style={{display: 'none'}}>
+            {/* Mã xác thực OTP Zalo */}
+            <div>
               <div className="flex items-center justify-between">
                 <label className="text-xs font-bold text-gray-600 uppercase tracking-wide">Mã xác thực Zalo (OTP) *</label>
                 {otpSent && <span className="text-[11px] text-emerald-600 font-semibold flex items-center gap-1">✓ Đã gửi mã qua Zalo</span>}
