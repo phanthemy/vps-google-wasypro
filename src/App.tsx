@@ -57,9 +57,19 @@ export const App: React.FC = () => {
   const { user, setUser, logout, checkSession } = useUnifiedAuth();
   const { referralCode, setReferralCode } = useReferralAttribution();
 
-  // Auth Modal State
-  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
-  const [authModalTab, setAuthModalTab] = useState<'login' | 'register'>('login');
+  // Auth Modal State: Auto-open directly to 'register' if visiting with referral link (?ref=Uxxx)
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    const params = new URLSearchParams(window.location.search);
+    const urlRef = params.get('ref') || params.get('refCode') || params.get('referral');
+    return Boolean(urlRef && urlRef.trim());
+  });
+  const [authModalTab, setAuthModalTab] = useState<'login' | 'register'>(() => {
+    if (typeof window === 'undefined') return 'login';
+    const params = new URLSearchParams(window.location.search);
+    const urlRef = params.get('ref') || params.get('refCode') || params.get('referral');
+    return (urlRef && urlRef.trim()) ? 'register' : 'login';
+  });
   const [authModalMode, setAuthModalMode] = useState<'ctv' | 'system'>('ctv');
 
   // Admin Legacy State
@@ -75,12 +85,19 @@ export const App: React.FC = () => {
   const [isMobileAdminSidebarOpen, setIsMobileAdminSidebarOpen] = useState(false);
   const [selectedPeriodId, setSelectedPeriodId] = useState<string | null>(null);
 
-  // Check URL path or hash on load
+  // Check URL path, hash, or referral code on load
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const path = window.location.pathname;
       const hash = window.location.hash;
-      if (path.startsWith('/ctv') || hash === '#ctv') {
+      const params = new URLSearchParams(window.location.search);
+      const urlRef = params.get('ref') || params.get('refCode') || params.get('referral');
+
+      if (urlRef && urlRef.trim()) {
+        // Tự động mở ngay form đăng ký khi vào từ link ref
+        setAuthModalTab('register');
+        setIsAuthModalOpen(true);
+      } else if (path.startsWith('/ctv') || hash === '#ctv') {
         setActiveSection('ctv');
         if (!user && !localStorage.getItem('crm_user')) {
           setIsAuthModalOpen(true);
