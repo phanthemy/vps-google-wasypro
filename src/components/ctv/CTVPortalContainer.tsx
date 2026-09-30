@@ -155,7 +155,7 @@ export const CTVPortalContainer: React.FC<CTVPortalContainerProps> = ({
   // 2. Secondary Navigation Tabs (Grouped in "Thêm ▾" dropdown)
   // Cleaned: Removed 'pricelist', 'statistics', 'about', 'settings'
   const moreNavItems = [
-    { id: 'network', label: 'Sơ đồ Tuyến dưới', icon: Network, visible: isParticipant, group: 'ctv' },
+    { id: 'network', label: 'Sơ đồ Tuyến dưới', icon: Network, visible: isParticipant && !!(currentUser as any).businessId, group: 'ctv' },
     { id: 'account', label: 'Thông Tin Tài Khoản', icon: UserCog, visible: true, group: 'ctv' },
     { id: 'users', label: 'Quản Lý CTV Toàn HT', icon: Users, visible: isAdminOrAccountant, group: 'admin' },
     { id: 'internal-users', label: 'Quản Lý Nhân Sự', icon: UserCog, visible: isAdmin, group: 'admin' },
