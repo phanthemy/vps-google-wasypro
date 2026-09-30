@@ -69,6 +69,10 @@
 
 ## Quy tắc quan trọng
 
+### Quy tắc Deploy VPS ⭐⭐⭐⭐⭐
+- CHỈ deploy/thao tác trên Oracle VPS (149.118.62.155 / wasypro.com).
+- KHÔNG tự động deploy hay đồng bộ lên Google Cloud VPS (test.wasypro.com) trừ khi được người dùng yêu cầu đích danh.
+
 ### Source of Truth
 - VPS: `/var/www/wasypro/` — Oracle VPS `149.118.62.155`
 - GitHub: backup only
