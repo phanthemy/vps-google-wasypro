@@ -86,14 +86,14 @@ function getAuthHeaders(headers: Record<string, string> = {}): Record<string, st
 
 const RANK_LABELS: Record<string, string> = {
   AMBASSADOR: 'Đại sứ',
-  MANAGER: 'Trưởng nhóm',
-  DIRECTOR: 'Quản lý',
+  MANAGER: 'Quản lý',
+  DIRECTOR: 'Giám đốc',
 };
 
 const RANK_OPTIONS = [
   { value: 'AMBASSADOR', label: 'Đại sứ (Ambassador)' },
-  { value: 'MANAGER', label: 'Trưởng nhóm (Manager)' },
-  { value: 'DIRECTOR', label: 'Quản lý (Director)' },
+  { value: 'MANAGER', label: 'Quản lý (Manager)' },
+  { value: 'DIRECTOR', label: 'Giám đốc (Director)' },
 ];
 
 function formatVND(value: number | string | null | undefined): string {

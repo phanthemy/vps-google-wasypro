@@ -6820,17 +6820,15 @@ app.post('/api/admin/npp/packages', authenticateToken, requireRole(['admin']), a
     }
 
     // Rank validation
-    // Auto-assign rank based on grossPrice for CAPITAL packages
-    let rank = assignedRank || 'AMBASSADOR';
-    if (packageType === 'CAPITAL' && grossPrice) {
+    // If assignedRank is provided by Admin, respect it. Otherwise auto-assign based on price for CAPITAL packages
+    let rank = assignedRank;
+    if (!rank && packageType === 'CAPITAL' && grossPrice) {
       const priceNum = typeof grossPrice === 'bigint' ? grossPrice : BigInt(Math.round(Number(grossPrice)));
       if (priceNum >= 2000000000n) rank = 'DIRECTOR';
       else if (priceNum >= 300000000n) rank = 'MANAGER';
       else rank = 'AMBASSADOR';
-      if (assignedRank && assignedRank !== rank) {
-        return res.status(400).json({ error: 'Gói ' + grossPrice + '₫ phải có cấp bậc ' + rank + '. Không thể chọn ' + assignedRank + '.' });
-      }
     }
+    if (!rank) rank = 'AMBASSADOR';
     if (!NPP_VALID_RANKS.includes(rank)) {
       return res.status(400).json({ error: `assignedRank phải là một trong: ${NPP_VALID_RANKS.join(', ')}` });
     }
