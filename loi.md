@@ -2,6 +2,15 @@
 
 ## 2026-09-30
 
+### L26: CTV chưa lên đơn (không có BID) vẫn hiện Link Giới Thiệu → giới thiệu mà không được hoa hồng
+- **Triệu chứng**: CTV mới tham gia hệ thống, chưa mua máy (0 CP, 0 S-Points, không BID) nhưng Dashboard và header đã hiện "Link Giới Thiệu Của Bạn" với ref link.
+- **Nguyên nhân**: Chỉ check `isParticipant` (đã tham gia hệ thống) mà không check `businessId` (đã lên đơn thành công).
+- **Khắc phục**: 
+  - `DashboardView.jsx` dòng 230: thêm `&& freshUser.businessId`
+  - `CTVPortalContainer.tsx` dòng 206: thêm `&& (currentUser as any).businessId`
+- **Quy tắc**: Không BID = Không ref link. Phải lên đơn → có BID → mới hiện link giới thiệu.
+
+
 ### L25: Thêm cột DB bằng ALTER TABLE mà không chạy `prisma generate` → API PATCH zaloUid lỗi
 - **Triệu chứng**: Bấm "Lưu" Zalo UID trong admin → alert lỗi `Invalid prisma.user.update() invocation: zaloUid`.
 - **Nguyên nhân**: Thêm cột `zaloUid` bằng `ALTER TABLE User ADD COLUMN zaloUid TEXT` + cập nhật `schema.prisma`, nhưng **KHÔNG chạy `npx prisma generate`** → Prisma Client chưa biết cột mới.
