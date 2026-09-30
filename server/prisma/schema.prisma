@@ -577,6 +577,7 @@ model NppPackage {
   // Phase 3.2.1: Package Type
   packageType      String   @default("PRODUCT_COMBO") // CAPITAL | PRODUCT_COMBO
   requiredQuantity Int? // PRODUCT_COMBO: required qty. CAPITAL: null
+  sortOrder        Int      @default(0)
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 

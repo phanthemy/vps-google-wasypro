@@ -12,6 +12,8 @@ import {
   Power,
   PowerOff,
   ChevronDown,
+  ChevronUp,
+  GripVertical,
   ShoppingBag,
 } from 'lucide-react';
 
@@ -42,6 +44,7 @@ interface NppPackage {
   defaultDiscount: number;
   assignedRank: string;
   isActive: boolean;
+  sortOrder?: number;
   createdAt: string;
   updatedAt: string;
   items: NppPackageItem[];
@@ -173,6 +176,16 @@ const nppApi = {
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || data.message || 'Xóa gói thất bại');
   },
+
+  reorder: async (packageIds: string[]): Promise<void> => {
+    const res = await fetch('/api/admin/npp/packages/reorder', {
+      credentials: 'include', method: 'PUT',
+      headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({ packageIds }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || data.message || 'Cập nhật thứ tự thất bại');
+  },
 };
 
 // ─── Component ───────────────────────────────────────────────────────────────
@@ -215,12 +228,90 @@ const AdminNppPackages: React.FC = () => {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
+  // Tab category filter
+  const [typeFilter, setTypeFilter] = useState<'ALL' | 'PRODUCT_COMBO' | 'CAPITAL'>('ALL');
+
+  // Drag and drop state
+  const [draggedPkgId, setDraggedPkgId] = useState<string | null>(null);
+  const [dragOverPkgId, setDragOverPkgId] = useState<string | null>(null);
+
   // Filter
   const filtered = packages.filter(p => {
+    if (typeFilter !== 'ALL' && p.packageType !== typeFilter) return false;
     if (!searchQuery) return true;
     const q = searchQuery.toLowerCase();
     return p.code.toLowerCase().includes(q) || p.name.toLowerCase().includes(q);
-  }).sort((a, b) => a.code.localeCompare(b.code));
+  });
+
+  // Drag & drop handlers
+  const handleDragStart = (e: React.DragEvent, pkgId: string) => {
+    setDraggedPkgId(pkgId);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', pkgId);
+  };
+
+  const handleDragOver = (e: React.DragEvent, pkgId: string) => {
+    e.preventDefault();
+    if (draggedPkgId === null || draggedPkgId === pkgId) return;
+    setDragOverPkgId(pkgId);
+  };
+
+  const handleDrop = async (e: React.DragEvent, dropPkgId: string) => {
+    e.preventDefault();
+    const sourcePkgId = e.dataTransfer.getData('text/plain') || draggedPkgId;
+    if (!sourcePkgId || sourcePkgId === dropPkgId) {
+      setDraggedPkgId(null);
+      setDragOverPkgId(null);
+      return;
+    }
+
+    const sourceIndex = packages.findIndex(p => p.id === sourcePkgId);
+    const targetIndex = packages.findIndex(p => p.id === dropPkgId);
+    if (sourceIndex === -1 || targetIndex === -1) {
+      setDraggedPkgId(null);
+      setDragOverPkgId(null);
+      return;
+    }
+
+    const updated = [...packages];
+    const [movedItem] = updated.splice(sourceIndex, 1);
+    updated.splice(targetIndex, 0, movedItem);
+
+    setPackages(updated);
+    setDraggedPkgId(null);
+    setDragOverPkgId(null);
+
+    try {
+      await nppApi.reorder(updated.map(p => p.id));
+      showSuccess('✅ Đã lưu thứ tự gói mới!');
+    } catch (err: any) {
+      setError(err.message || 'Lỗi lưu thứ tự gói');
+    }
+  };
+
+  const handleDragEnd = () => {
+    setDraggedPkgId(null);
+    setDragOverPkgId(null);
+  };
+
+  const handleMove = async (pkgId: string, direction: 'up' | 'down') => {
+    const index = packages.findIndex(p => p.id === pkgId);
+    if (index === -1) return;
+    const targetIndex = direction === 'up' ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= packages.length) return;
+
+    const updated = [...packages];
+    const [moved] = updated.splice(index, 1);
+    updated.splice(targetIndex, 0, moved);
+
+    setPackages(updated);
+    try {
+      await nppApi.reorder(updated.map(p => p.id));
+      showSuccess('✅ Đã lưu thứ tự gói mới!');
+    } catch (err: any) {
+      setError(err.message || 'Lỗi lưu thứ tự gói');
+    }
+  };
 
   // Open create
   const openCreate = () => {
@@ -388,16 +479,57 @@ const AdminNppPackages: React.FC = () => {
         </div>
       )}
 
-      {/* Search */}
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-        <input
-          type="text"
-          placeholder="Tìm theo mã hoặc tên gói..."
-          value={searchQuery}
-          onChange={e => setSearchQuery(e.target.value)}
-          className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
-        />
+      {/* Category Tabs & Search Bar */}
+      <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between">
+        <div className="flex items-center gap-1.5 p-1 bg-slate-100/80 rounded-xl border border-slate-200 text-xs font-semibold">
+          <button
+            onClick={() => setTypeFilter('ALL')}
+            className={`px-3 py-1.5 rounded-lg transition-all ${
+              typeFilter === 'ALL'
+                ? 'bg-white text-slate-800 shadow-sm'
+                : 'text-slate-500 hover:text-slate-700'
+            }`}
+          >
+            Tất cả ({packages.length})
+          </button>
+          <button
+            onClick={() => setTypeFilter('PRODUCT_COMBO')}
+            className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1 ${
+              typeFilter === 'PRODUCT_COMBO'
+                ? 'bg-white text-blue-700 shadow-sm'
+                : 'text-slate-500 hover:text-blue-600'
+            }`}
+          >
+            📦 Combo ({packages.filter(p => p.packageType === 'PRODUCT_COMBO').length})
+          </button>
+          <button
+            onClick={() => setTypeFilter('CAPITAL')}
+            className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1 ${
+              typeFilter === 'CAPITAL'
+                ? 'bg-white text-amber-700 shadow-sm'
+                : 'text-slate-500 hover:text-amber-600'
+            }`}
+          >
+            👑 Gói Cổ đông - Vốn ({packages.filter(p => p.packageType === 'CAPITAL').length})
+          </button>
+        </div>
+
+        {/* Search */}
+        <div className="relative flex-1 sm:max-w-xs">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+          <input
+            type="text"
+            placeholder="Tìm theo mã hoặc tên gói..."
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            className="w-full pl-10 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-xs sm:text-sm focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+          />
+        </div>
+      </div>
+
+      <div className="flex items-center justify-between text-xs text-slate-400 px-1">
+        <span>💡 Mẹo: Bạn có thể <b>kéo thả thẻ</b> hoặc dùng mũi tên <b>▲ / ▼</b> để đổi thứ tự hiển thị.</span>
+        <span>Tổng cộng: {filtered.length} gói</span>
       </div>
 
       {/* Package List */}
@@ -410,87 +542,143 @@ const AdminNppPackages: React.FC = () => {
           </button>
         </div>
       ) : (
-        <div className="grid gap-4">
-          {filtered.map(pkg => (
-            <div key={pkg.id} className="bg-white rounded-2xl border border-slate-200 p-5 hover:shadow-md transition-shadow">
-              <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-                {/* Left */}
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap mb-2">
-                    <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${pkg.isActive ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
-                      {pkg.isActive ? 'Đang hoạt động' : 'Đã tắt'}
-                    </span>
-                    <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${pkg.packageType === 'CAPITAL' ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'}`}>
-                      {pkg.packageType === 'CAPITAL' ? '💰 Gói vốn' : '📦 Combo sản phẩm'}
-                    </span>
-                    <span className="text-xs text-slate-400 font-mono">{pkg.code}</span>
-                  </div>
-                  <h3 className="text-lg font-bold text-slate-800 truncate">{pkg.name}</h3>
-                  {pkg.description && <p className="text-sm text-slate-500 mt-1 line-clamp-2">{pkg.description}</p>}
+        <div className="grid gap-3">
+          {filtered.map(pkg => {
+            const globalIndex = packages.findIndex(p => p.id === pkg.id);
+            const isFirst = globalIndex === 0;
+            const isLast = globalIndex === packages.length - 1;
+            const isBeingDragged = draggedPkgId === pkg.id;
+            const isDragOver = dragOverPkgId === pkg.id;
 
-                  {/* Info — conditional by packageType */}
-                  <div className="flex flex-wrap gap-4 mt-3 text-sm">
-                    {pkg.packageType === 'CAPITAL' ? (
-                      <>
-                        <div>
-                          <span className="text-slate-400">Giá gói: </span>
-                          <span className="font-bold text-slate-700">{formatVND(pkg.grossPrice)}</span>
-                        </div>
-                      </>
-                    ) : (
-                      <>
-                        <div>
-                          <span className="text-slate-400">Số lượng máy: </span>
-                          <span className="font-bold text-slate-700">{pkg.requiredQuantity || '—'} máy</span>
-                        </div>
-                        <div>
-                          <span className="text-slate-400">Chiết khấu: </span>
-                          <span className="font-bold text-amber-600">{bpsToPercent(pkg.defaultDiscount)}%</span>
-                        </div>
-                      </>
-                    )}
-                    <div>
-                      <span className="text-slate-400">Cấp bậc: </span>
-                      <span className="font-bold text-cyan-600">{RANK_LABELS[pkg.assignedRank] || pkg.assignedRank}</span>
-                    </div>
+            return (
+              <div
+                key={pkg.id}
+                draggable
+                onDragStart={(e) => handleDragStart(e, pkg.id)}
+                onDragOver={(e) => handleDragOver(e, pkg.id)}
+                onDrop={(e) => handleDrop(e, pkg.id)}
+                onDragEnd={handleDragEnd}
+                className={`bg-white rounded-2xl border transition-all duration-200 p-4 sm:p-5 flex items-start gap-3 sm:gap-4 ${
+                  isBeingDragged
+                    ? 'opacity-40 border-dashed border-cyan-500 bg-cyan-50/40 shadow-inner'
+                    : isDragOver
+                    ? 'border-t-4 border-t-cyan-500 border-slate-200 shadow-lg scale-[1.008]'
+                    : 'border-slate-200 hover:shadow-md hover:border-slate-300'
+                }`}
+              >
+                {/* Drag Handle & Up/Down Arrows */}
+                <div className="flex flex-col items-center justify-center gap-1 pt-1 flex-shrink-0 select-none">
+                  <div
+                    className="p-1 text-slate-400 hover:text-slate-700 cursor-grab active:cursor-grabbing rounded hover:bg-slate-100 transition-colors"
+                    title="Kéo thả để đổi thứ tự"
+                  >
+                    <GripVertical className="w-5 h-5" />
                   </div>
-
-                  {/* Purchase/Registration count */}
-                  {pkg._count && (pkg._count.purchases > 0 || pkg._count.registrations > 0) && (
-                    <div className="mt-2 flex gap-3 text-xs text-slate-400">
-                      {pkg._count.purchases > 0 && <span>📦 {pkg._count.purchases} đơn hàng</span>}
-                      {pkg._count.registrations > 0 && <span>📝 {pkg._count.registrations} đăng ký</span>}
-                    </div>
-                  )}
+                  <button
+                    type="button"
+                    disabled={isFirst}
+                    onClick={() => handleMove(pkg.id, 'up')}
+                    className="p-1 text-slate-400 hover:text-cyan-600 disabled:opacity-20 disabled:hover:text-slate-400 hover:bg-slate-100 rounded transition-colors"
+                    title="Đưa lên trên"
+                  >
+                    <ChevronUp className="w-4 h-4" />
+                  </button>
+                  <span className="text-[10px] font-bold text-slate-400 px-1 font-mono">
+                    #{globalIndex + 1}
+                  </span>
+                  <button
+                    type="button"
+                    disabled={isLast}
+                    onClick={() => handleMove(pkg.id, 'down')}
+                    className="p-1 text-slate-400 hover:text-cyan-600 disabled:opacity-20 disabled:hover:text-slate-400 hover:bg-slate-100 rounded transition-colors"
+                    title="Đưa xuống dưới"
+                  >
+                    <ChevronDown className="w-4 h-4" />
+                  </button>
                 </div>
 
-                {/* Actions */}
-                <div className="flex items-center gap-2 flex-shrink-0">
-                  <button
-                    onClick={() => handleToggleStatus(pkg)}
-                    className={`p-2 rounded-xl transition-colors ${pkg.isActive ? 'text-amber-500 hover:bg-amber-50' : 'text-emerald-500 hover:bg-emerald-50'}`}
-                    title={pkg.isActive ? 'Vô hiệu hóa' : 'Kích hoạt'}
-                  >
-                    {pkg.isActive ? <PowerOff className="w-4 h-4" /> : <Power className="w-4 h-4" />}
-                  </button>
-                  <button
-                    onClick={() => openEdit(pkg)}
-                    className="p-2 rounded-xl text-cyan-600 hover:bg-cyan-50 transition-colors"
-                    title="Sửa"
-                  >
-                    <Edit2 className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => { setDeletingPkg(pkg); setModalError(null); }}
-                    className="p-2 rounded-xl text-red-500 hover:bg-red-50 transition-colors"
-                    title="Xóa"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                {/* Main Card Content */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                    {/* Left */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap mb-2">
+                        <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${pkg.isActive ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
+                          {pkg.isActive ? 'Đang hoạt động' : 'Đã tắt'}
+                        </span>
+                        <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${pkg.packageType === 'CAPITAL' ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'}`}>
+                          {pkg.packageType === 'CAPITAL' ? '💰 Gói vốn' : '📦 Combo sản phẩm'}
+                        </span>
+                        <span className="text-xs text-slate-400 font-mono font-medium">{pkg.code}</span>
+                      </div>
+                      <h3 className="text-lg font-bold text-slate-800 truncate">{pkg.name}</h3>
+                      {pkg.description && <p className="text-sm text-slate-500 mt-1 line-clamp-2">{pkg.description}</p>}
+
+                      {/* Info — conditional by packageType */}
+                      <div className="flex flex-wrap gap-4 mt-3 text-sm">
+                        {pkg.packageType === 'CAPITAL' ? (
+                          <>
+                            <div>
+                              <span className="text-slate-400">Giá gói: </span>
+                              <span className="font-bold text-slate-700">{formatVND(pkg.grossPrice)}</span>
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            <div>
+                              <span className="text-slate-400">Số lượng máy: </span>
+                              <span className="font-bold text-slate-700">{pkg.requiredQuantity || '—'} máy</span>
+                            </div>
+                            <div>
+                              <span className="text-slate-400">Chiết khấu: </span>
+                              <span className="font-bold text-amber-600">{bpsToPercent(pkg.defaultDiscount)}%</span>
+                            </div>
+                          </>
+                        )}
+                        <div>
+                          <span className="text-slate-400">Cấp bậc: </span>
+                          <span className="font-bold text-cyan-600">{RANK_LABELS[pkg.assignedRank] || pkg.assignedRank}</span>
+                        </div>
+                      </div>
+
+                      {/* Purchase/Registration count */}
+                      {pkg._count && (pkg._count.purchases > 0 || pkg._count.registrations > 0) && (
+                        <div className="mt-2 flex gap-3 text-xs text-slate-400">
+                          {pkg._count.purchases > 0 && <span>📦 {pkg._count.purchases} đơn hàng</span>}
+                          {pkg._count.registrations > 0 && <span>📝 {pkg._count.registrations} đăng ký</span>}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Actions */}
+                    <div className="flex items-center gap-2 flex-shrink-0 self-start sm:self-auto">
+                      <button
+                        onClick={() => handleToggleStatus(pkg)}
+                        className={`p-2 rounded-xl transition-colors ${pkg.isActive ? 'text-amber-500 hover:bg-amber-50' : 'text-emerald-500 hover:bg-emerald-50'}`}
+                        title={pkg.isActive ? 'Vô hiệu hóa' : 'Kích hoạt'}
+                      >
+                        {pkg.isActive ? <PowerOff className="w-4 h-4" /> : <Power className="w-4 h-4" />}
+                      </button>
+                      <button
+                        onClick={() => openEdit(pkg)}
+                        className="p-2 rounded-xl text-cyan-600 hover:bg-cyan-50 transition-colors"
+                        title="Sửa"
+                      >
+                        <Edit2 className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => { setDeletingPkg(pkg); setModalError(null); }}
+                        className="p-2 rounded-xl text-red-500 hover:bg-red-50 transition-colors"
+                        title="Xóa"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 

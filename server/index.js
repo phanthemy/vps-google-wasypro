@@ -6732,12 +6732,34 @@ app.get('/api/admin/npp/packages', authenticateToken, requireRole(['admin']), as
         },
         _count: { select: { purchases: true, registrations: true } }
       },
-      orderBy: { createdAt: 'desc' }
+      orderBy: [{ sortOrder: 'asc' }, { createdAt: 'desc' }]
     });
     res.json({ success: true, data: serializeBigInt(packages) });
   } catch (error) {
     console.error('Error listing NPP packages:', error);
     res.status(500).json({ error: 'Lỗi server' });
+  }
+});
+
+// ── PUT /api/admin/npp/packages/reorder — Reorder packages ───────────────────
+app.put('/api/admin/npp/packages/reorder', authenticateToken, requireRole(['admin']), async (req, res) => {
+  try {
+    const { packageIds } = req.body;
+    if (!Array.isArray(packageIds)) {
+      return res.status(400).json({ success: false, message: 'packageIds must be an array' });
+    }
+    await prisma.$transaction(
+      packageIds.map((id, index) =>
+        prisma.nppPackage.update({
+          where: { id },
+          data: { sortOrder: index + 1 }
+        })
+      )
+    );
+    res.json({ success: true, message: 'Cập nhật thứ tự gói thành công' });
+  } catch (error) {
+    console.error('Error reordering NPP packages:', error);
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -7086,9 +7108,9 @@ app.get('/api/npp/packages/available-public', async (req, res) => {
       select: {
         id: true, code: true, name: true, description: true,
         grossPrice: true, defaultDiscount: true, assignedRank: true,
-        packageType: true, requiredQuantity: true,
+        packageType: true, requiredQuantity: true, sortOrder: true,
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: [{ sortOrder: 'asc' }, { createdAt: 'desc' }],
     });
     res.json({ success: true, data: packages.map(p => serializeBigInt(p)) });
   } catch (e) {
@@ -7105,9 +7127,9 @@ app.get('/api/npp/packages/available', authenticateToken, async (req, res) => {
       select: {
         id: true, code: true, name: true, description: true,
         grossPrice: true, defaultDiscount: true, assignedRank: true,
-        packageType: true, requiredQuantity: true, createdAt: true,
+        packageType: true, requiredQuantity: true, createdAt: true, sortOrder: true,
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: [{ sortOrder: 'asc' }, { createdAt: 'desc' }],
     });
     res.json({ success: true, data: packages.map(p => serializeBigInt(p)) });
   } catch (e) {
