@@ -4,6 +4,15 @@
 
 ## 2026-09-30
 
+### Feature & Fix (Phiên Tối 19:00-20:40)
+- **Bật lại OTP Verification** — Zalo OA nâng gói Tăng trưởng, bỏ comment block enable OTP check, tăng cooldown 60→120s (`dc9d09d`).
+- **Hệ thống Broadcast OTP** — Viết lại `znsService.js`, gửi OTP song song tới khách + admin UIDs + sponsor CTV/NPP qua Zalo OA CS message (`5d55a2c`).
+- **Thêm cột zaloUid** — User model + API PATCH + UI admin gán Zalo UID cho CTV/NPP nhận OTP (`5d55a2c`).
+- **Swap tài khoản hệ thống** — 0968616263→Admin (ADM_QUANG), 0937353535→CTV mặc định (U1001), 0999999999=chỉ thấy menu Reset (`fc29a86`, `7884d4c`).
+- **Restrict Reset menu** — Backend 403 + Frontend ẩn tab "Hệ Thống" cho admin không phải 0999999999 (`fc29a86`).
+- **Prisma generate** — Fix lỗi zaloUid không nhận do thiếu `npx prisma generate` sau ALTER TABLE (`5cc0fb5`).
+- **Ẩn Ref Link cho CTV chưa có BID** — Dashboard + header + tab Sơ Đồ Tuyến Dưới chỉ hiện khi có businessId (`174316e`, `36467c5`).
+
 ### Feature & Optimization (Phiên Chiều - Bàn Giao Về Nhà)
 - **Tích hợp 9 Video YouTube sự kiện truyền hình & tin tức** — Đưa 9 video sự kiện tập đoàn (HTV9, New World Sài Gòn, Ký kết tri ân, Nhà máy Phú Thọ, v.v.) vào mục Tin tức & Sự kiện trang chủ với Modal Player xem video toàn màn hình mượt mà không làm chuyển trang (`efb4bab`).
 - **Quản Trị Tin Tức & Video YouTube trong Admin** — Thêm bảng SQLite `NewsArticle`, viết bộ API CRUD `/api/articles`, hỗ trợ nhập link YouTube, tự động lấy thumbnail HD từ YouTube ID và hiển thị badge Video (`efb4bab`).

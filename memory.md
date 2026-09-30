@@ -2,6 +2,48 @@
 
 ## Cập nhật: 2026-09-30
 
+### Phiên 30/09/2026 (19:00 - 20:40) — Bật OTP, Swap tài khoản, Bảo vệ logic CTV
+
+#### Đã làm:
+1. **Bật lại OTP Verification** (Commit `dc9d09d`):
+   - Backend: Bỏ comment block `/* ... */` vô hiệu hóa OTP trong `POST /api/auth/register`.
+   - Frontend: Bật lại validation OTP, button "Gửi OTP", input OTP trong `UnifiedAuthModal.tsx`.
+   - Tăng cooldown gửi lại OTP: 60s → 120s.
+   - Thêm `autoComplete="off"`, `inputMode="numeric"` cho input OTP tránh autofill sai.
+
+2. **Hệ thống Broadcast OTP** (Commit `5d55a2c`):
+   - Viết lại `server/services/znsService.js`: thêm `sendOaTextMessage()`, `broadcastOtpNotification()`.
+   - OTP gửi song song tới: Khách (ZNS) + Admin UIDs (env `ZALO_ADMIN_UIDS`) + Sponsor CTV/NPP (`zaloUid`).
+   - Frontend gửi `refCode` kèm request send-otp để lookup sponsor.
+   - Thêm cột `zaloUid` vào User model (Prisma + SQLite).
+   - API `PATCH /api/admin/users/:userId/zalo-uid` cho admin gán Zalo UID.
+   - UI: AdminCTVManagement.tsx thêm section "📱 Zalo UID (nhận OTP)".
+
+3. **Swap tài khoản hệ thống** (Commit `fc29a86`, `7884d4c`):
+   - `0968616263` (U1001 → ADM_QUANG): CTV → **Admin**. Xóa BID, rank, parentId.
+   - `0937353535` (ADMIN_SUPER → U1001): Admin → **CTV mặc định**. Gán BID WK-10001, rank MANAGER.
+   - `0999999999` (ADMIN01): Duy nhất thấy menu "Hệ Thống" (Factory Reset, Reset Members, Reset CTV).
+   - Backend: Đổi constants `QUANG_PHONE` → `DEFAULT_CTV_PHONE`, hàm `preserveOrSeedDefaultCtvAccount`.
+   - Backend: 3 endpoint reset chỉ cho `phone === '0999999999'` (403 cho admin khác).
+   - Frontend: `AdminSidebar.tsx` nhận prop `userPhone`, ẩn tab "Hệ Thống" nếu không phải 0999999999.
+   - `AdminCTVManagement.tsx`: Đổi protect check 0968616263 → 0937353535.
+   - AGENTS.md: Cập nhật invariant rules mới.
+
+4. **Prisma generate sau ALTER TABLE** (Commit `5cc0fb5`):
+   - Chạy `npx prisma generate` trên VPS → Prisma Client nhận cột `zaloUid`.
+
+5. **Ẩn Ref Link & Sơ Đồ Tuyến Dưới cho CTV chưa có BID** (Commit `174316e`, `36467c5`):
+   - Dashboard: `freshUser.businessId` check trước khi hiện "Link Giới Thiệu Của Bạn".
+   - Header: `(currentUser as any).businessId` check trước nút "Link giới thiệu của tôi".
+   - Tab "Sơ Đồ Tuyến Dưới": ẩn khi `!businessId`.
+
+#### Quy tắc mới:
+- **Swap tài khoản = swap TẤT CẢ trường** (role, userId, businessId, rank, isSystemParticipant). Xem L24.
+- **ALTER TABLE + schema.prisma → phải `npx prisma generate`**. Xem L25.
+- **Không BID = Không ref link, không sơ đồ tuyến dưới**. Xem L26.
+
+---
+
 ### Phiên 30/09/2026 (14:30 - 18:50) — Tổng kết cuối ngày & Chuẩn bị bàn giao về nhà
 
 #### Đã làm:
@@ -99,20 +141,12 @@
 ## Cập nhật: 2026-09-29
 
 #### Đã làm:
-1. **Khóa bất biến tài khoản Nguyễn Đức Quang (0968616263 / U1001)**:
-   - Đưa tài khoản vào `project-workflow.md` (Section XIX) và Skill `wasypro-rules`.
-   - Cập nhật backend `server/index.js` trên cả hai VPS (Oracle & Google):
-     - Chặn xóa tài khoản trong `DELETE /api/users/:userId`.
-     - Loại trừ khỏi câu lệnh xóa trong `POST /api/admin/factory-reset` và `POST /api/admin/reset-members`.
-     - Hàm `preserveOrSeedQuangAccount` tự động bảo vệ, đưa điểm về 0, gỡ sponsor và duy trì `role: 'ctv'`, hoặc re-seed nếu chưa có.
-     - Sau khi reset, người đăng ký tiếp theo sẽ tự động nhận `U1002`.
-2. **Cập nhật AGENTS.md**: Bổ sung quy định bất biến cho tài khoản Nguyễn Đức Quang.
-3. **Phân tách luồng Đăng ký Khách vãng lai & Khóa bảo trợ link ref**:
-   - Khi vào trực tiếp `wasypro.com` (không có link ref): Ẩn ô nhập Mã giới thiệu, ẩn 2 lựa chọn tham gia CTV/NPP. Thay thế bằng Box thông tin nổi bật kèm nút bấm liên hệ Zalo OA (`https://zalo.me/2928413591064686973`) hoặc Hotline `1900 989878` để được cấp mã.
-   - Khi vào qua link ref (`?ref=U1xxx`): Khóa chết ô Mã giới thiệu (`readOnly`, badge ổ khóa 🔒 không thể chỉnh sửa).
-   - Backend `POST /api/auth/register`: Bổ sung Security Guard chặn đăng ký `joinSystem` hoặc `registerNpp` nếu không có `parentId` hợp lệ (HTTP 400).
-4. **Ẩn nút Xóa CTV tài khoản Nguyễn Đức Quang (UI Invariant)**:
-   - Trong `AdminCTVManagement.tsx`: Đã ẩn hoàn toàn nút "🗑️ Xóa CTV" khi hiển thị chi tiết tài khoản Nguyễn Đức Quang (`U1001` / `0968616263`).
+1. **Khóa bất biến tài khoản hệ thống (UPDATED 30/09 tối)**:
+   - `0937353535` / U1001 = CTV mặc định, BẢO VỆ VĨNH VIỄN.
+   - `0968616263` / ADM_QUANG = Admin chính (Nguyễn Đức Quang).
+   - `0999999999` / ADMIN01 = Duy nhất thấy menu Reset.
+   - Đã cập nhật backend `server/index.js`: constants `DEFAULT_CTV_PHONE/UID/NAME`, hàm `preserveOrSeedDefaultCtvAccount`.
+   - Đã cập nhật AGENTS.md invariant rules.
 
 ---
 

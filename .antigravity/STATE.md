@@ -1,16 +1,15 @@
 # 🔄 Project State: WASY PRO
 
-> Auto-generated runtime state file (Cập nhật phiên kết thúc ngày 30/09/2026 - Bàn giao làm việc tại nhà)
+> Auto-generated runtime state file (Cập nhật phiên kết thúc ngày 30/09/2026 - 20:40)
 
 ## Current Status
 
 | Key | Value |
 |-----|-------|
-| **Status** | READY / HANDOVER |
-| **Last Session** | 2026-09-30 (18:50) |
+| **Status** | READY |
+| **Last Session** | 2026-09-30 (20:40) |
 | **Branch** | main |
-| **Last Commit** | `4007080` (feat: disable OTP verification - Zalo OA chua mua goi tra phi) |
-| **Previous Major Commit** | `efb4bab` (feat: add YouTube video & events section to homepage and admin news management) |
+| **Last Commit** | `36467c5` (fix: hide network tab for CTV without BID) |
 | **Source of Truth** | Oracle VPS (149.118.62.155) |
 | **Working Dir** | `/var/www/wasypro` |
 | **Production URLs** | `https://wasypro.com` / `https://wasypro.com/admin` |
@@ -19,67 +18,38 @@
 
 ## Active Tasks
 
-### ✅ Completed This Session (30/09/2026)
+### ✅ Completed This Session (30/09/2026 Tối 19:00-20:40)
 
-1. **Tin tức & 9 Video YouTube Sự Kiện**:
-   - Thêm bảng CSDL `NewsArticle` và trọn bộ CRUD API `/api/articles`.
-   - Seed đầy đủ 9 video sự kiện YouTube (HTV9, New World Sài Gòn, Ký kết tri ân, Tham quan nhà máy Phú Thọ, Demo thử nước, v.v.).
-   - Redesign `NewsSection.tsx` với card đa phương tiện, Play Badge đỏ, Tabs lọc nhanh và Full-screen Video Modal Player (iframe YouTube autoplay).
-   - Nâng cấp `AdminNews.tsx` hỗ trợ nhập link YouTube, tự động lấy thumbnail HD, hiển thị badge Video và liên kết xem ngoài.
-
-2. **Tái cấu trúc Danh Mục Trang Chủ & Quản trị Danh Mục Admin**:
-   - Gom 2 danh mục "Máy lọc nước Ion kiềm" và "Máy lọc nước Hydrogen" thành 1 danh mục duy nhất: "Máy lọc nước".
-   - Chuẩn hóa 3 tabs hiển thị sản phẩm trên trang chủ: Máy lọc nước, Bình & Ly Hydrogen, Phụ kiện & Lõi lọc.
-   - Thêm CRUD API `/api/categories` và Modal Quản Lý Danh Mục trong `AdminProducts.tsx`.
-
-3. **Banner Hero Vector WebP & Video Nền Chạy Ngầm**:
-   - Trích xuất bản vẽ thiết kế vector từ `Backdrop 133 x 256cm.pdf` sang WebP 1920px (`backdrop_banner.webp`), giải quyết triệt để lỗi mờ vỡ hạt.
-   - Tối ưu hóa và tích hợp `hero-video.mp4` chạy nền mượt mà kèm nút bật/tắt tiếng trên `Hero.tsx`.
-
-4. **Chuẩn hóa Logo Zalo Business (ZBS) & Xác thực Domain**:
-   - Triển khai 2 file xác thực domain HTML theo chuẩn Zalo (`NjE12PILCpro...`).
-   - Tạo logo ZBS 1:1 hình tròn an toàn 15% inner padding (`zbs_logo_light.png`, `zbs_logo_dark.png`) lưu tại Desktop `C:\Users\editor02\Desktop\wasy` và trên VPS.
-   - Tạm thời vô hiệu hóa guard OTP ZNS (`POST /api/auth/register`) do Zalo OA chưa mua gói trả phí.
-
-5. **Nâng cấp Tạo Đơn Hàng & Bảo Mật Admin**:
-   - Hiện ảnh thực tế và điểm tích lũy ⭐ CP trong `CreateOrderModal.jsx`.
-   - Hiệu ứng Hover Zoom Popup phóng to ảnh xem nhanh sản phẩm khi rê chuột.
-   - Fix lỗi upload ảnh sản phẩm `POST /api/upload` bằng multer và exempt CSRF.
-   - Bắt buộc mật khẩu tối thiểu 8 ký tự kèm chữ hoa, chữ thường, số, ký tự đặc biệt.
-   - Thêm kéo thả và nút mũi tên sắp xếp thứ tự gói NPP (`sortOrder`).
-   - Lọc gói NPP Combo chỉ hiện máy lọc nước.
-   - Sửa lỗi sponsor F0 hiển thị chính mình trong Admin Tạo Đơn (dùng `networkParent`).
-   - Gán `periodId` cho `NppCommission` để kỳ hoa hồng không bị bỏ sót.
+1. **Bật lại OTP Verification** — Zalo OA đã nâng gói Tăng trưởng 12 tháng. OTP gửi qua ZNS + broadcast tới Admin UIDs + Sponsor.
+2. **Hệ thống Broadcast OTP** — Viết lại `znsService.js`, gửi OTP song song tới khách + admin + sponsor. Thêm cột `zaloUid` + UI admin gán UID.
+3. **Swap tài khoản hệ thống** — 0968616263→Admin, 0937353535→CTV U1001, 0999999999=chỉ thấy Reset.
+4. **Ẩn Ref Link & Sơ Đồ Tuyến Dưới** — CTV chưa có BID không thấy link giới thiệu và tab network.
 
 ---
 
-### ⏳ Nhiệm Vụ Tiếp Theo Khi Mở Máy Ở Nhà (Next Session Roadmap)
+### ⏳ Nhiệm Vụ Tiếp Theo (Next Session)
 
-1. **Kiểm tra hiển thị giao diện trên Máy Nhà / Mobile**:
-   - Truy cập `https://wasypro.com` kiểm tra banner mới, video nền, 3 tab danh mục sản phẩm và mục Video & Sự Kiện (bấm xem popup video).
-   - Truy cập `https://wasypro.com/admin` kiểm tra Quản lý Tin tức (thêm/sửa bài viết video) và Quản lý Sản phẩm (modal danh mục).
-2. **Kích hoạt lại Zalo ZNS OTP (khi Zalo OA hoàn tất thanh toán gói)**:
-   - Khi sếp thông báo Zalo OA đã mua xong gói tin ZNS, bỏ comment kiểm tra OTP trong `server/index.js` (`POST /api/auth/register`).
-3. **Chế độ Combo trong Tạo Đơn Admin cho NPP**:
-   - Mở rộng form Tạo Đơn Admin khi chọn khách hàng là NPP: cho phép chọn danh sách nhiều máy theo cơ chế combo thay vì dropdown đơn lẻ.
-4. **Kiểm tra đối soát Kỳ Hoa Hồng**:
-   - Đối chiếu số liệu bảng hoa hồng giữa Admin (`/api/admin/periods/:id/commissions`) và CTV Portal để xác nhận 4 khoản tính đủ (bán lẻ + NPP referral D1/D2).
+1. **Test OTP thực tế**: Đăng ký bằng số không có Zalo → kiểm tra admin + sponsor nhận OTP.
+2. **NPP Combo Order Form in Admin**: Khi tạo đơn cho NPP → form phải khác (chọn combo multi-product).
+3. **Kiểm tra toàn bộ lỗi sau Reset**: Factory Reset rồi kiểm tra hệ thống hoạt động đúng.
+4. **Đối soát kỳ hoa hồng**: Commission + NppCommission merge đầy đủ.
 
 ---
 
 ### 📋 Boss Decision Items (Cần ý kiến Sếp)
-- D2: Tỷ lệ hoa hồng: Hardcode theo bảng chính thức hay cấu hình động qua Policy Table? (Hiện đã cấu hình động theo cấp bậc).
-- D3: Mô hình Dịch vụ (Service model): Giữ lại hay lược bỏ?
-- D7: SQLite → PostgreSQL: Khi nào chuyển đổi dữ liệu lên Postgres? (Hiện tại SQLite chạy mượt và an toàn).
+- D7: SQLite → PostgreSQL: Khi nào chuyển đổi?
 
 ---
 
 ## Architecture & Data Invariants
 
-### 🔒 Invariant Rule: Nguyễn Đức Quang (U1001 / 0968616263)
-- Tài khoản CTV số 1 của hệ thống, BẢO VỆ VĨNH VIỄN.
-- KHÔNG BAO GIỜ bị xóa trong mọi trường hợp (kể cả Factory Reset, Reset Members hay Delete User).
-- Ẩn hoàn toàn nút Xóa trong giao diện quản trị CTV (`AdminCTVManagement.tsx`).
+### 🔒 Tài khoản hệ thống (UPDATED 30/09/2026)
+
+| Phone | userId | Role | Ghi chú |
+|-------|--------|------|---------|
+| 0968616263 | ADM_QUANG | admin | Nguyễn Đức Quang — Admin chính |
+| 0937353535 | U1001 | ctv | CTV mặc định — BẢO VỆ VĨNH VIỄN |
+| 0999999999 | ADMIN01 | admin | Duy nhất thấy menu Reset |
 
 ### 2 Bảng Commission Riêng Biệt (QUAN TRỌNG)
 ```
@@ -92,3 +62,9 @@ Mọi API thống kê, đối soát, kỳ chi trả đều PHẢI query gộp c�
 - `Customer.sourceCtvId` = CTV tạo record (có thể là chính mình).
 - `User.parentId` = Bảo trợ thực sự trong mạng lưới (F0).
 - Luôn ưu tiên dùng `User.parentId` (`networkParent`) để hiển thị sponsor.
+
+### Zalo OA Config
+- OAID: 2928413591064686973
+- ZBS Code: ZCA-129539
+- Package: Gói Tăng trưởng 12 tháng (30/09/2026 - 29/09/2027)
+- Admin UIDs (env `ZALO_ADMIN_UIDS`): `3515836120390957618` (Water King), `5808562453708917860` (Mỹ)
