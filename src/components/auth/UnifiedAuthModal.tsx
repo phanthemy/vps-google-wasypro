@@ -136,8 +136,17 @@ export default function UnifiedAuthModal({ isOpen, onClose, initialTab = 'login'
 
     if (!regFullName.trim()) { setError('Vui lòng nhập họ tên.'); setLoading(false); return; }
     if (!regPhone.trim()) { setError('Vui lòng nhập số điện thoại.'); setLoading(false); return; }
-    if (!regPassword || regPassword.length < 6) {
-      setError('Mật khẩu phải có tối thiểu 6 ký tự.');
+    if (!regPassword || regPassword.length < 8) {
+      setError('Mật khẩu phải có tối thiểu 8 ký tự.');
+      setLoading(false);
+      return;
+    }
+    const hasLower = /[a-z]/.test(regPassword);
+    const hasUpper = /[A-Z]/.test(regPassword);
+    const hasNumber = /[0-9]/.test(regPassword);
+    const hasSpecial = /[^A-Za-z0-9]/.test(regPassword);
+    if (!hasLower || !hasUpper || !hasNumber || !hasSpecial) {
+      setError('Mật khẩu phải có ít nhất 8 ký tự bao gồm: chữ thường, chữ HOA, số và ký tự đặc biệt (VD: Wasy@2026).');
       setLoading(false);
       return;
     }
@@ -307,12 +316,15 @@ export default function UnifiedAuthModal({ isOpen, onClose, initialTab = 'login'
                   type={showRegPassword ? 'text' : 'password'}
                   value={regPassword}
                   onChange={e => setRegPassword(e.target.value)}
-                  placeholder="Tối thiểu 6 ký tự"
+                  placeholder="Tối thiểu 8 ký tự (hoa, thường, số, ký tự đặc biệt)"
                   className="w-full pl-10 pr-10 py-3 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-primary/30 focus:border-primary"
                   required
-                  minLength={6}
+                  minLength={8}
                 />
               </div>
+              <p className="text-[11px] text-gray-500 mt-1">
+                * Mật khẩu tối thiểu 8 ký tự, bao gồm: chữ thường, chữ HOA, số và ký tự đặc biệt (VD: Wasy@2026).
+              </p>
             </div>
 
             <div>
@@ -326,7 +338,7 @@ export default function UnifiedAuthModal({ isOpen, onClose, initialTab = 'login'
                   placeholder="Nhập lại mật khẩu vừa đặt"
                   className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-primary/30 focus:border-primary"
                   required
-                  minLength={6}
+                  minLength={8}
                 />
               </div>
             </div>

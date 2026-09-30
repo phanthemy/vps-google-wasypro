@@ -50,6 +50,17 @@ const ImageUpload: React.FC<ImageUploadProps> = ({
 
   const isVideoUrl = (url: string) => /\.(mp4|webm|ogg|mov)$/i.test(url);
 
+function getCsrfToken(): string {
+  if (typeof document === 'undefined') return '';
+  const match = document.cookie.match(new RegExp('(^|;\\s*)csrf_token=([^;]*)'));
+  return match ? decodeURIComponent(match[2]) : '';
+}
+
+function getAuthToken(): string {
+  if (typeof localStorage === 'undefined') return '';
+  return localStorage.getItem('token') || localStorage.getItem('crm_token') || '';
+}
+
   const uploadFile = (file: File, id: string) => {
     return new Promise<void>((resolve, reject) => {
       const xhr = new XMLHttpRequest();
@@ -110,6 +121,11 @@ const ImageUpload: React.FC<ImageUploadProps> = ({
       });
 
       xhr.open('POST', '/api/upload');
+      xhr.withCredentials = true;
+      const csrf = getCsrfToken();
+      if (csrf) xhr.setRequestHeader('X-CSRF-Token', csrf);
+      const token = getAuthToken();
+      if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`);
       xhr.send(formData);
     });
   };

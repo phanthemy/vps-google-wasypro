@@ -132,6 +132,7 @@ export default function CreateOrderModal({ currentUser, onClose, onSuccess }) {
   const comboRetailTotal = comboItems.reduce((sum, ci) => sum + ci.price * (ci.qty || 0), 0);
   const comboTotal = comboItems.reduce((sum, ci) => sum + ci.discountedPrice * (ci.qty || 0), 0);
   const comboDiscountAmount = comboRetailTotal - comboTotal;
+  const totalComboCP = comboItems.reduce((sum, ci) => sum + (ci.commissionPoints || 0) * (ci.qty || 0), 0);
 
   // RETAIL Calculations & Rank-based Policy (Spec v1.4 & AGENTS.md)
   // RULE: No BID = No discount. CTV chưa đạt 5.000 CP → chưa có BID → mua giá niêm yết 100%.
@@ -496,7 +497,7 @@ export default function CreateOrderModal({ currentUser, onClose, onSuccess }) {
               {/* Chọn sản phẩm lẻ bán khách */}
               <div>
                 <label className="text-xs font-bold uppercase tracking-wider" style={{ color: '#64748b' }}>Sản Phẩm</label>
-                <div className="mt-2 max-h-48 overflow-y-auto rounded-xl" style={{ border: '1px solid #e2e8f0' }}>
+                <div className="mt-2 max-h-56 overflow-y-auto rounded-xl" style={{ border: '1px solid #e2e8f0' }}>
                   {products.map(p => (
                     <button
                       key={p.id}
@@ -508,14 +509,32 @@ export default function CreateOrderModal({ currentUser, onClose, onSuccess }) {
                         borderBottom: '1px solid #f1f5f9',
                       }}
                     >
-                      <div className="flex items-center gap-2">
-                        <Package size={16} style={{ color: '#3b82f6' }} />
-                        <div>
-                          <div className="font-bold text-sm" style={{ color: '#1e293b' }}>{p.title}</div>
-                          <div className="text-xs" style={{ color: '#94a3b8' }}>CP: {p.commissionPoints || 0}</div>
+                      <div className="flex items-center gap-3 min-w-0 pr-2">
+                        <div className="w-12 h-12 rounded-lg bg-slate-100 border border-slate-200 overflow-hidden flex-shrink-0 flex items-center justify-center">
+                          {p.image ? (
+                            <img
+                              src={p.image}
+                              alt={p.title}
+                              className="w-full h-full object-cover"
+                              onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                            />
+                          ) : (
+                            <Package size={20} className="text-slate-400" />
+                          )}
+                        </div>
+                        <div className="min-w-0">
+                          <div className="font-bold text-sm text-slate-800 truncate">{p.title}</div>
+                          <div className="flex items-center gap-2 mt-1">
+                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                              ⭐ {new Intl.NumberFormat('vi-VN').format(p.commissionPoints || 0)} CP
+                            </span>
+                            {p.specs?.origin && (
+                              <span className="text-[10px] text-slate-400">· {p.specs.origin}</span>
+                            )}
+                          </div>
                         </div>
                       </div>
-                      <div className="text-right">
+                      <div className="text-right flex-shrink-0">
                         <div className="font-extrabold text-sm" style={{ color: '#059669' }}>
                           {new Intl.NumberFormat('vi-VN').format(p.price)}đ
                         </div>
@@ -621,15 +640,34 @@ export default function CreateOrderModal({ currentUser, onClose, onSuccess }) {
                         background: ci.qty > 0 ? '#eff6ff' : '#ffffff',
                       }}
                     >
-                      <div className="flex-1 min-w-0 pr-2">
-                        <div className="font-bold text-sm" style={{ color: '#1e293b' }}>{ci.productName}</div>
-                        <div className="flex items-center gap-2 mt-0.5">
-                          <span className="text-xs line-through" style={{ color: '#94a3b8' }}>
-                            {new Intl.NumberFormat('vi-VN').format(ci.price)}đ
-                          </span>
-                          <span className="text-xs font-extrabold" style={{ color: '#16a34a' }}>
-                            {new Intl.NumberFormat('vi-VN').format(ci.discountedPrice)}đ
-                          </span>
+                      <div className="flex items-center gap-3 flex-1 min-w-0 pr-2">
+                        <div className="w-11 h-11 rounded-lg bg-slate-100 border border-slate-200 overflow-hidden flex-shrink-0 flex items-center justify-center">
+                          {ci.image ? (
+                            <img
+                              src={ci.image}
+                              alt={ci.productName}
+                              className="w-full h-full object-cover"
+                              onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                            />
+                          ) : (
+                            <Package size={18} className="text-blue-500" />
+                          )}
+                        </div>
+                        <div className="min-w-0">
+                          <div className="font-bold text-sm text-slate-800 truncate">{ci.productName}</div>
+                          <div className="flex items-center gap-2 mt-0.5">
+                            <span className="text-xs line-through text-slate-400">
+                              {new Intl.NumberFormat('vi-VN').format(ci.price)}đ
+                            </span>
+                            <span className="text-xs font-extrabold text-emerald-600">
+                              {new Intl.NumberFormat('vi-VN').format(ci.discountedPrice)}đ
+                            </span>
+                            {ci.commissionPoints > 0 && (
+                              <span className="text-[10px] font-bold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">
+                                ⭐ {new Intl.NumberFormat('vi-VN').format(ci.commissionPoints)} CP
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </div>
                       <div className="flex items-center gap-1.5 flex-shrink-0">
@@ -689,7 +727,7 @@ export default function CreateOrderModal({ currentUser, onClose, onSuccess }) {
               {/* Chọn sản phẩm */}
               <div>
                 <label className="text-xs font-bold uppercase tracking-wider" style={{ color: '#64748b' }}>Sản Phẩm</label>
-                <div className="mt-2 max-h-48 overflow-y-auto rounded-xl" style={{ border: '1px solid #e2e8f0' }}>
+                <div className="mt-2 max-h-56 overflow-y-auto rounded-xl" style={{ border: '1px solid #e2e8f0' }}>
                   {products.map(p => (
                     <button
                       key={p.id}
@@ -701,14 +739,32 @@ export default function CreateOrderModal({ currentUser, onClose, onSuccess }) {
                         borderBottom: '1px solid #f1f5f9',
                       }}
                     >
-                      <div className="flex items-center gap-2">
-                        <Package size={16} style={{ color: '#d97706' }} />
-                        <div>
-                          <div className="font-bold text-sm" style={{ color: '#1e293b' }}>{p.title}</div>
-                          <div className="text-xs" style={{ color: '#94a3b8' }}>CP: {p.commissionPoints || 0}</div>
+                      <div className="flex items-center gap-3 min-w-0 pr-2">
+                        <div className="w-12 h-12 rounded-lg bg-slate-100 border border-slate-200 overflow-hidden flex-shrink-0 flex items-center justify-center">
+                          {p.image ? (
+                            <img
+                              src={p.image}
+                              alt={p.title}
+                              className="w-full h-full object-cover"
+                              onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                            />
+                          ) : (
+                            <Package size={20} className="text-amber-500" />
+                          )}
+                        </div>
+                        <div className="min-w-0">
+                          <div className="font-bold text-sm text-slate-800 truncate">{p.title}</div>
+                          <div className="flex items-center gap-2 mt-1">
+                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                              ⭐ {new Intl.NumberFormat('vi-VN').format(p.commissionPoints || 0)} CP
+                            </span>
+                            {p.specs?.origin && (
+                              <span className="text-[10px] text-slate-400">· {p.specs.origin}</span>
+                            )}
+                          </div>
                         </div>
                       </div>
-                      <div className="text-right">
+                      <div className="text-right flex-shrink-0">
                         <div className="text-xs line-through" style={{ color: '#94a3b8' }}>
                           {new Intl.NumberFormat('vi-VN').format(p.price)}đ
                         </div>
@@ -781,16 +837,26 @@ export default function CreateOrderModal({ currentUser, onClose, onSuccess }) {
                   </div>
                 )}
 
-                <div className="flex justify-between">
+                <div className="flex justify-between items-center">
                   <span style={{ color: '#64748b' }}>Sản phẩm</span>
-                  <span className="font-bold" style={{ color: '#1e293b' }}>
+                  <span className="font-bold text-right" style={{ color: '#1e293b' }}>
                     {purchaseSubject === 'SELF' && pricingMode === 'COMBO'
                       ? `Combo ${comboItems.filter(ci => ci.qty > 0).length} loại máy`
                       : selectedProduct?.title}
                   </span>
                 </div>
 
-                <div className="flex justify-between">
+                {/* Điểm sản phẩm CP hiển thị rõ ràng theo yêu cầu của Sếp */}
+                <div className="flex justify-between items-center py-1.5 px-3 rounded-lg" style={{ background: '#fffbeb', border: '1px solid #fde68a' }}>
+                  <span className="font-bold text-xs" style={{ color: '#b45309' }}>⭐ Điểm tích lũy (CP)</span>
+                  <span className="font-black text-sm" style={{ color: '#d97706' }}>
+                    {purchaseSubject === 'SELF' && pricingMode === 'COMBO'
+                      ? `${new Intl.NumberFormat('vi-VN').format(totalComboCP)} CP`
+                      : `${new Intl.NumberFormat('vi-VN').format((selectedProduct?.commissionPoints || 0) * qty)} CP${qty > 1 ? ` (${new Intl.NumberFormat('vi-VN').format(selectedProduct?.commissionPoints || 0)} CP/cái)` : ''}`}
+                  </span>
+                </div>
+
+                <div className="flex justify-between items-center">
                   <span style={{ color: '#64748b' }}>Số lượng</span>
                   <span className="font-bold">
                     {purchaseSubject === 'SELF' && pricingMode === 'COMBO' ? `${totalComboQty} máy` : `${qty} cái`}

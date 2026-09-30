@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import ImageUpload from './ImageUpload';
 import {
   Package,
@@ -91,6 +91,7 @@ export const AdminProducts: React.FC = () => {
 
   const openCreateModal = () => {
     setEditingProduct(null);
+    const defaultImg = '/images/products/water-king-pro-9.jpg';
     setFormData({
       title: '',
       slug: '',
@@ -99,8 +100,8 @@ export const AdminProducts: React.FC = () => {
       originalPrice: 18000000,
       rating: 5,
       reviewsCount: 1,
-      image: '/images/products/water-king-pro-9.jpg',
-      gallery: [],
+      image: defaultImg,
+      gallery: [{ url: defaultImg, thumbnail: defaultImg, originalName: 'Ảnh đại diện', type: 'image' } as any],
       description: 'Máy lọc nước ion kiềm giàu hydrogen công nghệ hiện đại.',
       specs: {
         pH: '3.5 - 10.5',
@@ -121,6 +122,10 @@ export const AdminProducts: React.FC = () => {
 
   const openEditModal = (product: Product) => {
     setEditingProduct(product);
+    let galleryList = Array.isArray(product.gallery) ? [...product.gallery] : [];
+    if (product.image && !galleryList.some((g: any) => (typeof g === 'string' ? g : g?.url) === product.image)) {
+      galleryList = [{ url: product.image, thumbnail: product.image, originalName: 'Ảnh đại diện', type: 'image' } as any, ...galleryList];
+    }
     setFormData({
       title: product.title,
       slug: product.slug,
@@ -131,7 +136,7 @@ export const AdminProducts: React.FC = () => {
       rating: product.rating,
       reviewsCount: product.reviewsCount,
       image: product.image,
-      gallery: product.gallery,
+      gallery: galleryList,
       description: product.description,
       specs: { ...product.specs },
       isHot: product.isHot,

@@ -69,6 +69,7 @@ const csrfProtection = (req, res, next) => {
     req.path === '/api/auth/login' ||
     req.path === '/api/auth/logout' ||
     req.path === '/api/auth/register' ||
+    req.path === '/api/upload' ||
     req.path === '/api/orders/website' ||   // Public order form
     req.path === '/api/leads' ||              // Public consultation form — accepts guest + logged-in users
     req.path === '/api/users/me/join-system' || // CTV portal — same-origin cookie POST
@@ -564,6 +565,9 @@ app.post('/api/auth/register', authLimiter, async (req, res) => {
 
     phone = phone.trim();
     fullName = fullName.trim();
+    if (password && password.trim().length < 8) {
+      return res.status(400).json({ success: false, message: 'Mật khẩu phải có tối thiểu 8 ký tự.' });
+    }
     const rawPwd = (password && password.trim()) ? password.trim() : '123456';
     const willJoinSystem = !!joinSystem; // true if user chose CTV at registration
     const wantNpp = !!req.body.registerNpp || !!nppPackageId;
@@ -3612,6 +3616,59 @@ app.post('/api/admin/upload-attachment', authenticateToken, orderAttachmentUploa
   const url = `/uploads/order-attachments/${req.file.filename}`;
   res.json({ success: true, url });
 });
+
+// ── Product Media Upload (Images & Videos) ──────────────────────────────────
+const productUploadDir = path.join(__dirname, '..', 'public', 'uploads', 'products');
+if (!fs.existsSync(productUploadDir)) fs.mkdirSync(productUploadDir, { recursive: true });
+
+const productMediaUpload = multer({
+  storage: multer.diskStorage({
+    destination: (req, file, cb) => cb(null, productUploadDir),
+    filename: (req, file, cb) => {
+      const ext = path.extname(file.originalname);
+      const safeName = `${Date.now()}-${Math.random().toString(36).substring(7)}${ext}`;
+      cb(null, safeName);
+    }
+  }),
+  limits: { fileSize: 50 * 1024 * 1024 }, // 50MB
+  fileFilter: (req, file, cb) => {
+    const allowed = /\.(jpg|jpeg|png|webp|mp4|webm|mov)$/i;
+    if (allowed.test(file.originalname)) cb(null, true);
+    else cb(new Error('Chỉ chấp nhận file ảnh hoặc video hợp lệ'));
+  }
+});
+
+app.post('/api/upload', (req, res, next) => {
+  productMediaUpload.array('images', 10)(req, res, (err) => {
+    if (err) {
+      console.error('[UPLOAD ERROR]', err);
+      return res.status(400).json({ success: false, message: err.message || 'Lỗi upload file' });
+    }
+    next();
+  });
+}, (req, res) => {
+  try {
+    if (!req.files || req.files.length === 0) {
+      return res.status(400).json({ success: false, message: 'Không có file nào được tải lên' });
+    }
+    const images = req.files.map(file => {
+      const isVideo = file.mimetype.startsWith('video/') || /\.(mp4|webm|mov)$/i.test(file.filename);
+      const fileUrl = `/uploads/products/${file.filename}`;
+      return {
+        url: fileUrl,
+        thumbnail: fileUrl,
+        originalName: file.originalname,
+        size: file.size,
+        type: isVideo ? 'video' : 'image',
+      };
+    });
+    res.json({ success: true, images });
+  } catch (err) {
+    console.error('Error in /api/upload handler:', err);
+    res.status(500).json({ success: false, message: err.message || 'Lỗi server khi lưu file' });
+  }
+});
+
 
 app.get('/api/admin/products-list', authenticateToken, async (req, res) => {
   try {
@@ -8089,6 +8146,7 @@ app.get('/api/npp/my-combo', authenticateToken, async (req, res) => {
         price,
         discountedPrice,
         commissionPoints: p.commissionPoints || 0,
+        image: p.image || null,
       };
     });
     
