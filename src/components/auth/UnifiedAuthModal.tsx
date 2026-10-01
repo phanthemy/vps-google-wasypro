@@ -265,8 +265,8 @@ export default function UnifiedAuthModal({ isOpen, onClose, initialTab = 'login'
             <div className="mx-auto w-16 h-16 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center mb-3 shadow-lg shadow-sky-900/20 border border-white/30">
               <User className="w-8 h-8 text-white" />
             </div>
-            <h3 className="text-xl font-extrabold text-white tracking-wide">WATER KING</h3>
-            <p className="text-[11px] text-sky-100 mt-1 font-medium tracking-wider uppercase">Đăng nhập hệ thống</p>
+            <h3 className="text-xl font-extrabold text-white tracking-wide drop-shadow-md">TÀI KHOẢN WASYPRO</h3>
+            <p className="text-[11px] text-sky-100/90 mt-1.5 font-medium leading-relaxed">Đăng ký để trải nghiệm sản phẩm và nhận<br/>nhiều ưu đãi đặc biệt từ Water King</p>
             <div className="flex items-center justify-center gap-1.5 mt-2">
               <div className="w-8 h-px bg-gradient-to-r from-transparent to-amber-300/60" />
               <div className="w-1.5 h-1.5 rounded-full bg-amber-400/80" />
@@ -290,7 +290,7 @@ export default function UnifiedAuthModal({ isOpen, onClose, initialTab = 'login'
           <button
             type="button"
             onClick={() => switchTab('register')}
-            className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${tab === 'register' ? 'bg-primary text-white shadow-sm' : 'text-gray-500 hover:text-gray-900'}`}
+            className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${tab === 'register' ? 'bg-gradient-to-r from-sky-500 to-primary text-white shadow-md font-extrabold' : 'text-gray-500 hover:text-gray-700'}`}
           >
             ĐĂNG KÝ
           </button>
@@ -304,7 +304,7 @@ export default function UnifiedAuthModal({ isOpen, onClose, initialTab = 'login'
         {tab === 'login' && (
           <form onSubmit={handleLogin} className="space-y-4">
             <div>
-              <label className="text-xs font-bold text-gray-600 uppercase tracking-wide">Số điện thoại</label>
+              <label className="text-xs font-extrabold text-slate-700 uppercase tracking-wider">Số điện thoại</label>
               <div className="mt-1 relative">
                 <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <input type="tel" value={loginPhone} onChange={e => setLoginPhone(e.target.value)} placeholder="0900000000" className="w-full pl-10 pr-4 py-3 border border-sky-200/70 rounded-xl text-sm focus:ring-2 focus:ring-primary/30 focus:border-primary bg-white shadow-sm" required />
@@ -312,7 +312,7 @@ export default function UnifiedAuthModal({ isOpen, onClose, initialTab = 'login'
             </div>
             <div>
               <div className="flex items-center justify-between">
-                <label className="text-xs font-bold text-gray-600 uppercase tracking-wide">Mật khẩu</label>
+                <label className="text-xs font-extrabold text-slate-700 uppercase tracking-wider">Mật khẩu</label>
                 <button
                   type="button"
                   onClick={() => setShowLoginPassword(!showLoginPassword)}
@@ -355,14 +355,14 @@ export default function UnifiedAuthModal({ isOpen, onClose, initialTab = 'login'
         {tab === 'register' && (
           <form onSubmit={handleRegister} className="space-y-4">
             <div>
-              <label className="text-xs font-bold text-gray-600 uppercase tracking-wide">Họ và tên *</label>
+              <label className="text-xs font-extrabold text-slate-700 uppercase tracking-wider">Họ và tên *</label>
               <div className="mt-1 relative">
                 <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <input type="text" value={regFullName} onChange={e => setRegFullName(e.target.value)} placeholder="Nguyễn Văn A" className="w-full pl-10 pr-4 py-3 border border-sky-200/70 rounded-xl text-sm focus:ring-2 focus:ring-primary/30 focus:border-primary bg-white shadow-sm" required />
               </div>
             </div>
             <div>
-              <label className="text-xs font-bold text-gray-600 uppercase tracking-wide">Số điện thoại *</label>
+              <label className="text-xs font-extrabold text-slate-700 uppercase tracking-wider">Số điện thoại *</label>
               <div className="mt-1 relative flex gap-2">
                 <div className="relative flex-1">
                   <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -379,7 +379,7 @@ export default function UnifiedAuthModal({ isOpen, onClose, initialTab = 'login'
                   type="button"
                   onClick={handleSendOtp}
                   disabled={otpLoading || otpCooldown > 0 || !regPhone.trim()}
-                  className="px-3 py-2 bg-cyan-600 text-white text-xs font-bold rounded-xl hover:bg-cyan-700 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap flex items-center gap-1"
+                  className="px-4 py-2.5 bg-gradient-to-r from-sky-500 to-primary text-white text-xs font-extrabold rounded-xl hover:from-sky-600 hover:to-primary-dark disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap flex items-center gap-1.5 shadow-md shadow-sky-500/20 transition-all active:scale-95"
                 >
                   <Shield className="w-3.5 h-3.5" />
                   {otpLoading ? '...' : otpCooldown > 0 ? `${otpCooldown}s` : 'Gửi OTP'}
@@ -390,11 +390,11 @@ export default function UnifiedAuthModal({ isOpen, onClose, initialTab = 'login'
             {/* Mã xác thực OTP Zalo */}
             <div>
               <div className="flex items-center justify-between">
-                <label className="text-xs font-bold text-gray-600 uppercase tracking-wide">Mã xác thực Zalo (OTP) *</label>
+                <label className="text-xs font-extrabold text-slate-700 uppercase tracking-wider">Mã xác thực Zalo (OTP) *</label>
                 {otpSent && <span className="text-[11px] text-sky-600 font-semibold flex items-center gap-1">✓ Đã gửi mã qua Zalo</span>}
               </div>
               <div className="mt-1 relative">
-                <Shield className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-cyan-600" />
+                <Shield className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-sky-500" />
                 <input
                   type="text"
                   inputMode="numeric"
@@ -402,12 +402,12 @@ export default function UnifiedAuthModal({ isOpen, onClose, initialTab = 'login'
                   value={regOtp}
                   onChange={e => setRegOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
                   placeholder="Nhập mã 6 số gửi từ Zalo Water King"
-                  className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl text-sm font-mono tracking-widest focus:ring-2 focus:ring-primary/30 focus:border-primary"
+                  className="w-full pl-10 pr-4 py-3 border border-sky-200/70 rounded-xl text-sm font-mono tracking-widest focus:ring-2 focus:ring-primary/30 focus:border-primary bg-white shadow-sm"
                   required
                   maxLength={6}
                 />
               </div>
-              <p className="text-[11px] text-gray-400 mt-1">
+              <p className="text-[11px] text-slate-400 mt-1 flex items-start gap-1">
                 * Tin nhắn từ Zalo OA <strong>Water King</strong> chứa mã xác thực gồm 6 số.
               </p>
             </div>
@@ -415,7 +415,7 @@ export default function UnifiedAuthModal({ isOpen, onClose, initialTab = 'login'
             {/* Mật khẩu & Nhập lại mật khẩu */}
             <div>
               <div className="flex items-center justify-between">
-                <label className="text-xs font-bold text-gray-600 uppercase tracking-wide">Mật khẩu *</label>
+                <label className="text-xs font-extrabold text-slate-700 uppercase tracking-wider">Mật khẩu *</label>
                 <button
                   type="button"
                   onClick={() => setShowRegPassword(!showRegPassword)}
@@ -442,7 +442,7 @@ export default function UnifiedAuthModal({ isOpen, onClose, initialTab = 'login'
             </div>
 
             <div>
-              <label className="text-xs font-bold text-gray-600 uppercase tracking-wide">Nhập lại mật khẩu *</label>
+              <label className="text-xs font-extrabold text-slate-700 uppercase tracking-wider">Nhập lại mật khẩu *</label>
               <div className="mt-1 relative">
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <input
@@ -594,7 +594,7 @@ export default function UnifiedAuthModal({ isOpen, onClose, initialTab = 'login'
               <div className="space-y-3">
                 <div>
                   <div className="flex items-center justify-between">
-                    <label className="text-xs font-bold text-gray-600 uppercase tracking-wide">Mã người giới thiệu</label>
+                    <label className="text-xs font-extrabold text-slate-700 uppercase tracking-wider">Mã người giới thiệu</label>
                     <span className="text-[11px] font-semibold text-gray-400 flex items-center gap-1">
                       <Lock className="w-3 h-3 text-gray-400" /> Đã khóa
                     </span>
@@ -633,8 +633,8 @@ export default function UnifiedAuthModal({ isOpen, onClose, initialTab = 'login'
               </div>
             )}
 
-            <button type="submit" disabled={loading} className="w-full py-3 bg-primary text-white font-bold rounded-xl hover:bg-primary/90 transition-colors flex items-center justify-center gap-2 disabled:opacity-50">
-              {loading ? <><Loader2 className="w-4 h-4 animate-spin" /><span>ĐANG TẠO TÀI KHOẢN...</span></> : <><Shield className="w-4 h-4" /><span>{hasReferral ? 'ĐĂNG KÝ TÀI KHOẢN' : 'ĐĂNG KÝ TÀI KHOẢN KHÁCH HÀNG'}</span></>}
+            <button type="submit" disabled={loading} className="w-full py-3.5 bg-gradient-to-r from-sky-500 via-primary to-sky-600 text-white font-extrabold rounded-2xl hover:from-sky-600 hover:to-primary-dark shadow-lg shadow-primary/30 transition-all flex items-center justify-center gap-2 disabled:opacity-50 active:scale-[0.98] text-sm tracking-wide">
+              {loading ? <><Loader2 className="w-4 h-4 animate-spin" /><span>ĐANG TẠO TÀI KHOẢN...</span></> : <><span>{hasReferral ? 'ĐĂNG KÝ NGAY' : 'ĐĂNG KÝ NGAY'}</span><ChevronRight className="w-5 h-5" /></>}
             </button>
             <div className="text-center text-xs text-gray-500">
               <span>Đã có tài khoản? </span>
