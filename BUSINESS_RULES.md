@@ -19,23 +19,27 @@
 - **KHÔNG ĐƯỢC XÓA** redirect này. Đây là TÍNH NĂNG, không phải bug.
 
 ## 3. TÀI KHOẢN ĐƯỢC BẢO VỆ ⭐⭐⭐⭐⭐
-- `0968616263` / U1001 (Nguyễn Đức Quang): CTV mặc định, KHÔNG BAO GIỜ XÓA.
-- `0937353535` / ADM_QUANG: Admin chính.
-- `0999999999` / ADMIN01: Admin duy nhất thấy menu Reset.
+- `0937353535` / U1001 (Nguyễn Đức Quang): **CTV mặc định**, `isSystemParticipant: true`, KHÔNG BAO GIỜ XÓA.
+- `0968616263` / ADM_QUANG (Nguyễn Đức Quang): **Admin chính** (`role: 'admin'`), đổi mật khẩu qua bảng quản trị.
+- `0999999999` / ADMIN01: Admin duy nhất thấy menu Reset (Factory Reset, Reset Members).
+- **Lịch sử swap (29/09)**: 0968616263 từ CTV swap thành Admin, 0937353535 giữ nguyên CTV mặc định U1001.
 
 ## 4. BUSINESS ID (BID) GATES ⭐⭐⭐⭐⭐
 - Không có BID = Không nhận commission (L11)
 - Không có BID = Không được giảm giá tự mua (L12)
-- Ref link chỉ hiện khi có BID (có thể đã revoke — check `c725f4b`)
+- Ref link: CTV **HIỆN ref link** kể cả chưa có BID (đã revoke BID check — commit `c725f4b`, `f412ad0`). Commission vẫn cần BID.
 
 ## 5. FORM ĐĂNG KÝ ⭐⭐⭐⭐
 - 3 chương trình: Đại sứ / NPP (gói PRODUCT_COMBO) / Cổ đông (gói CAPITAL)
 - Tất cả đều `joinSystem: true`
-- NPP/Cổ đông phải chọn gói trước khi submit
+- NPP/Cổ đông phải chọn gói trước khi submit **(trên form đăng ký website)**
+- CTV đã có tài khoản → vào CTV Portal → mua gói NPP sau (flow riêng)
 - OTP qua Zalo ZNS bắt buộc
 - Mật khẩu: min 8 ký tự, chữ thường + HOA + số + ký tự đặc biệt
 
 ## 6. COMMISSION RULES ⭐⭐⭐⭐
+- **Không có BID = Không commission** (L11). **Không có RANK = Không commission** (L27).
+- BID = điều kiện cần, RANK = điều kiện đủ. KHÔNG fallback rank thành AMBASSADOR.
 - 2 bảng: `Commission` (bán lẻ) + `NppCommission` (giới thiệu NPP)
 - PHẢI query cả 2 khi hiện danh sách commission
 - `NppCommission` PHẢI có `periodId` khi tạo

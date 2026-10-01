@@ -39,6 +39,7 @@
 - `/var/www/wasypro/memory.md` — Session 01/10
 
 ## Tài khoản test:
-- Admin: 0968616263 (Nguyễn Đức Quang, U1001)
+- Admin: 0968616263 (Nguyễn Đức Quang, ADM_QUANG)
 - Reset: 0999999999 (ADMIN01)
+- CTV mặc định: 0937353535 (Nguyễn Đức Quang, U1001) — KHÔNG XÓA
 - CTV test: 0933893539 (U1006, Phan Thế Mỹ)
