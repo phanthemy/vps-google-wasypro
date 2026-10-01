@@ -468,7 +468,14 @@ export const App: React.FC = () => {
               onContactClick={() => handleOpenContact(null)}
             />
             <ProductSection
-              onOrderProduct={(product) => { addItem({ productId: product.id, title: product.title, image: product.image, price: product.price }); setIsCartOpen(true); }}
+              onOrderProduct={(product) => {
+                // CTV with rank → redirect to CTV Portal via ContactModal
+                if (user && user.isSystemParticipant && user.rank && ['AMBASSADOR','MANAGER','DIRECTOR'].includes((user.rank || '').toUpperCase())) {
+                  handleOpenContact(product);
+                  return;
+                }
+                addItem({ productId: product.id, title: product.title, image: product.image, price: product.price }); setIsCartOpen(true);
+              }}
               onCallHotline={handleCallHotline}
             />
             <HydrogenBenefits />
