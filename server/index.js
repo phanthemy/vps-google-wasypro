@@ -3745,6 +3745,65 @@ app.post('/api/admin/orders/create', authenticateToken, async (req, res) => {
         await tx.websiteOrder.update({ where: { id: wo.id }, data: { shadowOrderId: shadowOrder.id } });
       }
       
+      // L29+: Nếu KHÔNG có sponsor nhưng phone match CTV → vẫn tạo shadow Order
+      // Giải quyết: Admin tạo đơn cho CTV mà quên chọn sponsor → trước đây coi như khách vãng lai
+      if (!sponsor && !shadowOrderId) {
+        const matchedCTV = await tx.user.findFirst({
+          where: { phone: customerPhone, isSystemParticipant: true }
+        });
+        if (matchedCTV) {
+          // Auto-create Customer record linked to this CTV
+          let customer = await tx.customer.findFirst({ where: { phone: customerPhone, linkedUserId: matchedCTV.id } });
+          if (!customer) {
+            customer = await tx.customer.create({
+              data: {
+                fullName: customerName,
+                phone: customerPhone,
+                sourceCtvId: matchedCTV.userId,
+                linkedUserId: matchedCTV.id,
+                sponsorUserId: matchedCTV.parentId
+                  ? (await tx.user.findUnique({ where: { userId: matchedCTV.parentId } }))?.id || null
+                  : null,
+                status: 'ARRIVED',
+                expiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
+              }
+            });
+          }
+
+          const openPeriod = await tx.commissionPeriod.findFirst({ where: { status: 'OPEN' } });
+
+          const shadowOrder = await tx.order.create({
+            data: {
+              customerId: customer.id,
+              ordererUserId: matchedCTV.id,
+              totalAmount,
+              status: 'NEW',
+              orderType: 'RETAIL',
+              purchaseType: 'SELF_PURCHASE',
+              isSelfBuy: true,
+              periodId: openPeriod?.id || null,
+              shippingAddress: shippingAddress || null,
+              recipientPhone: recipientPhone || null,
+              items: {
+                create: [{
+                  productId: product.id,
+                  amount: totalAmount,
+                  qty: quantity,
+                  unitCommissionPts: unitCP,
+                  lineCommissionPts: unitCP * quantity,
+                }]
+              }
+            }
+          });
+          shadowOrderId = shadowOrder.id;
+          await tx.websiteOrder.update({
+            where: { id: wo.id },
+            data: { shadowOrderId: shadowOrder.id, isCtvOrder: true, sponsorUserId: matchedCTV.userId }
+          });
+          console.log('[ADMIN ORDER] Auto-linked CTV', matchedCTV.userId, 'shadowOrder:', shadowOrder.id);
+        }
+      }
+
       // 3. Audit log
       await tx.orderAuditLog.create({
         data: {
