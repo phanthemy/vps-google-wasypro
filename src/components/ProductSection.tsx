@@ -115,11 +115,11 @@ export const ProductSection: React.FC<ProductSectionProps> = ({
   // Đếm số lượng sản phẩm mỗi Tab
   const tabCounts = useMemo(() => {
     const counts: Record<string, number> = {};
-    CATEGORY_TABS.forEach(tab => {
+    categoryTabs.forEach(tab => {
       counts[tab.id] = allProducts.filter(p => isProductInTab(p, tab.id)).length;
     });
     return counts;
-  }, [allProducts]);
+  }, [allProducts, categoryTabs]);
 
   // Danh sách sản phẩm hiển thị sau khi lọc & sắp xếp
   const displayedProducts = useMemo(() => {
@@ -284,25 +284,21 @@ export const ProductSection: React.FC<ProductSectionProps> = ({
           <div className="bg-white rounded-2xl p-10 text-center max-w-md mx-auto my-8 border border-slate-100 shadow-sm">
             <Coffee className="w-12 h-12 text-amber-500/60 mx-auto mb-3" />
             <h3 className="text-base font-bold text-slate-800 mb-1">
-              {selectedCategory === 'binh-ly-hydrogen' 
-                ? 'Dòng Bình & Ly Hydrogen sắp ra mắt' 
-                : 'Không tìm thấy sản phẩm phù hợp'}
+              'Không tìm thấy sản phẩm phù hợp'
             </h3>
             <p className="text-xs sm:text-sm text-slate-500 mb-5 leading-relaxed">
-              {selectedCategory === 'binh-ly-hydrogen'
-                ? 'Các mẫu bình ly tạo Hydrogen di động đang được chuẩn bị lên kệ. Quý khách vui lòng liên hệ tư vấn để nhận thông tin ưu đãi mở bán sớm!'
-                : 'Vui lòng kiểm tra lại từ khóa tìm kiếm hoặc bấm xem mục khác.'}
+              'Vui lòng kiểm tra lại từ khóa tìm kiếm hoặc bấm xem mục khác.'
             </p>
             <div className="flex items-center justify-center gap-3">
               <button
                 onClick={() => {
-                  setSelectedCategory('may-loc-nuoc');
+                  setSelectedCategory(categoryTabs[0]?.id || 'all');
                   setSearchQuery('');
                 }}
                 className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs sm:text-sm font-bold text-primary bg-sky-50 border border-primary/20 hover:bg-sky-100 transition-colors"
               >
                 <Droplet className="w-3.5 h-3.5" />
-                <span>Xem Máy Lọc Nước</span>
+                <span>Xem tất cả sản phẩm</span>
               </button>
               <button
                 onClick={onCallHotline}
