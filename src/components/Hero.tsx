@@ -74,11 +74,25 @@ const slides: SlideItem[] = [
     title: 'Công Nghệ Hydrogen Tươi Đột Phá'
   },
   {
-    id: 'slide-backdrop',
+    id: 'slide-banner1',
     type: 'image',
-    src: '/images/backdrop_banner.webp',
-    badge: 'Chính Hãng Wasy Pro',
-    title: 'Wasy Pro Hydrogen - Nước Tốt, Thân An, Trí Sáng'
+    src: '/images/banner1.jpg',
+    badge: 'Wasy Pro Hydrogen',
+    title: 'Nước Tốt - Thân An - Trí Sáng'
+  },
+  {
+    id: 'slide-banner2',
+    type: 'image',
+    src: '/images/banner2.jpg',
+    badge: 'Sản Phẩm Water King',
+    title: 'Tinh Khiết - Giàu Khoáng - Cân Bằng pH'
+  },
+  {
+    id: 'slide-banner3',
+    type: 'image',
+    src: '/images/banner3.jpg',
+    badge: 'Bộ Sưu Tập Máy Lọc',
+    title: 'WS-03 PRO · WS-01 PRO · WS-01 PRO MAX'
   }
 ];
 
