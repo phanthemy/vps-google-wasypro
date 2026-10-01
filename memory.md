@@ -187,3 +187,20 @@ req.user = { id: "U199", userId: "U199", dbId: cuid, role, fullName, phone }
 - Báo cáo xong mà chưa test thật
 - Dùng `pm2 delete` rồi `pm2 start` → chỉ `pm2 reload`
 - Insert code gần JSDoc `/**` block → verify đã đóng `*/`
+
+
+---
+
+### Phiên 01/10/2026 (15:49 - 18:30)
+
+#### Đã làm:
+1. **Clear cache banner** (Commit `953490c`): Thêm `?v=20261001` vào URL banner trong Hero.tsx để bypass browser cache.
+2. **Tối ưu VPS** — Stop `erp-unified` (322,828 restarts do port 3033 conflict EADDRINUSE). CPU giảm 64.5% → 9.8%.
+3. **Form đăng ký thêm CTV/NPP/Cổ đông** (Commit `81cb28d`): Thay thế 2 nút CTV/Customer bằng 3 radio: Đại sứ, NPP (list gói PRODUCT_COMBO), Cổ đông (list gói CAPITAL). Fetch từ `/api/npp/packages/available-public`.
+4. **Fix CTV mua hàng trang chủ** (Commit `4857aed`): Nút MUA NGAY trên ProductSection bypass ContactModal CTV check → CTV có rank mua được trên website. Fix: thêm check rank vào `onOrderProduct` handler.
+
+#### Bài học QUAN TRỌNG (ngày 01/10):
+- **KHÔNG sửa code trước khi đọc git history** — Khi user report bug, PHẢI `git log --oneline | grep <keyword>` để tìm commit gốc tạo tính năng, hiểu tại sao nó tồn tại, rồi mới sửa.
+- **Khi thêm flow mới, PHẢI port business guard từ flow cũ** — Ví dụ: thêm giỏ hàng mới → phải copy CTV rank check từ ContactModal sang handler mới.
+- **KHÔNG xóa tính năng đang hoạt động** — Nếu không chắc nó là bug hay feature, đọc git log / hỏi user trước.
+

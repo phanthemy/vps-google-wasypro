@@ -182,3 +182,32 @@
 ### L07: CTV thuần thấy tab NPP → Commit: `62c49a1`
 ### L08: NPP user thấy CP progress → Commit: `4190a26`
 ### L09: CreateOrderModal build error → Commit: `bc80fac`
+
+
+## 2026-10-01
+
+### L19: CTV có rank vẫn mua được hàng trên trang chủ (bypass CTV Portal)
+- **Triệu chứng**: CTV đã có rank (Đại sứ/Manager/Director) bấm MUA NGAY trên trang chủ wasypro.com → add vào giỏ hàng → checkout bình thường → bypass hoàn toàn CTV Portal. Đáng lẽ phải hiện modal "Bạn đã là Đại Sứ WasyPro!" + chuyển vào CTV Portal đặt hàng.
+- **Nguyên nhân**: 
+  1. Commit `eee9f38` đã tạo tính năng chặn CTV mua trên website, logic nằm trong `ContactModal.tsx` (check `/api/auth/me` → `u.rank && u.isSystemParticipant` → hiện redirect modal).
+  2. Nhưng commit `5fd6f28` thêm flow giỏ hàng mới (CartDrawer + CheckoutModal). Nút MUA NGAY trong `ProductSection.tsx` gọi `onOrderProduct` → `addItem()` + `setIsCartOpen(true)` → đi thẳng vào giỏ hàng, **HOÀN TOÀN BYPASS ContactModal**.
+  3. Tính năng cũ vẫn hoạt động cho flow ContactModal (button "Đăng ký tư vấn"), nhưng flow mua hàng chính đã đổi sang giỏ hàng → mất check CTV.
+- **Fix**: Thêm check CTV rank vào handler `onOrderProduct` trong `App.tsx`:
+  ```tsx
+  onOrderProduct={(product) => {
+    if (user && user.isSystemParticipant && user.rank && ['AMBASSADOR','MANAGER','DIRECTOR'].includes(user.rank.toUpperCase())) {
+      handleOpenContact(product); // → ContactModal hiện redirect
+      return;
+    }
+    addItem(...); setIsCartOpen(true); // Guest/customer → giỏ hàng bình thường
+  }}
+  ```
+- **Commit**: `4857aed`
+- **Bài học**: ⚠️ **Khi thêm flow mới (giỏ hàng, checkout, modal...) PHẢI kiểm tra xem flow CŨ có business guard nào không (CTV block, BID check, rank check...) và port guard đó sang flow mới.**
+
+### L20: Agent sửa sai — xóa tính năng CTV auto-redirect portal sau login
+- **Triệu chứng**: Agent hiểu sai yêu cầu "CTV ko mua được hàng ngoài trang chủ" → xóa code auto-redirect CTV vào Portal sau login → phá tính năng đúng.
+- **Nguyên nhân**: Agent không đọc git history để hiểu feature trước khi sửa.
+- **Fix**: Revert ngay, đọc lại git log tìm commit gốc `eee9f38` để hiểu đúng.
+- **Commit**: Revert `98d4b0a` → `1bf91c6`
+- **Bài học**: ⚠️ **KHÔNG BAO GIỜ xóa/thay đổi tính năng đang hoạt động mà chưa đọc git history để hiểu tại sao nó tồn tại.**
