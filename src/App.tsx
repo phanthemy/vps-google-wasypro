@@ -557,7 +557,6 @@ export const App: React.FC = () => {
         isOpen={isCartOpen} 
         onClose={() => setIsCartOpen(false)} 
         items={cartItems}
-        items={items} 
         onUpdateQuantity={updateQuantity} 
         onRemoveItem={removeItem} 
         onCheckout={() => { setIsCartOpen(false); setIsCheckoutOpen(true); }} 
@@ -567,7 +566,6 @@ export const App: React.FC = () => {
         isOpen={isCheckoutOpen} 
         onClose={() => setIsCheckoutOpen(false)} 
         items={cartItems}
-        items={items} 
         totalAmount={totalAmount} 
         onSuccess={clearCart} 
       />
