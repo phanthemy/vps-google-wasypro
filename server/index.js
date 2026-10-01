@@ -5056,7 +5056,7 @@ async function calculateAndCreateCommissions(tx, context) {
     const netAmount = Math.round(Number(order.totalAmount));
     console.log(`[NPP SETTLEMENT] Processing NPP Combo Order ${order.id} with netAmount: ${netAmount}`);
 
-    if (netAmount > 0 && directSponsor && directSponsor.businessId) {
+    if (netAmount > 0 && directSponsor && directSponsor.businessId && directSponsor.rank) { // L27: require rank
       // D1 = Direct Sponsor (10%)
       const d1Amount = Math.round(netAmount * 0.1);
       const commD1 = await tx.commission.create({
@@ -5067,7 +5067,7 @@ async function calculateAndCreateCommissions(tx, context) {
           type: 'NPP_D1',
           status: 'PAID',
           rateSnapshot: 0.1,
-          rankSnapshot: directSponsor.rank || 'AMBASSADOR',
+          rankSnapshot: directSponsor.rank || 'NONE',
           baseAmount: netAmount,
           policyRef: 'NPP_D1_10%',
           ruleKey: 'NPP_D1_10%',
@@ -5165,7 +5165,7 @@ async function calculateAndCreateCommissions(tx, context) {
   // BOSS RULE: Sponsor must have Business ID to receive DIRECT commission.
   // No BID = no commission, regardless of CTV role.
   if (directSponsor && directSponsor.businessId) {
-    const sponsorRank = directSponsor.rank || (directSponsor.role === 'ctv' ? 'AMBASSADOR' : null);
+    const sponsorRank = directSponsor.rank || null; // L27: NO rank = NO commission (removed AMBASSADOR fallback)
     const sponsorPrefix = normalizeRankPrefix(sponsorRank);
     if (sponsorPrefix) {
       // DIRECT COMMISSION
@@ -5241,7 +5241,7 @@ async function calculateAndCreateCommissions(tx, context) {
     const d1User = await tx.user.findUnique({ where: { userId: memberForUpstream.parentId } });
 
     if (d1User && d1User.businessId) {
-      const d1Rank = d1User.rank || (d1User.role === 'ctv' ? 'AMBASSADOR' : null);
+      const d1Rank = d1User.rank || null; // L27: NO rank = NO commission
       const d1Prefix = normalizeRankPrefix(d1Rank);
 
       if (d1Prefix) {
@@ -5273,7 +5273,7 @@ async function calculateAndCreateCommissions(tx, context) {
         const d2User = await tx.user.findUnique({ where: { userId: d1User.parentId } });
 
         if (d2User && d2User.businessId) {
-          const d2Rank = d2User.rank || (d2User.role === 'ctv' ? 'AMBASSADOR' : null);
+          const d2Rank = d2User.rank || null; // L27: NO rank = NO commission
           const d2Prefix = normalizeRankPrefix(d2Rank);
 
           if (d2Prefix) {
