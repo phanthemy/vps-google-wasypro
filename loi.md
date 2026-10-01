@@ -211,3 +211,10 @@
 - **Fix**: Revert ngay, đọc lại git log tìm commit gốc `eee9f38` để hiểu đúng.
 - **Commit**: Revert `98d4b0a` → `1bf91c6`
 - **Bài học**: ⚠️ **KHÔNG BAO GIỜ xóa/thay đổi tính năng đang hoạt động mà chưa đọc git history để hiểu tại sao nó tồn tại.**
+
+### L27: CTV chưa có rank nhận commission do code fallback tự gán AMBASSADOR
+- **Triệu chứng**: U1001 (rank=NULL, BID=WK10001) nhận 6.000.000đ hoa hồng. Admin hiển thị "Thành Viên" nhưng vẫn có 6Tr hoa hồng.
+- **Nguyên nhân**: 5 chỗ trong `calculateAndCreateCommissions` dùng fallback `rank || 'AMBASSADOR'`. Khi `rank = null` nhưng `role = 'ctv'` → tự gán AMBASSADOR → tính commission 20% sai.
+- **Fix**: Bỏ fallback `|| 'AMBASSADOR'` → `|| null`. NPP D1 thêm gate `&& directSponsor.rank`. Xóa 3 record commission sai của U1001 (6.000.000đ).
+- **Quy tắc vĩnh viễn**: ⭐⭐⭐⭐⭐ **Không có RANK = Không nhận commission.** BID = điều kiện cần, RANK = điều kiện đủ. KHÔNG fallback rank thành AMBASSADOR.
+- **Commit**: `8ca367f`
