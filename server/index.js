@@ -739,7 +739,21 @@ phone = phone.trim();
     }
 
     // Generate userId: Sequential U1001, U1002...
-    const generatedId = await getNextUserId('U', 1001);
+    // Auto-assign U1001 for DEFAULT_CTV_PHONE (0937353535) when re-registering
+    let generatedId;
+    if (phone === DEFAULT_CTV_PHONE) {
+      // Check if U1001 is already taken by another account
+      const existingU1001 = await prisma.user.findFirst({ where: { userId: DEFAULT_CTV_UID } });
+      if (existingU1001) {
+        generatedId = await getNextUserId('U', 1001);
+        console.log("[REGISTER] " + DEFAULT_CTV_PHONE + " re-registering but " + DEFAULT_CTV_UID + " occupied, assigned " + generatedId);
+      } else {
+        generatedId = DEFAULT_CTV_UID;
+        console.log("[REGISTER] " + DEFAULT_CTV_PHONE + " re-registering, auto-assigned " + DEFAULT_CTV_UID);
+      }
+    } else {
+      generatedId = await getNextUserId('U', 1001);
+    }
 
     const hashedPassword = await bcrypt.hash(rawPwd, 10);
     const now = new Date();
