@@ -204,3 +204,19 @@ req.user = { id: "U199", userId: "U199", dbId: cuid, role, fullName, phone }
 - **Khi thêm flow mới, PHẢI port business guard từ flow cũ** — Ví dụ: thêm giỏ hàng mới → phải copy CTV rank check từ ContactModal sang handler mới.
 - **KHÔNG xóa tính năng đang hoạt động** — Nếu không chắc nó là bug hay feature, đọc git log / hỏi user trước.
 
+
+### Phiên 01/10/2026 — Tối (19:17-20:46)
+
+#### Đã làm:
+1. **L27: Bỏ rank fallback AMBASSADOR** (8ca367f): 5 chỗ fallback → null. No rank = No commission. Xóa 3 commission sai U1001 (6tr).
+2. **L28: Customer lookup fallback** (be2059c): GET /api/customers fallback tìm User table khi Customer trống.
+3. **L29: Admin order auto-link CTV** (edd9093): Auto-detect CTV phone → tạo shadow Order dù không chọn sponsor.
+4. **Patch U1001**: Shadow Order + settlement → QP=45000, rank=AMBASSADOR, BID=WK-10002.
+5. **Tạo kỳ 10.2026** + seed PeriodPolicyConfig.
+6. **Default sort** (26ecd85): price_desc. CHƯA BUILD frontend.
+
+#### TODO phiên sau:
+- Menu danh mục (Category CRUD) admin
+- CTV order flow (giá gốc→checkout giảm, popup SP, multi-product)
+- npm run build trên VPS
+- Fix BUSINESS_RULES.md Rule #3 + STATE.md dòng 42
