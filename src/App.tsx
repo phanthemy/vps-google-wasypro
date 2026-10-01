@@ -57,6 +57,11 @@ export const App: React.FC = () => {
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
+  // Cart State
+  const { items: cartItems, addItem, removeItem, updateQuantity, clearCart, totalItems, totalAmount } = useCart();
+  const [isCartOpen, setIsCartOpen] = useState(false);
+  const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
+
   // Unified Auth & Referral Hooks
   const { user, setUser, logout, checkSession } = useUnifiedAuth();
   const { referralCode, setReferralCode } = useReferralAttribution();
@@ -376,6 +381,8 @@ export const App: React.FC = () => {
         onOpenAuth={handleOpenAuthModal}
         onLogout={handleLogout}
         user={user}
+        cartItemCount={totalItems}
+        onCartClick={() => setIsCartOpen(true)}
       />
 
       {/* Main Container Content */}
@@ -549,6 +556,7 @@ export const App: React.FC = () => {
       <CartDrawer 
         isOpen={isCartOpen} 
         onClose={() => setIsCartOpen(false)} 
+        items={cartItems}
         items={items} 
         onUpdateQuantity={updateQuantity} 
         onRemoveItem={removeItem} 
@@ -558,6 +566,7 @@ export const App: React.FC = () => {
       <CheckoutModal 
         isOpen={isCheckoutOpen} 
         onClose={() => setIsCheckoutOpen(false)} 
+        items={cartItems}
         items={items} 
         totalAmount={totalAmount} 
         onSuccess={clearCart} 

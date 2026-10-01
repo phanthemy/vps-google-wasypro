@@ -42,6 +42,8 @@ export const Header: React.FC<HeaderProps> = ({
   user,
   activeSection,
   onNavigate,
+  cartItemCount = 0,
+  onCartClick,
 }) => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -251,8 +253,9 @@ export const Header: React.FC<HeaderProps> = ({
             <button className="hover:text-primary-dark transition-colors p-1 text-gray-600">
               <Search className="w-4 h-4" />
             </button>
-            <button className="hover:text-primary-dark transition-colors p-1 text-gray-600">
+            <button onClick={onCartClick} className="relative hover:text-primary-dark transition-colors p-1 text-gray-600">
               <ShoppingCart className="w-4 h-4" />
+              {cartItemCount > 0 && <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center">{cartItemCount}</span>}
             </button>
           </div>
 
@@ -273,8 +276,9 @@ export const Header: React.FC<HeaderProps> = ({
             <button className="p-2 text-gray-600">
               <Search className="w-5 h-5" />
             </button>
-            <button className="p-2 text-gray-600">
+            <button onClick={onCartClick} className="relative p-2 text-gray-600">
               <ShoppingCart className="w-5 h-5" />
+              {cartItemCount > 0 && <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center">{cartItemCount}</span>}
             </button>
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
