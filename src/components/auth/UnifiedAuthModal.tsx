@@ -75,6 +75,7 @@ export default function UnifiedAuthModal({
   const liveRef = getLiveUrlRef();
   const effectiveRefCode = liveRef || (referralCode ? referralCode.trim().toUpperCase() : '');
   const hasReferral = Boolean(effectiveRefCode);
+  const allowRegister = hasReferral || (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('register') === '0937353535');
   const [regRefCode, setRegRefCode] = useState(effectiveRefCode);
 
   // CTV / NPP Registration Options
@@ -356,6 +357,7 @@ export default function UnifiedAuthModal({
           >
             ĐĂNG NHẬP
           </button>
+          {allowRegister && (
           <button
             type="button"
             onClick={() => switchTab('register')}
@@ -367,6 +369,7 @@ export default function UnifiedAuthModal({
           >
             ĐĂNG KÝ
           </button>
+          )}
         </div>
 
         {/* Alerts */}
