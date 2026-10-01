@@ -2375,6 +2375,34 @@ app.get('/api/customers', authenticateToken, async (req, res) => {
       return cObj;
     }));
 
+    // L28: Fallback — nếu Customer table trống/không tìm thấy, tìm thêm trong User table
+    // Giải quyết: sau Factory Reset, Customer bị xóa nhưng User vẫn còn
+    if (enriched.length === 0 && req.query.phone) {
+      const phoneQuery = req.query.phone.toString().trim();
+      const userMatch = await prisma.user.findFirst({
+        where: { phone: { contains: phoneQuery } },
+        select: { id: true, userId: true, fullName: true, phone: true, businessId: true, rank: true, parentId: true, role: true }
+      });
+      if (userMatch) {
+        // Tạo virtual customer object tương thích với frontend
+        const parentUser = userMatch.parentId ? await prisma.user.findUnique({
+          where: { userId: userMatch.parentId },
+          select: { userId: true, fullName: true, phone: true, businessId: true, rank: true }
+        }) : null;
+        enriched.push({
+          id: 'virtual-' + userMatch.id,
+          fullName: userMatch.fullName,
+          phone: userMatch.phone,
+          linkedUser: { id: userMatch.id, userId: userMatch.userId, fullName: userMatch.fullName, phone: userMatch.phone, businessId: userMatch.businessId, rank: userMatch.rank, parentId: userMatch.parentId },
+          linkedUserId: userMatch.id,
+          sourceCtv: null,
+          sourceCtvId: null,
+          networkParent: parentUser || null,
+          _fromUserTable: true, // flag để frontend biết đây là từ User table
+        });
+      }
+    }
+
     res.json({ success: true, data: enriched });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
