@@ -5,33 +5,33 @@ export default {
     extend: {
       colors: {
         primary: {
-          DEFAULT: '#46A1D3',
-          light: '#6BB8DE',
-          dark: '#3589B8',
-          darker: '#1E5F82',
+          DEFAULT: '#0178ff',
+          light: '#2585eb',
+          dark: '#005deb',
+          darker: '#0047b3',
         },
         accent: {
-          DEFAULT: '#c8a951',
-          hover: '#d8ba65',
+          DEFAULT: '#0295ff',
+          hover: '#0164ff',
         },
         price: {
           DEFAULT: '#e74c3c',
         },
         dark: {
-          DEFAULT: '#333333',
+          DEFAULT: '#070f30',
         },
         ocean: {
-          50: '#f0f9ff',
-          100: '#e0f2fe',
-          200: '#bae6fd',
-          300: '#7dd3fc',
-          400: '#38bdf8',
-          500: '#0ea5e9',
-          600: '#0284c7',
-          700: '#0369a1',
-          800: '#075985',
-          900: '#0c4a6e',
-          950: '#082f49',
+          50: '#f0f6fe',
+          100: '#e0effc',
+          200: '#cbe4fe',
+          300: '#91c7f8',
+          400: '#2585eb',
+          500: '#0178ff',
+          600: '#0164ff',
+          700: '#005deb',
+          800: '#0047b3',
+          900: '#070f30',
+          950: '#040a1e',
         },
         cyan: {
           50: '#ecfeff',
@@ -45,13 +45,13 @@ export default {
         }
       },
       fontFamily: {
-        sans: ['Nunito Sans', 'Arial', 'Helvetica', 'sans-serif'],
-        heading: ['Nunito Sans', 'sans-serif'],
+        sans: ['Inter', 'Nunito Sans', 'Arial', 'Helvetica', 'sans-serif'],
+        heading: ['Outfit', 'Nunito Sans', 'sans-serif'],
       },
       boxShadow: {
-        glass: '0 8px 32px 0 rgba(70, 161, 211, 0.15)',
-        'glass-hover': '0 12px 40px 0 rgba(70, 161, 211, 0.25)',
-        card: '0 4px 20px -2px rgba(15, 23, 42, 0.08)',
+        glass: '0 8px 32px 0 rgba(1, 120, 255, 0.10)',
+        'glass-hover': '0 12px 40px 0 rgba(1, 120, 255, 0.18)',
+        card: '0 4px 20px -2px rgba(7, 15, 48, 0.06)',
       },
       backdropBlur: {
         xs: '2px',
