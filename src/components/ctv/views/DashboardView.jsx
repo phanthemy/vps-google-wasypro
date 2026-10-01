@@ -227,7 +227,7 @@ export default function DashboardView({ refreshKey, currentUser, setActiveTab })
       )}
 
       {/* 4. REFERRAL LINK SHARING BOX (Only shown if user has BID — completed order) */}
-      {isParticipant && freshUser.businessId && (
+      {isParticipant  && (
         <div className="glass-panel p-5 rounded-2xl border border-dashed border-primary/30 bg-primary/5">
           <div className="text-sm font-bold text-primary mb-1">
             Link Giới Thiệu Của Bạn

@@ -203,7 +203,7 @@ export const CTVPortalContainer: React.FC<CTVPortalContainerProps> = ({
         {/* Action Buttons & Referral Copy */}
         <div className="flex flex-wrap items-center gap-2.5 w-full md:w-auto justify-start md:justify-end">
           {/* Referral link only shown if user has BID (completed order) */}
-          {isParticipant && (currentUser as any).businessId && (
+          {isParticipant  && (
             <button
               onClick={copyReferralLink}
               className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl bg-white/20 hover:bg-white/30 text-white text-xs font-bold transition-all border border-white/30"
