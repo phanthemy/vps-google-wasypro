@@ -123,7 +123,7 @@ export const CTVPortalContainer: React.FC<CTVPortalContainerProps> = ({
   const rankBadgeStyle = (() => {
     const r = (currentUser?.rank || '').toUpperCase();
     if (r === 'DIRECTOR' || r === 'SALES_DIRECTOR') return 'bg-red-500/25 text-red-200 border border-red-400/40';
-    if (r === 'MANAGER' || r === 'SALES_MANAGER') return 'bg-emerald-500/25 text-emerald-200 border border-emerald-400/40';
+    if (r === 'MANAGER' || r === 'SALES_MANAGER') return 'bg-sky-500/25 text-sky-200 border border-sky-400/40';
     if (r === 'AMBASSADOR') return 'bg-purple-500/25 text-purple-200 border border-purple-400/40';
     if (isAdmin || isAccountant) return 'bg-yellow-500/25 text-yellow-200 border border-yellow-400/40';
     if (isParticipant) return 'bg-blue-500/25 text-blue-200 border border-blue-400/40';
@@ -209,7 +209,7 @@ export const CTVPortalContainer: React.FC<CTVPortalContainerProps> = ({
               className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl bg-white/20 hover:bg-white/30 text-white text-xs font-bold transition-all border border-white/30"
               title="Sao chép link giới thiệu của bạn"
             >
-              {copiedLink ? <Check className="w-4 h-4 text-emerald-300" /> : <Copy className="w-4 h-4" />}
+              {copiedLink ? <Check className="w-4 h-4 text-sky-300" /> : <Copy className="w-4 h-4" />}
               <span>{copiedLink ? 'Đã sao chép link!' : 'Link giới thiệu của tôi'}</span>
             </button>
           )}

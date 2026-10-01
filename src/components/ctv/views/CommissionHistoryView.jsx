@@ -113,7 +113,7 @@ export default function CommissionHistoryView({ currentUser, setActiveTab }) {
                       </td>
                       <td className="py-3.5 px-3 font-mono text-xs">
                         {c._type === 'NPP_REFERRAL' && c.purchaseCode ? (
-                          <span className="text-emerald-400 font-semibold" title="Mã đơn NPP">
+                          <span className="text-sky-400 font-semibold" title="Mã đơn NPP">
                             {c.purchaseCode}
                           </span>
                         ) : c.orderId ? (

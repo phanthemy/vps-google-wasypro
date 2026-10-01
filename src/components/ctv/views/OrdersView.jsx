@@ -210,7 +210,7 @@ export default function OrdersView({ currentUser }) {
                   {activeOrderTab === 'self' ? (
                     <><ShoppingCart className="text-blue-500"/> Đơn Cá Nhân Của Tôi</>
                   ) : (
-                    <><Users className="text-emerald-500"/> Đơn Mua Hộ Khách Hàng</>
+                    <><Users className="text-sky-500"/> Đơn Mua Hộ Khách Hàng</>
                   )}
                 </h2>
                 {isParticipant && (
@@ -266,11 +266,11 @@ export default function OrdersView({ currentUser }) {
                    <button 
                      type="button" 
                      onClick={() => setActiveOrderTab('for_others')}
-                     className={`pb-3 px-4 font-bold text-sm border-b-2 flex items-center gap-2 transition-all ${activeOrderTab === 'for_others' ? 'border-emerald-600 text-emerald-700' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+                     className={`pb-3 px-4 font-bold text-sm border-b-2 flex items-center gap-2 transition-all ${activeOrderTab === 'for_others' ? 'border-sky-600 text-sky-700' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
                    >
                      <Users size={16} />
                      <span>Đơn Mua Hộ Khách Hàng</span>
-                     <span className="ml-1 px-2 py-0.5 rounded-full text-xs bg-emerald-100 text-emerald-700 font-extrabold">{ordersForOthersCount}</span>
+                     <span className="ml-1 px-2 py-0.5 rounded-full text-xs bg-sky-100 text-sky-700 font-extrabold">{ordersForOthersCount}</span>
                    </button>
                  )}
              </div>
@@ -332,13 +332,13 @@ export default function OrdersView({ currentUser }) {
                   </div>
 
                   {!isOrderSelfBuy(order) && (
-                    <div className="mb-3 px-3.5 py-2 bg-emerald-50/90 border border-emerald-200 rounded-xl flex items-center justify-between text-xs text-emerald-900 font-medium">
+                    <div className="mb-3 px-3.5 py-2 bg-sky-50/90 border border-sky-200 rounded-xl flex items-center justify-between text-xs text-sky-900 font-medium">
                       <div className="flex items-center gap-1.5 flex-wrap">
-                        <span className="font-bold text-emerald-700 flex items-center gap-1">👥 Đơn mua hộ khách:</span>
-                        <strong className="text-emerald-950 font-bold">{order.customer?.fullName || 'Khách Hàng'}</strong>
-                        {order.customer?.phone && <span className="text-emerald-700">({order.customer?.phone})</span>}
+                        <span className="font-bold text-sky-700 flex items-center gap-1">👥 Đơn mua hộ khách:</span>
+                        <strong className="text-sky-950 font-bold">{order.customer?.fullName || 'Khách Hàng'}</strong>
+                        {order.customer?.phone && <span className="text-sky-700">({order.customer?.phone})</span>}
                       </div>
-                      <span className="text-[11px] text-emerald-700 font-bold bg-emerald-100/80 px-2 py-0.5 rounded-full shrink-0">
+                      <span className="text-[11px] text-sky-700 font-bold bg-sky-100/80 px-2 py-0.5 rounded-full shrink-0">
                         Thuộc tài khoản khách
                       </span>
                     </div>

@@ -129,7 +129,7 @@ export const AdminOverview: React.FC<AdminOverviewProps> = ({ onNavigateTab }) =
       value: stats.activeWarranties,
       unit: 'thiết bị',
       icon: ShieldCheck,
-      gradient: 'from-emerald-500 to-teal-500',
+      gradient: 'from-sky-500 to-teal-500',
       tab: 'warranties',
     },
     {
@@ -145,7 +145,7 @@ export const AdminOverview: React.FC<AdminOverviewProps> = ({ onNavigateTab }) =
   const leadStatusBadges: Record<string, { label: string; bg: string; text: string }> = {
     new: { label: 'Mới', bg: 'bg-amber-100', text: 'text-amber-700' },
     contacted: { label: 'Đã gọi', bg: 'bg-ocean-100', text: 'text-ocean-700' },
-    completed: { label: 'Hoàn thành', bg: 'bg-emerald-100', text: 'text-emerald-700' },
+    completed: { label: 'Hoàn thành', bg: 'bg-sky-100', text: 'text-sky-700' },
     cancelled: { label: 'Đã hủy', bg: 'bg-rose-100', text: 'text-rose-700' },
   };
 
@@ -209,7 +209,7 @@ export const AdminOverview: React.FC<AdminOverviewProps> = ({ onNavigateTab }) =
             {[
               { label: 'Đơn mới nhận', count: recentLeads.filter(l => l.status === 'new').length + 2, total: 10, color: 'bg-amber-500' },
               { label: 'Đã tư vấn qua điện thoại', count: recentLeads.filter(l => l.status === 'contacted').length + 3, total: 10, color: 'bg-ocean-500' },
-              { label: 'Đã hoàn thành chốt đơn', count: recentLeads.filter(l => l.status === 'completed').length + 4, total: 10, color: 'bg-emerald-500' },
+              { label: 'Đã hoàn thành chốt đơn', count: recentLeads.filter(l => l.status === 'completed').length + 4, total: 10, color: 'bg-sky-500' },
               { label: 'Yêu cầu tạm hủy', count: recentLeads.filter(l => l.status === 'cancelled').length + 1, total: 10, color: 'bg-rose-400' },
             ].map((item, idx) => (
               <div key={idx} className="space-y-1.5">

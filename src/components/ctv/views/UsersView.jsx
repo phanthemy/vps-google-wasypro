@@ -179,7 +179,7 @@ export default function UsersView({ refreshKey, onAddUser, onEditUser }) {
                         <div className="text-amber-500 font-bold">-{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format((user.totalSales || 0) * 0.01)}</div>
                       </td>
                       <td>
-                        <div className="text-green-500 font-bold text-lg">{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format((user.totalCommission || 0) * 0.89)}</div>
+                        <div className="text-sky-500 font-bold text-lg">{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format((user.totalCommission || 0) * 0.89)}</div>
                       </td>
                     </>
                   )}

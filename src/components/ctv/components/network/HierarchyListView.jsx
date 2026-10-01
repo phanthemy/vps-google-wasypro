@@ -179,13 +179,13 @@ export default function HierarchyListView({ tree = [] }) {
     <div className="flex flex-col gap-3 w-full max-w-xl mx-auto">
       {/* Quick Summary Strip */}
       <div className="grid grid-cols-2 gap-2 p-3 bg-white/90 backdrop-blur-md rounded-2xl border border-gray-100 shadow-sm">
-        <div className="flex items-center gap-2.5 p-2 bg-emerald-50/70 border border-emerald-100 rounded-xl">
-          <div className="w-8 h-8 rounded-lg bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-xs">
+        <div className="flex items-center gap-2.5 p-2 bg-sky-50/70 border border-sky-100 rounded-xl">
+          <div className="w-8 h-8 rounded-lg bg-sky-600 text-white flex items-center justify-center shrink-0 shadow-xs">
             <Users size={16} />
           </div>
           <div>
-            <div className="text-[10px] font-bold uppercase tracking-wider text-emerald-800">Tổng Thành Viên</div>
-            <div className="text-sm font-black text-emerald-950">{totalMembers} người</div>
+            <div className="text-[10px] font-bold uppercase tracking-wider text-sky-800">Tổng Thành Viên</div>
+            <div className="text-sm font-black text-sky-950">{totalMembers} người</div>
           </div>
         </div>
 

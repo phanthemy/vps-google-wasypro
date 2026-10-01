@@ -151,7 +151,7 @@ const AdminMembersView: React.FC = () => {
                         <button onClick={() => handleResetPassword(m)} disabled={actionLoading === m.userId + "_reset"} title="Reset mật khẩu" className="p-2 rounded-xl bg-amber-50 text-amber-700 hover:bg-amber-100 transition-all disabled:opacity-50">
                           {actionLoading === m.userId + "_reset" ? <Loader2 className="w-4 h-4 animate-spin" /> : <KeyRound className="w-4 h-4" />}
                         </button>
-                        <button onClick={() => handlePromote(m)} disabled={!!actionLoading} title="Nâng lên CTV" className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-50 text-emerald-700 hover:bg-emerald-100 text-xs font-bold transition-all disabled:opacity-50">
+                        <button onClick={() => handlePromote(m)} disabled={!!actionLoading} title="Nâng lên CTV" className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-sky-50 text-sky-700 hover:bg-sky-100 text-xs font-bold transition-all disabled:opacity-50">
                           {actionLoading === m.userId + "_promote" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ArrowUpCircle className="w-3.5 h-3.5" />}
                           Nâng lên CTV
                         </button>

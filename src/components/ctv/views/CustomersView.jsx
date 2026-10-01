@@ -148,7 +148,7 @@ export default function CustomersView({ refreshKey, currentUser, onAddCustomer }
                   </td>
                   <td>
                     {cus.linkedUserId ? (
-                      <span className="text-xs font-mono font-bold text-green-400 bg-green-500/10 border border-green-500/30 px-2 py-0.5 rounded">
+                      <span className="text-xs font-mono font-bold text-green-400 bg-sky-500/10 border border-sky-500/30 px-2 py-0.5 rounded">
                         ID: {cus.linkedUserId.slice(0, 8)}
                       </span>
                     ) : (

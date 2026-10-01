@@ -295,7 +295,7 @@ export const App: React.FC = () => {
       <div className="min-h-screen bg-slate-100 flex flex-col lg:flex-row text-slate-800 font-sans selection:bg-ocean-500 selection:text-white">
         {toastMessage && (
           <div className="fixed top-5 right-5 z-50 max-w-md bg-slate-900 text-white rounded-2xl p-4 shadow-2xl border border-cyan-400/40 flex items-start gap-3 animate-in fade-in slide-in-from-top-4 duration-300">
-            <CheckCircle2 className="w-5 h-5 text-emerald-400 flex-shrink-0 mt-0.5" />
+            <CheckCircle2 className="w-5 h-5 text-sky-400 flex-shrink-0 mt-0.5" />
             <div className="flex-1 text-xs sm:text-sm font-medium">{toastMessage}</div>
             <button onClick={() => setToastMessage(null)} className="text-slate-400 hover:text-white p-0.5">
               <X className="w-4 h-4" />
@@ -355,7 +355,7 @@ export const App: React.FC = () => {
       {/* Toast Alert Notification */}
       {toastMessage && (
         <div className="fixed top-20 right-4 sm:right-6 z-50 max-w-md bg-slate-900 text-white rounded-2xl p-4 shadow-2xl border border-cyan-400/40 flex items-start gap-3 animate-in fade-in slide-in-from-top-4 duration-300">
-          <CheckCircle2 className="w-5 h-5 text-emerald-400 flex-shrink-0 mt-0.5" />
+          <CheckCircle2 className="w-5 h-5 text-sky-400 flex-shrink-0 mt-0.5" />
           <div className="flex-1 text-xs sm:text-sm font-medium">{toastMessage}</div>
           <button onClick={() => setToastMessage(null)} className="text-slate-400 hover:text-white p-0.5">
             <X className="w-4 h-4" />

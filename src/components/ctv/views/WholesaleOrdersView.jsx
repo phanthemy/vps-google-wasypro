@@ -7,7 +7,7 @@ const STATUS_CONFIG = {
   PENDING_APPROVAL: { label: 'Chờ duyệt', color: 'text-yellow-400', bg: 'bg-yellow-500/20', border: 'border-yellow-500/30', icon: Clock },
   APPROVED:         { label: 'Đã duyệt',  color: 'text-blue-400',   bg: 'bg-blue-500/20',   border: 'border-blue-500/30',   icon: CheckCircle },
   SHIPPING:         { label: 'Đang giao', color: 'text-cyan-400',   bg: 'bg-cyan-500/20',   border: 'border-cyan-500/30',   icon: Truck },
-  COMPLETED:        { label: 'Hoàn tất',  color: 'text-green-400',  bg: 'bg-green-500/20',  border: 'border-green-500/30',  icon: CheckCircle },
+  COMPLETED:        { label: 'Hoàn tất',  color: 'text-green-400',  bg: 'bg-sky-500/20',  border: 'border-sky-500/30',  icon: CheckCircle },
   CANCELLED:        { label: 'Đã hủy',    color: 'text-red-400',    bg: 'bg-red-500/20',    border: 'border-red-500/30',    icon: Ban },
 };
 

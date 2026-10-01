@@ -58,8 +58,8 @@ export const WarrantyLookupSection: React.FC = () => {
     switch (st) {
       case 'active':
         return (
-          <span className="inline-flex items-center gap-1 bg-green-100 text-green-800 text-xs font-bold px-3 py-1 rounded-sm border border-green-300">
-            <CheckCircle2 className="w-3.5 h-3.5 text-green-600" />
+          <span className="inline-flex items-center gap-1 bg-sky-100 text-sky-800 text-xs font-bold px-3 py-1 rounded-sm border border-green-300">
+            <CheckCircle2 className="w-3.5 h-3.5 text-sky-600" />
             <span>Còn Hạn Bảo Hành</span>
           </span>
         );
@@ -147,7 +147,7 @@ export const WarrantyLookupSection: React.FC = () => {
             <span className="font-bold text-gray-700">Mẫu tra cứu:</span>
             <button
               onClick={() => { setQuery('0900000000'); handleLookup('0900000000'); }}
-              className="bg-green-50 hover:bg-green-100 text-primary font-mono font-bold px-2 py-1 rounded-sm border border-primary-light transition-colors"
+              className="bg-sky-50 hover:bg-sky-100 text-primary font-mono font-bold px-2 py-1 rounded-sm border border-primary-light transition-colors"
             >
               0900000000
             </button>
@@ -189,7 +189,7 @@ export const WarrantyLookupSection: React.FC = () => {
             </div>
             <button
               onClick={handleReset}
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-md text-[13px] font-bold text-primary bg-green-50 border border-primary-light hover:bg-green-100 transition-colors"
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-md text-[13px] font-bold text-primary bg-sky-50 border border-primary-light hover:bg-sky-100 transition-colors"
             >
               <RotateCcw className="w-4 h-4" />
               <span>Thử Tra Cứu Lại</span>
@@ -216,7 +216,7 @@ export const WarrantyLookupSection: React.FC = () => {
             {/* Header Result */}
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between pb-6 border-b border-gray-100 gap-4">
               <div>
-                <span className="text-[12px] font-mono font-bold text-primary bg-green-50 px-2 py-1 rounded-sm border border-primary-light">
+                <span className="text-[12px] font-mono font-bold text-primary bg-sky-50 px-2 py-1 rounded-sm border border-primary-light">
                   Mã Bảo Hành: {record.code}
                 </span>
                 <h3 className="text-[20px] font-heading font-bold text-gray-900 mt-2">
@@ -248,7 +248,7 @@ export const WarrantyLookupSection: React.FC = () => {
 
               <div className="p-3 rounded-md bg-gray-50 border border-gray-100 space-y-1">
                 <div className="flex items-center gap-1.5 text-gray-500 font-bold">
-                  <Calendar className="w-4 h-4 text-green-600" />
+                  <Calendar className="w-4 h-4 text-sky-600" />
                   <span>Ngày kích hoạt:</span>
                 </div>
                 <div className="font-bold text-gray-900 text-[14px]">{record.installDate}</div>
@@ -264,7 +264,7 @@ export const WarrantyLookupSection: React.FC = () => {
             </div>
 
             {/* Serial Number */}
-            <div className="p-3 rounded-md bg-green-50 border border-primary flex items-center justify-between text-[13px]">
+            <div className="p-3 rounded-md bg-sky-50 border border-primary flex items-center justify-between text-[13px]">
               <span className="text-gray-600 font-bold">Số Serial tem máy:</span>
               <span className="font-mono font-bold text-primary-dark">{record.serialNumber}</span>
             </div>

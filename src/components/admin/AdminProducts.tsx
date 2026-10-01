@@ -416,7 +416,7 @@ export const AdminProducts: React.FC = () => {
                                 </span>
                               )}
                               {p.isNew && (
-                                <span className="px-1.5 py-0.5 rounded text-[10px] bg-emerald-100 text-emerald-700 font-extrabold">
+                                <span className="px-1.5 py-0.5 rounded text-[10px] bg-sky-100 text-sky-700 font-extrabold">
                                   NEW
                                 </span>
                               )}
@@ -451,7 +451,7 @@ export const AdminProducts: React.FC = () => {
                       <td className="py-4 px-5">
                         {p.commissionPoints > 0 ? (
                           <div className="flex flex-col gap-0.5">
-                            <span className="font-extrabold text-emerald-600 text-sm">
+                            <span className="font-extrabold text-sky-600 text-sm">
                               {(p.commissionPoints).toLocaleString('vi-VN')} CP
                             </span>
                           </div>
@@ -480,7 +480,7 @@ export const AdminProducts: React.FC = () => {
                       {/* Stock */}
                       <td className="py-4 px-5">
                         <span className={`px-2.5 py-1 rounded-xl text-xs font-bold ${
-                          p.stock > 10 ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'
+                          p.stock > 10 ? 'bg-sky-50 text-sky-700' : 'bg-rose-50 text-rose-700'
                         }`}>
                           {p.stock} sản phẩm
                         </span>
@@ -671,10 +671,10 @@ export const AdminProducts: React.FC = () => {
                 </div>
 
                 {/* Commission Points — độc lập với giá */}
-                <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200">
+                <div className="p-4 rounded-2xl bg-sky-50 border border-sky-200">
                   <div className="flex items-center gap-2 mb-3">
-                    <span className="text-emerald-700 font-extrabold text-xs uppercase tracking-wider">💰 Điểm Hoa Hồng (Commission Points)</span>
-                    <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-bold">ĐỘC LẬP VỚI GIÁ BÁN</span>
+                    <span className="text-sky-700 font-extrabold text-xs uppercase tracking-wider">💰 Điểm Hoa Hồng (Commission Points)</span>
+                    <span className="px-2 py-0.5 rounded-full bg-sky-100 text-sky-800 text-[10px] font-bold">ĐỘC LẬP VỚI GIÁ BÁN</span>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-start">
                     <div>
@@ -689,9 +689,9 @@ export const AdminProducts: React.FC = () => {
                           value={formData.commissionPoints ?? 0}
                           onChange={(e) => setFormData({ ...formData, commissionPoints: Math.max(0, Math.round(Number(e.target.value))) })}
                           placeholder="VD: 1800"
-                          className="w-full px-4 py-2.5 bg-white border-2 border-emerald-300 rounded-xl text-sm font-bold text-emerald-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                          className="w-full px-4 py-2.5 bg-white border-2 border-sky-300 rounded-xl text-sm font-bold text-sky-800 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent"
                         />
-                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-emerald-600">CP</span>
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-sky-600">CP</span>
                       </div>
                       {(formData.commissionPoints ?? 0) === 0 && (
                         <p className="mt-1.5 text-xs text-amber-600 font-bold flex items-center gap-1">
@@ -703,8 +703,8 @@ export const AdminProducts: React.FC = () => {
                       <p className="font-semibold text-slate-700">Ví dụ tính hoa hồng:</p>
                       {formData.commissionPoints > 0 ? (
                         <>
-                          <p>Director SELF: <strong className="text-emerald-700">{Math.round(formData.commissionPoints * 0.3).toLocaleString('vi-VN')} CP</strong> (30%)</p>
-                          <p>Manager SELF: <strong className="text-emerald-700">{Math.round(formData.commissionPoints * 0.25).toLocaleString('vi-VN')} CP</strong> (25%)</p>
+                          <p>Director SELF: <strong className="text-sky-700">{Math.round(formData.commissionPoints * 0.3).toLocaleString('vi-VN')} CP</strong> (30%)</p>
+                          <p>Manager SELF: <strong className="text-sky-700">{Math.round(formData.commissionPoints * 0.25).toLocaleString('vi-VN')} CP</strong> (25%)</p>
                           <p>F1 Upstream: <strong className="text-sky-700">{Math.round(formData.commissionPoints * 0.1).toLocaleString('vi-VN')} CP</strong> (10%)</p>
                           <p className="text-slate-500">1 CP = 1.000 ₫</p>
                         </>
@@ -1017,7 +1017,7 @@ export const AdminProducts: React.FC = () => {
                           />
                           <button
                             onClick={() => handleUpdateCategory(c.id, editCategoryName)}
-                            className="px-2.5 py-1 rounded-lg bg-emerald-600 text-white text-xs font-bold"
+                            className="px-2.5 py-1 rounded-lg bg-sky-600 text-white text-xs font-bold"
                           >
                             Lưu
                           </button>

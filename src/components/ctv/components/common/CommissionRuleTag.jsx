@@ -21,7 +21,7 @@ const RULE_CONFIG = {
   },
   DIRECT_WITH_ID: {
     label: "Bán trực tiếp (Thành viên)",
-    color: "bg-green-500/20 text-green-300 border-green-500/40"
+    color: "bg-sky-500/20 text-green-300 border-sky-500/40"
   },
   SPLIT: {
     label: "Tách điểm (Vượt ngưỡng)",

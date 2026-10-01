@@ -276,7 +276,7 @@ export default function LoginView({ onLogin }) {
           </form>
         ) : (
           <form onSubmit={submitLogin} className="flex-col gap-4">
-            {success && <div className="text-sm p-3 bg-green-100 text-green-700 rounded" style={{ textAlign: 'center' }}>{success}</div>}
+            {success && <div className="text-sm p-3 bg-sky-100 text-sky-700 rounded" style={{ textAlign: 'center' }}>{success}</div>}
             {error && <div className="text-sm p-3 bg-red-100 text-red-600 rounded" style={{ textAlign: 'center' }}>{error}</div>}
             <div className="flex-col gap-1">
                <label className="text-sm font-bold">Số điện thoại</label>

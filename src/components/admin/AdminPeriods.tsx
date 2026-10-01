@@ -316,7 +316,7 @@ export default function AdminPeriods({ onSelectPeriod }: AdminPeriodsProps) {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
-            <Calendar size={20} className="text-emerald-600" /> Kỳ Hoa Hồng
+            <Calendar size={20} className="text-sky-600" /> Kỳ Hoa Hồng
           </h2>
           <p className="text-sm text-slate-500 mt-1">Quản lý kỳ hoa hồng, policy và chốt kỳ.</p>
         </div>
@@ -340,9 +340,9 @@ export default function AdminPeriods({ onSelectPeriod }: AdminPeriodsProps) {
       </div>
 
       {openPeriod && (
-        <div className="flex items-center gap-3 bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-3 text-sm">
-          <Unlock size={16} className="text-emerald-600 shrink-0" />
-          <span className="text-emerald-800">
+        <div className="flex items-center gap-3 bg-sky-50 border border-sky-200 rounded-xl px-4 py-3 text-sm">
+          <Unlock size={16} className="text-sky-600 shrink-0" />
+          <span className="text-sky-800">
             Kỳ <b>{openPeriod.periodName}</b> đang mở ({fmtDate(openPeriod.startAt)} → {fmtDate(openPeriod.endAt)}).
             Đơn hàng mới sẽ thuộc kỳ này.
           </span>
@@ -396,7 +396,7 @@ export default function AdminPeriods({ onSelectPeriod }: AdminPeriodsProps) {
                   </td>
                   <td className="py-3 px-4 text-center">
                     {p.status === 'OPEN' ? (
-                      <span className="inline-flex items-center gap-1 text-xs bg-emerald-50 text-emerald-700 border border-emerald-200 px-2.5 py-1 rounded-full font-medium">
+                      <span className="inline-flex items-center gap-1 text-xs bg-sky-50 text-sky-700 border border-sky-200 px-2.5 py-1 rounded-full font-medium">
                         <Unlock size={10} /> Đang mở
                       </span>
                     ) : (
@@ -409,7 +409,7 @@ export default function AdminPeriods({ onSelectPeriod }: AdminPeriodsProps) {
                   <td className="py-3 px-4 text-center text-sm">
                     {p.closeAudit ? (
                       <div>
-                        <div className="text-emerald-600 font-semibold">{(p.closeAudit.totalEarnedPoints || 0).toLocaleString()} CP</div>
+                        <div className="text-sky-600 font-semibold">{(p.closeAudit.totalEarnedPoints || 0).toLocaleString()} CP</div>
                         <div className="text-xs text-slate-500">{(p.closeAudit.totalEarnedMoney || 0).toLocaleString()} đ</div>
                       </div>
                     ) : (

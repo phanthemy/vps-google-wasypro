@@ -70,7 +70,7 @@ export const NewsSection: React.FC = () => {
         
         {/* Tiêu đề mục */}
         <div className="text-center max-w-3xl mx-auto mb-8 sm:mb-12">
-          <div className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-emerald-50 text-primary text-xs font-bold uppercase tracking-wider mb-2 border border-primary/10">
+          <div className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-sky-50 text-primary text-xs font-bold uppercase tracking-wider mb-2 border border-primary/10">
             <Sparkles className="w-3.5 h-3.5" />
             Truyền Thông & Hoạt Động
           </div>
@@ -95,7 +95,7 @@ export const NewsSection: React.FC = () => {
                   onClick={() => setActiveCategory(cat)}
                   className={`px-4 py-2 rounded-full text-xs sm:text-sm font-bold whitespace-nowrap transition-all duration-200 ${
                     isSelected
-                      ? 'bg-gradient-to-r from-primary to-emerald-600 text-white shadow-md shadow-emerald-500/25'
+                      ? 'bg-gradient-to-r from-primary to-sky-600 text-white shadow-md shadow-sky-500/25'
                       : 'bg-slate-100 text-slate-600 hover:bg-slate-200/80 hover:text-slate-900'
                   }`}
                 >
@@ -124,7 +124,7 @@ export const NewsSection: React.FC = () => {
               <div
                 key={art.id}
                 onClick={() => setSelectedArticle(art)}
-                className="bg-white rounded-2xl overflow-hidden border border-slate-100 shadow-sm hover:shadow-xl hover:-translate-y-1 hover:border-emerald-200/80 transition-all duration-300 cursor-pointer group flex flex-col justify-between"
+                className="bg-white rounded-2xl overflow-hidden border border-slate-100 shadow-sm hover:shadow-xl hover:-translate-y-1 hover:border-sky-200/80 transition-all duration-300 cursor-pointer group flex flex-col justify-between"
               >
                 <div>
                   {/* Thumbnail Video chuẩn 16:9 với Nút Play YouTube */}
@@ -168,7 +168,7 @@ export const NewsSection: React.FC = () => {
                       <Calendar className="w-3.5 h-3.5 text-slate-400" />
                       <span>{art.date}</span>
                       <span>•</span>
-                      <span className="text-emerald-700 font-semibold">{art.author}</span>
+                      <span className="text-sky-700 font-semibold">{art.author}</span>
                     </div>
 
                     <h3 className="font-bold text-slate-900 text-[14px] sm:text-[15px] leading-snug line-clamp-2 group-hover:text-primary transition-colors">
@@ -184,7 +184,7 @@ export const NewsSection: React.FC = () => {
                 </div>
 
                 {/* Footer card: Xem Video */}
-                <div className="px-4 sm:px-5 pb-4 pt-1 flex items-center justify-between text-xs font-bold text-primary group-hover:text-emerald-600 border-t border-slate-50">
+                <div className="px-4 sm:px-5 pb-4 pt-1 flex items-center justify-between text-xs font-bold text-primary group-hover:text-sky-600 border-t border-slate-50">
                   <span className="flex items-center gap-1">
                     Xem video chi tiết
                   </span>

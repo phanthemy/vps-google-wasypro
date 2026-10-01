@@ -159,8 +159,8 @@ export default function OrderModal({ currentUser, customerList, userList, servic
                    ))}
                    
                    <div className="flex justify-between items-center p-4 mt-3 rounded-xl shadow-sm" style={{ background: 'linear-gradient(to right, #ecfdf5, #d1fae5)', border: '1px solid #10b981' }}>
-                      <span className="font-bold text-green-800 uppercase tracking-widest" style={{ fontSize: '12px' }}>TỔNG THU THEO ĐƠN:</span>
-                      <span className="font-bold text-2xl text-green-700">{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(totalAmount)}</span>
+                      <span className="font-bold text-sky-800 uppercase tracking-widest" style={{ fontSize: '12px' }}>TỔNG THU THEO ĐƠN:</span>
+                      <span className="font-bold text-2xl text-sky-700">{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(totalAmount)}</span>
                    </div>
                 </div>
              </div>

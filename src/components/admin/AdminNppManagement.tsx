@@ -158,7 +158,7 @@ const AdminNppManagement: React.FC = () => {
     APPROVED: 'bg-blue-100 text-blue-700',
     CANCELLED: 'bg-red-100 text-red-700',
     REPLACED: 'bg-slate-100 text-slate-500',
-    CONVERTED: 'bg-emerald-100 text-emerald-700',
+    CONVERTED: 'bg-sky-100 text-sky-700',
   };
 
   if (loading) return (
@@ -171,7 +171,7 @@ const AdminNppManagement: React.FC = () => {
   return (
     <div className="space-y-6">
       {successMsg && (
-        <div className="fixed top-4 right-4 z-50 bg-emerald-600 text-white px-6 py-3 rounded-xl shadow-lg flex items-center gap-2">
+        <div className="fixed top-4 right-4 z-50 bg-sky-600 text-white px-6 py-3 rounded-xl shadow-lg flex items-center gap-2">
           <CheckCircle2 className="w-5 h-5" /> <span className="font-semibold text-sm">{successMsg}</span>
         </div>
       )}
@@ -276,16 +276,16 @@ const AdminNppManagement: React.FC = () => {
                           <span className="text-[11px] text-slate-400 font-medium">Bảo trợ trực tiếp</span>
                         </div>
                       ) : (
-                        <div className="mt-3 p-2 rounded-xl bg-emerald-50/70 border border-emerald-200 flex items-center gap-2 text-xs">
+                        <div className="mt-3 p-2 rounded-xl bg-sky-50/70 border border-sky-200 flex items-center gap-2 text-xs">
                           <span className="font-bold text-slate-500 uppercase tracking-wider text-[11px]">🔗 Người giới thiệu:</span>
-                          <span className="font-bold text-emerald-800">🏛️ Trực tiếp Công ty (F0 - Không qua tuyến trên)</span>
+                          <span className="font-bold text-sky-800">🏛️ Trực tiếp Công ty (F0 - Không qua tuyến trên)</span>
                         </div>
                       )}
 
                       {/* NPP Ref Link — chỉ hiện khi đã kích hoạt (có BID) */}
                       {reg.user?.businessId ? (
                         <div className="mt-2 bg-blue-50 border border-blue-200 rounded-xl p-2.5">
-                          <div className="text-[10px] font-bold text-blue-700 mb-1.5">🔗 Link Giới Thiệu (Ref Link) — <span className="text-emerald-600">NPP chính thức (BID: {reg.user.businessId})</span></div>
+                          <div className="text-[10px] font-bold text-blue-700 mb-1.5">🔗 Link Giới Thiệu (Ref Link) — <span className="text-sky-600">NPP chính thức (BID: {reg.user.businessId})</span></div>
                           <div className="space-y-1.5">
                             <div className="flex items-center gap-2">
                               <span className="text-[10px] text-slate-500 w-16 shrink-0">CTV Portal:</span>
@@ -329,7 +329,7 @@ const AdminNppManagement: React.FC = () => {
                         <div className="flex gap-2">
                           {reg.status === 'PENDING' && (
                             <button disabled={submitting} onClick={() => handleApproveCancel(reg.id, 'APPROVED')}
-                              className="px-3 py-1.5 bg-emerald-50 text-emerald-700 rounded-lg text-xs font-semibold hover:bg-emerald-100 disabled:opacity-50">
+                              className="px-3 py-1.5 bg-sky-50 text-sky-700 rounded-lg text-xs font-semibold hover:bg-sky-100 disabled:opacity-50">
                               ✓ Duyệt
                             </button>
                           )}
@@ -356,13 +356,13 @@ const AdminNppManagement: React.FC = () => {
           ) : activations.map(act => (
             <div key={act.id} className="bg-white rounded-xl border border-slate-200 p-4">
               <div className="flex items-center gap-2 mb-2">
-                <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${act.source === 'ADMIN_GRANT' ? 'bg-purple-100 text-purple-700' : 'bg-emerald-100 text-emerald-700'}`}>
+                <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${act.source === 'ADMIN_GRANT' ? 'bg-purple-100 text-purple-700' : 'bg-sky-100 text-sky-700'}`}>
                   {act.source === 'ADMIN_GRANT' ? '⚡ Admin Grant' : '📦 Purchase'}
                 </span>
                 <span className="text-xs text-slate-400">{new Date(act.createdAt).toLocaleString('vi-VN')}</span>
                 {act.paymentStatus && (
                   <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                    act.paymentStatus === 'PAID' ? 'bg-emerald-100 text-emerald-700' :
+                    act.paymentStatus === 'PAID' ? 'bg-sky-100 text-sky-700' :
                     act.paymentStatus === 'PARTIAL' ? 'bg-amber-100 text-amber-700' :
                     'bg-red-100 text-red-600'
                   }`}>{act.paymentStatus}</span>
@@ -373,7 +373,7 @@ const AdminNppManagement: React.FC = () => {
               <div className="flex flex-wrap gap-4 mt-2 text-sm">
                 <div><span className="text-slate-400">Rank: </span><span className="font-bold text-cyan-600">{RANK_LABELS[act.assignedRank] || act.assignedRank}</span></div>
                 {act.previousRank && <div><span className="text-slate-400">Trước: </span><span className="text-slate-600">{RANK_LABELS[act.previousRank]}</span></div>}
-                {act.allocatedBid && <div><span className="text-slate-400">BID mới: </span><span className="font-bold text-emerald-600">{act.allocatedBid}</span></div>}
+                {act.allocatedBid && <div><span className="text-slate-400">BID mới: </span><span className="font-bold text-sky-600">{act.allocatedBid}</span></div>}
                 {act.package && <div><span className="text-slate-400">Gói: </span><span className="text-slate-600">{act.package.name}</span></div>}
               </div>
               {act.reason && <p className="text-xs text-slate-500 mt-1">Lý do: {act.reason}</p>}
@@ -401,8 +401,8 @@ const AdminNppManagement: React.FC = () => {
                   </button>
                 </div>
               ) : (
-                <div className="mt-2.5 p-2 rounded-lg bg-emerald-50/70 border border-emerald-200 flex items-center justify-between text-xs">
-                  <span className="font-semibold text-emerald-800">🏛️ Trực tiếp Công ty (F0)</span>
+                <div className="mt-2.5 p-2 rounded-lg bg-sky-50/70 border border-sky-200 flex items-center justify-between text-xs">
+                  <span className="font-semibold text-sky-800">🏛️ Trực tiếp Công ty (F0)</span>
                   <button
                     onClick={() => setSelectedDownlineNpp({ id: act.user?.userId || act.userId, fullName: act.user?.fullName || 'NPP' })}
                     className="flex items-center gap-1 px-2.5 py-1 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 rounded text-xs font-bold transition"
@@ -437,13 +437,13 @@ const AdminNppManagement: React.FC = () => {
                     className={`w-full text-left px-3 py-2 text-sm hover:bg-cyan-50 border-b border-slate-100 ${grantUserId === u.id ? 'bg-cyan-50' : ''}`}>
                     <span className="font-semibold">{u.fullName}</span>
                     <span className="text-slate-400 ml-2">{u.userId} · {u.phone}</span>
-                    {u.isNpp && <span className="ml-2 text-xs text-emerald-600 font-bold">NPP ✓</span>}
+                    {u.isNpp && <span className="ml-2 text-xs text-sky-600 font-bold">NPP ✓</span>}
                     {u.rank && <span className="ml-2 text-xs text-cyan-600">{RANK_LABELS[u.rank]}</span>}
                   </button>
                 ))}
               </div>
             )}
-            {grantUserId && !userSearch.includes('(') && <p className="text-xs text-emerald-600 mt-1">User đã chọn: {grantUserId}</p>}
+            {grantUserId && !userSearch.includes('(') && <p className="text-xs text-sky-600 mt-1">User đã chọn: {grantUserId}</p>}
           </div>
 
           {/* Package (optional) */}

@@ -21,12 +21,12 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; icon: any }>
   PENDING: { label: 'Chờ duyệt', color: 'bg-amber-100 text-amber-700', icon: Clock },
   APPROVED: { label: 'Đã duyệt', color: 'bg-blue-100 text-blue-700', icon: CheckCircle2 },
   REJECTED: { label: 'Từ chối', color: 'bg-red-100 text-red-700', icon: XCircle },
-  CONVERTED: { label: 'Đã chuyển đổi', color: 'bg-emerald-100 text-emerald-700', icon: Check },
+  CONVERTED: { label: 'Đã chuyển đổi', color: 'bg-sky-100 text-sky-700', icon: Check },
   NEW: { label: 'Mới', color: 'bg-blue-100 text-blue-700', icon: Clock },
   DEPOSIT: { label: 'Đặt cọc', color: 'bg-amber-100 text-amber-700', icon: CreditCard },
   CONFIRMED: { label: 'Đã thanh toán', color: 'bg-cyan-100 text-cyan-700', icon: CheckCircle2 },
   SHIPPING: { label: 'Giao hàng', color: 'bg-purple-100 text-purple-700', icon: Package },
-  COMPLETED: { label: 'Hoàn tất', color: 'bg-emerald-100 text-emerald-700', icon: Check },
+  COMPLETED: { label: 'Hoàn tất', color: 'bg-sky-100 text-sky-700', icon: Check },
   CANCELLED: { label: 'Đã hủy', color: 'bg-red-100 text-red-700', icon: XCircle },
 };
 
@@ -169,7 +169,7 @@ const UserNppDashboard: React.FC<Props> = ({ userId, nppStatus, rank, businessId
       </div>
 
       {error && <div className="flex items-center gap-2 text-xs text-red-600 bg-red-50 p-3 rounded-xl border border-red-200"><AlertCircle className="w-4 h-4 flex-shrink-0" />{error}</div>}
-      {successMsg && <div className="flex items-center gap-2 text-xs text-emerald-600 bg-emerald-50 p-3 rounded-xl border border-emerald-200"><CheckCircle2 className="w-4 h-4 flex-shrink-0" />{successMsg}</div>}
+      {successMsg && <div className="flex items-center gap-2 text-xs text-sky-600 bg-sky-50 p-3 rounded-xl border border-sky-200"><CheckCircle2 className="w-4 h-4 flex-shrink-0" />{successMsg}</div>}
 
       {/* Registration Status */}
       {registration && (
@@ -189,15 +189,15 @@ const UserNppDashboard: React.FC<Props> = ({ userId, nppStatus, rank, businessId
 
       {/* Action: CAPITAL package — one-click purchase */}
       {registration?.status === 'APPROVED' && !pendingPurchase && !activePurchase && registration.package?.packageType === 'CAPITAL' && (
-        <div className="bg-white rounded-xl border-2 border-emerald-300 p-4">
-          <h3 className="text-sm font-bold text-emerald-700 flex items-center gap-2 mb-3"><ShoppingCart className="w-4 h-4" /> Tạo đơn mua NPP</h3>
+        <div className="bg-white rounded-xl border-2 border-sky-300 p-4">
+          <h3 className="text-sm font-bold text-sky-700 flex items-center gap-2 mb-3"><ShoppingCart className="w-4 h-4" /> Tạo đơn mua NPP</h3>
           <p className="text-xs text-gray-500 mb-4">
             Gói <strong>{registration.package.name}</strong> — Vốn đầu tư: <strong>{formatVND(registration.package.grossPrice || 0)}</strong>
           </p>
           <button
             onClick={handleCreatePurchase}
             disabled={submitting}
-            className="w-full py-3 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-sm disabled:opacity-50 flex items-center justify-center gap-2 transition-all"
+            className="w-full py-3 rounded-xl bg-sky-500 hover:bg-sky-600 text-white font-bold text-sm disabled:opacity-50 flex items-center justify-center gap-2 transition-all"
           >
             {submitting ? <><Loader2 className="w-4 h-4 animate-spin" /> Đang xử lý...</> : <><ShoppingCart className="w-4 h-4" /> Tạo đơn mua — {formatVND(registration.package.grossPrice || 0)}</>}
           </button>
@@ -256,9 +256,9 @@ const UserNppDashboard: React.FC<Props> = ({ userId, nppStatus, rank, businessId
 
               {/* Price Preview */}
               <div className="bg-gray-50 rounded-lg p-3 border border-gray-200 mb-3">
-                <div className="flex justify-between text-xs text-gray-600"><span>Đã chọn:</span><span className={totalSelectedQty === requiredQty ? 'text-emerald-600 font-bold' : 'text-amber-600 font-bold'}>{totalSelectedQty}/{requiredQty} sản phẩm</span></div>
+                <div className="flex justify-between text-xs text-gray-600"><span>Đã chọn:</span><span className={totalSelectedQty === requiredQty ? 'text-sky-600 font-bold' : 'text-amber-600 font-bold'}>{totalSelectedQty}/{requiredQty} sản phẩm</span></div>
                 <div className="flex justify-between text-xs text-gray-600 mt-1"><span>Tổng giá gốc:</span><span className="font-semibold">{formatVND(grossTotal)}</span></div>
-                <div className="flex justify-between text-xs text-gray-600 mt-1"><span>Chiết khấu ({discountBps / 100}%):</span><span className="font-semibold text-emerald-600">-{formatVND(discountAmount)}</span></div>
+                <div className="flex justify-between text-xs text-gray-600 mt-1"><span>Chiết khấu ({discountBps / 100}%):</span><span className="font-semibold text-sky-600">-{formatVND(discountAmount)}</span></div>
                 <div className="flex justify-between text-sm text-gray-900 mt-2 pt-2 border-t border-gray-300 font-bold"><span>Thanh toán:</span><span className="text-sky-600">{formatVND(netPayable)}</span></div>
               </div>
 
@@ -281,7 +281,7 @@ const UserNppDashboard: React.FC<Props> = ({ userId, nppStatus, rank, businessId
           <p className="text-sm text-gray-800 font-semibold mb-1">Bạn chưa đăng ký Nhà Phân Phối (NPP)</p>
           <p className="text-xs text-gray-500 mb-4">Đăng ký để trở thành đối tác NPP. Sau khi được duyệt, bạn có thể chọn gói sản phẩm.</p>
           {regError && <p className="text-xs text-red-500 mb-2">{regError}</p>}
-          {regSuccess && <p className="text-xs text-emerald-600 mb-2">{regSuccess}</p>}
+          {regSuccess && <p className="text-xs text-sky-600 mb-2">{regSuccess}</p>}
           <button
             onClick={handleRegisterNpp}
             disabled={registering}
@@ -314,8 +314,8 @@ const UserNppDashboard: React.FC<Props> = ({ userId, nppStatus, rank, businessId
                     </div>
                     <div className="grid grid-cols-3 gap-2 text-[11px]">
                       <div><span className="text-gray-400">Tổng:</span><br /><span className="font-semibold">{formatVND(p.netPayableAmount)}</span></div>
-                      <div><span className="text-gray-400">Đã trả:</span><br /><span className="font-semibold text-emerald-600">{formatVND(p.paidAmount)}</span></div>
-                      <div><span className="text-gray-400">Còn lại:</span><br /><span className={`font-semibold ${parseInt(p.remainingAmount) > 0 ? 'text-amber-600' : 'text-emerald-600'}`}>{formatVND(p.remainingAmount)}</span></div>
+                      <div><span className="text-gray-400">Đã trả:</span><br /><span className="font-semibold text-sky-600">{formatVND(p.paidAmount)}</span></div>
+                      <div><span className="text-gray-400">Còn lại:</span><br /><span className={`font-semibold ${parseInt(p.remainingAmount) > 0 ? 'text-amber-600' : 'text-sky-600'}`}>{formatVND(p.remainingAmount)}</span></div>
                     </div>
                   </div>
 
@@ -336,7 +336,7 @@ const UserNppDashboard: React.FC<Props> = ({ userId, nppStatus, rank, businessId
                       {/* Financial */}
                       <div className="bg-white rounded-lg p-2.5 border border-gray-200 text-[11px]">
                         <div className="flex justify-between"><span className="text-gray-500">Giá gốc:</span><span>{formatVND(p.grossPrice)}</span></div>
-                        <div className="flex justify-between"><span className="text-gray-500">CK {p.discountRateBps / 100}%:</span><span className="text-emerald-600">-{formatVND(p.discountAmount)}</span></div>
+                        <div className="flex justify-between"><span className="text-gray-500">CK {p.discountRateBps / 100}%:</span><span className="text-sky-600">-{formatVND(p.discountAmount)}</span></div>
                         <div className="flex justify-between font-bold mt-1 pt-1 border-t"><span>Thanh toán:</span><span className="text-sky-600">{formatVND(p.netPayableAmount)}</span></div>
                       </div>
                       {/* Payments */}
@@ -346,7 +346,7 @@ const UserNppDashboard: React.FC<Props> = ({ userId, nppStatus, rank, businessId
                           {p.payments.map((pay, i) => (
                             <div key={i} className="flex justify-between items-center text-[11px] py-1.5 border-b border-gray-100 last:border-0">
                               <div>
-                                <span className="font-semibold text-emerald-600">{formatVND(pay.amount)}</span>
+                                <span className="font-semibold text-sky-600">{formatVND(pay.amount)}</span>
                                 <span className="text-gray-400 ml-2">{pay.paymentMethod}</span>
                                 {pay.referenceCode && <span className="text-gray-400 ml-1">#{pay.referenceCode}</span>}
                               </div>
@@ -361,7 +361,7 @@ const UserNppDashboard: React.FC<Props> = ({ userId, nppStatus, rank, businessId
                           💡 Gói NPP chờ thanh toán ({p.status === 'NEW' ? 'chưa thanh toán' : 'đã đặt cọc'}). Liên hệ công ty để kích hoạt.
                         </div>
                       ) : p.status === 'COMPLETED' ? (
-                        <div className="bg-emerald-50 rounded-lg p-2.5 text-xs text-emerald-700 border border-emerald-200">
+                        <div className="bg-sky-50 rounded-lg p-2.5 text-xs text-sky-700 border border-sky-200">
                           ✅ NPP đã kích hoạt thành công! Rank: {RANK_LABELS[p.package?.assignedRank] || '—'}
                         </div>
                       ) : null}

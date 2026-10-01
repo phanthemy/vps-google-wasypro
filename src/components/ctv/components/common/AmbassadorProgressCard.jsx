@@ -71,11 +71,11 @@ export default function AmbassadorProgressCard({ userId }) {
     switch (currentRank) {
       case 'AMBASSADOR':
         return {
-          icon: <Shield size={18} className="text-emerald-400" />,
+          icon: <Shield size={18} className="text-sky-400" />,
           title: 'Tiến trình thăng cấp Trưởng nhóm (Manager)',
           sub: 'Quy chế: 5 thành viên F1 trực tiếp đạt chuẩn Đại sứ (có Business ID)',
           targetLabel: 'F1 Đại sứ',
-          barColor: 'from-emerald-600 to-teal-400',
+          barColor: 'from-sky-600 to-teal-400',
           nextName: 'Trưởng nhóm'
         };
       case 'MANAGER':
@@ -114,13 +114,13 @@ export default function AmbassadorProgressCard({ userId }) {
             <p className="text-[11px] text-secondary mt-0.5">{meta.sub}</p>
           </div>
         </div>
-        <span className={`text-xs font-bold px-2 py-0.5 rounded-full border ${isCompleted ? 'text-green-400 bg-green-500/10 border-green-500/30' : 'text-blue-400 bg-blue-500/10 border-blue-500/30'}`}>
+        <span className={`text-xs font-bold px-2 py-0.5 rounded-full border ${isCompleted ? 'text-green-400 bg-sky-500/10 border-sky-500/30' : 'text-blue-400 bg-blue-500/10 border-blue-500/30'}`}>
           {isCompleted ? 'Đạt chuẩn' : `${progress}%`}
         </span>
       </div>
 
       {isCompleted ? (
-        <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-3 text-green-300 text-xs font-semibold text-center flex items-center justify-center gap-2">
+        <div className="bg-sky-500/10 border border-sky-500/30 rounded-lg p-3 text-green-300 text-xs font-semibold text-center flex items-center justify-center gap-2">
           <CheckCircle size={15} className="text-green-400 shrink-0" />
           <span>Đã đủ điều kiện! Hệ thống tự động nâng cấp lên {meta.nextName}.</span>
         </div>

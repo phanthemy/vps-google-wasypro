@@ -193,7 +193,7 @@ export default function AdminNppDownlineModal({ userId, onClose }: Props) {
                     )}
                   </div>
                 ) : (
-                  <div className="text-sm font-semibold text-emerald-700 flex items-center gap-1.5 mt-0.5">
+                  <div className="text-sm font-semibold text-sky-700 flex items-center gap-1.5 mt-0.5">
                     <span>🏛️ Trực tiếp Công ty (F0 - Không qua người bảo trợ)</span>
                   </div>
                 )}
@@ -247,14 +247,14 @@ export default function AdminNppDownlineModal({ userId, onClose }: Props) {
               </div>
             </div>
 
-            <div className="bg-white p-4 rounded-xl border border-emerald-200/80 bg-emerald-50/20 shadow-sm flex flex-col justify-between">
-              <div className="text-[11px] font-bold text-emerald-700 uppercase tracking-wider flex items-center gap-1.5">
-                <TrendingUp className="w-3.5 h-3.5 text-emerald-600" /> Doanh Số Nhánh
+            <div className="bg-white p-4 rounded-xl border border-sky-200/80 bg-sky-50/20 shadow-sm flex flex-col justify-between">
+              <div className="text-[11px] font-bold text-sky-700 uppercase tracking-wider flex items-center gap-1.5">
+                <TrendingUp className="w-3.5 h-3.5 text-sky-600" /> Doanh Số Nhánh
               </div>
               <div className="mt-2">
-                <span className="text-xl font-black text-emerald-700">{formatVND(data.stats.totalGroupSales)}</span>
+                <span className="text-xl font-black text-sky-700">{formatVND(data.stats.totalGroupSales)}</span>
               </div>
-              <div className="text-[11px] text-emerald-600/70 mt-1">
+              <div className="text-[11px] text-sky-600/70 mt-1">
                 Tổng phát sinh từ toàn cây
               </div>
             </div>
@@ -447,7 +447,7 @@ export default function AdminNppDownlineModal({ userId, onClose }: Props) {
                             </div>
                           </div>
                           <div className="text-right">
-                            <div className="font-extrabold text-emerald-700 text-xs">{formatVND(f1.totalSales)}</div>
+                            <div className="font-extrabold text-sky-700 text-xs">{formatVND(f1.totalSales)}</div>
                             <div className="text-[10px] text-slate-400">{f2OfThisF1.length} tuyến dưới (F2)</div>
                           </div>
                         </div>

@@ -201,24 +201,24 @@ export default function DashboardView({ refreshKey, currentUser, setActiveTab })
           {/* Card 3: Commissions */}
           <div 
             onClick={() => setActiveTab && setActiveTab('commissions')}
-            className="glass-panel p-5 rounded-xl border border-emerald-100/60 bg-emerald-500/5 hover:bg-emerald-500/10 transition-all cursor-pointer flex flex-col justify-between"
+            className="glass-panel p-5 rounded-xl border border-sky-100/60 bg-sky-500/5 hover:bg-sky-500/10 transition-all cursor-pointer flex flex-col justify-between"
           >
             <div>
               <div className="flex items-center justify-between text-xs text-secondary uppercase font-bold tracking-wider mb-2">
-                <span className="flex items-center gap-1.5"><Wallet size={14} className="text-emerald-500" /> Hoa Hồng Của Bạn</span>
+                <span className="flex items-center gap-1.5"><Wallet size={14} className="text-sky-500" /> Hoa Hồng Của Bạn</span>
                 {currentPeriod ? (
-                  <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 font-bold">
+                  <span className="text-xs px-2 py-0.5 rounded-full bg-sky-100 text-sky-700 font-bold">
                     {currentPeriod.periodName}
                   </span>
                 ) : (
                   <span className="text-xs text-muted">Chưa có kỳ</span>
                 )}
               </div>
-              <div className="text-2xl font-extrabold text-emerald-600">
+              <div className="text-2xl font-extrabold text-sky-600">
                 {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(gross)}
               </div>
             </div>
-            <p className="text-[11px] text-emerald-700/80 mt-3 pt-2 border-t border-emerald-100/50 flex items-center justify-between font-medium">
+            <p className="text-[11px] text-sky-700/80 mt-3 pt-2 border-t border-sky-100/50 flex items-center justify-between font-medium">
               <span>👉 Bấm để xem chi tiết hoa hồng</span>
               <span>→</span>
             </p>

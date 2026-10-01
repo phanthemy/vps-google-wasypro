@@ -84,7 +84,7 @@ export const ProductQuickViewModal: React.FC<ProductQuickViewModalProps> = ({
                 </span>
               )}
               {product.isNew && (
-                <span className="bg-green-600 text-white text-[10px] font-bold px-2.5 py-1 rounded-sm shadow-sm">
+                <span className="bg-sky-600 text-white text-[10px] font-bold px-2.5 py-1 rounded-sm shadow-sm">
                   ✨ MỚI 2026
                 </span>
               )}
@@ -206,7 +206,7 @@ export const ProductQuickViewModal: React.FC<ProductQuickViewModalProps> = ({
             <div>
               {/* Category & Rating */}
               <div className="flex items-center justify-between gap-2 mb-2">
-                <span className="text-[11px] font-bold text-primary uppercase tracking-wider bg-green-50 px-2 py-1 rounded-sm border border-primary-light">
+                <span className="text-[11px] font-bold text-primary uppercase tracking-wider bg-sky-50 px-2 py-1 rounded-sm border border-primary-light">
                   {product.specs.origin} • Premium Series
                 </span>
                 <div className="flex items-center gap-1 text-[12px]">
@@ -240,7 +240,7 @@ export const ProductQuickViewModal: React.FC<ProductQuickViewModalProps> = ({
                     </span>
                   )}
                 </div>
-                <div className="flex items-center gap-1 text-[12px] font-bold text-green-600 bg-green-50 px-2.5 py-1 rounded-sm border border-green-200">
+                <div className="flex items-center gap-1 text-[12px] font-bold text-sky-600 bg-sky-50 px-2.5 py-1 rounded-sm border border-sky-200">
                   <Check className="w-3.5 h-3.5" />
                   <span>Còn hàng ({product.stock} sản phẩm)</span>
                 </div>

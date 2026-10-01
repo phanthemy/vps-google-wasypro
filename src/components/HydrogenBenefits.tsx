@@ -44,7 +44,7 @@ export const HydrogenBenefits: React.FC = () => {
       details: 'Thói quen ăn uống đồ chiên rán, rượu bia, thức khuya gây tích tụ lượng lớn axit uric và lactic trong cơ thể. Nước ion kiềm nhẹ giúp cân bằng độ pH nội môi về mức 7.35 - 7.45 chuẩn cơ thể sống khỏe mạnh.',
       stat: 'pH 9.5',
       statLabel: 'mức kiềm tự nhiên như rau xanh',
-      color: 'from-emerald-500 to-green-600',
+      color: 'from-sky-500 to-green-600',
     },
     {
       id: 3,

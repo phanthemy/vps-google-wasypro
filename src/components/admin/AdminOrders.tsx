@@ -75,7 +75,7 @@ const CTV_STATUS_OPTS = [
   { value: 'DEPOSIT',   label: 'Đặt Cọc',      bg: 'bg-orange-100',  text: 'text-orange-700' },
   { value: 'CONFIRMED', label: 'Đã Xác Nhận',  bg: 'bg-amber-100',   text: 'text-amber-700' },
   { value: 'SHIPPING',  label: 'Đang Giao',     bg: 'bg-purple-100',  text: 'text-purple-700' },
-  { value: 'COMPLETED', label: 'Hoàn Thành',   bg: 'bg-emerald-100', text: 'text-emerald-700' },
+  { value: 'COMPLETED', label: 'Hoàn Thành',   bg: 'bg-sky-100', text: 'text-sky-700' },
   { value: 'CANCELLED', label: 'Đã Hủy',       bg: 'bg-rose-100',    text: 'text-rose-700' },
 ];
 
@@ -84,7 +84,7 @@ const WEB_STATUS_OPTS = [
   { value: 'NEW',       label: 'Mới',           bg: 'bg-blue-100',    text: 'text-blue-700' },
   { value: 'CONFIRMED', label: 'Đã Xác Nhận',  bg: 'bg-amber-100',   text: 'text-amber-700' },
   { value: 'SHIPPING',  label: 'Đang Giao',     bg: 'bg-purple-100',  text: 'text-purple-700' },
-  { value: 'COMPLETED', label: 'Hoàn Thành',   bg: 'bg-emerald-100', text: 'text-emerald-700' },
+  { value: 'COMPLETED', label: 'Hoàn Thành',   bg: 'bg-sky-100', text: 'text-sky-700' },
   { value: 'CANCELLED', label: 'Đã Hủy',       bg: 'bg-rose-100',    text: 'text-rose-700' },
 ];
 
@@ -289,7 +289,7 @@ export const AdminOrders: React.FC = () => {
               </h2>
               <p className="text-xs text-slate-500 mt-0.5">
                 Đơn đặt qua wasypro.com — doanh thu:{' '}
-                <span className="font-bold text-emerald-600">
+                <span className="font-bold text-sky-600">
                   {new Intl.NumberFormat('vi-VN').format(webRevenue)}đ
                 </span>
               </p>
@@ -297,12 +297,12 @@ export const AdminOrders: React.FC = () => {
             <div className="flex items-center gap-2 text-xs flex-wrap">
               <button
                 onClick={() => setShowCreateModal(true)}
-                className="px-4 py-2 rounded-xl text-xs font-bold transition-all border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+                className="px-4 py-2 rounded-xl text-xs font-bold transition-all border border-sky-200 bg-sky-50 text-sky-700 hover:bg-sky-100"
               >➕ Tạo Đơn Mới</button>
               <span className="px-3 py-1.5 rounded-xl bg-blue-50 text-blue-700 font-bold border border-blue-200">
                 {webOrders.filter(o => o.status === 'NEW').length} Mới
               </span>
-              <span className="px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-700 font-bold border border-emerald-200">
+              <span className="px-3 py-1.5 rounded-xl bg-sky-50 text-sky-700 font-bold border border-sky-200">
                 {webOrders.filter(o => o.status === 'COMPLETED').length} Hoàn thành
               </span>
               <button onClick={fetchWebOrders} className="p-2 hover:bg-slate-100 rounded-xl transition-colors" title="Tải lại">
@@ -454,7 +454,7 @@ export const AdminOrders: React.FC = () => {
                                   <div className="text-[10px] font-bold text-purple-500 uppercase">Tài khoản</div>
                                   <div className="text-xs font-bold text-slate-800">{order.userId}</div>
                                   {order.sponsorUserId && (
-                                    <div className="text-[10px] text-emerald-600 mt-0.5">
+                                    <div className="text-[10px] text-sky-600 mt-0.5">
                                       Sponsor: {order.sponsorUserId}
                                     </div>
                                   )}
@@ -533,7 +533,7 @@ export const AdminOrders: React.FC = () => {
                                     {order.userId ? (
                                       <>
                                         <div className="text-xs font-extrabold text-purple-800 mt-1">{order.userId}</div>
-                                        {order.sponsorUserId && <div className="text-[10px] text-emerald-600">Sponsor: {order.sponsorUserId}</div>}
+                                        {order.sponsorUserId && <div className="text-[10px] text-sky-600">Sponsor: {order.sponsorUserId}</div>}
                                       </>
                                     ) : (
                                       <div className="text-xs text-amber-600 mt-1">Khách vãng lai</div>
@@ -587,13 +587,13 @@ export const AdminOrders: React.FC = () => {
               </h2>
               <p className="text-xs text-slate-500 mt-0.5">
                 Đơn hàng từ CTV Portal — doanh thu:{' '}
-                <span className="font-bold text-emerald-600">
+                <span className="font-bold text-sky-600">
                   {new Intl.NumberFormat('vi-VN').format(ctvRevenue)}đ
                 </span>
               </p>
             </div>
             <div className="flex items-center gap-2 text-xs flex-wrap">
-              <span className="px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-700 font-bold border border-emerald-200">
+              <span className="px-3 py-1.5 rounded-xl bg-sky-50 text-sky-700 font-bold border border-sky-200">
                 {ctvOrders.filter(o => o.status === 'COMPLETED').length} Hoàn thành
               </span>
               <span className="px-3 py-1.5 rounded-xl bg-amber-50 text-amber-700 font-bold border border-amber-200">
@@ -765,7 +765,7 @@ export const AdminOrders: React.FC = () => {
                             <td className="py-3 px-4">
                               {order.period ? (
                                 <span className={`text-[11px] font-bold px-2 py-0.5 rounded-lg ${
-                                  order.period.status === 'OPEN' ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'
+                                  order.period.status === 'OPEN' ? 'bg-sky-50 text-sky-700' : 'bg-slate-100 text-slate-600'
                                 }`}>{order.period.periodName}</span>
                               ) : <span className="text-[11px] text-slate-400">—</span>}
                             </td>
@@ -873,11 +873,11 @@ export const AdminOrders: React.FC = () => {
                                     <div className="text-xs font-extrabold text-sky-800 mt-1">{order.customer?.fullName || '—'}</div>
                                     <div className="text-[10px] text-slate-500">{order.customer?.phone || '—'}</div>
                                   </div>
-                                  <div className="bg-white rounded-xl p-3 border border-emerald-100">
-                                    <div className="text-[10px] font-bold text-emerald-400 uppercase">Sponsor (CTV Quản Lý)</div>
+                                  <div className="bg-white rounded-xl p-3 border border-sky-100">
+                                    <div className="text-[10px] font-bold text-sky-400 uppercase">Sponsor (CTV Quản Lý)</div>
                                     {order.customer?.sourceCtv ? (
                                       <>
-                                        <div className="text-xs font-extrabold text-emerald-800 mt-1">{order.customer.sourceCtv.fullName}</div>
+                                        <div className="text-xs font-extrabold text-sky-800 mt-1">{order.customer.sourceCtv.fullName}</div>
                                         <div className="text-[10px] text-slate-500">
                                           {order.customer.sourceCtv.userId}
                                           {order.customer.sourceCtv.businessId ? ` · ${order.customer.sourceCtv.businessId}` : ''}
@@ -921,7 +921,7 @@ export const AdminOrders: React.FC = () => {
                                             </div>
                                             <div className="text-right">
                                               {c.earnedMoney != null ? (
-                                                <div className="font-bold text-emerald-600 text-sm">{new Intl.NumberFormat('vi-VN').format(c.earnedMoney)}đ</div>
+                                                <div className="font-bold text-sky-600 text-sm">{new Intl.NumberFormat('vi-VN').format(c.earnedMoney)}đ</div>
                                               ) : (
                                                 <div className="text-xs text-amber-500 font-bold">⚠ Chưa tính</div>
                                               )}
@@ -1114,7 +1114,7 @@ function AssignSponsorModal({ orderId, currentSponsor, onClose, onSuccess }: { o
             <label className="block text-sm font-bold text-slate-700 mb-1">Đính kèm chứng từ (Ảnh/Video)</label>
             <input type="file" onChange={handleFileUpload} accept="image/*,video/*" className="text-sm w-full" disabled={uploading} />
             {uploading && <div className="text-xs text-blue-600 mt-1">Đang tải lên...</div>}
-            {attachmentUrl && <div className="text-xs text-emerald-600 mt-1 font-bold">✅ Đã tải lên thành công</div>}
+            {attachmentUrl && <div className="text-xs text-sky-600 mt-1 font-bold">✅ Đã tải lên thành công</div>}
           </div>
         </div>
         
@@ -1293,7 +1293,7 @@ function AdminCreateOrderModal({ onClose, onSuccess }: { onClose: () => void; on
               <label className="block text-xs font-bold text-slate-700 mb-1">SĐT khách hàng *</label>
               <input type="text" value={formData.customerPhone} onChange={e => setFormData({...formData, customerPhone: e.target.value})} placeholder="Nhập SĐT để tìm..."
                 className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-sm" />
-              {customerFound && <div className="text-[10px] text-emerald-600 font-bold mt-1">✅ Tìm thấy khách hàng</div>}
+              {customerFound && <div className="text-[10px] text-sky-600 font-bold mt-1">✅ Tìm thấy khách hàng</div>}
               {formData.customerPhone.length >= 4 && !customerFound && <div className="text-[10px] text-amber-600 mt-1">Khách mới — sẽ tạo hồ sơ</div>}
             </div>
             <div>
@@ -1331,10 +1331,10 @@ function AdminCreateOrderModal({ onClose, onSuccess }: { onClose: () => void; on
 
             {/* If sponsor auto-loaded from customer and not editing */}
             {sponsorLocked && !editingSponsor && selectedCtv && (
-              <div className="bg-emerald-50 border border-emerald-200 p-3 rounded-xl">
+              <div className="bg-sky-50 border border-sky-200 p-3 rounded-xl">
                 <div className="flex justify-between items-start">
                   <div>
-                    <div className="text-xs text-emerald-600 font-bold mb-1">🔗 Tuyến trên của khách hàng (tự động)</div>
+                    <div className="text-xs text-sky-600 font-bold mb-1">🔗 Tuyến trên của khách hàng (tự động)</div>
                     <div className="text-sm font-bold text-slate-800">{selectedCtv.fullName}</div>
                     <div className="text-xs text-slate-500">
                       {selectedCtv.userId} · {selectedCtv.phone}
@@ -1477,8 +1477,8 @@ function OrderHistoryModal({ orderId, onClose }: { orderId: string; onClose: () 
                     <div className="break-all text-slate-600 bg-white p-1.5 rounded border border-slate-100">{item.previousValue || '—'}</div>
                   </div>
                   <div>
-                    <div className="font-bold text-emerald-600 mb-0.5">Mới</div>
-                    <div className="break-all text-slate-700 bg-emerald-50 p-1.5 rounded border border-emerald-100">{item.newValue || '—'}</div>
+                    <div className="font-bold text-sky-600 mb-0.5">Mới</div>
+                    <div className="break-all text-slate-700 bg-sky-50 p-1.5 rounded border border-sky-100">{item.newValue || '—'}</div>
                   </div>
                 </div>
               </div>

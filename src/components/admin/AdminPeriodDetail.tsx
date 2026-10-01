@@ -204,7 +204,7 @@ function HistoryPanel({ policyKey, periodId, onClose }: { policyKey: string; per
             {logs.map((l, i) => (
               <div key={i} className="border border-slate-200 rounded-lg p-3 flex flex-col gap-1">
                 <div className="flex justify-between"><span className="text-xs text-slate-500">{fmtDateTime(l.updatedAt)}</span><span className="text-xs font-mono text-purple-400">v{l.version}</span></div>
-                <div className="text-xs"><span className="text-red-500">{l.oldValue ?? '—'}</span>{' → '}<span className="text-emerald-600">{l.newValue}</span></div>
+                <div className="text-xs"><span className="text-red-500">{l.oldValue ?? '—'}</span>{' → '}<span className="text-sky-600">{l.newValue}</span></div>
                 {l.effectiveFrom && <div className="text-xs text-slate-500">Áp dụng từ: {fmtDateTime(l.effectiveFrom)}</div>}
                 {l.reason && <div className="text-xs text-slate-700">📝 {l.reason}</div>}
                 {l.updatedBy && <div className="text-xs text-slate-500">by {l.updatedBy}</div>}
@@ -269,7 +269,7 @@ export default function AdminPeriodDetail({ periodId, onBack }: AdminPeriodDetai
             Kỳ {period.periodName}
             {isClosed
               ? <span className="ml-2 inline-flex items-center gap-1 text-xs bg-slate-100 text-slate-500 border border-slate-200 px-2.5 py-1 rounded-full font-medium"><Lock size={10} /> Đã chốt</span>
-              : <span className="ml-2 inline-flex items-center gap-1 text-xs bg-emerald-50 text-emerald-700 border border-emerald-200 px-2.5 py-1 rounded-full font-medium"><Unlock size={10} /> Đang mở</span>
+              : <span className="ml-2 inline-flex items-center gap-1 text-xs bg-sky-50 text-sky-700 border border-sky-200 px-2.5 py-1 rounded-full font-medium"><Unlock size={10} /> Đang mở</span>
             }
           </h2>
           <p className="text-sm text-slate-500">{fmtDate(period.startAt)} → {fmtDate(period.endAt)}</p>
@@ -365,7 +365,7 @@ export default function AdminPeriodDetail({ periodId, onBack }: AdminPeriodDetai
                     <td className="py-3 px-4 text-center">
                       {entry.status === 'NOT_CONFIGURED'
                         ? <span className="inline-flex items-center gap-1 text-xs bg-red-50 text-red-600 border border-red-200 px-2.5 py-1 rounded-full font-medium"><AlertTriangle size={10} /> Chưa cấu hình</span>
-                        : <span className="inline-flex items-center gap-1 text-xs bg-emerald-50 text-emerald-700 border border-emerald-200 px-2.5 py-1 rounded-full font-medium"><CheckCircle size={10} /> Đang dùng</span>
+                        : <span className="inline-flex items-center gap-1 text-xs bg-sky-50 text-sky-700 border border-sky-200 px-2.5 py-1 rounded-full font-medium"><CheckCircle size={10} /> Đang dùng</span>
                       }
                     </td>
                     <td className="py-3 px-4 text-center text-xs font-mono text-slate-500">{entry.version}</td>
@@ -425,7 +425,7 @@ export default function AdminPeriodDetail({ periodId, onBack }: AdminPeriodDetai
                       <div className="text-xs text-slate-500">{c.policyVersion}</div>
                     </td>
                     <td className="py-2 px-3 text-center text-xs">{c.rateSnapshot != null ? `${(c.rateSnapshot * 100).toFixed(0)}%` : '—'}</td>
-                    <td className="py-2 px-3 text-center text-emerald-600 font-bold">{(c.earnedPoints || 0).toLocaleString()}</td>
+                    <td className="py-2 px-3 text-center text-sky-600 font-bold">{(c.earnedPoints || 0).toLocaleString()}</td>
                     <td className="py-2 px-3 text-center text-xs text-slate-500">{(c.earnedMoney || 0).toLocaleString()} đ</td>
                     <td className="py-2 px-3 text-center text-xs text-slate-500">{fmtDateTime(c.createdAt)}</td>
                   </tr>
@@ -441,14 +441,14 @@ export default function AdminPeriodDetail({ periodId, onBack }: AdminPeriodDetai
         <div className="flex flex-col gap-4">
           {period.closeAudit ? (
             <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 flex flex-col gap-4">
-              <h3 className="font-bold text-white flex items-center gap-2"><ShieldCheck size={16} className="text-emerald-600" /> Audit Chốt Kỳ</h3>
+              <h3 className="font-bold text-white flex items-center gap-2"><ShieldCheck size={16} className="text-sky-600" /> Audit Chốt Kỳ</h3>
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div><span className="text-slate-500">Người chốt:</span> <b>{period.closeAudit.closedBy}</b></div>
                 <div><span className="text-slate-500">Thời điểm:</span> <b>{fmtDateTime(period.closeAudit.closedAt)}</b></div>
                 <div><span className="text-slate-500">Tổng đơn:</span> <b>{period.closeAudit.totalOrders}</b></div>
                 <div><span className="text-slate-500">Tổng hoa hồng:</span> <b>{period.closeAudit.totalCommissions}</b></div>
-                <div><span className="text-slate-500">Tổng CP:</span> <b className="text-emerald-600">{(period.closeAudit.totalEarnedPoints || 0).toLocaleString()} CP</b></div>
-                <div><span className="text-slate-500">Tổng tiền:</span> <b className="text-emerald-600">{(period.closeAudit.totalEarnedMoney || 0).toLocaleString()} đ</b></div>
+                <div><span className="text-slate-500">Tổng CP:</span> <b className="text-sky-600">{(period.closeAudit.totalEarnedPoints || 0).toLocaleString()} CP</b></div>
+                <div><span className="text-slate-500">Tổng tiền:</span> <b className="text-sky-600">{(period.closeAudit.totalEarnedMoney || 0).toLocaleString()} đ</b></div>
               </div>
             </div>
           ) : (

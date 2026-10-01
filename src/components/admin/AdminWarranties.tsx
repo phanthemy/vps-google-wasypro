@@ -176,7 +176,7 @@ export const AdminWarranties: React.FC = () => {
   });
 
   const statusBadges: Record<string, { label: string; bg: string; text: string }> = {
-    active: { label: 'Đang bảo hành', bg: 'bg-emerald-100', text: 'text-emerald-700' },
+    active: { label: 'Đang bảo hành', bg: 'bg-sky-100', text: 'text-sky-700' },
     expired: { label: 'Hết hạn BH', bg: 'bg-rose-100', text: 'text-rose-700' },
     pending: { label: 'Chờ xác nhận', bg: 'bg-amber-100', text: 'text-amber-700' },
   };

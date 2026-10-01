@@ -44,7 +44,7 @@ export const FaqSection: React.FC = () => {
                 key={faq.id}
                 className={`rounded-md border transition-all duration-200 overflow-hidden ${
                   isOpen
-                    ? 'bg-green-50 border-primary shadow-sm'
+                    ? 'bg-sky-50 border-primary shadow-sm'
                     : 'bg-white hover:bg-gray-50 border-gray-200 shadow-sm'
                 }`}
               >

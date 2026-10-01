@@ -174,7 +174,7 @@ export const AdminCTVManagement: React.FC = () => {
                     <div className="flex items-center gap-2 mt-1 flex-wrap">
                       <RankBadge rank={detail.ctv.rank} />
                       <span className={`text-[11px] font-bold px-2 py-0.5 rounded-lg ${
-                        detail.ctv.status === 'ACTIVE' ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'
+                        detail.ctv.status === 'ACTIVE' ? 'bg-sky-50 text-sky-700' : 'bg-rose-50 text-rose-700'
                       }`}>{detail.ctv.status}</span>
                       {detail.ctv.isSystemParticipant && (
                         <span className="text-[11px] font-bold px-2 py-0.5 rounded-lg bg-cyan-50 text-cyan-700">Thành Viên HT</span>
@@ -192,7 +192,7 @@ export const AdminCTVManagement: React.FC = () => {
                     <div className="text-[11px] text-slate-500 font-semibold">Đơn hàng</div>
                   </div>
                   <div className="bg-slate-50 rounded-xl p-3">
-                    <div className="text-lg font-black text-emerald-700">
+                    <div className="text-lg font-black text-sky-700">
                       {new Intl.NumberFormat('vi-VN', { notation: 'compact' }).format(
                         detail.commissions.reduce((s, c) => s + (c.earnedMoney || 0), 0)
                       )}
@@ -234,7 +234,7 @@ export const AdminCTVManagement: React.FC = () => {
               {detail.ctv.businessId ? (
               <div className="mt-4 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-4">
                 <div className="text-xs font-bold text-blue-700 mb-2 flex items-center gap-1.5">
-                  🔗 Link Giới Thiệu (Ref Link) — <span className="text-emerald-600">BID: {detail.ctv.businessId}</span>
+                  🔗 Link Giới Thiệu (Ref Link) — <span className="text-sky-600">BID: {detail.ctv.businessId}</span>
                 </div>
                 <div className="space-y-2">
                   <div className="flex items-center gap-2">
@@ -275,7 +275,7 @@ export const AdminCTVManagement: React.FC = () => {
               <div className="mt-4 bg-blue-50 border border-blue-200 rounded-xl p-3">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-xs font-bold text-blue-700 uppercase tracking-wide">📱 Zalo UID (nhận OTP)</span>
-                  {(detail.ctv as any).zaloUid && <span className="text-[10px] text-emerald-600 font-semibold">✓ Đã cấu hình</span>}
+                  {(detail.ctv as any).zaloUid && <span className="text-[10px] text-sky-600 font-semibold">✓ Đã cấu hình</span>}
                 </div>
                 <div className="flex gap-2">
                   <input
@@ -474,7 +474,7 @@ export const AdminCTVManagement: React.FC = () => {
                             <td className="py-3 px-4 text-slate-600">{c.phone}</td>
                             <td className="py-3 px-4">
                               <span className={`text-[11px] font-bold px-2 py-0.5 rounded-lg ${
-                                c.status === 'ARRIVED' ? 'bg-emerald-50 text-emerald-700' :
+                                c.status === 'ARRIVED' ? 'bg-sky-50 text-sky-700' :
                                 c.status === 'EXPIRED' ? 'bg-rose-50 text-rose-700' : 'bg-amber-50 text-amber-700'
                               }`}>{c.status}</span>
                             </td>
@@ -526,12 +526,12 @@ export const AdminCTVManagement: React.FC = () => {
                               ) : <span className="text-[11px] text-slate-400">—</span>}
                             </td>
                             <td className="py-3 px-4 font-bold text-cyan-600">{c.earnedPoints ?? '—'}</td>
-                            <td className="py-3 px-4 font-bold text-emerald-600">
+                            <td className="py-3 px-4 font-bold text-sky-600">
                               {c.earnedMoney != null ? `${new Intl.NumberFormat('vi-VN').format(c.earnedMoney)}đ` : '⚠ Chưa tính'}
                             </td>
                             <td className="py-3 px-4">
                               <span className={`text-[11px] font-bold px-2 py-0.5 rounded-lg ${
-                                c.status === 'PAID' ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'
+                                c.status === 'PAID' ? 'bg-sky-50 text-sky-700' : 'bg-amber-50 text-amber-700'
                               }`}>{c.status}</span>
                             </td>
                             <td className="py-3 px-4 text-xs text-slate-400">
@@ -726,7 +726,7 @@ export const AdminCTVManagement: React.FC = () => {
                     </td>
                     <td className="py-4 px-5">
                       {u.totalEarnedMoney > 0 ? (
-                        <div className="font-bold text-emerald-600">
+                        <div className="font-bold text-sky-600">
                           {new Intl.NumberFormat('vi-VN').format(u.totalEarnedMoney)}đ
                         </div>
                       ) : (

@@ -688,7 +688,7 @@ export default function CreateOrderModal({ currentUser, onClose, onSuccess }) {
                             <span className="text-xs line-through text-slate-400">
                               {new Intl.NumberFormat('vi-VN').format(ci.price)}đ
                             </span>
-                            <span className="text-xs font-extrabold text-emerald-600">
+                            <span className="text-xs font-extrabold text-sky-600">
                               {new Intl.NumberFormat('vi-VN').format(ci.discountedPrice)}đ
                             </span>
                             {ci.commissionPoints > 0 && (

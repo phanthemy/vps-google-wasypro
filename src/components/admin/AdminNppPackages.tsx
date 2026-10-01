@@ -463,7 +463,7 @@ const AdminNppPackages: React.FC = () => {
     <div className="space-y-6">
       {/* Success Toast */}
       {successMsg && (
-        <div className="fixed top-4 right-4 z-50 bg-emerald-600 text-white px-6 py-3 rounded-xl shadow-lg flex items-center gap-2 animate-in slide-in-from-top duration-300">
+        <div className="fixed top-4 right-4 z-50 bg-sky-600 text-white px-6 py-3 rounded-xl shadow-lg flex items-center gap-2 animate-in slide-in-from-top duration-300">
           <CheckCircle2 className="w-5 h-5" />
           <span className="font-semibold text-sm">{successMsg}</span>
         </div>
@@ -626,7 +626,7 @@ const AdminNppPackages: React.FC = () => {
                     {/* Left */}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap mb-2">
-                        <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${pkg.isActive ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
+                        <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${pkg.isActive ? 'bg-sky-100 text-sky-700' : 'bg-slate-100 text-slate-500'}`}>
                           {pkg.isActive ? 'Đang hoạt động' : 'Đã tắt'}
                         </span>
                         <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${pkg.packageType === 'CAPITAL' ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'}`}>
@@ -677,7 +677,7 @@ const AdminNppPackages: React.FC = () => {
                     <div className="flex items-center gap-2 flex-shrink-0 self-start sm:self-auto">
                       <button
                         onClick={() => handleToggleStatus(pkg)}
-                        className={`p-2 rounded-xl transition-colors ${pkg.isActive ? 'text-amber-500 hover:bg-amber-50' : 'text-emerald-500 hover:bg-emerald-50'}`}
+                        className={`p-2 rounded-xl transition-colors ${pkg.isActive ? 'text-amber-500 hover:bg-amber-50' : 'text-sky-500 hover:bg-sky-50'}`}
                         title={pkg.isActive ? 'Vô hiệu hóa' : 'Kích hoạt'}
                       >
                         {pkg.isActive ? <PowerOff className="w-4 h-4" /> : <Power className="w-4 h-4" />}
@@ -823,7 +823,7 @@ const AdminNppPackages: React.FC = () => {
                     required
                   />
                   {form.grossPrice && (
-                    <p className="text-xs text-emerald-600 mt-1 font-medium">
+                    <p className="text-xs text-sky-600 mt-1 font-medium">
                       {formatVND(parseInt(form.grossPrice, 10))}
                     </p>
                   )}

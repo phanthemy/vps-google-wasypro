@@ -202,7 +202,7 @@ function getCsrfToken() {
         {avatarMsg && (
           <div className={`text-xs font-semibold px-3 py-2 rounded-lg ${
             avatarMsg.type === 'success'
-              ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+              ? 'bg-sky-50 text-sky-700 border border-sky-200'
               : 'bg-red-50 text-red-700 border border-red-200'
           }`}>
             {avatarMsg.text}
@@ -264,7 +264,7 @@ function getCsrfToken() {
             <div className="font-extrabold text-blue-600 text-sm">
               {isNppUser ? (
                 currentUser.isNpp || currentUser.nppStatus === 'ACTIVE' ? (
-                  <span className="text-emerald-600">NPP Đã Kích Hoạt</span>
+                  <span className="text-sky-600">NPP Đã Kích Hoạt</span>
                 ) : currentUser.nppStatus === "PAID" ? (
                   <span className="text-amber-600">Chờ Admin kích hoạt</span>
                 ) : currentUser.nppStatus === "PURCHASING" ? (
@@ -313,16 +313,16 @@ function getCsrfToken() {
             Trạng Thái Tham Gia Hệ Thống Đối Tác
           </div>
           {isParticipant ? (
-            <div className="flex items-start gap-3 p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800">
-              <CheckCircle size={20} className="text-emerald-600 shrink-0 mt-0.5" />
+            <div className="flex items-start gap-3 p-3.5 rounded-xl bg-sky-50 border border-sky-200 text-sky-800">
+              <CheckCircle size={20} className="text-sky-600 shrink-0 mt-0.5" />
               <div>
-                <div className="font-bold text-sm text-emerald-900">Đang tham gia hệ thống đối tác WasyPro</div>
+                <div className="font-bold text-sm text-sky-900">Đang tham gia hệ thống đối tác WasyPro</div>
                 {currentUser.participantAt && (
-                  <div className="text-xs text-emerald-700 mt-0.5">
+                  <div className="text-xs text-sky-700 mt-0.5">
                     Kích hoạt ngày: {new Date(currentUser.participantAt).toLocaleDateString('vi-VN')}
                   </div>
                 )}
-                <p className="text-xs text-emerald-700/80 mt-1">
+                <p className="text-xs text-sky-700/80 mt-1">
                   Tài khoản được tích lũy Qualifying Points (CP) khi phát sinh đơn hàng cá nhân.
                 </p>
               </div>

@@ -76,7 +76,7 @@ export const AdminLeads: React.FC = () => {
   const leadStatusOptions: { value: 'new' | 'contacted' | 'completed' | 'cancelled'; label: string; bg: string; text: string }[] = [
     { value: 'new', label: 'Mới', bg: 'bg-amber-100', text: 'text-amber-700' },
     { value: 'contacted', label: 'Đã gọi tư vấn', bg: 'bg-ocean-100', text: 'text-ocean-700' },
-    { value: 'completed', label: 'Hoàn thành chốt đơn', bg: 'bg-emerald-100', text: 'text-emerald-700' },
+    { value: 'completed', label: 'Hoàn thành chốt đơn', bg: 'bg-sky-100', text: 'text-sky-700' },
     { value: 'cancelled', label: 'Đã hủy', bg: 'bg-rose-100', text: 'text-rose-700' },
   ];
 
@@ -262,7 +262,7 @@ export const AdminLeads: React.FC = () => {
                                 : lead.status === 'contacted'
                                 ? 'bg-ocean-100 text-ocean-800'
                                 : lead.status === 'completed'
-                                ? 'bg-emerald-100 text-emerald-800'
+                                ? 'bg-sky-100 text-sky-800'
                                 : 'bg-rose-100 text-rose-800'
                             }`}
                           >

@@ -77,8 +77,8 @@ export default function AdminSystemView() {
                 </ul>
               </div>
               <div>
-                <p className="font-bold text-emerald-800 mb-2">Giữ lại:</p>
-                <ul className="space-y-1 text-emerald-700">
+                <p className="font-bold text-sky-800 mb-2">Giữ lại:</p>
+                <ul className="space-y-1 text-sky-700">
                   <li>✓ Super Admin</li>
                   <li>✓ Sản phẩm</li>
                   <li>✓ Cấu hình hoa hồng</li>

@@ -284,7 +284,7 @@ export default function UnifiedAuthModal({ isOpen, onClose, initialTab = 'login'
         </div>
 
         {error && <div className="p-3 mb-4 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs font-medium">{error}</div>}
-        {successMsg && <div className="p-3 mb-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-medium">{successMsg}</div>}
+        {successMsg && <div className="p-3 mb-4 rounded-xl bg-sky-50 border border-sky-200 text-sky-700 text-xs font-medium">{successMsg}</div>}
 
         {/* ─── LOGIN FORM ─── */}
         {tab === 'login' && (
@@ -377,7 +377,7 @@ export default function UnifiedAuthModal({ isOpen, onClose, initialTab = 'login'
             <div>
               <div className="flex items-center justify-between">
                 <label className="text-xs font-bold text-gray-600 uppercase tracking-wide">Mã xác thực Zalo (OTP) *</label>
-                {otpSent && <span className="text-[11px] text-emerald-600 font-semibold flex items-center gap-1">✓ Đã gửi mã qua Zalo</span>}
+                {otpSent && <span className="text-[11px] text-sky-600 font-semibold flex items-center gap-1">✓ Đã gửi mã qua Zalo</span>}
               </div>
               <div className="mt-1 relative">
                 <Shield className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-cyan-600" />
@@ -449,20 +449,20 @@ export default function UnifiedAuthModal({ isOpen, onClose, initialTab = 'login'
                 <div>
                   <div className="flex items-center justify-between">
                     <label className="text-xs font-bold text-gray-700 uppercase tracking-wide">Mã người giới thiệu</label>
-                    <span className="text-[11px] font-semibold text-emerald-700 flex items-center gap-1">
-                      <Lock className="w-3 h-3 text-emerald-600" /> Đã khóa bảo trợ
+                    <span className="text-[11px] font-semibold text-sky-700 flex items-center gap-1">
+                      <Lock className="w-3 h-3 text-sky-600" /> Đã khóa bảo trợ
                     </span>
                   </div>
                   <div className="mt-1 relative">
-                    <UserPlus className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-emerald-600" />
+                    <UserPlus className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-sky-600" />
                     <input
                       type="text"
                       value={effectiveRefCode}
                       readOnly
                       disabled
-                      className="w-full pl-10 pr-10 py-3 border border-emerald-300 bg-emerald-50/70 rounded-xl text-sm font-bold text-emerald-900 cursor-not-allowed select-none"
+                      className="w-full pl-10 pr-10 py-3 border border-sky-300 bg-sky-50/70 rounded-xl text-sm font-bold text-sky-900 cursor-not-allowed select-none"
                     />
-                    <Lock className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-emerald-600" />
+                    <Lock className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-sky-600" />
                   </div>
                   <p className="text-[11px] text-gray-500 mt-1">
                     Mã bảo trợ được gán tự động từ liên kết giới thiệu và không thể thay đổi.
@@ -490,11 +490,11 @@ export default function UnifiedAuthModal({ isOpen, onClose, initialTab = 'login'
                   {/* Dòng 2: Nhà Phân Phối (NPP) — Chỉ gói Combo */}
                   <div
                     onClick={() => { setRegType(regType === 'npp' ? 'none' : 'npp'); setSelectedPackageId(''); }}
-                    className={`p-3 rounded-xl border-2 cursor-pointer transition-all ${regType === 'npp' ? 'border-emerald-500 bg-emerald-50' : 'border-gray-200 hover:border-gray-300'}`}
+                    className={`p-3 rounded-xl border-2 cursor-pointer transition-all ${regType === 'npp' ? 'border-sky-500 bg-sky-50' : 'border-gray-200 hover:border-gray-300'}`}
                   >
                     <div className="flex items-center gap-3">
-                      <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${regType === 'npp' ? 'border-emerald-500' : 'border-gray-300'}`}>
-                        {regType === 'npp' && <div className="w-2.5 h-2.5 rounded-full bg-emerald-500" />}
+                      <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${regType === 'npp' ? 'border-sky-500' : 'border-gray-300'}`}>
+                        {regType === 'npp' && <div className="w-2.5 h-2.5 rounded-full bg-sky-500" />}
                       </div>
                       <div>
                         <div className="font-bold text-sm flex items-center gap-1.5">🏪 Đăng ký trở thành Nhà Phân Phối (NPP)</div>
@@ -510,11 +510,11 @@ export default function UnifiedAuthModal({ isOpen, onClose, initialTab = 'login'
                           <div
                             key={pkg.id}
                             onClick={(e) => { e.stopPropagation(); setSelectedPackageId(selectedPackageId === pkg.id ? '' : pkg.id); }}
-                            className={`p-2.5 rounded-lg border cursor-pointer transition-all ${selectedPackageId === pkg.id ? 'border-emerald-400 bg-emerald-50' : 'border-gray-200 hover:border-gray-300'}`}
+                            className={`p-2.5 rounded-lg border cursor-pointer transition-all ${selectedPackageId === pkg.id ? 'border-sky-400 bg-sky-50' : 'border-gray-200 hover:border-gray-300'}`}
                           >
                             <div className="flex items-center gap-2">
-                              <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${selectedPackageId === pkg.id ? 'border-emerald-500' : 'border-gray-300'}`}>
-                                {selectedPackageId === pkg.id && <div className="w-2 h-2 rounded-full bg-emerald-500" />}
+                              <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${selectedPackageId === pkg.id ? 'border-sky-500' : 'border-gray-300'}`}>
+                                {selectedPackageId === pkg.id && <div className="w-2 h-2 rounded-full bg-sky-500" />}
                               </div>
                               <div>
                                 <div className="font-bold text-sm">{pkg.name}</div>

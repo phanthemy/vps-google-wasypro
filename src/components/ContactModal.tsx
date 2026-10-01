@@ -74,7 +74,7 @@ export const ContactModal: React.FC<ContactModalProps> = ({
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/70 backdrop-blur-md">
         <div className="bg-white rounded-2xl p-8 text-center">
-          <div className="w-8 h-8 border-4 border-green-500 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
+          <div className="w-8 h-8 border-4 border-sky-500 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
           <p className="text-sm text-slate-500">Đang kiểm tra...</p>
         </div>
       </div>
@@ -203,7 +203,7 @@ export const ContactModal: React.FC<ContactModalProps> = ({
           )}
 
           {selectedProduct && (
-            <div className="p-4 rounded-md bg-green-50 border border-primary-light">
+            <div className="p-4 rounded-md bg-sky-50 border border-primary-light">
               <div className="flex items-center gap-3">
                 {selectedProduct.image && (
                   <img src={selectedProduct.image} alt="" className="w-14 h-14 object-cover rounded-md border" />
@@ -285,7 +285,7 @@ export const ContactModal: React.FC<ContactModalProps> = ({
           </div>
 
           <p className="text-[11px] text-gray-400 text-center flex items-center justify-center gap-1 pt-1">
-            <ShieldCheck className="w-3.5 h-3.5 text-green-500" />
+            <ShieldCheck className="w-3.5 h-3.5 text-sky-500" />
             <span>WASY PRO bảo mật thông tin khách hàng tuyệt đối.</span>
           </p>
         </form>

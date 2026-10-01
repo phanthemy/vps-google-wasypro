@@ -112,10 +112,10 @@ export default function RankView({ currentUser }) {
       role: 'MANAGER',
       title: 'Trưởng nhóm (Manager)',
       subtitle: 'Có đủ 5 thành viên F1 trực tiếp đạt chuẩn Đại Sứ',
-      icon: <Shield className="w-5 h-5 text-emerald-600" />,
-      headerBg: 'bg-emerald-50 border-emerald-200 text-emerald-900',
-      badgeBg: 'bg-emerald-600 text-white',
-      borderClass: 'border-emerald-200/80',
+      icon: <Shield className="w-5 h-5 text-sky-600" />,
+      headerBg: 'bg-sky-50 border-sky-200 text-sky-900',
+      badgeBg: 'bg-sky-600 text-white',
+      borderClass: 'border-sky-200/80',
       rules: [
         {
           key: 'MANAGER_SELF_BUY',
@@ -249,8 +249,8 @@ export default function RankView({ currentUser }) {
                 <span>Thanh toán đầy đủ</span>
               </div>
               <div className="flex items-start gap-2">
-                <span className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center text-[10px] font-bold flex-shrink-0">✓</span>
-                <span className="font-semibold text-emerald-700">NPP kích hoạt → nhận BID + Rank</span>
+                <span className="w-5 h-5 rounded-full bg-sky-100 text-sky-700 flex items-center justify-center text-[10px] font-bold flex-shrink-0">✓</span>
+                <span className="font-semibold text-sky-700">NPP kích hoạt → nhận BID + Rank</span>
               </div>
             </div>
             {currentUser?.nppStatus !== 'ACTIVE' && (
@@ -335,7 +335,7 @@ export default function RankView({ currentUser }) {
           </div>
           <div className="mt-4 pt-3 border-t border-slate-100 text-[11px] text-slate-500 flex justify-between">
             <span>ID: <strong className="font-mono text-slate-800">{currentUser?.id || currentUser?.userId}</strong></span>
-            <span>Trạng thái: <strong className="text-emerald-600">{currentUser?.nppStatus === 'ACTIVE' ? 'Nhà Phân Phối (NPP)' : currentUser?.nppStatus === 'PAID' ? 'NPP — Chờ Admin kích hoạt' : currentUser?.nppStatus === 'PURCHASING' ? 'NPP — Đang mua gói' : currentUser?.nppStatus === 'APPROVED' ? 'NPP — Đã duyệt' : currentUser?.nppStatus === 'PENDING' ? 'NPP — Chờ duyệt' : currentUser?.isSystemParticipant ? 'Đã kích hoạt CTV' : 'Khách hàng'}</strong></span>
+            <span>Trạng thái: <strong className="text-sky-600">{currentUser?.nppStatus === 'ACTIVE' ? 'Nhà Phân Phối (NPP)' : currentUser?.nppStatus === 'PAID' ? 'NPP — Chờ Admin kích hoạt' : currentUser?.nppStatus === 'PURCHASING' ? 'NPP — Đang mua gói' : currentUser?.nppStatus === 'APPROVED' ? 'NPP — Đã duyệt' : currentUser?.nppStatus === 'PENDING' ? 'NPP — Chờ duyệt' : currentUser?.isSystemParticipant ? 'Đã kích hoạt CTV' : 'Khách hàng'}</strong></span>
           </div>
         </div>
 
@@ -348,7 +348,7 @@ export default function RankView({ currentUser }) {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-gray-100">
           <div>
             <div className="flex items-center gap-2 text-sm font-extrabold text-slate-900 uppercase tracking-wide">
-              <TrendingUp size={18} className="text-emerald-600" />
+              <TrendingUp size={18} className="text-sky-600" />
               <span>Bảng Cơ Chế Hoa Hồng — {{ AMBASSADOR: 'ĐẠI SỨ (AMBASSADOR)', MANAGER: 'TRƯỞNG NHÓM (MANAGER)', DIRECTOR: 'QUẢN LÝ (DIRECTOR)' }[currentUser?.rank?.toUpperCase()] || 'Chưa xác định'}</span>
             </div>
             <p className="text-xs text-slate-500 mt-0.5">
@@ -429,7 +429,7 @@ export default function RankView({ currentUser }) {
                         </span>
                       </div>
                       <div className="shrink-0">
-                        <span className="inline-flex items-center text-sm font-black text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200 shadow-2xs">
+                        <span className="inline-flex items-center text-sm font-black text-sky-700 bg-sky-50 px-2.5 py-1 rounded-lg border border-sky-200 shadow-2xs">
                           {r.rate}
                         </span>
                       </div>

@@ -187,7 +187,7 @@ export const Hero: React.FC<HeroProps> = ({ onExploreClick, onContactClick }) =>
                         className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-black/60 hover:bg-black/90 text-white backdrop-blur-md border border-white/20 transition-all flex items-center justify-center shadow-lg active:scale-95"
                         title={isMuted ? 'Bật âm thanh' : 'Tắt âm thanh'}
                       >
-                        {isMuted ? <VolumeX className="w-3.5 h-3.5 text-slate-300" /> : <Volume2 className="w-3.5 h-3.5 text-emerald-400" />}
+                        {isMuted ? <VolumeX className="w-3.5 h-3.5 text-slate-300" /> : <Volume2 className="w-3.5 h-3.5 text-sky-400" />}
                       </button>
                     </div>
                   </div>
@@ -230,7 +230,7 @@ export const Hero: React.FC<HeroProps> = ({ onExploreClick, onContactClick }) =>
               onClick={() => goToSlide(i)}
               className={`flex items-center gap-1.5 px-2.5 py-0.5 sm:py-1 rounded-full text-xs font-semibold transition-all duration-300 ${
                 i === current
-                  ? 'bg-gradient-to-r from-primary to-emerald-500 text-white shadow-sm'
+                  ? 'bg-gradient-to-r from-primary to-sky-500 text-white shadow-sm'
                   : 'text-slate-300 hover:text-white hover:bg-white/10'
               }`}
             >
@@ -251,7 +251,7 @@ export const Hero: React.FC<HeroProps> = ({ onExploreClick, onContactClick }) =>
             {/* 3 Thông số cốt lõi */}
             <div ref={phRef} className="grid grid-cols-3 gap-3 sm:gap-6 w-full lg:w-auto flex-1 divide-x divide-slate-100">
               <div className="flex items-center justify-center sm:justify-start gap-2.5 sm:gap-3.5 px-1">
-                <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-emerald-50 flex items-center justify-center text-primary flex-shrink-0 shadow-xs">
+                <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-sky-50 flex items-center justify-center text-primary flex-shrink-0 shadow-xs">
                   <Droplets className="w-5 h-5 sm:w-5 sm:h-5" />
                 </div>
                 <div>
@@ -294,14 +294,14 @@ export const Hero: React.FC<HeroProps> = ({ onExploreClick, onContactClick }) =>
             <div className="flex items-center gap-3 w-full sm:w-auto justify-center flex-shrink-0">
               <button
                 onClick={onExploreClick}
-                className="flex-1 sm:flex-none px-6 sm:px-7 py-3 rounded-xl font-bold text-white bg-gradient-to-r from-primary to-emerald-600 hover:from-primary-dark hover:to-primary transition-all duration-300 flex items-center justify-center gap-2 text-sm shadow-md shadow-emerald-500/20 active:scale-95"
+                className="flex-1 sm:flex-none px-6 sm:px-7 py-3 rounded-xl font-bold text-white bg-gradient-to-r from-primary to-sky-600 hover:from-primary-dark hover:to-primary transition-all duration-300 flex items-center justify-center gap-2 text-sm shadow-md shadow-sky-500/20 active:scale-95"
               >
                 Khám Phá Sản Phẩm
                 <ArrowRight className="w-4 h-4" />
               </button>
               <button
                 onClick={onContactClick}
-                className="flex-1 sm:flex-none px-5 sm:px-6 py-3 rounded-xl font-bold text-primary bg-slate-50 border border-primary/20 hover:bg-emerald-50 transition-all duration-300 flex items-center justify-center gap-2 text-sm active:scale-95"
+                className="flex-1 sm:flex-none px-5 sm:px-6 py-3 rounded-xl font-bold text-primary bg-slate-50 border border-primary/20 hover:bg-sky-50 transition-all duration-300 flex items-center justify-center gap-2 text-sm active:scale-95"
               >
                 <PhoneCall className="w-4 h-4 text-accent" />
                 Tư Vấn Miễn Phí

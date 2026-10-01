@@ -10,7 +10,7 @@ const getStatusBadge = (status: string) => {
     case 'NEW': return <span className="px-2 py-1 bg-yellow-100 text-yellow-800 rounded-full text-xs font-semibold">Chờ xác nhận</span>;
     case 'CONFIRMED': return <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-semibold">Đã xác nhận</span>;
     case 'SHIPPING': return <span className="px-2 py-1 bg-orange-100 text-orange-800 rounded-full text-xs font-semibold">Đang giao hàng</span>;
-    case 'COMPLETED': return <span className="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs font-semibold">Hoàn thành</span>;
+    case 'COMPLETED': return <span className="px-2 py-1 bg-sky-100 text-sky-800 rounded-full text-xs font-semibold">Hoàn thành</span>;
     case 'CANCELLED': return <span className="px-2 py-1 bg-red-100 text-red-800 rounded-full text-xs font-semibold">Đã hủy</span>;
     default: return <span className="px-2 py-1 bg-gray-100 text-gray-800 rounded-full text-xs font-semibold">{status}</span>;
   }

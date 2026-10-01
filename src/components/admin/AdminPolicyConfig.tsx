@@ -173,7 +173,7 @@ function EditModal({ entry, onClose, onSaved }: { entry: PolicyEntry; onClose: (
           </div>
           <div className="flex flex-col gap-1">
             <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Giá trị hiện tại</span>
-            <span className={`text-sm font-bold ${entry.status === 'NOT_CONFIGURED' ? 'text-red-500' : 'text-emerald-600'}`}>
+            <span className={`text-sm font-bold ${entry.status === 'NOT_CONFIGURED' ? 'text-red-500' : 'text-sky-600'}`}>
               {formatValue(entry.key, entry.value)}
             </span>
           </div>
@@ -263,7 +263,7 @@ function EditModal({ entry, onClose, onSaved }: { entry: PolicyEntry; onClose: (
                 Quay lại
               </button>
               <button
-                className="flex-1 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex-1 px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-700 text-white text-sm font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 disabled={saving} onClick={handleSave}
               >
                 {saving ? 'Đang lưu...' : 'Xác nhận Lưu'}
@@ -342,7 +342,7 @@ function HistoryModal({ policyKey, onClose }: { policyKey: string; onClose: () =
                   <div className="flex items-center gap-2 text-sm">
                     <span className="font-semibold text-red-500">{l.oldValue ?? '—'}</span>
                     <span className="text-slate-400">→</span>
-                    <span className="font-semibold text-emerald-600">{l.newValue}</span>
+                    <span className="font-semibold text-sky-600">{l.newValue}</span>
                   </div>
                   {l.reason && (
                     <div className="text-xs text-slate-600 bg-white border border-slate-200 rounded-lg px-3 py-2">📝 {l.reason}</div>
@@ -379,7 +379,7 @@ function PolicyRow({ entry, onEdit, onHistory }: { entry: PolicyEntry; onEdit: (
         <div className="text-sm font-semibold text-slate-800 mt-0.5">{KEY_LABELS[entry.key] || entry.key}</div>
       </td>
       <td className="py-3 px-4 text-center">
-        <span className={`font-bold text-sm ${isNotConfigured ? 'text-red-500' : 'text-emerald-600'}`}>
+        <span className={`font-bold text-sm ${isNotConfigured ? 'text-red-500' : 'text-sky-600'}`}>
           {formatValue(entry.key, entry.value)}
         </span>
       </td>
@@ -389,7 +389,7 @@ function PolicyRow({ entry, onEdit, onHistory }: { entry: PolicyEntry; onEdit: (
             <AlertTriangle size={10} /> Chưa cấu hình
           </span>
         ) : (
-          <span className="inline-flex items-center gap-1 text-xs bg-emerald-50 text-emerald-700 border border-emerald-200 px-2.5 py-1 rounded-full font-medium">
+          <span className="inline-flex items-center gap-1 text-xs bg-sky-50 text-sky-700 border border-sky-200 px-2.5 py-1 rounded-full font-medium">
             <CheckCircle size={10} /> Đang dùng
           </span>
         )}

@@ -180,7 +180,7 @@ export const ProductSection: React.FC<ProductSectionProps> = ({
         
         {/* Tiêu đề mục sản phẩm */}
         <div className="text-center max-w-2xl mx-auto mb-6 sm:mb-10">
-          <div className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-emerald-50 text-primary text-xs font-bold uppercase tracking-wider mb-2 border border-primary/10">
+          <div className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-sky-50 text-primary text-xs font-bold uppercase tracking-wider mb-2 border border-primary/10">
             <Sparkles className="w-3.5 h-3.5" />
             Sản Phẩm Chính Hãng
           </div>
@@ -209,7 +209,7 @@ export const ProductSection: React.FC<ProductSectionProps> = ({
                   onClick={() => setSelectedCategory(tab.id)}
                   className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold whitespace-nowrap transition-all duration-300 ${
                     isSelected
-                      ? 'bg-gradient-to-r from-primary to-emerald-600 text-white shadow-md shadow-emerald-500/25 scale-[1.02]'
+                      ? 'bg-gradient-to-r from-primary to-sky-600 text-white shadow-md shadow-sky-500/25 scale-[1.02]'
                       : 'bg-slate-100/80 text-slate-600 hover:bg-slate-200/70 hover:text-slate-900'
                   }`}
                 >
@@ -317,7 +317,7 @@ export const ProductSection: React.FC<ProductSectionProps> = ({
                   setSelectedCategory('may-loc-nuoc');
                   setSearchQuery('');
                 }}
-                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs sm:text-sm font-bold text-primary bg-emerald-50 border border-primary/20 hover:bg-emerald-100 transition-colors"
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs sm:text-sm font-bold text-primary bg-sky-50 border border-primary/20 hover:bg-sky-100 transition-colors"
               >
                 <Droplet className="w-3.5 h-3.5" />
                 <span>Xem Máy Lọc Nước</span>
@@ -347,7 +347,7 @@ export const ProductSection: React.FC<ProductSectionProps> = ({
               return (
                 <div
                   key={product.id}
-                  className="bg-white rounded-2xl overflow-hidden border border-slate-100 shadow-sm hover:shadow-xl hover:-translate-y-1 hover:border-emerald-200/80 transition-all duration-300 group flex flex-col justify-between relative"
+                  className="bg-white rounded-2xl overflow-hidden border border-slate-100 shadow-sm hover:shadow-xl hover:-translate-y-1 hover:border-sky-200/80 transition-all duration-300 group flex flex-col justify-between relative"
                 >
                   {/* Khung Ảnh Sản Phẩm */}
                   <div 
@@ -363,7 +363,7 @@ export const ProductSection: React.FC<ProductSectionProps> = ({
                         </span>
                       )}
                       {product.isNew && (
-                        <span className="inline-flex items-center gap-1 bg-gradient-to-r from-emerald-500 to-teal-500 text-white text-[10px] font-extrabold px-2 py-0.5 rounded-full shadow-sm">
+                        <span className="inline-flex items-center gap-1 bg-gradient-to-r from-sky-500 to-teal-500 text-white text-[10px] font-extrabold px-2 py-0.5 rounded-full shadow-sm">
                           <Sparkles className="w-3 h-3 fill-white" />
                           MỚI
                         </span>
@@ -416,7 +416,7 @@ export const ProductSection: React.FC<ProductSectionProps> = ({
                           <span className="text-slate-400">({product.reviewsCount || 0})</span>
                         </div>
                         {product.specs?.origin && (
-                          <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-100">
+                          <span className="text-[10px] font-semibold text-sky-700 bg-sky-50 px-2 py-0.5 rounded-md border border-sky-100">
                             {product.specs.origin}
                           </span>
                         )}
@@ -440,7 +440,7 @@ export const ProductSection: React.FC<ProductSectionProps> = ({
                             </span>
                           )}
                           {product.specs?.pH && (
-                            <span className="text-[9px] sm:text-[10px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-100">
+                            <span className="text-[9px] sm:text-[10px] font-bold text-sky-700 bg-sky-50 px-1.5 py-0.5 rounded border border-sky-100">
                               pH: {product.specs.pH}
                             </span>
                           )}
@@ -482,7 +482,7 @@ export const ProductSection: React.FC<ProductSectionProps> = ({
                         </button>
                         <button
                           onClick={() => onOrderProduct(product)}
-                          className="flex-1 py-2 sm:py-2.5 px-3 rounded-xl font-bold text-xs sm:text-sm text-white bg-gradient-to-r from-primary to-emerald-600 hover:from-primary-dark hover:to-primary shadow-sm hover:shadow-md transition-all flex items-center justify-center gap-1.5 active:scale-95"
+                          className="flex-1 py-2 sm:py-2.5 px-3 rounded-xl font-bold text-xs sm:text-sm text-white bg-gradient-to-r from-primary to-sky-600 hover:from-primary-dark hover:to-primary shadow-sm hover:shadow-md transition-all flex items-center justify-center gap-1.5 active:scale-95"
                         >
                           <ShoppingBag className="w-3.5 h-3.5" />
                           <span>MUA NGAY</span>

@@ -107,7 +107,7 @@ export const SocialProof: React.FC = () => {
   const prevSlide = () => setCurrentSlide((prev) => (prev - 1 + testimonials.length) % testimonials.length);
 
   return (
-    <section className="py-16 bg-green-50/50">
+    <section className="py-16 bg-sky-50/50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-12">
           <h2 className="text-3xl font-bold text-primary-dark mb-3">Khách Hàng Tin Dùng</h2>
@@ -117,7 +117,7 @@ export const SocialProof: React.FC = () => {
         {/* Counter Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-16">
           <div ref={usersRef} className="bg-white rounded-2xl p-6 border border-green-100 shadow-md shadow-green-100/50 flex flex-col items-center text-center">
-            <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center mb-4">
+            <div className="w-12 h-12 rounded-full bg-sky-100 flex items-center justify-center mb-4">
               <Users className="w-6 h-6 text-primary" />
             </div>
             <div className="text-4xl font-bold text-gray-800 mb-2">{usersCount.toLocaleString()}+</div>
@@ -168,10 +168,10 @@ export const SocialProof: React.FC = () => {
             </div>
 
             {/* Carousel Controls */}
-            <button onClick={prevSlide} className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white shadow-md border border-gray-100 flex items-center justify-center text-gray-600 hover:text-primary hover:bg-green-50 transition-colors z-10">
+            <button onClick={prevSlide} className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white shadow-md border border-gray-100 flex items-center justify-center text-gray-600 hover:text-primary hover:bg-sky-50 transition-colors z-10">
               <ChevronLeft className="w-6 h-6" />
             </button>
-            <button onClick={nextSlide} className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white shadow-md border border-gray-100 flex items-center justify-center text-gray-600 hover:text-primary hover:bg-green-50 transition-colors z-10">
+            <button onClick={nextSlide} className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white shadow-md border border-gray-100 flex items-center justify-center text-gray-600 hover:text-primary hover:bg-sky-50 transition-colors z-10">
               <ChevronRight className="w-6 h-6" />
             </button>
             
@@ -190,19 +190,19 @@ export const SocialProof: React.FC = () => {
 
         {/* Badges Row */}
         <div className="flex flex-wrap justify-center gap-4">
-          <div className="flex items-center gap-2 px-4 py-2 bg-green-50 rounded-lg border border-green-200">
+          <div className="flex items-center gap-2 px-4 py-2 bg-sky-50 rounded-lg border border-sky-200">
             <Award className="w-5 h-5 text-primary" />
             <span className="font-bold text-gray-700 text-sm">ISO 13485</span>
           </div>
-          <div className="flex items-center gap-2 px-4 py-2 bg-green-50 rounded-lg border border-green-200">
+          <div className="flex items-center gap-2 px-4 py-2 bg-sky-50 rounded-lg border border-sky-200">
             <ShieldCheck className="w-5 h-5 text-primary" />
             <span className="font-bold text-gray-700 text-sm">KFDA Korea</span>
           </div>
-          <div className="flex items-center gap-2 px-4 py-2 bg-green-50 rounded-lg border border-green-200">
+          <div className="flex items-center gap-2 px-4 py-2 bg-sky-50 rounded-lg border border-sky-200">
             <Settings className="w-5 h-5 text-primary" />
             <span className="font-bold text-gray-700 text-sm">Bảo hành 5 Năm</span>
           </div>
-          <div className="flex items-center gap-2 px-4 py-2 bg-green-50 rounded-lg border border-green-200">
+          <div className="flex items-center gap-2 px-4 py-2 bg-sky-50 rounded-lg border border-sky-200">
             <Wrench className="w-5 h-5 text-primary" />
             <span className="font-bold text-gray-700 text-sm">Lắp đặt miễn phí</span>
           </div>

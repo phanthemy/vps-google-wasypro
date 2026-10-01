@@ -742,8 +742,8 @@ function OrderModal({ customerList, serviceList, onClose, onSuccess }) {
                    ))}
                    
                    <div className="flex justify-between items-center p-4 mt-3 rounded-xl shadow-sm" style={{ background: 'linear-gradient(to right, #ecfdf5, #d1fae5)', border: '1px solid #10b981' }}>
-                      <span className="font-bold text-green-800 uppercase tracking-widest" style={{ fontSize: '12px' }}>TỔNG THU THEO ĐƠN:</span>
-                      <span className="font-bold text-2xl text-green-700">{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(totalAmount)}</span>
+                      <span className="font-bold text-sky-800 uppercase tracking-widest" style={{ fontSize: '12px' }}>TỔNG THU THEO ĐƠN:</span>
+                      <span className="font-bold text-2xl text-sky-700">{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(totalAmount)}</span>
                    </div>
                 </div>
              </div>
@@ -818,7 +818,7 @@ function DashboardView({ refreshKey, currentUser, setActiveTab }) {
               <span>Hoa hồng Gộp (Chưa trừ Thuế/Phí):</span>
               <span>{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(gross)}</span>
             </div>
-            <div className="text-green-500 font-bold flex justify-between items-center" style={{ fontSize: '1.5rem', marginTop: '0.5rem', paddingTop: '0.5rem', borderTop: '1px dashed rgba(255,255,255,0.2)' }}>
+            <div className="text-sky-500 font-bold flex justify-between items-center" style={{ fontSize: '1.5rem', marginTop: '0.5rem', paddingTop: '0.5rem', borderTop: '1px dashed rgba(255,255,255,0.2)' }}>
               <span>THỰC NHẬN:</span>
               <span>{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(net)}</span>
             </div>
@@ -1230,7 +1230,7 @@ function UsersView({ refreshKey, onAddUser, onEditUser }) {
                         <div className="text-amber-500 font-bold">-{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format((user.totalSales || 0) * 0.01)}</div>
                       </td>
                       <td>
-                        <div className="text-green-500 font-bold text-lg">{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format((user.totalCommission || 0) * 0.89)}</div>
+                        <div className="text-sky-500 font-bold text-lg">{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format((user.totalCommission || 0) * 0.89)}</div>
                       </td>
                     </>
                   )}
@@ -1685,7 +1685,7 @@ function CommissionHistoryView({ currentUser }) {
                             </span>
                           </td>
                           <td className="py-4 px-4 text-right">
-                            <span className="font-bold text-green-500 text-lg">
+                            <span className="font-bold text-sky-500 text-lg">
                               +{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format((c.amount * 0.9) - (c.type === 'DIRECT' ? (c.order?.totalAmount || 0) * 0.01 : 0))}
                             </span>
                           </td>
@@ -2624,7 +2624,7 @@ function OrdersView({ currentUser }) {
                       </td>
                       <td style={{ padding: '12px' }}>
                         <div className="font-medium text-secondary text-sm">{wo.productTitle || 'N/A'}</div>
-                        <div className="text-green-500 font-bold text-sm mt-1">{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(wo.totalAmount)}</div>
+                        <div className="text-sky-500 font-bold text-sm mt-1">{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(wo.totalAmount)}</div>
                       </td>
                       <td style={{ padding: '12px', textAlign: 'center' }}>
                         {renderStatus(wo.status)}
@@ -2684,7 +2684,7 @@ function OrdersView({ currentUser }) {
                           return (<div key={idx} className="text-sm">
                             <span className="font-medium text-secondary">{prod?.title || prod?.name || 'Sản phẩm'}</span>
                             <span className="text-muted ml-1">x{item.qty || 1}</span>
-                            <span className="text-green-500 font-bold ml-2">{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(item.amount)}</span>
+                            <span className="text-sky-500 font-bold ml-2">{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(item.amount)}</span>
                           </div>);
                         })}
                         <div className="font-bold text-blue-500 text-sm mt-1">{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(order.totalAmount)}</div>
@@ -2749,7 +2749,7 @@ function OrdersView({ currentUser }) {
                         const prod = item.product || item.service;
                         return (<div key={idx} className="text-sm">
                           <span className="text-secondary">{prod?.title || prod?.name || 'SP'}</span>
-                          <span className="text-green-500 font-bold ml-2">{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(item.amount)}</span>
+                          <span className="text-sky-500 font-bold ml-2">{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(item.amount)}</span>
                         </div>);
                       })}
                       <div className="font-bold text-blue-500 text-sm mt-1">{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(order.totalAmount)}</div>

@@ -5,10 +5,10 @@ export default {
     extend: {
       colors: {
         primary: {
-          DEFAULT: '#339059',
-          light: '#4fb879',
-          dark: '#2d7a4a',
-          darker: '#1a472a',
+          DEFAULT: '#46A1D3',
+          light: '#6BB8DE',
+          dark: '#3589B8',
+          darker: '#1E5F82',
         },
         accent: {
           DEFAULT: '#c8a951',
@@ -49,8 +49,8 @@ export default {
         heading: ['Nunito Sans', 'sans-serif'],
       },
       boxShadow: {
-        glass: '0 8px 32px 0 rgba(51, 144, 89, 0.15)',
-        'glass-hover': '0 12px 40px 0 rgba(51, 144, 89, 0.25)',
+        glass: '0 8px 32px 0 rgba(70, 161, 211, 0.15)',
+        'glass-hover': '0 12px 40px 0 rgba(70, 161, 211, 0.25)',
         card: '0 4px 20px -2px rgba(15, 23, 42, 0.08)',
       },
       backdropBlur: {

@@ -28,7 +28,7 @@ const STATUS_COLORS: Record<string, string> = {
   DEPOSIT: 'bg-amber-100 text-amber-800',
   CONFIRMED: 'bg-cyan-100 text-cyan-800',
   SHIPPING: 'bg-purple-100 text-purple-800',
-  COMPLETED: 'bg-emerald-100 text-emerald-800',
+  COMPLETED: 'bg-sky-100 text-sky-800',
   CANCELLED: 'bg-red-100 text-red-800'
 };
 
@@ -295,7 +295,7 @@ export default function AdminNppPurchases() {
                           </div>
                         </div>
                       ) : (
-                        <span className="inline-block px-2 py-0.5 rounded text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200">
+                        <span className="inline-block px-2 py-0.5 rounded text-xs font-semibold text-sky-700 bg-sky-50 border border-sky-200">
                           🏛️ Trực tiếp Cty (F0)
                         </span>
                       )}
@@ -306,7 +306,7 @@ export default function AdminNppPurchases() {
                     </td>
                     <td className="py-3 px-4 text-right">
                       <div className="font-bold text-gray-800">{formatVND(p.netAmount)}</div>
-                      <div className={`text-sm font-medium ${p.remainingAmount === '0' ? 'text-emerald-600' : 'text-red-600'}`}>
+                      <div className={`text-sm font-medium ${p.remainingAmount === '0' ? 'text-sky-600' : 'text-red-600'}`}>
                         Còn: {formatVND(p.remainingAmount)}
                       </div>
                       <div className="text-xs text-slate-500">TT: {formatVND(p.paidAmount)} ({p.paymentCount || 0} lần)</div>
@@ -315,7 +315,7 @@ export default function AdminNppPurchases() {
                       <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${STATUS_COLORS[p.status] || 'bg-gray-100 text-gray-800'}`}>
                         {STATUS_LABELS[p.status] || p.status}
                       </span>
-                      {p.isPaidInFull && <div className="mt-1 text-xs text-emerald-600 flex items-center justify-center gap-1"><CheckCircle className="w-3 h-3"/> Đã thanh toán đủ</div>}
+                      {p.isPaidInFull && <div className="mt-1 text-xs text-sky-600 flex items-center justify-center gap-1"><CheckCircle className="w-3 h-3"/> Đã thanh toán đủ</div>}
                     </td>
                     <td className="py-3 px-4 text-center">
                       <div className="flex items-center justify-center gap-2" onClick={e => e.stopPropagation()}>
@@ -331,7 +331,7 @@ export default function AdminNppPurchases() {
                         {(p.status === 'CONFIRMED' || p.status === 'SHIPPING') && p.isPaidInFull && (
                           <button
                             onClick={() => handleComplete(p.id)}
-                            className="p-1.5 bg-emerald-100 text-emerald-700 rounded hover:bg-emerald-200 transition"
+                            className="p-1.5 bg-sky-100 text-sky-700 rounded hover:bg-sky-200 transition"
                             title="Hoàn thành & Kích hoạt"
                           >
                             <CheckCircle className="w-4 h-4" />
@@ -408,8 +408,8 @@ export default function AdminNppPurchases() {
                               <div className="space-y-3">
                                 {p.payments.map((pay: any) => (
                                   <div key={pay.id} className="bg-white p-3 border border-slate-200 rounded relative pl-10">
-                                    <div className="absolute left-3 top-3 w-4 h-4 rounded-full bg-emerald-100 border border-emerald-500 flex items-center justify-center">
-                                      <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
+                                    <div className="absolute left-3 top-3 w-4 h-4 rounded-full bg-sky-100 border border-sky-500 flex items-center justify-center">
+                                      <div className="w-2 h-2 rounded-full bg-sky-500"></div>
                                     </div>
                                     <div className="flex justify-between items-start mb-1">
                                       <div className="font-bold text-gray-800">{formatVND(pay.amount)}</div>

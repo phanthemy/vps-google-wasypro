@@ -167,7 +167,7 @@ const AdminUsers: React.FC = () => {
     switch (role) {
       case 'superadmin': return { label: 'Super Admin', icon: ShieldAlert, color: 'text-red-400 bg-red-500/10' };
       case 'admin': return { label: 'Admin', icon: ShieldCheck, color: 'text-ocean-400 bg-ocean-500/10' };
-      case 'editor': return { label: 'Biên tập', icon: Shield, color: 'text-emerald-400 bg-emerald-500/10' };
+      case 'editor': return { label: 'Biên tập', icon: Shield, color: 'text-sky-400 bg-sky-500/10' };
       default: return { label: role, icon: Shield, color: 'text-slate-400 bg-slate-500/10' };
     }
   };
@@ -204,7 +204,7 @@ const AdminUsers: React.FC = () => {
 
       {/* Success/Error alerts */}
       {success && (
-        <div className="flex items-center gap-2 p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-700 text-sm font-bold">
+        <div className="flex items-center gap-2 p-3 bg-sky-50 border border-sky-200 rounded-xl text-sky-700 text-sm font-bold">
           <CheckCircle2 className="w-4 h-4" /> {success}
         </div>
       )}
@@ -247,7 +247,7 @@ const AdminUsers: React.FC = () => {
                       </span>
                     </td>
                     <td className="py-3 px-5">
-                      <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold ${user.isActive ? 'text-emerald-600 bg-emerald-50' : 'text-red-500 bg-red-50'}`}>
+                      <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold ${user.isActive ? 'text-sky-600 bg-sky-50' : 'text-red-500 bg-red-50'}`}>
                         {user.isActive ? '✓ Hoạt động' : '✕ Vô hiệu'}
                       </span>
                     </td>

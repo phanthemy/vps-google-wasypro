@@ -19,7 +19,7 @@ const STATUS_MAP: Record<string, { label: string; bg: string; text: string }> = 
   NEW:       { label: 'Mới',          bg: 'bg-blue-50',    text: 'text-blue-700' },
   CONFIRMED: { label: 'Đã Xác Nhận', bg: 'bg-amber-50',   text: 'text-amber-700' },
   SHIPPING:  { label: 'Đang Giao',    bg: 'bg-purple-50',  text: 'text-purple-700' },
-  COMPLETED: { label: 'Hoàn Thành',   bg: 'bg-emerald-50', text: 'text-emerald-700' },
+  COMPLETED: { label: 'Hoàn Thành',   bg: 'bg-sky-50', text: 'text-sky-700' },
   CANCELLED: { label: 'Đã Hủy',       bg: 'bg-rose-50',    text: 'text-rose-700' },
 };
 
