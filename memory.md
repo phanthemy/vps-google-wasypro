@@ -32,15 +32,15 @@
 4. **Prisma generate sau ALTER TABLE** (Commit `5cc0fb5`):
    - Chạy `npx prisma generate` trên VPS → Prisma Client nhận cột `zaloUid`.
 
-5. **Ẩn Ref Link & Sơ Đồ Tuyến Dưới cho CTV chưa có BID** (Commit `174316e`, `36467c5`):
-   - Dashboard: `freshUser.businessId` check trước khi hiện "Link Giới Thiệu Của Bạn".
-   - Header: `(currentUser as any).businessId` check trước nút "Link giới thiệu của tôi".
-   - Tab "Sơ Đồ Tuyến Dưới": ẩn khi `!businessId`.
+5. **Cho phep CTV chua co BID van hien Ref Link** (Cap nhat 01/10/2026 - Huy bo commit 174316e, 36467c5):
+   - Dashboard: Xoa check freshUser.businessId - hien Link Gioi Thieu Cua Ban cho moi CTV da tham gia he thong.
+   - Header: Xoa check (currentUser as any).businessId - hien nut Link gioi thieu cua toi cho moi CTV.
+   - Tab So Do Tuyen Duoi: hien thi binh thuong cho moi CTV. Hoa hong van chi tinh khi co BID (L11/L12 giu nguyen).
 
 #### Quy tắc mới:
 - **Swap tài khoản = swap TẤT CẢ trường** (role, userId, businessId, rank, isSystemParticipant). Xem L24.
 - **ALTER TABLE + schema.prisma → phải `npx prisma generate`**. Xem L25.
-- **Không BID = Không ref link, không sơ đồ tuyến dưới**. Xem L26.
+- **CTV chưa có BID vẫn hiện ref link, nhưng chưa hưởng hoa hồng/giảm giá** (L11/L12 vẫn giữ nguyên). L26 đã hủy bỏ.
 
 ---
 

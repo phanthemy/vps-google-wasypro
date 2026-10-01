@@ -11,7 +11,7 @@
 - **Swap tài khoản hệ thống** — 0968616263→Admin (ADM_QUANG), 0937353535→CTV mặc định (U1001), 0999999999=chỉ thấy menu Reset (`fc29a86`, `7884d4c`).
 - **Restrict Reset menu** — Backend 403 + Frontend ẩn tab "Hệ Thống" cho admin không phải 0999999999 (`fc29a86`).
 - **Prisma generate** — Fix lỗi zaloUid không nhận do thiếu `npx prisma generate` sau ALTER TABLE (`5cc0fb5`).
-- **Ẩn Ref Link cho CTV chưa có BID** — Dashboard + header + tab Sơ Đồ Tuyến Dưới chỉ hiện khi có businessId (`174316e`, `36467c5`).
+- ~~An Ref Link cho CTV chua co BID~~ — **DA HUY BO** (01/10/2026). CTV chua co BID van hien ref link, nhung chua huong hoa hong (L11/L12 giu nguyen).
 
 ### Feature & Optimization (Phiên Chiều - Bàn Giao Về Nhà)
 - **Tích hợp 9 Video YouTube sự kiện truyền hình & tin tức** — Đưa 9 video sự kiện tập đoàn (HTV9, New World Sài Gòn, Ký kết tri ân, Nhà máy Phú Thọ, v.v.) vào mục Tin tức & Sự kiện trang chủ với Modal Player xem video toàn màn hình mượt mà không làm chuyển trang (`efb4bab`).

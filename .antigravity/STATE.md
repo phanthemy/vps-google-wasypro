@@ -23,7 +23,7 @@
 1. **Bật lại OTP Verification** — Zalo OA đã nâng gói Tăng trưởng 12 tháng. OTP gửi qua ZNS + broadcast tới Admin UIDs + Sponsor.
 2. **Hệ thống Broadcast OTP** — Viết lại `znsService.js`, gửi OTP song song tới khách + admin + sponsor. Thêm cột `zaloUid` + UI admin gán UID.
 3. **Swap tài khoản hệ thống** — 0968616263→Admin, 0937353535→CTV U1001, 0999999999=chỉ thấy Reset.
-4. **Ẩn Ref Link & Sơ Đồ Tuyến Dưới** — CTV chưa có BID không thấy link giới thiệu và tab network.
+4. ~~Ẩn Ref Link & Sơ Đồ Tuyến Dưới~~ — **ĐÃ HỦY BỎ** (01/10/2026). CTV chưa BID vẫn hiện ref link, hoa hồng tính theo L11/L12.
 
 ---
 
