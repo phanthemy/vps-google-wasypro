@@ -1,17 +1,26 @@
 import React, { useState, useEffect } from 'react';
-import { X, User, Phone, Lock, ChevronRight, Loader2, UserPlus, Shield, Eye, EyeOff } from 'lucide-react';
+import {
+  X,
+  User,
+  Phone,
+  Lock,
+  Eye,
+  EyeOff,
+  Shield,
+  MessageCircle,
+  Users,
+  Gift,
+  ArrowRight,
+  Loader2,
+  Info
+} from 'lucide-react';
 
-interface UserSession { id: string; fullName: string; phone: string; role?: string; [key: string]: any; }
-interface NppPackage {
+interface UserSession {
   id: string;
-  code: string;
-  name: string;
-  description: string;
-  grossPrice?: number | string | null;
-  defaultDiscount: number;
-  assignedRank: string;
-  packageType: string;
-  requiredQuantity: number;
+  fullName: string;
+  phone: string;
+  role?: string;
+  [key: string]: any;
 }
 
 interface Props {
@@ -23,33 +32,61 @@ interface Props {
   onSuccess: (user: UserSession) => void;
 }
 
-export default function UnifiedAuthModal({ isOpen, onClose, initialTab = 'login', mode = 'ctv', referralCode = '', onSuccess }: Props) {
+export default function UnifiedAuthModal({
+  isOpen,
+  onClose,
+  initialTab = 'register',
+  referralCode = '',
+  onSuccess,
+}: Props) {
   const [tab, setTab] = useState<'login' | 'register'>(initialTab);
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
   const [loading, setLoading] = useState(false);
 
-  // Login
+  // Login Form State
   const [loginPhone, setLoginPhone] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
   const [showLoginPassword, setShowLoginPassword] = useState(false);
 
-  // Register
+  // Register Form State
   const [regFullName, setRegFullName] = useState('');
   const [regPhone, setRegPhone] = useState('');
+  const [regOtp, setRegOtp] = useState('');
   const [regPassword, setRegPassword] = useState('');
   const [regConfirmPassword, setRegConfirmPassword] = useState('');
   const [showRegPassword, setShowRegPassword] = useState(false);
-  const [regType, setRegType] = useState<'none' | 'ctv' | 'npp' | 'shareholder'>('none');
-  const [selectedPackageId, setSelectedPackageId] = useState('');
-  const [nppPackages, setNppPackages] = useState<NppPackage[]>([]);
+  const [showRegConfirmPassword, setShowRegConfirmPassword] = useState(false);
 
-  // OTP Verification (Zalo ZNS)
-  const [regOtp, setRegOtp] = useState('');
+  // OTP State
   const [otpLoading, setOtpLoading] = useState(false);
   const [otpCooldown, setOtpCooldown] = useState(0);
-  const [otpSent, setOtpSent] = useState(false);
 
+  // Referral code resolution
+  const getLiveUrlRef = () => {
+    if (typeof window === 'undefined') return '';
+    const params = new URLSearchParams(window.location.search);
+    const u = params.get('ref') || params.get('refCode') || params.get('referral');
+    if (u && u.trim()) return u.trim().toUpperCase();
+    return '';
+  };
+
+  const liveRef = getLiveUrlRef();
+  const effectiveRefCode = liveRef || (referralCode ? referralCode.trim().toUpperCase() : '');
+  const hasReferral = Boolean(effectiveRefCode);
+  const [regRefCode, setRegRefCode] = useState(effectiveRefCode);
+
+  useEffect(() => {
+    setTab(initialTab);
+  }, [initialTab]);
+
+  useEffect(() => {
+    if (effectiveRefCode) {
+      setRegRefCode(effectiveRefCode);
+    }
+  }, [effectiveRefCode, isOpen]);
+
+  // Cooldown timer for OTP
   useEffect(() => {
     if (otpCooldown <= 0) return;
     const timer = setInterval(() => {
@@ -58,6 +95,13 @@ export default function UnifiedAuthModal({ isOpen, onClose, initialTab = 'login'
     return () => clearInterval(timer);
   }, [otpCooldown]);
 
+  const switchTab = (t: 'login' | 'register') => {
+    setTab(t);
+    setError('');
+    setSuccessMsg('');
+  };
+
+  // Handle Send OTP
   const handleSendOtp = async () => {
     if (!regPhone || !regPhone.trim()) {
       setError('Vui lòng nhập số điện thoại trước khi lấy mã OTP.');
@@ -72,16 +116,16 @@ export default function UnifiedAuthModal({ isOpen, onClose, initialTab = 'login'
 
     setOtpLoading(true);
     setError('');
+    setSuccessMsg('');
     try {
       const res = await fetch('/api/auth/send-otp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone: cleanPhone, refCode: effectiveRefCode || undefined }),
+        body: JSON.stringify({ phone: cleanPhone, refCode: regRefCode || undefined }),
       });
       const data = await res.json();
       if (data.success) {
-        setOtpSent(true);
-        setOtpCooldown(data.cooldown || 60);
+        setOtpCooldown(data.cooldown || 120);
         setSuccessMsg(data.message || 'Mã xác thực đã được gửi qua Zalo.');
       } else {
         if (data.cooldown) setOtpCooldown(data.cooldown);
@@ -94,80 +138,16 @@ export default function UnifiedAuthModal({ isOpen, onClose, initialTab = 'login'
     }
   };
 
-  // Helpers
-  const formatVND = (v: number | string | null | undefined) => {
-    if (!v) return '';
-    const n = typeof v === 'string' ? parseInt(v, 10) : v;
-    return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(n);
-  };
-
-  const getRankLabel = (rank: string) => {
-    if (rank === 'AMBASSADOR') return 'Đại sứ';
-    if (rank === 'MANAGER') return 'Quản lý';
-    if (rank === 'DIRECTOR') return 'Giám đốc';
-    return rank || '';
-  };
-
-  // Check live URL parameter immediately so opening the modal never depends on F5 / page reload
-  const getLiveUrlRef = () => {
-    if (typeof window === 'undefined') return '';
-    const params = new URLSearchParams(window.location.search);
-    const u = params.get('ref') || params.get('refCode') || params.get('referral');
-    if (u && u.trim()) return u.trim().toUpperCase();
-    return '';
-  };
-
-  const liveRef = getLiveUrlRef();
-  const effectiveRefCode = liveRef || (referralCode ? referralCode.trim().toUpperCase() : '');
-  const hasReferral = Boolean(effectiveRefCode);
-  const allowRegister = hasReferral || (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('register') === '0937353535');
-  const [regRefCode, setRegRefCode] = useState(effectiveRefCode);
-
-  useEffect(() => { setTab(initialTab); }, [initialTab]);
-  useEffect(() => {
-    if (effectiveRefCode) {
-      setRegRefCode(effectiveRefCode);
-    } else {
-      setRegRefCode('');
-      setRegType('none');
-      setSelectedPackageId('');
-      try {
-        localStorage.removeItem('wasy_ref_code');
-        sessionStorage.removeItem('wasy_ref_code');
-        document.cookie = 'wasy_ref=; max-age=0; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax;';
-      } catch (e) {}
-    }
-  }, [effectiveRefCode, isOpen]);
-
-  // Load NPP packages from PUBLIC endpoint (no auth required)
-  useEffect(() => {
-    if (tab === 'register' && hasReferral) {
-      fetch('/api/npp/packages/available-public')
-        .then(r => r.json())
-        .then(d => { if (d.success) setNppPackages(d.data || []); })
-        .catch(() => {});
-    }
-  }, [tab, hasReferral]);
-
-  const comboPackages = nppPackages.filter(p => p.packageType === 'PRODUCT_COMBO');
-  const capitalPackages = nppPackages.filter(p => p.packageType === 'CAPITAL');
-
-  const switchTab = (t: 'login' | 'register') => {
-    setTab(t);
-    setError('');
-    setSuccessMsg('');
-    setRegPassword('');
-    setRegConfirmPassword('');
-  };
-
-  // ─── LOGIN ───
+  // ─── LOGIN SUBMIT ───
   const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault(); setError(''); setLoading(true);
+    e.preventDefault();
+    setError('');
+    setLoading(true);
     try {
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone: loginPhone, password: loginPassword }),
+        body: JSON.stringify({ phone: loginPhone.trim(), password: loginPassword }),
         credentials: 'include',
       });
       const data = await res.json();
@@ -175,18 +155,37 @@ export default function UnifiedAuthModal({ isOpen, onClose, initialTab = 'login'
         onSuccess(data.data);
         onClose();
       } else {
-        setError(data.message || 'Đăng nhập thất bại.');
+        setError(data.message || 'Số điện thoại hoặc mật khẩu không chính xác.');
       }
-    } catch { setError('Lỗi kết nối.'); }
-    setLoading(false);
+    } catch {
+      setError('Lỗi kết nối tới máy chủ.');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  // ─── REGISTER ───
+  // ─── REGISTER SUBMIT ───
   const handleRegister = async (e: React.FormEvent) => {
-    e.preventDefault(); setError(''); setSuccessMsg(''); setLoading(true);
+    e.preventDefault();
+    setError('');
+    setSuccessMsg('');
+    setLoading(true);
 
-    if (!regFullName.trim()) { setError('Vui lòng nhập họ tên.'); setLoading(false); return; }
-    if (!regPhone.trim()) { setError('Vui lòng nhập số điện thoại.'); setLoading(false); return; }
+    if (!regFullName.trim()) {
+      setError('Vui lòng nhập họ và tên của bạn.');
+      setLoading(false);
+      return;
+    }
+    if (!regPhone.trim()) {
+      setError('Vui lòng nhập số điện thoại.');
+      setLoading(false);
+      return;
+    }
+    if (!regOtp.trim()) {
+      setError('Vui lòng nhập mã xác thực OTP gửi từ Zalo.');
+      setLoading(false);
+      return;
+    }
     if (!regPassword || regPassword.length < 8) {
       setError('Mật khẩu phải có tối thiểu 8 ký tự.');
       setLoading(false);
@@ -197,18 +196,12 @@ export default function UnifiedAuthModal({ isOpen, onClose, initialTab = 'login'
     const hasNumber = /[0-9]/.test(regPassword);
     const hasSpecial = /[^A-Za-z0-9]/.test(regPassword);
     if (!hasLower || !hasUpper || !hasNumber || !hasSpecial) {
-      setError('Mật khẩu phải có ít nhất 8 ký tự bao gồm: chữ thường, chữ HOA, số và ký tự đặc biệt (VD: Wasy@2026).');
+      setError('Mật khẩu phải bao gồm: chữ thường, chữ HOA, số và ký tự đặc biệt (VD: Wasy@2026).');
       setLoading(false);
       return;
     }
     if (regPassword !== regConfirmPassword) {
       setError('Mật khẩu nhập lại không khớp.');
-      setLoading(false);
-      return;
-    }
-    // Verify OTP (Zalo ZNS)
-    if (!regOtp || !regOtp.trim()) {
-      setError('Vui lòng nhập mã xác thực OTP gửi qua Zalo.');
       setLoading(false);
       return;
     }
@@ -219,14 +212,9 @@ export default function UnifiedAuthModal({ isOpen, onClose, initialTab = 'login'
         phone: regPhone.trim(),
         password: regPassword.trim(),
         otp: regOtp.trim(),
-        referralCode: hasReferral ? (effectiveRefCode || undefined) : undefined,
+        referralCode: regRefCode?.trim() || undefined,
+        joinSystem: true,
       };
-      if (hasReferral && regType === 'ctv') body.joinSystem = true;
-      if (hasReferral && (regType === 'npp' || regType === 'shareholder')) {
-        body.registerNpp = true;
-        if (selectedPackageId) body.nppPackageId = selectedPackageId;
-        if (regType === 'shareholder') body.registerShareholder = true;
-      }
 
       const res = await fetch('/api/auth/register', {
         method: 'POST',
@@ -243,126 +231,136 @@ export default function UnifiedAuthModal({ isOpen, onClose, initialTab = 'login'
         setSuccessMsg(data.message || 'Đăng ký thành công!');
         switchTab('login');
       } else {
-        setError(data.message || 'Đăng ký thất bại.');
+        setError(data.message || 'Đăng ký thất bại. Vui lòng kiểm tra lại thông tin.');
       }
-    } catch { setError('Lỗi kết nối.'); }
-    setLoading(false);
+    } catch {
+      setError('Lỗi kết nối tới máy chủ.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center px-4">
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-[2px]" onClick={onClose} />
-      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto p-0" onClick={e => e.stopPropagation()}>
-        <button onClick={onClose} className="absolute top-2.5 right-2.5 z-20 w-7 h-7 flex items-center justify-center rounded-full text-white/70 hover:text-white hover:bg-white/20 transition-all"><X className="w-4 h-4" /></button>
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
+      {/* Background Overlay with aquatic water splash vibe */}
+      <div
+        className="fixed inset-0 bg-[#0a1e3b]/70 backdrop-blur-md transition-opacity"
+        onClick={onClose}
+      />
 
-        {/* Header — Blue Background (Tailwind only) */}
-        <div className="bg-gradient-to-b from-primary-dark to-primary px-6 pt-8 pb-6 rounded-t-2xl text-center">
-          <div className="mx-auto w-14 h-14 rounded-full flex items-center justify-center mb-3 bg-white/25">
-            <User className="w-7 h-7 text-white" />
-          </div>
-          <h3 className="text-xl font-black text-white drop-shadow">TẠO TÀI KHOẢN WASYPRO</h3>
-          <p className="text-xs text-white/80 mt-1.5 leading-relaxed">Đăng ký để trải nghiệm sản phẩm và nhận<br/>nhiều ưu đãi đặc biệt từ Water King</p>
+      {/* Main Registration Card */}
+      <div
+        className="relative bg-white rounded-[32px] sm:rounded-[36px] shadow-[0_25px_70px_rgba(0,102,255,0.28)] border border-[#d3e5fc] w-full max-w-[430px] my-auto overflow-hidden p-6 sm:p-8 z-10 animate-in fade-in zoom-in-95 duration-200"
+        onClick={e => e.stopPropagation()}
+      >
+        {/* Subtle Close Button */}
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 z-20 w-8 h-8 rounded-full bg-[#f0f5fc] hover:bg-[#e2eefa] text-[#718dae] hover:text-[#0c2340] flex items-center justify-center transition-all cursor-pointer"
+        >
+          <X className="w-4 h-4" />
+        </button>
+
+        {/* ─── TOP AVATAR ─── */}
+        <div className="w-[68px] h-[68px] rounded-full bg-[#e7f2fe] border border-[#cfdff7] flex items-center justify-center mx-auto mb-3 shadow-inner">
+          <svg className="w-8 h-8 text-[#0066FF] fill-current" viewBox="0 0 24 24">
+            <path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z" />
+          </svg>
         </div>
 
-        <div className="px-6 pb-6 pt-5">
+        {/* ─── TITLE & SUBTITLE ─── */}
+        <h2 className="text-[22px] sm:text-2xl font-black text-[#0f2a4a] text-center tracking-tight mb-1 font-sans">
+          {tab === 'register' ? 'TẠO TÀI KHOẢN WASYPRO' : 'ĐĂNG NHẬP WASYPRO'}
+        </h2>
+        <p className="text-xs sm:text-[13px] text-[#557394] font-medium text-center leading-snug mb-5 px-2">
+          {tab === 'register' ? (
+            <>
+              Đăng ký để trải nghiệm sản phẩm và nhận<br />
+              nhiều ưu đãi đặc biệt từ Water King
+            </>
+          ) : (
+            <>
+              Đăng nhập để trải nghiệm hệ sinh thái Water King<br />
+              và nhận nhiều ưu đãi đặc quyền
+            </>
+          )}
+        </p>
 
-        {/* Tabs */}
-        <div className="flex bg-gray-100 rounded-full p-1 mb-5">
+        {/* ─── TAB SWITCHER (ĐĂNG NHẬP / ĐĂNG KÝ) ─── */}
+        <div className="bg-[#f0f5fc] p-1.5 rounded-2xl flex gap-1 mb-5 border border-[#e1ecfa]">
           <button
             type="button"
             onClick={() => switchTab('login')}
-            className={`flex-1 py-2.5 text-xs font-bold rounded-full transition-all ${tab === 'login' ? 'bg-white text-gray-800 shadow font-bold' : 'text-gray-500'}`}
+            className={`flex-1 py-2.5 text-xs sm:text-[13px] font-bold rounded-xl transition-all tracking-wider ${
+              tab === 'login'
+                ? 'bg-gradient-to-r from-[#0066FF] to-[#0099FF] text-white shadow-[0_4px_14px_rgba(0,102,255,0.35)]'
+                : 'text-[#1b365d] hover:text-[#0066FF]'
+            }`}
           >
             ĐĂNG NHẬP
           </button>
-          {allowRegister && (
           <button
             type="button"
             onClick={() => switchTab('register')}
-            className={`flex-1 py-2.5 text-xs font-bold rounded-full transition-all ${tab === 'register' ? 'bg-gradient-to-r from-primary-dark to-primary text-white shadow-md font-bold' : 'text-gray-500'}`}
+            className={`flex-1 py-2.5 text-xs sm:text-[13px] font-bold rounded-xl transition-all tracking-wider ${
+              tab === 'register'
+                ? 'bg-gradient-to-r from-[#0066FF] to-[#00A3FF] text-white shadow-[0_4px_14px_rgba(0,102,255,0.35)]'
+                : 'text-[#1b365d] hover:text-[#0066FF]'
+            }`}
           >
             ĐĂNG KÝ
           </button>
-          )}
         </div>
 
-        {error && <div className="p-3 mb-4 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs font-medium">{error}</div>}
-        {successMsg && <div className="p-3 mb-4 rounded-xl bg-sky-50 border border-sky-200 text-sky-700 text-xs font-medium">{successMsg}</div>}
-
-        {/* ─── LOGIN FORM ─── */}
-        {tab === 'login' && (
-          <form onSubmit={handleLogin} className="space-y-0 divide-y divide-[#e0eef6] [&>div]:py-4 [&>div:first-child]:pt-0">
-            <div className="py-4 first:pt-0">
-              <label className="text-[13px] font-extrabold text-gray-900 uppercase tracking-wide">Số điện thoại</label>
-              <div className="mt-1 relative">
-                <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#6aabcc]" />
-                <input type="tel" value={loginPhone} onChange={e => setLoginPhone(e.target.value)} placeholder="0900000000" className="w-full pl-10 pr-4 py-3 border border-sky-200 rounded-2xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-sky-400 focus:border-sky-400" required />
-              </div>
-            </div>
-            <div>
-              <div className="flex items-center justify-between">
-                <label className="text-[13px] font-extrabold text-gray-900 uppercase tracking-wide">Mật khẩu</label>
-                <button
-                  type="button"
-                  onClick={() => setShowLoginPassword(!showLoginPassword)}
-                  className="text-xs text-gray-400 hover:text-gray-600 flex items-center gap-1"
-                >
-                  {showLoginPassword ? <><EyeOff className="w-3.5 h-3.5" /> Ẩn</> : <><Eye className="w-3.5 h-3.5" /> Hiện</>}
-                </button>
-              </div>
-              <div className="mt-1 relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#6aabcc]" />
-                <input
-                  type={showLoginPassword ? 'text' : 'password'}
-                  value={loginPassword}
-                  onChange={e => setLoginPassword(e.target.value)}
-                  placeholder="••••••"
-                  className="w-full pl-10 pr-10 py-3 border border-sky-200 rounded-2xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-sky-400 focus:border-sky-400"
-                  required
-                />
-              </div>
-            </div>
-            <button type="submit" disabled={loading} className="w-full py-4 bg-gradient-to-r from-primary-light via-primary to-primary-dark text-white font-black rounded-full hover:opacity-90 shadow-lg shadow-sky-400/30 transition-all flex items-center justify-center gap-2.5 disabled:opacity-50 active:scale-[0.97] text-[15px] tracking-wider">
-              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <><span>ĐĂNG NHẬP</span><ChevronRight className="w-4 h-4" /></>}
-            </button>
-            <div className="text-center text-xs text-gray-500 space-y-1.5 pt-1">
-              <div>
-                {allowRegister && (<><span>Chưa có tài khoản? </span>
-                <button type="button" onClick={() => switchTab('register')} className="text-primary font-bold hover:underline">Đăng ký</button></>)}
-              </div>
-              <div className="text-gray-400">
-                <span>Quên mật khẩu? </span>
-                <a href="tel:1900989878" className="text-red-600 font-bold hover:underline" title="Gọi Hotline để được hỗ trợ cấp lại mật khẩu">Hotline: 1900 989878</a>
-                <span className="mx-1.5">·</span>
-                <a href="https://zalo.me/2928413591064686973" target="_blank" rel="noopener noreferrer" className="text-blue-600 font-bold hover:underline">Zalo OA</a>
-              </div>
-            </div>
-          </form>
+        {/* Alerts */}
+        {error && (
+          <div className="p-3 mb-4 rounded-2xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-semibold leading-relaxed">
+            {error}
+          </div>
+        )}
+        {successMsg && (
+          <div className="p-3 mb-4 rounded-2xl bg-sky-50 border border-sky-200 text-sky-700 text-xs font-semibold leading-relaxed">
+            {successMsg}
+          </div>
         )}
 
         {/* ─── REGISTER FORM ─── */}
         {tab === 'register' && (
-          <form onSubmit={handleRegister} className="space-y-0 divide-y divide-[#e0eef6] [&>div]:py-4 [&>div:first-child]:pt-0">
-            <div className="py-4 first:pt-0">
-              <label className="text-[13px] font-extrabold text-gray-900 uppercase tracking-wide">Họ và tên *</label>
-              <div className="mt-1 relative">
-                <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#6aabcc]" />
-                <input type="text" value={regFullName} onChange={e => setRegFullName(e.target.value)} placeholder="Nguyễn Văn A" className="w-full pl-10 pr-4 py-3 border border-sky-200 rounded-2xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-sky-400 focus:border-sky-400" required />
+          <form onSubmit={handleRegister} className="space-y-4">
+            {/* HỌ VÀ TÊN */}
+            <div className="space-y-1.5">
+              <label className="block text-xs font-black text-[#0f2a4a] uppercase tracking-wide">
+                HỌ VÀ TÊN <span className="text-red-500">*</span>
+              </label>
+              <div className="relative">
+                <User className="w-5 h-5 text-[#0080FF] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <input
+                  type="text"
+                  value={regFullName}
+                  onChange={e => setRegFullName(e.target.value)}
+                  placeholder="Nhập họ và tên của bạn"
+                  className="w-full pl-11 pr-4 h-12 bg-white border border-[#b9d6fb] rounded-2xl text-sm font-medium text-slate-800 placeholder-[#9ab3d1] focus:outline-none focus:border-[#0066FF] focus:ring-2 focus:ring-[#0066FF]/20 shadow-xs transition-all"
+                  required
+                />
               </div>
             </div>
-            <div className="py-4 first:pt-0">
-              <label className="text-[13px] font-extrabold text-gray-900 uppercase tracking-wide">Số điện thoại *</label>
-              <div className="mt-1 relative flex gap-2">
+
+            {/* SỐ ĐIỆN THOẠI */}
+            <div className="space-y-1.5">
+              <label className="block text-xs font-black text-[#0f2a4a] uppercase tracking-wide">
+                SỐ ĐIỆN THOẠI <span className="text-red-500">*</span>
+              </label>
+              <div className="flex gap-2.5 items-center">
                 <div className="relative flex-1">
-                  <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#6aabcc]" />
+                  <Phone className="w-5 h-5 text-[#0080FF] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                   <input
                     type="tel"
                     value={regPhone}
                     onChange={e => setRegPhone(e.target.value)}
-                    placeholder="0900000000"
-                    className="w-full pl-10 pr-4 py-3 border border-sky-200 rounded-2xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-sky-400 focus:border-sky-400"
+                    placeholder="Nhập số điện thoại"
+                    className="w-full pl-11 pr-3 h-12 bg-white border border-[#b9d6fb] rounded-2xl text-sm font-medium text-slate-800 placeholder-[#9ab3d1] focus:outline-none focus:border-[#0066FF] focus:ring-2 focus:ring-[#0066FF]/20 shadow-xs transition-all"
                     required
                   />
                 </div>
@@ -370,269 +368,286 @@ export default function UnifiedAuthModal({ isOpen, onClose, initialTab = 'login'
                   type="button"
                   onClick={handleSendOtp}
                   disabled={otpLoading || otpCooldown > 0 || !regPhone.trim()}
-                  className="px-4 py-2.5 bg-gradient-to-r from-primary to-primary-dark text-white text-xs font-bold rounded-2xl hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap flex items-center gap-1.5 shadow-md transition-all active:scale-95"
+                  className="h-12 px-4 sm:px-5 rounded-2xl bg-[#0066FF] hover:bg-[#0052cc] active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5 shadow-[0_4px_12px_rgba(0,102,255,0.3)] shrink-0 transition-all cursor-pointer whitespace-nowrap"
                 >
-                  <Shield className="w-3.5 h-3.5" />
-                  {otpLoading ? '...' : otpCooldown > 0 ? `${otpCooldown}s` : 'Gửi OTP'}
+                  <Shield className="w-4 h-4 stroke-[2.2]" />
+                  <span>{otpLoading ? '...' : otpCooldown > 0 ? `${otpCooldown}s` : 'Gửi OTP'}</span>
                 </button>
               </div>
             </div>
 
-            {/* Mã xác thực OTP Zalo */}
-            <div>
-              <div className="flex items-center justify-between">
-                <label className="text-[13px] font-extrabold text-gray-900 uppercase tracking-wide">Mã xác thực Zalo (OTP) *</label>
-                {otpSent && <span className="text-[11px] text-sky-600 font-semibold flex items-center gap-1">✓ Đã gửi mã qua Zalo</span>}
-              </div>
-              <div className="mt-1 relative">
-                <Shield className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#4a9fd4]" />
+            {/* MÃ XÁC THỰC ZALO (OTP) */}
+            <div className="space-y-1.5">
+              <label className="block text-xs font-black text-[#0f2a4a] uppercase tracking-wide">
+                MÃ XÁC THỰC ZALO (OTP) <span className="text-red-500">*</span>
+              </label>
+              <div className="relative">
+                <MessageCircle className="w-5 h-5 text-[#0080FF] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                 <input
                   type="text"
                   inputMode="numeric"
-                  autoComplete="off"
+                  maxLength={6}
                   value={regOtp}
                   onChange={e => setRegOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
                   placeholder="Nhập mã 6 số gửi từ Zalo Water King"
-                  className="w-full pl-10 pr-4 py-3 border border-sky-200/70 rounded-xl text-sm font-mono tracking-widest focus:ring-2 focus:ring-primary/30 focus:border-primary bg-white shadow-sm"
+                  className="w-full pl-11 pr-4 h-12 bg-white border border-[#b9d6fb] rounded-2xl text-sm font-medium text-slate-800 placeholder-[#9ab3d1] focus:outline-none focus:border-[#0066FF] focus:ring-2 focus:ring-[#0066FF]/20 shadow-xs transition-all font-mono tracking-wider"
                   required
-                  maxLength={6}
                 />
               </div>
-              <p className="text-[11px] text-slate-400 mt-1 flex items-start gap-1">
-                * Tin nhắn từ Zalo OA <strong>Water King</strong> chứa mã xác thực gồm 6 số.
-              </p>
+              <div className="flex items-center gap-1.5 text-[11px] text-[#557394] font-normal pt-0.5">
+                <Info className="w-3.5 h-3.5 text-[#557394] shrink-0" />
+                <span>Tin nhắn từ Zalo OA Water King chứa mã xác thực gồm 6 số.</span>
+              </div>
             </div>
 
-            {/* Mật khẩu & Nhập lại mật khẩu */}
-            <div>
-              <div className="flex items-center justify-between">
-                <label className="text-[13px] font-extrabold text-gray-900 uppercase tracking-wide">Mật khẩu *</label>
-                <button
-                  type="button"
-                  onClick={() => setShowRegPassword(!showRegPassword)}
-                  className="text-xs text-gray-400 hover:text-gray-600 flex items-center gap-1"
-                >
-                  {showRegPassword ? <><EyeOff className="w-3.5 h-3.5" /> Ẩn</> : <><Eye className="w-3.5 h-3.5" /> Hiện</>}
-                </button>
-              </div>
-              <div className="mt-1 relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#6aabcc]" />
+            {/* MẬT KHẨU */}
+            <div className="space-y-1.5">
+              <label className="block text-xs font-black text-[#0f2a4a] uppercase tracking-wide">
+                MẬT KHẨU <span className="text-red-500">*</span>
+              </label>
+              <div className="relative">
+                <Lock className="w-5 h-5 text-[#0080FF] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                 <input
                   type={showRegPassword ? 'text' : 'password'}
                   value={regPassword}
                   onChange={e => setRegPassword(e.target.value)}
                   placeholder="Tối thiểu 8 ký tự (hoa, thường, số, ký tự đặc biệt)"
-                  className="w-full pl-10 pr-10 py-3 border border-sky-200 rounded-2xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-sky-400 focus:border-sky-400"
+                  className="w-full pl-11 pr-11 h-12 bg-white border border-[#b9d6fb] rounded-2xl text-sm font-medium text-slate-800 placeholder-[#9ab3d1] focus:outline-none focus:border-[#0066FF] focus:ring-2 focus:ring-[#0066FF]/20 shadow-xs transition-all"
                   required
                   minLength={8}
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowRegPassword(!showRegPassword)}
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[#7d99b8] hover:text-[#0066FF] p-1 transition-colors"
+                >
+                  {showRegPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                </button>
               </div>
-              <p className="text-[11px] text-gray-600 mt-1">
-                * Mật khẩu tối thiểu 8 ký tự, bao gồm: chữ thường, chữ HOA, số và ký tự đặc biệt (VD: Wasy@2026).
-              </p>
             </div>
 
-            <div className="py-4 first:pt-0">
-              <label className="text-[13px] font-extrabold text-gray-900 uppercase tracking-wide">Nhập lại mật khẩu *</label>
-              <div className="mt-1 relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#6aabcc]" />
+            {/* NHẬP LẠI MẬT KHẨU */}
+            <div className="space-y-1.5">
+              <label className="block text-xs font-black text-[#0f2a4a] uppercase tracking-wide">
+                NHẬP LẠI MẬT KHẨU <span className="text-red-500">*</span>
+              </label>
+              <div className="relative">
+                <Lock className="w-5 h-5 text-[#0080FF] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                 <input
-                  type={showRegPassword ? 'text' : 'password'}
+                  type={showRegConfirmPassword ? 'text' : 'password'}
                   value={regConfirmPassword}
                   onChange={e => setRegConfirmPassword(e.target.value)}
                   placeholder="Nhập lại mật khẩu vừa đặt"
-                  className="w-full pl-10 pr-4 py-3 border border-sky-200 rounded-2xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-sky-400 focus:border-sky-400"
+                  className="w-full pl-11 pr-11 h-12 bg-white border border-[#b9d6fb] rounded-2xl text-sm font-medium text-slate-800 placeholder-[#9ab3d1] focus:outline-none focus:border-[#0066FF] focus:ring-2 focus:ring-[#0066FF]/20 shadow-xs transition-all"
                   required
                   minLength={8}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowRegConfirmPassword(!showRegConfirmPassword)}
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[#7d99b8] hover:text-[#0066FF] p-1 transition-colors"
+                >
+                  {showRegConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                </button>
+              </div>
+            </div>
+
+            {/* MÃ NGƯỜI GIỚI THIỆU (NẾU CÓ) */}
+            <div className="space-y-1.5">
+              <label className="block text-xs font-black text-[#0f2a4a] uppercase tracking-wide">
+                MÃ NGƯỜI GIỚI THIỆU (NẾU CÓ)
+              </label>
+              <div className="relative">
+                <Users className="w-5 h-5 text-[#0080FF] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <input
+                  type="text"
+                  value={regRefCode}
+                  onChange={e => !hasReferral && setRegRefCode(e.target.value)}
+                  readOnly={hasReferral}
+                  placeholder="Nhập mã người giới thiệu"
+                  className={`w-full pl-11 pr-11 h-12 bg-white border border-[#b9d6fb] rounded-2xl text-sm font-medium text-slate-800 placeholder-[#9ab3d1] focus:outline-none focus:border-[#0066FF] focus:ring-2 focus:ring-[#0066FF]/20 shadow-xs transition-all ${
+                    hasReferral ? 'bg-[#f4f9ff] font-bold text-[#0066FF] cursor-not-allowed' : ''
+                  }`}
+                />
+                <Gift className="w-5 h-5 text-[#0080FF] absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+              </div>
+            </div>
+
+            {/* SUBMIT BUTTON: ĐĂNG KÝ NGAY */}
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full h-14 rounded-2xl sm:rounded-[22px] bg-gradient-to-r from-[#0066FF] via-[#0084FF] to-[#00A3FF] hover:opacity-95 active:scale-[0.98] text-white font-black text-base tracking-wider flex items-center justify-center gap-3 shadow-[0_10px_25px_rgba(0,102,255,0.42)] transition-all cursor-pointer mt-4 disabled:opacity-60"
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  <span>ĐANG TẠO TÀI KHOẢN...</span>
+                </>
+              ) : (
+                <>
+                  <span>ĐĂNG KÝ NGAY</span>
+                  <span className="w-7 h-7 rounded-full bg-white/20 flex items-center justify-center">
+                    <ArrowRight className="w-4 h-4 text-white stroke-[2.5]" />
+                  </span>
+                </>
+              )}
+            </button>
+          </form>
+        )}
+
+        {/* ─── LOGIN FORM ─── */}
+        {tab === 'login' && (
+          <form onSubmit={handleLogin} className="space-y-4">
+            {/* SỐ ĐIỆN THOẠI */}
+            <div className="space-y-1.5">
+              <label className="block text-xs font-black text-[#0f2a4a] uppercase tracking-wide">
+                SỐ ĐIỆN THOẠI <span className="text-red-500">*</span>
+              </label>
+              <div className="relative">
+                <Phone className="w-5 h-5 text-[#0080FF] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <input
+                  type="tel"
+                  value={loginPhone}
+                  onChange={e => setLoginPhone(e.target.value)}
+                  placeholder="Nhập số điện thoại của bạn"
+                  className="w-full pl-11 pr-4 h-12 bg-white border border-[#b9d6fb] rounded-2xl text-sm font-medium text-slate-800 placeholder-[#9ab3d1] focus:outline-none focus:border-[#0066FF] focus:ring-2 focus:ring-[#0066FF]/20 shadow-xs transition-all"
+                  required
                 />
               </div>
             </div>
 
-            {/* Conditional: Ref Link vs Direct Guest */}
-            {hasReferral ? (
-              <>
-                <div>
-                  <div className="flex items-center justify-between">
-                    <label className="text-xs font-bold text-gray-700 uppercase tracking-wide">Mã người giới thiệu</label>
-                    <span className="text-[11px] font-semibold text-sky-700 flex items-center gap-1">
-                      <Lock className="w-3 h-3 text-sky-600" /> Đã khóa bảo trợ
-                    </span>
-                  </div>
-                  <div className="mt-1 relative">
-                    <UserPlus className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-sky-600" />
-                    <input
-                      type="text"
-                      value={effectiveRefCode}
-                      readOnly
-                      disabled
-                      className="w-full pl-10 pr-10 py-3 border border-sky-200 bg-sky-50 rounded-2xl text-sm font-bold text-sky-900 cursor-not-allowed select-none"
-                    />
-                    <Lock className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-sky-600" />
-                  </div>
-                  <p className="text-[11px] text-gray-600 mt-1">
-                    Mã bảo trợ được gán tự động từ liên kết giới thiệu và không thể thay đổi.
-                  </p>
-                </div>
-
-                {/* 3 Lựa chọn: Đại Sứ / Nhà Phân Phối / Cổ Đông */}
-                <div className="space-y-2">
-                  {/* Dòng 1: Tham gia làm Đại sứ */}
-                  <div
-                    onClick={() => { setRegType(regType === 'ctv' ? 'none' : 'ctv'); setSelectedPackageId(''); }}
-                    className={`p-3 rounded-xl border-2 cursor-pointer transition-all ${regType === 'ctv' ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300'}`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${regType === 'ctv' ? 'border-blue-500' : 'border-gray-300'}`}>
-                        {regType === 'ctv' && <div className="w-2.5 h-2.5 rounded-full bg-blue-500" />}
-                      </div>
-                      <div>
-                        <div className="font-bold text-sm flex items-center gap-1.5">👥 Tham gia làm Đại sứ</div>
-                        <div className="text-xs text-gray-500 mt-0.5">Tích lũy điểm hoa hồng từ đơn hàng, nhận Business ID khi đạt 5.000 CP</div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Dòng 2: Nhà Phân Phối (NPP) — Chỉ gói Combo */}
-                  <div
-                    onClick={() => { setRegType(regType === 'npp' ? 'none' : 'npp'); setSelectedPackageId(''); }}
-                    className={`p-3 rounded-xl border-2 cursor-pointer transition-all ${regType === 'npp' ? 'border-sky-500 bg-sky-50' : 'border-gray-200 hover:border-gray-300'}`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${regType === 'npp' ? 'border-sky-500' : 'border-gray-300'}`}>
-                        {regType === 'npp' && <div className="w-2.5 h-2.5 rounded-full bg-sky-500" />}
-                      </div>
-                      <div>
-                        <div className="font-bold text-sm flex items-center gap-1.5">🏪 Đăng ký trở thành Nhà Phân Phối (NPP)</div>
-                        <div className="text-xs text-gray-500 mt-0.5">Đăng ký tham gia hệ thống NPP và lựa chọn gói Combo NPP.</div>
-                      </div>
-                    </div>
-
-                    {/* NPP Package Selection — ONLY PRODUCT_COMBO */}
-                    {regType === 'npp' && comboPackages.length > 0 && (
-                      <div className="mt-3 ml-8 space-y-2">
-                        <label className="text-xs font-bold text-gray-700">Chọn gói Combo NPP <span className="font-normal text-gray-400">(không bắt buộc — có thể chọn sau)</span></label>
-                        {comboPackages.map(pkg => (
-                          <div
-                            key={pkg.id}
-                            onClick={(e) => { e.stopPropagation(); setSelectedPackageId(selectedPackageId === pkg.id ? '' : pkg.id); }}
-                            className={`p-2.5 rounded-lg border cursor-pointer transition-all ${selectedPackageId === pkg.id ? 'border-sky-400 bg-sky-50' : 'border-gray-200 hover:border-gray-300'}`}
-                          >
-                            <div className="flex items-center gap-2">
-                              <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${selectedPackageId === pkg.id ? 'border-sky-500' : 'border-gray-300'}`}>
-                                {selectedPackageId === pkg.id && <div className="w-2 h-2 rounded-full bg-sky-500" />}
-                              </div>
-                              <div>
-                                <div className="font-bold text-sm">{pkg.name}</div>
-                                <div className="text-xs text-gray-500">
-                                  {pkg.requiredQuantity} máy · CK {(pkg.defaultDiscount / 100).toFixed(0)}% · Cấp bậc: {getRankLabel(pkg.assignedRank)}
-                                </div>
-                              </div>
-                            </div>
-                            {pkg.description && <div className="text-[11px] text-gray-400 mt-1 ml-6">{pkg.description}</div>}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Dòng 3: Chương trình Cổ đông — Chỉ gói vốn (CAPITAL) */}
-                  <div
-                    onClick={() => { setRegType(regType === 'shareholder' ? 'none' : 'shareholder'); setSelectedPackageId(''); }}
-                    className={`p-3 rounded-xl border-2 cursor-pointer transition-all ${regType === 'shareholder' ? 'border-amber-500 bg-amber-50' : 'border-gray-200 hover:border-gray-300'}`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${regType === 'shareholder' ? 'border-amber-500' : 'border-gray-300'}`}>
-                        {regType === 'shareholder' && <div className="w-2.5 h-2.5 rounded-full bg-amber-500" />}
-                      </div>
-                      <div>
-                        <div className="font-bold text-sm flex items-center gap-1.5">👑 Chương trình Cổ đông</div>
-                        <div className="text-xs text-gray-500 mt-0.5">Tham gia góp vốn cổ đông và lựa chọn gói giá vốn (300tr, 500tr, 1 Tỷ, 2 Tỷ...)</div>
-                      </div>
-                    </div>
-
-                    {/* Shareholder Package Selection — ONLY CAPITAL */}
-                    {regType === 'shareholder' && capitalPackages.length > 0 && (
-                      <div className="mt-3 ml-8 space-y-2">
-                        <label className="text-xs font-bold text-gray-700">Chọn gói Cổ đông <span className="font-normal text-gray-400">(không bắt buộc — có thể chọn sau)</span></label>
-                        {capitalPackages.map(pkg => (
-                          <div
-                            key={pkg.id}
-                            onClick={(e) => { e.stopPropagation(); setSelectedPackageId(selectedPackageId === pkg.id ? '' : pkg.id); }}
-                            className={`p-2.5 rounded-lg border cursor-pointer transition-all ${selectedPackageId === pkg.id ? 'border-amber-400 bg-amber-50' : 'border-gray-200 hover:border-gray-300'}`}
-                          >
-                            <div className="flex items-center gap-2">
-                              <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${selectedPackageId === pkg.id ? 'border-amber-500' : 'border-gray-300'}`}>
-                                {selectedPackageId === pkg.id && <div className="w-2 h-2 rounded-full bg-amber-500" />}
-                              </div>
-                              <div>
-                                <div className="font-bold text-sm">{pkg.name}</div>
-                                <div className="text-xs text-gray-500">
-                                  {pkg.grossPrice ? <span className="font-semibold text-amber-700">{formatVND(pkg.grossPrice)} · </span> : ''}
-                                  Cấp bậc: {getRankLabel(pkg.assignedRank)}
-                                </div>
-                              </div>
-                            </div>
-                            {pkg.description && <div className="text-[11px] text-gray-400 mt-1 ml-6">{pkg.description}</div>}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </>
-            ) : (
-              /* Khách vãng lai trực tiếp: Ô Mã giới thiệu bị khóa + Nút liên hệ Zalo OA & Hotline */
-              <div className="space-y-3">
-                <div>
-                  <div className="flex items-center justify-between">
-                    <label className="text-[13px] font-extrabold text-gray-900 uppercase tracking-wide">Mã người giới thiệu</label>
-                    <span className="text-[11px] font-semibold text-gray-400 flex items-center gap-1">
-                      <Lock className="w-3 h-3 text-gray-400" /> Đã khóa
-                    </span>
-                  </div>
-                  <div className="mt-1 relative">
-                    <UserPlus className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#6aabcc]" />
-                    <input
-                      type="text"
-                      value=""
-                      placeholder="Chưa có mã giới thiệu"
-                      readOnly
-                      disabled
-                      className="w-full pl-10 pr-10 py-3 border border-sky-200 bg-gray-50 rounded-2xl text-sm text-gray-400 cursor-not-allowed select-none focus:outline-none"
-                    />
-                    <Lock className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  </div>
-                </div>
-
-                {/* Xuống dòng hiển thị Zalo OA và Hotline */}
-                <div className="flex flex-col sm:flex-row gap-2">
-                  <a
-                    href="https://zalo.me/2928413591064686973"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex-1 py-2.5 px-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 shadow-sm transition-colors text-center"
-                  >
-                    <span>💬 Zalo OA Water King</span>
-                  </a>
-                  <a
-                    href="tel:1900989878"
-                    className="flex-1 py-2.5 px-3 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 shadow-sm transition-colors text-center"
-                  >
-                    <span>📞 Hotline: 1900 989878</span>
-                  </a>
-                </div>
+            {/* MẬT KHẨU */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <label className="block text-xs font-black text-[#0f2a4a] uppercase tracking-wide">
+                  MẬT KHẨU <span className="text-red-500">*</span>
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setShowLoginPassword(!showLoginPassword)}
+                  className="text-xs text-[#0066FF] font-semibold hover:underline"
+                >
+                  {showLoginPassword ? 'Ẩn' : 'Hiện'}
+                </button>
               </div>
-            )}
+              <div className="relative">
+                <Lock className="w-5 h-5 text-[#0080FF] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <input
+                  type={showLoginPassword ? 'text' : 'password'}
+                  value={loginPassword}
+                  onChange={e => setLoginPassword(e.target.value)}
+                  placeholder="Nhập mật khẩu"
+                  className="w-full pl-11 pr-11 h-12 bg-white border border-[#b9d6fb] rounded-2xl text-sm font-medium text-slate-800 placeholder-[#9ab3d1] focus:outline-none focus:border-[#0066FF] focus:ring-2 focus:ring-[#0066FF]/20 shadow-xs transition-all"
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowLoginPassword(!showLoginPassword)}
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[#7d99b8] hover:text-[#0066FF] p-1 transition-colors"
+                >
+                  {showLoginPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                </button>
+              </div>
+            </div>
 
-            <button type="submit" disabled={loading} className="w-full py-4 bg-gradient-to-r from-primary-light via-primary to-primary-dark text-white font-black rounded-full hover:opacity-90 shadow-lg shadow-sky-400/30 transition-all flex items-center justify-center gap-2.5 disabled:opacity-50 active:scale-[0.97] text-[15px] tracking-wider">
-              {loading ? <><Loader2 className="w-4 h-4 animate-spin" /><span>ĐANG TẠO TÀI KHOẢN...</span></> : <><span>{hasReferral ? 'ĐĂNG KÝ NGAY' : 'ĐĂNG KÝ NGAY'}</span><ChevronRight className="w-5 h-5" /></>}
+            {/* SUBMIT BUTTON: ĐĂNG NHẬP NGAY */}
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full h-14 rounded-2xl sm:rounded-[22px] bg-gradient-to-r from-[#0066FF] via-[#0084FF] to-[#00A3FF] hover:opacity-95 active:scale-[0.98] text-white font-black text-base tracking-wider flex items-center justify-center gap-3 shadow-[0_10px_25px_rgba(0,102,255,0.42)] transition-all cursor-pointer mt-4 disabled:opacity-60"
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  <span>ĐANG ĐĂNG NHẬP...</span>
+                </>
+              ) : (
+                <>
+                  <span>ĐĂNG NHẬP NGAY</span>
+                  <span className="w-7 h-7 rounded-full bg-white/20 flex items-center justify-center">
+                    <ArrowRight className="w-4 h-4 text-white stroke-[2.5]" />
+                  </span>
+                </>
+              )}
             </button>
-            <div className="text-center text-xs text-gray-500">
-              <span>Đã có tài khoản? </span>
-              <button type="button" onClick={() => switchTab('login')} className="text-primary font-bold hover:underline">Đăng nhập</button>
+
+            {/* Quên mật khẩu & Hỗ trợ */}
+            <div className="text-center text-xs text-[#557394] pt-1">
+              <span>Quên mật khẩu? </span>
+              <a href="tel:1900989878" className="text-red-600 font-bold hover:underline">
+                Hotline: 1900 989878
+              </a>
+              <span className="mx-1.5">·</span>
+              <a
+                href="https://zalo.me/2928413591064686973"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-blue-600 font-bold hover:underline"
+              >
+                Zalo OA
+              </a>
             </div>
           </form>
         )}
+
+        {/* ─── SOCIAL LOGIN DIVIDER ─── */}
+        <div className="relative my-6 text-center">
+          <div className="absolute inset-0 flex items-center">
+            <div className="w-full border-t border-[#d8e8fa]" />
+          </div>
+          <span className="relative bg-white px-3 text-[11px] font-bold text-[#627d9a] uppercase tracking-wider">
+            HOẶC ĐĂNG KÝ BẰNG
+          </span>
+        </div>
+
+        {/* ─── 3 SOCIAL ICONS: GOOGLE, FACEBOOK, ZALO ─── */}
+        <div className="flex items-center justify-center gap-4">
+          {/* Google */}
+          <button
+            type="button"
+            className="w-11 h-11 rounded-full bg-white border border-[#e1eaf5] shadow-xs flex items-center justify-center hover:scale-110 active:scale-95 transition-all cursor-pointer hover:shadow-md"
+            title="Đăng ký bằng Google"
+          >
+            <svg className="w-5 h-5" viewBox="0 0 24 24">
+              <path
+                fill="#4285F4"
+                d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+              />
+              <path
+                fill="#34A853"
+                d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+              />
+              <path
+                fill="#FBBC05"
+                d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
+              />
+              <path
+                fill="#EA4335"
+                d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
+              />
+            </svg>
+          </button>
+
+          {/* Facebook */}
+          <button
+            type="button"
+            className="w-11 h-11 rounded-full bg-[#1877F2] shadow-[0_2px_8px_rgba(24,119,242,0.3)] flex items-center justify-center hover:scale-110 active:scale-95 transition-all text-white cursor-pointer hover:shadow-md"
+            title="Đăng ký bằng Facebook"
+          >
+            <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
+              <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
+            </svg>
+          </button>
+
+          {/* Zalo */}
+          <button
+            type="button"
+            className="w-11 h-11 rounded-full bg-white border border-[#0068FF] shadow-xs flex items-center justify-center hover:scale-110 active:scale-95 transition-all cursor-pointer hover:shadow-md"
+            title="Đăng ký bằng Zalo"
+          >
+            <span className="text-[#0068FF] font-black text-xs tracking-tight">Zalo</span>
+          </button>
         </div>
       </div>
     </div>
