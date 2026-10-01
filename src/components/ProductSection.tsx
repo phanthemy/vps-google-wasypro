@@ -17,7 +17,8 @@ import {
   PhoneCall,
   Wrench,
   Coffee,
-  CheckCircle2
+  CheckCircle2,
+  Package
 } from 'lucide-react';
 
 interface ProductSectionProps {
@@ -32,32 +33,15 @@ interface CustomTab {
   description: string;
 }
 
-// 3 Nhóm danh mục chính theo yêu cầu của Sếp + Tab Tất Cả
-const CATEGORY_TABS: CustomTab[] = [
-  { 
-    id: 'may-loc-nuoc', 
-    name: 'Máy Lọc Nước', 
-    icon: Droplet,
-    description: 'Máy lọc nước Ion kiềm & Hydrogen công nghệ cao'
-  },
-  { 
-    id: 'binh-ly-hydrogen', 
-    name: 'Bình Ly Hydrogen', 
-    icon: Coffee,
-    description: 'Bình & ly tạo nước Hydrogen di động cao cấp'
-  },
-  { 
-    id: 'phu-kien', 
-    name: 'Phụ Kiện Máy Lọc Nước', 
-    icon: Wrench,
-    description: 'Lõi lọc, linh kiện & thiết bị đo kiểm tra nước'
-  },
-  { 
-    id: 'all', 
-    name: 'Tất Cả Sản Phẩm', 
-    icon: CheckCircle2,
-    description: 'Toàn bộ danh mục sản phẩm chính hãng'
-  }
+// Icon map for dynamic categories
+const ICON_MAP: Record<string, React.ElementType> = {
+  droplet: Droplet, coffee: Coffee, wrench: Wrench, tool: Wrench, tag: Tag,
+  box: Package, beaker: Droplet, flask: Droplet, filter: Droplet,
+};
+
+// Fallback hardcoded tabs (used before API loads)
+const FALLBACK_TABS: CustomTab[] = [
+  { id: 'all', name: 'Tất Cả Sản Phẩm', icon: CheckCircle2, description: 'Toàn bộ sản phẩm' },
 ];
 
 export const ProductSection: React.FC<ProductSectionProps> = ({
@@ -65,8 +49,31 @@ export const ProductSection: React.FC<ProductSectionProps> = ({
   onCallHotline,
 }) => {
   const [allProducts, setAllProducts] = useState<Product[]>([]);
-  // MẶC ĐỊNH KHI TRUY CẬP VÀO: Chọn ngay tab "Máy Lọc Nước"
-  const [selectedCategory, setSelectedCategory] = useState<string>('may-loc-nuoc');
+  const [categoryTabs, setCategoryTabs] = useState<CustomTab[]>(FALLBACK_TABS);
+  // MẶC ĐỊNH KHI TRUY CẬP VÀO: Chọn ngay tab đầu tiên
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
+
+  // Fetch categories from API
+  useEffect(() => {
+    fetch('/api/product-categories')
+      .then(r => r.json())
+      .then((cats: any[]) => {
+        if (Array.isArray(cats) && cats.length > 0) {
+          const dynamicTabs: CustomTab[] = cats.map(c => ({
+            id: c.slug || c.id,
+            name: c.name,
+            icon: ICON_MAP[c.icon || 'tag'] || Tag,
+            description: c.description || c.name,
+            _categoryId: c.id, // store actual DB id for filtering
+          }));
+          dynamicTabs.push({ id: 'all', name: 'Tất Cả Sản Phẩm', icon: CheckCircle2, description: 'Toàn bộ sản phẩm' });
+          setCategoryTabs(dynamicTabs);
+          // Default to first category
+          if (dynamicTabs.length > 1) setSelectedCategory(dynamicTabs[0].id);
+        }
+      })
+      .catch(() => {});
+  }, []);
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [sortBy, setSortBy] = useState<string>('price_desc'); // Default: Giá cao đến thấp
   
@@ -94,40 +101,15 @@ export const ProductSection: React.FC<ProductSectionProps> = ({
     loadAllProducts();
   }, []);
 
-  // Hàm kiểm tra sản phẩm thuộc Tab nào
+  // Hàm kiểm tra sản phẩm thuộc Tab nào — dynamic from API categories
   const isProductInTab = (product: Product, tabId: string): boolean => {
     if (tabId === 'all') return true;
 
-    const titleLower = (product.title || '').toLowerCase();
-    const catId = product.categoryId;
+    // Find the tab to get its _categoryId
+    const tab = categoryTabs.find(t => t.id === tabId) as any;
+    if (!tab || !tab._categoryId) return true;
 
-    // 1. MÁY LỌC NƯỚC: Gom Máy Ion Kiềm (cat-01) & Máy Hydrogen (cat-02)
-    if (tabId === 'may-loc-nuoc') {
-      const isMachine = catId === 'cat-01' || catId === 'cat-02' || titleLower.includes('máy');
-      const isAccessory = catId === 'cat-04' || catId === 'cat-05' || 
-                          titleLower.includes('lõi') || 
-                          titleLower.includes('bộ điện phân') || 
-                          titleLower.includes('bút đo') || 
-                          titleLower.includes('màn chống');
-      return isMachine && !isAccessory;
-    }
-
-    // 2. BÌNH LY HYDROGEN: cat-03 hoặc chứa chữ bình, ly
-    if (tabId === 'binh-ly-hydrogen') {
-      return catId === 'cat-03' || titleLower.includes('bình') || titleLower.includes('ly');
-    }
-
-    // 3. PHỤ KIỆN MÁY LỌC NƯỚC: Lõi lọc, màng lọc, bút đo, phụ kiện
-    if (tabId === 'phu-kien') {
-      return catId === 'cat-04' || catId === 'cat-05' || 
-             titleLower.includes('lõi') || 
-             titleLower.includes('phụ kiện') || 
-             titleLower.includes('điện phân') || 
-             titleLower.includes('bút đo') || 
-             titleLower.includes('màn chống');
-    }
-
-    return true;
+    return product.categoryId === tab._categoryId;
   };
 
   // Đếm số lượng sản phẩm mỗi Tab
@@ -198,7 +180,7 @@ export const ProductSection: React.FC<ProductSectionProps> = ({
           
           {/* HÀNG TAB CHÍNH (Gồm: Máy lọc nước, Bình ly hydrogen, Phụ kiện máy lọc nước, Tất cả) */}
           <div className="flex items-center gap-2 overflow-x-auto pb-1.5 pt-0.5 scrollbar-none">
-            {CATEGORY_TABS.map((tab) => {
+            {categoryTabs.map((tab) => {
               const Icon = tab.icon;
               const isSelected = selectedCategory === tab.id;
               const count = tabCounts[tab.id] || 0;
