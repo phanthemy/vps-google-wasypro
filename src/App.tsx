@@ -40,6 +40,7 @@ import { useUnifiedAuth, UserSession } from './hooks/useUnifiedAuth';
 import { useReferralAttribution } from './hooks/useReferralAttribution';
 
 import { Product, AdminUser } from './types/schema';
+import { AdminCategories } from './components/admin/AdminCategories';
 import { 
   PhoneCall, 
   MessageSquare, 
@@ -326,6 +327,7 @@ export const App: React.FC = () => {
               <AdminOverview onNavigateTab={(tab) => setAdminActiveTab(tab)} />
             )}
             {adminActiveTab === 'products' && <AdminProducts />}
+              {adminActiveTab === 'categories' && <AdminCategories />}
             {adminActiveTab === 'warranties' && <AdminWarranties />}
             {adminActiveTab === 'leads' && <AdminLeads />}
             {adminActiveTab === 'orders' && <AdminOrders />}
