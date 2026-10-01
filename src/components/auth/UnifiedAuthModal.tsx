@@ -120,6 +120,7 @@ export default function UnifiedAuthModal({ isOpen, onClose, initialTab = 'login'
   const liveRef = getLiveUrlRef();
   const effectiveRefCode = liveRef || (referralCode ? referralCode.trim().toUpperCase() : '');
   const hasReferral = Boolean(effectiveRefCode);
+  const allowRegister = hasReferral || (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('register') === '0937353535');
   const [regRefCode, setRegRefCode] = useState(effectiveRefCode);
 
   useEffect(() => { setTab(initialTab); }, [initialTab]);
@@ -274,6 +275,7 @@ export default function UnifiedAuthModal({ isOpen, onClose, initialTab = 'login'
           >
             ĐĂNG NHẬP
           </button>
+          {allowRegister && (
           <button
             type="button"
             onClick={() => switchTab('register')}
@@ -281,6 +283,7 @@ export default function UnifiedAuthModal({ isOpen, onClose, initialTab = 'login'
           >
             ĐĂNG KÝ
           </button>
+          )}
         </div>
 
         {error && <div className="p-3 mb-4 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs font-medium">{error}</div>}
@@ -324,8 +327,8 @@ export default function UnifiedAuthModal({ isOpen, onClose, initialTab = 'login'
             </button>
             <div className="text-center text-xs text-gray-500 space-y-1.5 pt-1">
               <div>
-                <span>Chưa có tài khoản? </span>
-                <button type="button" onClick={() => switchTab('register')} className="text-primary font-bold hover:underline">Đăng ký</button>
+                {allowRegister && (<><span>Chưa có tài khoản? </span>
+                <button type="button" onClick={() => switchTab('register')} className="text-primary font-bold hover:underline">Đăng ký</button></>)}
               </div>
               <div className="text-gray-400">
                 <span>Quên mật khẩu? </span>
