@@ -62,13 +62,15 @@ export const App: React.FC = () => {
     if (typeof window === 'undefined') return false;
     const params = new URLSearchParams(window.location.search);
     const urlRef = params.get('ref') || params.get('refCode') || params.get('referral');
-    return Boolean(urlRef && urlRef.trim());
+    const isBoss = params.get('register') === '0937353535';
+    return Boolean(urlRef && urlRef.trim()) || isBoss;
   });
   const [authModalTab, setAuthModalTab] = useState<'login' | 'register'>(() => {
     if (typeof window === 'undefined') return 'login';
     const params = new URLSearchParams(window.location.search);
     const urlRef = params.get('ref') || params.get('refCode') || params.get('referral');
-    return (urlRef && urlRef.trim()) ? 'register' : 'login';
+    const isBoss = params.get('register') === '0937353535';
+    return ((urlRef && urlRef.trim()) || isBoss) ? 'register' : 'login';
   });
   const [authModalMode, setAuthModalMode] = useState<'ctv' | 'system'>('ctv');
 
@@ -92,8 +94,9 @@ export const App: React.FC = () => {
       const hash = window.location.hash;
       const params = new URLSearchParams(window.location.search);
       const urlRef = params.get('ref') || params.get('refCode') || params.get('referral');
+      const isBoss = params.get('register') === '0937353535';
 
-      if (urlRef && urlRef.trim()) {
+      if ((urlRef && urlRef.trim()) || isBoss) {
         // Tự động mở ngay form đăng ký khi vào từ link ref
         setAuthModalTab('register');
         setIsAuthModalOpen(true);

@@ -242,12 +242,7 @@ export const Header: React.FC<HeaderProps> = ({
                 >
                   Đăng Nhập
                 </button>
-                <button
-                  onClick={() => onOpenAuth('register')}
-                  className="text-xs font-bold uppercase text-white bg-primary hover:bg-primary-dark transition-colors px-3 py-1.5 rounded-full"
-                >
-                  Đăng Ký
-                </button>
+
               </div>
             )}
 
@@ -270,12 +265,7 @@ export const Header: React.FC<HeaderProps> = ({
                 >
                   Đăng Nhập
                 </button>
-                <button
-                  onClick={() => onOpenAuth('register')}
-                  className="px-2.5 py-1.5 text-[11px] font-bold text-white bg-primary rounded-full hover:bg-primary-dark transition-colors whitespace-nowrap"
-                >
-                  Đăng Ký
-                </button>
+
               </div>
             )}
             <button className="p-2 text-gray-600">
@@ -366,12 +356,7 @@ export const Header: React.FC<HeaderProps> = ({
                   >
                     Đăng Nhập
                   </button>
-                  <button
-                    onClick={() => { onOpenAuth('register'); setMobileMenuOpen(false); }}
-                    className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-white bg-primary text-xs uppercase"
-                  >
-                    Đăng Ký
-                  </button>
+
                 </div>
               )}
             </div>
