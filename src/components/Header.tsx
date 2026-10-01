@@ -260,7 +260,24 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
 
           {/* Mobile Menu Toggle Button */}
-          <div className="flex lg:hidden items-center gap-2 text-primary">
+          <div className="flex lg:hidden items-center gap-1.5 sm:gap-2 text-primary">
+            {/* Mobile Auth Buttons — always visible on mobile when not logged in */}
+            {!user && (
+              <div className="flex items-center gap-1.5 mr-1">
+                <button
+                  onClick={() => onOpenAuth('login')}
+                  className="px-2.5 py-1.5 text-[11px] font-bold text-primary border border-primary/30 rounded-full hover:bg-primary/5 transition-colors whitespace-nowrap"
+                >
+                  Đăng Nhập
+                </button>
+                <button
+                  onClick={() => onOpenAuth('register')}
+                  className="px-2.5 py-1.5 text-[11px] font-bold text-white bg-primary rounded-full hover:bg-primary-dark transition-colors whitespace-nowrap"
+                >
+                  Đăng Ký
+                </button>
+              </div>
+            )}
             <button className="p-2 text-gray-600">
               <Search className="w-5 h-5" />
             </button>
