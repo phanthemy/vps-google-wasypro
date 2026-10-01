@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Edit2, Trash2, X, Check, Droplet, Coffee, Tool, Tag, Box, AlertTriangle, Layers, FolderTree } from 'lucide-react';
+import { Plus, Edit2, Trash2, X, Check, Droplet, Coffee, Wrench, Tag, Package, AlertTriangle, Layers, FolderTree } from 'lucide-react';
 
 interface Category {
   id: string;
@@ -129,8 +129,8 @@ export const AdminCategories: React.FC = () => {
     switch (iconName) {
       case 'droplet': return <Droplet size={18} />;
       case 'coffee': return <Coffee size={18} />;
-      case 'tool': return <Tool size={18} />;
-      case 'box': return <Box size={18} />;
+      case 'tool': return <Wrench size={18} />;
+      case 'box': return <Package size={18} />;
       case 'layers': return <Layers size={18} />;
       case 'folder-tree': return <FolderTree size={18} />;
       case 'tag':
