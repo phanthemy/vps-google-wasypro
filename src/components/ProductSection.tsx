@@ -68,7 +68,7 @@ export const ProductSection: React.FC<ProductSectionProps> = ({
   // MẶC ĐỊNH KHI TRUY CẬP VÀO: Chọn ngay tab "Máy Lọc Nước"
   const [selectedCategory, setSelectedCategory] = useState<string>('may-loc-nuoc');
   const [searchQuery, setSearchQuery] = useState<string>('');
-  const [sortBy, setSortBy] = useState<string>('default');
+  const [sortBy, setSortBy] = useState<string>('price_desc'); // Default: Giá cao đến thấp
   
   // Trạng thái tải dữ liệu
   const [isLoading, setIsLoading] = useState<boolean>(true);
