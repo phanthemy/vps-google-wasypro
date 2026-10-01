@@ -3559,8 +3559,9 @@ app.put('/api/admin/website-orders/:id/assign-sponsor', authenticateToken, async
             totalAmount: wo.totalAmount,
             status: wo.status === 'COMPLETED' ? 'NEW' : wo.status, // Reset to NEW if was completed
             orderType: 'RETAIL',
-            purchaseType: 'CUSTOMER_PURCHASE',
-            isSelfBuy: false,
+            purchaseType: customer.linkedUserId === sponsor.id ? 'SELF_PURCHASE' : 'CUSTOMER_PURCHASE',
+            isSelfBuy: customer.linkedUserId === sponsor.id, // L29: detect self-buy
+            ordererUserId: customer.linkedUserId || null, // L29: link orderer for settlement
             periodId: openPeriod?.id || null,
             shippingAddress: wo.shippingAddress || wo.address,
             recipientPhone: wo.recipientPhone,
@@ -3687,13 +3688,26 @@ app.post('/api/admin/orders/create', authenticateToken, async (req, res) => {
         let customer = await tx.customer.findFirst({
           where: { phone: customerPhone, sourceCtvId: sponsor.userId }
         });
+        // L29: If customer exists but not linked to User, try to link now
+        if (customer && !customer.linkedUserId) {
+          const matchedUser = await tx.user.findFirst({ where: { phone: customerPhone } });
+          if (matchedUser) {
+            customer = await tx.customer.update({
+              where: { id: customer.id },
+              data: { linkedUserId: matchedUser.id }
+            });
+          }
+        }
         if (!customer) {
+          // L29: Tìm User có cùng phone để link linkedUserId → cộng điểm đúng
+          const matchedUser = await tx.user.findFirst({ where: { phone: customerPhone } });
           customer = await tx.customer.create({
             data: {
               fullName: customerName,
               phone: customerPhone,
               sourceCtvId: sponsor.userId,
               sponsorUserId: sponsor.id,
+              linkedUserId: matchedUser ? matchedUser.id : null, // L29: link to User for QP
               status: 'ARRIVED',
               expiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
             }
