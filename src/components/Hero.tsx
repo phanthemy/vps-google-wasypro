@@ -76,21 +76,21 @@ const slides: SlideItem[] = [
   {
     id: 'slide-banner1',
     type: 'image',
-    src: '/images/banner1.jpg',
+    src: '/images/banner1.jpg?v=20261001',
     badge: 'Wasy Pro Hydrogen',
     title: 'Nước Tốt - Thân An - Trí Sáng'
   },
   {
     id: 'slide-banner2',
     type: 'image',
-    src: '/images/banner2.jpg',
+    src: '/images/banner2.jpg?v=20261001',
     badge: 'Sản Phẩm Water King',
     title: 'Tinh Khiết - Giàu Khoáng - Cân Bằng pH'
   },
   {
     id: 'slide-banner3',
     type: 'image',
-    src: '/images/banner3.jpg',
+    src: '/images/banner3.jpg?v=20261001',
     badge: 'Bộ Sưu Tập Máy Lọc',
     title: 'WS-03 PRO · WS-01 PRO · WS-01 PRO MAX'
   }
