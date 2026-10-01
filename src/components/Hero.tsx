@@ -211,7 +211,7 @@ export const Hero: React.FC<HeroProps> = ({ onExploreClick, onContactClick }) =>
                     <img
                       src={s.src}
                       alt={s.title}
-                      className="w-full h-full object-cover sm:object-contain object-center"
+                      className="w-full h-full object-cover object-center"
                     />
                   </div>
                 )}
