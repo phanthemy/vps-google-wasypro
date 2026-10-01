@@ -18,6 +18,7 @@ import { AdminSidebar } from './components/admin/AdminSidebar';
 import { AdminHeader } from './components/admin/AdminHeader';
 import { AdminOverview } from './components/admin/AdminOverview';
 import { AdminProducts } from './components/admin/AdminProducts';
+import { AdminCategories } from './components/admin/AdminCategories';
 import { AdminWarranties } from './components/admin/AdminWarranties';
 import { AdminLeads } from './components/admin/AdminLeads';
 import { AdminOrders } from './components/admin/AdminOrders';
@@ -326,6 +327,7 @@ export const App: React.FC = () => {
               <AdminOverview onNavigateTab={(tab) => setAdminActiveTab(tab)} />
             )}
             {adminActiveTab === 'products' && <AdminProducts />}
+              {adminActiveTab === 'categories' && <AdminCategories />}
             {adminActiveTab === 'warranties' && <AdminWarranties />}
             {adminActiveTab === 'leads' && <AdminLeads />}
             {adminActiveTab === 'orders' && <AdminOrders />}
