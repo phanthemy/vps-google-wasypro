@@ -40,19 +40,26 @@ SSH VPS → Edit → Test → Commit → Push GitHub
 
 ```
 1. Đọc AGENTS.md (file này)
-2. Đọc .agents/rules/project-workflow.md (AI Engineering Playbook — SINGLE SOURCE OF TRUTH cho quy trình)
-3. Xác định Source of Truth → Nếu VPS → KHÔNG sửa local
-4. git pull (trên VPS hoặc local tùy Source of Truth)
-5. Đọc README.md
-6. Đọc .antigravity/STATE.md
-7. Đọc .antigravity/project.json
-8. Đọc memory.md (nhật ký bộ nhớ & quyết định kỹ thuật)
-9. Đọc loi.md (sổ tay lỗi & cách fix)
-10. Đọc changelog.md (lịch sử cập nhật)
-11. Kiểm tra git status, git branch, HEAD hash (Local vs Remote)
-12. Plan Resume: Khôi phục Unfinished Plans, Blocked Tasks, Dependencies
-13. Báo cáo trạng thái ngắn gọn
+2. Đọc BUSINESS_RULES.md ⭐⭐⭐ (9 quy tắc bất biến — VI PHẠM = BUG PRODUCTION)
+3. Đọc .agents/rules/project-workflow.md (AI Engineering Playbook)
+4. Xác định Source of Truth → Nếu VPS → KHÔNG sửa local
+5. git pull (trên VPS hoặc local tùy Source of Truth)
+6. Đọc README.md
+7. Đọc .antigravity/STATE.md
+8. Đọc .antigravity/project.json
+9. Đọc memory.md (nhật ký bộ nhớ & quyết định kỹ thuật)
+10. Đọc loi.md (sổ tay lỗi & cách fix)
+11. Đọc changelog.md (lịch sử cập nhật)
+12. Kiểm tra git status, git branch, HEAD hash (Local vs Remote)
+13. Plan Resume: Khôi phục Unfinished Plans, Blocked Tasks, Dependencies
+14. Báo cáo trạng thái ngắn gọn
 ```
+
+> ⚠️ **QUY TẮC VÀNG — TRƯỚC KHI SỬA CODE** ⭐⭐⭐⭐⭐
+> 1. `git log --oneline | grep <keyword>` — tìm commit gốc tạo tính năng liên quan
+> 2. Đọc `BUSINESS_RULES.md` — check có invariant nào bị ảnh hưởng không
+> 3. Nếu thêm flow mới → tìm guard/check trong flow cũ → port sang flow mới
+> 4. KHÔNG xóa/sửa tính năng cũ nếu chưa hiểu tại sao nó tồn tại
 
 > **Lưu ý**: `project-workflow.md` định nghĩa đầy đủ quy trình Multi-Agent,
 > QA Verification, Memory Management, Session Commands, Production Safety.
