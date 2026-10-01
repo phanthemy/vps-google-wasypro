@@ -85,7 +85,8 @@ const csrfProtection = (req, res, next) => {
     req.path.startsWith('/api/admin') ||           // Admin panel — all admin operations
     req.path.startsWith('/api/leads') ||           // Leads management
     req.path.startsWith('/api/internal-users') ||  // Internal users
-    req.path.startsWith('/api/services')           // Services
+    req.path.startsWith('/api/services') ||          // Services
+    req.path.startsWith('/api/product-categories')   // Admin product categories CRUD
   ) {
     return next();
   }
