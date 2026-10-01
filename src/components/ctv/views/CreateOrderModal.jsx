@@ -18,30 +18,36 @@ export default function CreateOrderModal({ currentUser, onClose, onSuccess }) {
   const [creatingCustomer, setCreatingCustomer] = useState(false);
 
   const [products, setProducts] = useState([]);
-  const [selectedProduct, setSelectedProduct] = useState(null);
-  const [qty, setQty] = useState(1);
+  const [cartItems, setCartItems] = useState([]);
+  const [detailProduct, setDetailProduct] = useState(null);
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(false);
   const [customerSearch, setCustomerSearch] = useState('');
-  const [hoveredImage, setHoveredImage] = useState(null); // { url, title, cp, x, y }
-
-  const handleImageHover = (e, item) => {
-    if (!item?.image) return;
-    const rect = e.currentTarget.getBoundingClientRect();
-    setHoveredImage({
-      url: item.image,
-      title: item.title || item.productName,
-      cp: item.commissionPoints || 0,
-      x: rect.right + 12,
-      y: rect.top - 30,
+  
+  const addToCart = (product) => {
+    setCartItems(prev => {
+      const existing = prev.find(item => item.product.id === product.id);
+      if (existing) {
+        return prev.map(item => item.product.id === product.id ? { ...item, qty: item.qty + 1 } : item);
+      }
+      return [...prev, { product, qty: 1 }];
     });
   };
 
-  const handleImageLeave = () => {
-    setHoveredImage(null);
+  const removeFromCart = (productId) => {
+    setCartItems(prev => prev.filter(item => item.product.id !== productId));
   };
+
+  const updateCartQty = (productId, newQty) => {
+    if (newQty <= 0) {
+      removeFromCart(productId);
+      return;
+    }
+    setCartItems(prev => prev.map(item => item.product.id === productId ? { ...item, qty: newQty } : item));
+  };
+
 
   // NPP Pricing Modes: 'COMBO' | 'RETAIL'
   const [pricingMode, setPricingMode] = useState('RETAIL');
@@ -91,9 +97,7 @@ export default function CreateOrderModal({ currentUser, onClose, onSuccess }) {
         const list = Array.isArray(data) ? data : (data.data || []);
         const filtered = list.filter(p => p.price > 0);
         setProducts(filtered);
-        if (filtered.length > 0 && !selectedProduct) {
-          setSelectedProduct(filtered[0]);
-        }
+        
       })
       .catch(() => {});
   }, []);
@@ -173,14 +177,13 @@ export default function CreateOrderModal({ currentUser, onClose, onSuccess }) {
       ? '10% (Khách đã có BID)' 
       : `${ctvRankTitle} (Khách chưa có BID)`);
 
-  const retailProductPrice = selectedProduct ? selectedProduct.price : 0;
-  const retailRawTotal = retailProductPrice * qty;
+  const retailRawTotal = cartItems.reduce((sum, item) => sum + (item.product.price * item.qty), 0);
   // If SELF in RETAIL mode -> lifetime self-buy discount according to Rank (ONLY if has BID)
   const isSelfRetailDiscount = purchaseSubject === 'SELF' && pricingMode === 'RETAIL' && hasBID;
   const selfDiscountAmount = isSelfRetailDiscount ? Math.round(retailRawTotal * selfDiscountRate) : 0;
   const retailNetTotal = retailRawTotal - selfDiscountAmount;
 
-  const totalCP = selectedProduct ? (selectedProduct.commissionPoints || 0) * qty : 0;
+  const totalCP = cartItems.reduce((sum, item) => sum + ((item.product.commissionPoints || 0) * item.qty), 0);
   const expectedCommission = Math.round(totalCP * customerCommissionRate * 1000);
 
   // Final total amount depending on active mode
@@ -207,7 +210,7 @@ export default function CreateOrderModal({ currentUser, onClose, onSuccess }) {
       }
 
       // Validate selected product in RETAIL mode
-      if (pricingMode !== 'COMBO' && !selectedProduct) {
+      if (pricingMode !== 'COMBO' && cartItems.length === 0) {
         setError('Vui lòng chọn sản phẩm.');
         setSubmitting(false);
         return;
@@ -230,7 +233,7 @@ export default function CreateOrderModal({ currentUser, onClose, onSuccess }) {
         pricingMode: purchaseSubject === 'CUSTOMER' ? 'RETAIL' : pricingMode,
         items: (purchaseSubject === 'SELF' && pricingMode === 'COMBO')
           ? comboItems.filter(ci => ci.qty > 0).map(ci => ({ productId: ci.productId, qty: ci.qty }))
-          : [{ productId: selectedProduct.id, qty }],
+          : cartItems.map(ci => ({ productId: ci.product.id, qty: ci.qty })),
         shippingAddress: shippingAddress.trim(),
         recipientPhone: recipientPhone.trim(),
         recipientEmail: recipientEmail.trim() || null,
@@ -515,24 +518,22 @@ export default function CreateOrderModal({ currentUser, onClose, onSuccess }) {
               <div>
                 <label className="text-xs font-bold uppercase tracking-wider" style={{ color: '#64748b' }}>Sản Phẩm</label>
                 <div className="mt-2 max-h-56 overflow-y-auto rounded-xl" style={{ border: '1px solid #e2e8f0' }}>
-                  {products.map(p => (
-                    <button
+                  {products.map(p => {
+                    const cartItem = cartItems.find(item => item.product.id === p.id);
+                    const qtyInCart = cartItem ? cartItem.qty : 0;
+                    return (
+                    <div
                       key={p.id}
-                      type="button"
-                      onClick={() => setSelectedProduct(p)}
-                      className="w-full flex items-center justify-between p-3 text-left hover:bg-blue-50 transition-colors"
+                      className="w-full flex items-center justify-between p-3 text-left transition-colors"
                       style={{
-                        background: selectedProduct?.id === p.id ? '#eff6ff' : 'transparent',
+                        background: qtyInCart > 0 ? '#eff6ff' : 'transparent',
                         borderBottom: '1px solid #f1f5f9',
                       }}
                     >
-                      <div className="flex items-center gap-3 min-w-0 pr-2">
+                      <div className="flex items-center gap-3 min-w-0 pr-2 flex-1 cursor-pointer" onClick={() => setDetailProduct(p)}>
                         <div
-                          className="w-16 h-16 rounded-xl bg-white border border-slate-200 overflow-hidden flex-shrink-0 flex items-center justify-center p-0.5 cursor-zoom-in transition-all duration-200 hover:scale-105 hover:border-indigo-400 hover:shadow-md"
-                          onMouseEnter={(e) => handleImageHover(e, p)}
-                          onMouseLeave={handleImageLeave}
-                          onClick={(e) => { e.stopPropagation(); setSelectedProduct(p); handleImageHover(e, p); }}
-                          title="Rê chuột để phóng to ảnh sản phẩm"
+                          className="w-16 h-16 rounded-xl bg-white border border-slate-200 overflow-hidden flex-shrink-0 flex items-center justify-center p-0.5 hover:border-indigo-400 hover:shadow-md"
+                          title="Nhấn để xem chi tiết"
                         >
                           {p.image ? (
                             <img
@@ -557,45 +558,38 @@ export default function CreateOrderModal({ currentUser, onClose, onSuccess }) {
                           </div>
                         </div>
                       </div>
-                      <div className="text-right flex-shrink-0">
-                        <div className="font-extrabold text-sm" style={{ color: '#059669' }}>
-                          {new Intl.NumberFormat('vi-VN').format(p.price)}đ
+                      <div className="flex items-center gap-4 flex-shrink-0">
+                        <div className="text-right">
+                          <div className="font-extrabold text-sm" style={{ color: '#059669' }}>
+                            {new Intl.NumberFormat('vi-VN').format(p.price)}đ
+                          </div>
                         </div>
-                        {selectedProduct?.id === p.id && <CheckCircle size={14} className="ml-auto mt-1" style={{ color: '#10b981' }} />}
+                        {qtyInCart > 0 ? (
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={(e) => { e.stopPropagation(); updateCartQty(p.id, qtyInCart - 1); }}
+                              className="w-8 h-8 rounded-lg flex items-center justify-center font-bold bg-slate-200 text-slate-600"
+                            >−</button>
+                            <span className="w-6 text-center font-bold">{qtyInCart}</span>
+                            <button
+                              type="button"
+                              onClick={(e) => { e.stopPropagation(); updateCartQty(p.id, qtyInCart + 1); }}
+                              className="w-8 h-8 rounded-lg flex items-center justify-center font-bold bg-indigo-500 text-white"
+                            >+</button>
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); addToCart(p); }}
+                            className="px-3 py-1.5 rounded-lg text-sm font-bold bg-indigo-50 text-indigo-600 border border-indigo-200 hover:bg-indigo-100"
+                          >Thêm</button>
+                        )}
                       </div>
-                    </button>
-                  ))}
+                    </div>
+                  )})}
                 </div>
               </div>
-
-              {/* Số lượng */}
-              {selectedProduct && (
-                <div>
-                  <label className="text-xs font-bold uppercase tracking-wider" style={{ color: '#64748b' }}>Số Lượng</label>
-                  <div className="flex items-center gap-3 mt-2">
-                    <button
-                      type="button"
-                      onClick={() => setQty(Math.max(1, qty - 1))}
-                      className="w-10 h-10 rounded-xl font-bold text-lg"
-                      style={{ background: '#f1f5f9', color: '#475569', border: '1px solid #e2e8f0' }}
-                    >−</button>
-                    <input
-                      type="number"
-                      min="1"
-                      value={qty}
-                      onChange={e => setQty(Math.max(1, parseInt(e.target.value) || 1))}
-                      className="w-20 text-center py-2 rounded-xl font-bold"
-                      style={{ border: '1px solid #e2e8f0' }}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setQty(qty + 1)}
-                      className="w-10 h-10 rounded-xl font-bold text-lg"
-                      style={{ background: '#f1f5f9', color: '#475569', border: '1px solid #e2e8f0' }}
-                    >+</button>
-                  </div>
-                </div>
-              )}
             </div>
           )}
 
@@ -757,24 +751,22 @@ export default function CreateOrderModal({ currentUser, onClose, onSuccess }) {
               <div>
                 <label className="text-xs font-bold uppercase tracking-wider" style={{ color: '#64748b' }}>Sản Phẩm</label>
                 <div className="mt-2 max-h-56 overflow-y-auto rounded-xl" style={{ border: '1px solid #e2e8f0' }}>
-                  {products.map(p => (
-                    <button
+                  {products.map(p => {
+                    const cartItem = cartItems.find(item => item.product.id === p.id);
+                    const qtyInCart = cartItem ? cartItem.qty : 0;
+                    return (
+                    <div
                       key={p.id}
-                      type="button"
-                      onClick={() => setSelectedProduct(p)}
-                      className="w-full flex items-center justify-between p-3 text-left hover:bg-amber-50 transition-colors"
+                      className="w-full flex items-center justify-between p-3 text-left transition-colors"
                       style={{
-                        background: selectedProduct?.id === p.id ? '#fef3c7' : 'transparent',
+                        background: qtyInCart > 0 ? '#fef3c7' : 'transparent',
                         borderBottom: '1px solid #f1f5f9',
                       }}
                     >
-                      <div className="flex items-center gap-3 min-w-0 pr-2">
+                      <div className="flex items-center gap-3 min-w-0 pr-2 flex-1 cursor-pointer" onClick={() => setDetailProduct(p)}>
                         <div
-                          className="w-16 h-16 rounded-xl bg-white border border-slate-200 overflow-hidden flex-shrink-0 flex items-center justify-center p-0.5 cursor-zoom-in transition-all duration-200 hover:scale-105 hover:border-amber-400 hover:shadow-md"
-                          onMouseEnter={(e) => handleImageHover(e, p)}
-                          onMouseLeave={handleImageLeave}
-                          onClick={(e) => { e.stopPropagation(); setSelectedProduct(p); handleImageHover(e, p); }}
-                          title="Rê chuột để phóng to ảnh sản phẩm"
+                          className="w-16 h-16 rounded-xl bg-white border border-slate-200 overflow-hidden flex-shrink-0 flex items-center justify-center p-0.5 hover:border-amber-400 hover:shadow-md"
+                          title="Nhấn để xem chi tiết"
                         >
                           {p.image ? (
                             <img
@@ -799,48 +791,54 @@ export default function CreateOrderModal({ currentUser, onClose, onSuccess }) {
                           </div>
                         </div>
                       </div>
-                      <div className="text-right flex-shrink-0">
-                        <div className="text-xs line-through" style={{ color: '#94a3b8' }}>
-                          {new Intl.NumberFormat('vi-VN').format(p.price)}đ
+                      <div className="flex items-center gap-4 flex-shrink-0">
+                        <div className="text-right flex flex-col items-end">
+                          {hasBID ? (
+                            <>
+                              <div className="flex items-center gap-2">
+                                <div className="text-xs line-through text-gray-400">
+                                  {new Intl.NumberFormat('vi-VN').format(p.price)}đ
+                                </div>
+                                <span className="text-[10px] font-bold px-1 py-0.5 rounded bg-red-100 text-red-600">
+                                  -{selfDiscountPercent}%
+                                </span>
+                              </div>
+                              <div className="font-extrabold text-sm text-green-500">
+                                {new Intl.NumberFormat('vi-VN').format(Math.round(p.price * (1 - selfDiscountRate)))}đ
+                              </div>
+                            </>
+                          ) : (
+                            <div className="font-extrabold text-sm" style={{ color: '#059669' }}>
+                              {new Intl.NumberFormat('vi-VN').format(p.price)}đ
+                            </div>
+                          )}
                         </div>
-                        <div className="font-extrabold text-sm" style={{ color: '#059669' }}>
-                          {new Intl.NumberFormat('vi-VN').format(Math.round(p.price * (1 - selfDiscountRate)))}đ
-                        </div>
-                        {selectedProduct?.id === p.id && <CheckCircle size={14} className="ml-auto mt-1" style={{ color: '#10b981' }} />}
+                        {qtyInCart > 0 ? (
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={(e) => { e.stopPropagation(); updateCartQty(p.id, qtyInCart - 1); }}
+                              className="w-8 h-8 rounded-lg flex items-center justify-center font-bold bg-slate-200 text-slate-600"
+                            >−</button>
+                            <span className="w-6 text-center font-bold">{qtyInCart}</span>
+                            <button
+                              type="button"
+                              onClick={(e) => { e.stopPropagation(); updateCartQty(p.id, qtyInCart + 1); }}
+                              className="w-8 h-8 rounded-lg flex items-center justify-center font-bold bg-amber-500 text-white"
+                            >+</button>
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); addToCart(p); }}
+                            className="px-3 py-1.5 rounded-lg text-sm font-bold bg-amber-50 text-amber-600 border border-amber-200 hover:bg-amber-100"
+                          >Thêm</button>
+                        )}
                       </div>
-                    </button>
-                  ))}
+                    </div>
+                  )})}
                 </div>
               </div>
-
-              {/* Số lượng */}
-              {selectedProduct && (
-                <div>
-                  <label className="text-xs font-bold uppercase tracking-wider" style={{ color: '#64748b' }}>Số Lượng</label>
-                  <div className="flex items-center gap-3 mt-2">
-                    <button
-                      type="button"
-                      onClick={() => setQty(Math.max(1, qty - 1))}
-                      className="w-10 h-10 rounded-xl font-bold text-lg"
-                      style={{ background: '#f1f5f9', color: '#475569', border: '1px solid #e2e8f0' }}
-                    >−</button>
-                    <input
-                      type="number"
-                      min="1"
-                      value={qty}
-                      onChange={e => setQty(Math.max(1, parseInt(e.target.value) || 1))}
-                      className="w-20 text-center py-2 rounded-xl font-bold"
-                      style={{ border: '1px solid #e2e8f0' }}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setQty(qty + 1)}
-                      className="w-10 h-10 rounded-xl font-bold text-lg"
-                      style={{ background: '#f1f5f9', color: '#475569', border: '1px solid #e2e8f0' }}
-                    >+</button>
-                  </div>
-                </div>
-              )}
             </div>
           )}
 
@@ -848,8 +846,8 @@ export default function CreateOrderModal({ currentUser, onClose, onSuccess }) {
           {/* TÓM TẮT ĐƠN HÀNG                                                          */}
           {/* ========================================================================= */}
           {((purchaseSubject === 'SELF' && pricingMode === 'COMBO' && totalComboQty > 0) ||
-            (purchaseSubject === 'SELF' && pricingMode === 'RETAIL' && selectedProduct) ||
-            (purchaseSubject === 'CUSTOMER' && selectedProduct && selectedCustomer)) && (
+            (purchaseSubject === 'SELF' && pricingMode === 'RETAIL' && cartItems.length > 0) ||
+            (purchaseSubject === 'CUSTOMER' && cartItems.length > 0 && selectedCustomer)) && (
             <div className="rounded-xl p-4" style={{ background: '#f8fafc', border: '1px solid #e2e8f0' }}>
               <div className="text-xs font-bold uppercase tracking-wider mb-3" style={{ color: '#64748b' }}>Tóm Tắt Đơn Hàng</div>
               <div className="space-y-2 text-sm">
@@ -877,7 +875,7 @@ export default function CreateOrderModal({ currentUser, onClose, onSuccess }) {
                   <span className="font-bold text-right" style={{ color: '#1e293b' }}>
                     {purchaseSubject === 'SELF' && pricingMode === 'COMBO'
                       ? `Combo ${comboItems.filter(ci => ci.qty > 0).length} loại máy`
-                      : selectedProduct?.title}
+                      : cartItems.map(ci => `${ci.product.title} (x${ci.qty})`).join(', ')}
                   </span>
                 </div>
 
@@ -887,14 +885,14 @@ export default function CreateOrderModal({ currentUser, onClose, onSuccess }) {
                   <span className="font-black text-sm" style={{ color: '#d97706' }}>
                     {purchaseSubject === 'SELF' && pricingMode === 'COMBO'
                       ? `${new Intl.NumberFormat('vi-VN').format(totalComboCP)} CP`
-                      : `${new Intl.NumberFormat('vi-VN').format((selectedProduct?.commissionPoints || 0) * qty)} CP${qty > 1 ? ` (${new Intl.NumberFormat('vi-VN').format(selectedProduct?.commissionPoints || 0)} CP/cái)` : ''}`}
+                      : `${new Intl.NumberFormat('vi-VN').format(totalCP)} CP`}
                   </span>
                 </div>
 
                 <div className="flex justify-between items-center">
                   <span style={{ color: '#64748b' }}>Số lượng</span>
                   <span className="font-bold">
-                    {purchaseSubject === 'SELF' && pricingMode === 'COMBO' ? `${totalComboQty} máy` : `${qty} cái`}
+                    {purchaseSubject === 'SELF' && pricingMode === 'COMBO' ? `${totalComboQty} máy` : `${cartItems.reduce((sum, item) => sum + item.qty, 0)} cái`}
                   </span>
                 </div>
 
@@ -959,8 +957,8 @@ export default function CreateOrderModal({ currentUser, onClose, onSuccess }) {
           {/* THÔNG TIN GIAO HÀNG                                                       */}
           {/* ========================================================================= */}
           {((purchaseSubject === 'SELF' && pricingMode === 'COMBO' && totalComboQty > 0) ||
-            (purchaseSubject === 'SELF' && pricingMode === 'RETAIL' && selectedProduct) ||
-            (purchaseSubject === 'CUSTOMER' && selectedProduct && selectedCustomer)) && (
+            (purchaseSubject === 'SELF' && pricingMode === 'RETAIL' && cartItems.length > 0) ||
+            (purchaseSubject === 'CUSTOMER' && cartItems.length > 0 && selectedCustomer)) && (
             <div className="rounded-xl p-4" style={{ background: '#f0f9ff', border: '1.5px solid #bae6fd' }}>
               <div className="text-xs font-bold uppercase tracking-wider mb-3 flex items-center gap-1.5" style={{ color: '#0369a1' }}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
@@ -1028,7 +1026,7 @@ export default function CreateOrderModal({ currentUser, onClose, onSuccess }) {
           {/* ========================================================================= */}
           {(() => {
             const isComboInvalid = purchaseSubject === 'SELF' && pricingMode === 'COMBO' && !isComboQtyValid;
-            const isRetailInvalid = pricingMode !== 'COMBO' && !selectedProduct;
+            const isRetailInvalid = pricingMode !== 'COMBO' && cartItems.length === 0;
             const isCustomerMissing = purchaseSubject === 'CUSTOMER' && !selectedCustomer;
             const isShippingMissing = !recipientPhone.trim() || !shippingAddress.trim();
             const isDisabled = submitting || isComboInvalid || isRetailInvalid || isCustomerMissing || isShippingMissing;
@@ -1077,31 +1075,76 @@ export default function CreateOrderModal({ currentUser, onClose, onSuccess }) {
         </div>
       </div>
 
-      {/* Floating Zoom Preview Popup when hovering over any product image */}
-      {hoveredImage && (
-        <div
-          className="fixed pointer-events-none z-[10000] bg-white p-3 rounded-2xl shadow-2xl border-2 border-indigo-400 w-64 sm:w-72 flex flex-col items-center animate-in fade-in zoom-in-95 duration-150 backdrop-blur-md"
-          style={{
-            left: Math.min(typeof window !== 'undefined' ? window.innerWidth - 300 : 300, Math.max(16, hoveredImage.x)),
-            top: Math.min(typeof window !== 'undefined' ? window.innerHeight - 340 : 300, Math.max(16, hoveredImage.y)),
-          }}
-        >
-          <div className="w-56 h-56 sm:w-64 sm:h-64 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center p-2 overflow-hidden">
-            <img
-              src={hoveredImage.url}
-              alt={hoveredImage.title}
-              className="w-full h-full object-contain drop-shadow-md"
-            />
+      {/* Product Detail Popup */}
+      {detailProduct && (
+        <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl max-w-sm w-full shadow-2xl overflow-hidden flex flex-col relative">
+            <button 
+              onClick={() => setDetailProduct(null)}
+              className="absolute top-3 right-3 p-1.5 bg-white/80 backdrop-blur-md rounded-full text-slate-500 hover:bg-slate-100 hover:text-slate-800 transition-colors z-10"
+            >
+              <X size={20} />
+            </button>
+            
+            <div className="w-full h-64 bg-slate-50 flex items-center justify-center p-6 border-b border-slate-100">
+              {detailProduct.image ? (
+                <img src={detailProduct.image} alt={detailProduct.title} className="w-full h-full object-contain drop-shadow-md" />
+              ) : (
+                <Package size={64} className="text-slate-300" />
+              )}
+            </div>
+            
+            <div className="p-5 flex flex-col gap-3">
+              <div className="flex flex-wrap gap-2">
+                {detailProduct.category && (
+                  <span className="px-2 py-1 rounded text-[10px] font-bold bg-indigo-50 text-indigo-600 border border-indigo-100 uppercase tracking-wider">
+                    {detailProduct.category}
+                  </span>
+                )}
+                {detailProduct.commissionPoints > 0 && (
+                  <span className="px-2 py-1 rounded text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200 uppercase tracking-wider">
+                    ⭐ {new Intl.NumberFormat('vi-VN').format(detailProduct.commissionPoints)} CP
+                  </span>
+                )}
+              </div>
+              
+              <h3 className="font-extrabold text-lg text-slate-900 leading-tight">
+                {detailProduct.title}
+              </h3>
+              
+              <div className="text-sm text-slate-500 whitespace-pre-line max-h-32 overflow-y-auto pr-2">
+                {detailProduct.description || "Chưa có mô tả chi tiết."}
+              </div>
+              
+              <div className="mt-2 pt-4 border-t border-slate-100 flex items-end justify-between">
+                <div>
+                  <div className="text-xs font-bold text-slate-400 mb-1">Giá bán</div>
+                  {(purchaseSubject === 'SELF' && pricingMode === 'RETAIL' && hasBID) ? (
+                    <div className="flex flex-col">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm line-through text-slate-400">{new Intl.NumberFormat('vi-VN').format(detailProduct.price)}đ</span>
+                        <span className="text-xs font-bold px-1.5 py-0.5 rounded bg-red-100 text-red-600">-{selfDiscountPercent}%</span>
+                      </div>
+                      <span className="text-xl font-black text-green-500">{new Intl.NumberFormat('vi-VN').format(Math.round(detailProduct.price * (1 - selfDiscountRate)))}đ</span>
+                    </div>
+                  ) : (
+                    <div className="text-xl font-black text-emerald-600">
+                      {new Intl.NumberFormat('vi-VN').format(detailProduct.price)}đ
+                    </div>
+                  )}
+                </div>
+                <button
+                  onClick={() => {
+                    addToCart(detailProduct);
+                    setDetailProduct(null);
+                  }}
+                  className="px-5 py-2.5 rounded-xl font-bold text-white bg-indigo-600 hover:bg-indigo-700 shadow-md transition-colors"
+                >
+                  Thêm vào đơn
+                </button>
+              </div>
+            </div>
           </div>
-          <div className="font-bold text-sm text-slate-900 text-center mt-2.5 px-1 line-clamp-2">
-            {hoveredImage.title}
-          </div>
-          {hoveredImage.cp > 0 && (
-            <span className="mt-1.5 text-xs font-black text-amber-700 bg-amber-50 px-2.5 py-0.5 rounded-full border border-amber-200">
-              ⭐ {new Intl.NumberFormat('vi-VN').format(hoveredImage.cp)} CP
-            </span>
-          )}
-          <span className="text-[10px] text-slate-400 mt-1 italic">Di chuột ra ngoài để đóng xem thử</span>
         </div>
       )}
     </div>
