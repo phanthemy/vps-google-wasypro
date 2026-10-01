@@ -293,12 +293,12 @@ export default function UnifiedAuthModal({ isOpen, onClose, initialTab = 'login'
 
         {/* ─── LOGIN FORM ─── */}
         {tab === 'login' && (
-          <form onSubmit={handleLogin} className="space-y-5">
+          <form onSubmit={handleLogin} className="space-y-0 divide-y divide-[#e0eef6] [&>div]:py-4 [&>div:first-child]:pt-0">
             <div className="py-4 first:pt-0">
               <label className="text-[13px] font-extrabold text-gray-900 uppercase tracking-wide">Số điện thoại</label>
               <div className="mt-1 relative">
-                <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <input type="tel" value={loginPhone} onChange={e => setLoginPhone(e.target.value)} placeholder="0900000000" className="w-full pl-10 pr-4 py-3 border border-[#b8daf0] rounded-2xl text-sm focus:ring-2 focus:ring-sky-300 focus:border-sky-500 bg-white" required />
+                <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#6aabcc]" />
+                <input type="tel" value={loginPhone} onChange={e => setLoginPhone(e.target.value)} placeholder="0900000000" className="w-full pl-10 pr-4 py-3 border-[1.5px] border-[#a8ceeb] rounded-2xl text-sm focus:ring-2 focus:ring-sky-300 focus:border-sky-500 bg-white" required />
               </div>
             </div>
             <div>
@@ -313,13 +313,13 @@ export default function UnifiedAuthModal({ isOpen, onClose, initialTab = 'login'
                 </button>
               </div>
               <div className="mt-1 relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#6aabcc]" />
                 <input
                   type={showLoginPassword ? 'text' : 'password'}
                   value={loginPassword}
                   onChange={e => setLoginPassword(e.target.value)}
                   placeholder="••••••"
-                  className="w-full pl-10 pr-10 py-3 border border-[#b8daf0] rounded-2xl text-sm focus:ring-2 focus:ring-sky-300 focus:border-sky-500 bg-white"
+                  className="w-full pl-10 pr-10 py-3 border-[1.5px] border-[#a8ceeb] rounded-2xl text-sm focus:ring-2 focus:ring-sky-300 focus:border-sky-500 bg-white"
                   required
                 />
               </div>
@@ -344,25 +344,25 @@ export default function UnifiedAuthModal({ isOpen, onClose, initialTab = 'login'
 
         {/* ─── REGISTER FORM ─── */}
         {tab === 'register' && (
-          <form onSubmit={handleRegister} className="space-y-5">
+          <form onSubmit={handleRegister} className="space-y-0 divide-y divide-[#e0eef6] [&>div]:py-4 [&>div:first-child]:pt-0">
             <div className="py-4 first:pt-0">
               <label className="text-[13px] font-extrabold text-gray-900 uppercase tracking-wide">Họ và tên *</label>
               <div className="mt-1 relative">
-                <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <input type="text" value={regFullName} onChange={e => setRegFullName(e.target.value)} placeholder="Nguyễn Văn A" className="w-full pl-10 pr-4 py-3 border border-[#b8daf0] rounded-2xl text-sm focus:ring-2 focus:ring-sky-300 focus:border-sky-500 bg-white" required />
+                <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#6aabcc]" />
+                <input type="text" value={regFullName} onChange={e => setRegFullName(e.target.value)} placeholder="Nguyễn Văn A" className="w-full pl-10 pr-4 py-3 border-[1.5px] border-[#a8ceeb] rounded-2xl text-sm focus:ring-2 focus:ring-sky-300 focus:border-sky-500 bg-white" required />
               </div>
             </div>
             <div className="py-4 first:pt-0">
               <label className="text-[13px] font-extrabold text-gray-900 uppercase tracking-wide">Số điện thoại *</label>
               <div className="mt-1 relative flex gap-2">
                 <div className="relative flex-1">
-                  <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#6aabcc]" />
                   <input
                     type="tel"
                     value={regPhone}
                     onChange={e => setRegPhone(e.target.value)}
                     placeholder="0900000000"
-                    className="w-full pl-10 pr-4 py-3 border border-[#b8daf0] rounded-2xl text-sm focus:ring-2 focus:ring-sky-300 focus:border-sky-500 bg-white"
+                    className="w-full pl-10 pr-4 py-3 border-[1.5px] border-[#a8ceeb] rounded-2xl text-sm focus:ring-2 focus:ring-sky-300 focus:border-sky-500 bg-white"
                     required
                   />
                 </div>
@@ -416,13 +416,13 @@ export default function UnifiedAuthModal({ isOpen, onClose, initialTab = 'login'
                 </button>
               </div>
               <div className="mt-1 relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#6aabcc]" />
                 <input
                   type={showRegPassword ? 'text' : 'password'}
                   value={regPassword}
                   onChange={e => setRegPassword(e.target.value)}
                   placeholder="Tối thiểu 8 ký tự (hoa, thường, số, ký tự đặc biệt)"
-                  className="w-full pl-10 pr-10 py-3 border border-[#b8daf0] rounded-2xl text-sm focus:ring-2 focus:ring-sky-300 focus:border-sky-500 bg-white"
+                  className="w-full pl-10 pr-10 py-3 border-[1.5px] border-[#a8ceeb] rounded-2xl text-sm focus:ring-2 focus:ring-sky-300 focus:border-sky-500 bg-white"
                   required
                   minLength={8}
                 />
@@ -435,13 +435,13 @@ export default function UnifiedAuthModal({ isOpen, onClose, initialTab = 'login'
             <div className="py-4 first:pt-0">
               <label className="text-[13px] font-extrabold text-gray-900 uppercase tracking-wide">Nhập lại mật khẩu *</label>
               <div className="mt-1 relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#6aabcc]" />
                 <input
                   type={showRegPassword ? 'text' : 'password'}
                   value={regConfirmPassword}
                   onChange={e => setRegConfirmPassword(e.target.value)}
                   placeholder="Nhập lại mật khẩu vừa đặt"
-                  className="w-full pl-10 pr-4 py-3 border border-[#b8daf0] rounded-2xl text-sm focus:ring-2 focus:ring-sky-300 focus:border-sky-500 bg-white"
+                  className="w-full pl-10 pr-4 py-3 border-[1.5px] border-[#a8ceeb] rounded-2xl text-sm focus:ring-2 focus:ring-sky-300 focus:border-sky-500 bg-white"
                   required
                   minLength={8}
                 />
@@ -591,7 +591,7 @@ export default function UnifiedAuthModal({ isOpen, onClose, initialTab = 'login'
                     </span>
                   </div>
                   <div className="mt-1 relative">
-                    <UserPlus className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <UserPlus className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#6aabcc]" />
                     <input
                       type="text"
                       value=""
