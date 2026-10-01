@@ -65,6 +65,7 @@ export const ProductSection: React.FC<ProductSectionProps> = ({
   onCallHotline,
 }) => {
   const [allProducts, setAllProducts] = useState<Product[]>([]);
+  const [categoryNames, setCategoryNames] = useState<Record<string, string>>({});
   // MẶC ĐỊNH KHI TRUY CẬP VÀO: Chọn ngay tab "Máy Lọc Nước"
   const [selectedCategory, setSelectedCategory] = useState<string>('may-loc-nuoc');
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -214,7 +215,7 @@ export const ProductSection: React.FC<ProductSectionProps> = ({
                   }`}
                 >
                   <Icon className={`w-4 h-4 ${isSelected ? 'text-accent' : 'text-slate-400'}`} />
-                  <span>{tab.name}</span>
+                  <span>{categoryNames[tab.id] || tab.name}</span>
                   <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-extrabold ${
                     isSelected 
                       ? 'bg-white/20 text-white' 
