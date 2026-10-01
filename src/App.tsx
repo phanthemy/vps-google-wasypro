@@ -1,5 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Header } from './components/Header';
+import { useCart } from './hooks/useCart';
+import { CartDrawer } from './components/CartDrawer';
+import { CheckoutModal } from './components/CheckoutModal';
+import { OrderLookup } from './components/OrderLookup';
 import { Hero } from './components/Hero';
 import { ProductSection } from './components/ProductSection';
 import { HydrogenBenefits } from './components/HydrogenBenefits';
@@ -333,7 +337,8 @@ export const App: React.FC = () => {
             {adminActiveTab === 'npp-packages' && <AdminNppPackages />}
             {adminActiveTab === 'npp-management' && <AdminNppManagement />}
             {adminActiveTab === 'system' && <AdminSystemView />}
-          </main>
+            {activeSection === 'order-lookup' && <OrderLookup />}
+      </main>
         </div>
       </div>
     );
@@ -456,7 +461,7 @@ export const App: React.FC = () => {
               onContactClick={() => handleOpenContact(null)}
             />
             <ProductSection
-              onOrderProduct={(product) => handleOpenContact(product)}
+              onOrderProduct={(product) => { addItem({ productId: product.id, title: product.title, image: product.image, price: product.price }); setIsCartOpen(true); }}
               onCallHotline={handleCallHotline}
             />
             <HydrogenBenefits />
@@ -466,6 +471,7 @@ export const App: React.FC = () => {
             <FaqSection />
           </>
         )}
+        {activeSection === 'order-lookup' && <OrderLookup />}
       </main>
 
       {/* Main Unified Footer */}
@@ -540,6 +546,22 @@ export const App: React.FC = () => {
           <ArrowUp className="w-5 h-5" />
         </button>
       )}
+      <CartDrawer 
+        isOpen={isCartOpen} 
+        onClose={() => setIsCartOpen(false)} 
+        items={items} 
+        onUpdateQuantity={updateQuantity} 
+        onRemoveItem={removeItem} 
+        onCheckout={() => { setIsCartOpen(false); setIsCheckoutOpen(true); }} 
+        totalAmount={totalAmount} 
+      />
+      <CheckoutModal 
+        isOpen={isCheckoutOpen} 
+        onClose={() => setIsCheckoutOpen(false)} 
+        items={items} 
+        totalAmount={totalAmount} 
+        onSuccess={clearCart} 
+      />
     </div>
   );
 };

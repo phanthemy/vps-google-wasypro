@@ -294,6 +294,14 @@ model Product {
 }
 
 model WebsiteOrder {
+  wantInvoice             Boolean  @default(false)
+  companyName             String?
+  taxCode                 String?
+  companyAddr             String?
+  invoiceEmail            String?
+  orderCode               String?
+  items                   WebsiteOrderItem[]
+
   id                      String   @id @default(cuid())
   customerName            String
   customerPhone           String
@@ -782,4 +790,17 @@ model OrderAuditLog {
   reason          String?  // Why the change was made (required for REASSIGN_SPONSOR)
   attachmentUrl   String?  // Evidence file URL (image/video)
   createdAt       DateTime @default(now())
+}
+
+model WebsiteOrderItem {
+  id               String   @id @default(cuid())
+  websiteOrderId   String
+  productId        String?
+  productTitle     String
+  productPrice     Float    @default(0)
+  qty              Int      @default(1)
+  totalAmount      Float    @default(0)
+  commissionPoints Int      @default(0)
+
+  websiteOrder     WebsiteOrder @relation(fields: [websiteOrderId], references: [id], onDelete: Cascade)
 }

@@ -21,6 +21,8 @@ import {
 import { UserSession } from '../hooks/useUnifiedAuth';
 
 interface HeaderProps {
+  cartItemCount?: number;
+  onCartClick?: () => void;
   onOpenWarranty: () => void;
   onOpenContact: () => void;
   onOpenAdmin: () => void;

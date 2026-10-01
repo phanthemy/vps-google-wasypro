@@ -6670,9 +6670,33 @@ app.put('/api/admin/website-orders/:id/status', authenticateToken, async (req, r
  * - Auth: saves userId, sponsorUserId from user.parentId, commissionPoints from Product
  * - If user.isSystemParticipant → increments qualifyingPoints + checks 5000 CP threshold
  */
+async function getNextWebOrderCode() {
+  const last = await prisma.websiteOrder.findFirst({ orderBy: { createdAt: 'desc' } });
+  if (!last || !last.orderCode) return 'WEB-0001';
+  const num = parseInt(last.orderCode.replace('WEB-', ''), 10);
+  if (isNaN(num)) return 'WEB-' + String(Date.now()).slice(-4);
+  return 'WEB-' + String(num + 1).padStart(4, '0');
+}
+
+app.get('/api/website-orders/lookup', async (req, res) => {
+  try {
+    const phone = (req.query.phone || '').toString().trim();
+    if (!phone) return res.status(400).json({ success: false, message: 'Vui lòng nhập số điện thoại.' });
+    const orders = await prisma.websiteOrder.findMany({
+      where: { customerPhone: phone },
+      include: { items: true },
+      orderBy: { createdAt: 'desc' }
+    });
+    res.json({ success: true, orders });
+  } catch (e) {
+    console.error('GET /api/website-orders/lookup error:', e);
+    res.status(500).json({ success: false, message: 'Lỗi tra cứu.' });
+  }
+});
+
 app.post('/api/orders/website', async (req, res) => {
   try {
-    const { customerName, customerPhone, address, shippingAddress, recipientPhone, recipientEmail, contactHotline, message, type, productId, productTitle, productPrice, qty, refCode } = req.body;
+    const { customerName, customerPhone, address, shippingAddress, recipientPhone, recipientEmail, contactHotline, message, type, productId, productTitle, productPrice, qty, refCode, items, wantInvoice, companyName, taxCode, companyAddr, invoiceEmail } = req.body;
     if (!customerPhone && !recipientPhone) return res.status(400).json({ success: false, message: 'Vui lòng nhập số điện thoại.' });
 
     const finalAddress = (shippingAddress || address || '').trim();
@@ -6711,10 +6735,36 @@ app.post('/api/orders/website', async (req, res) => {
       if (sponsor) sponsorUserId = sponsor.userId;
     }
 
-    const totalAmount = (productPrice || 0) * (qty || 1);
+    let totalAmount = (productPrice || 0) * (qty || 1);
+    let orderItemsData = [];
+    if (items && items.length > 0) {
+      totalAmount = 0;
+      for (const item of items) {
+        const itemTotal = (item.productPrice || 0) * (item.qty || 1);
+        totalAmount += itemTotal;
+        orderItemsData.push({
+          id: require('crypto').randomUUID(),
+          productId: item.productId || null,
+          productTitle: item.productTitle || '',
+          productPrice: item.productPrice || 0,
+          qty: item.qty || 1,
+          totalAmount: itemTotal,
+          commissionPoints: item.commissionPoints || 0
+        });
+      }
+    }
+
+    const orderCode = await getNextWebOrderCode();
 
     const websiteOrder = await prisma.websiteOrder.create({
       data: {
+        orderCode,
+        wantInvoice: Boolean(wantInvoice),
+        companyName: companyName || null,
+        taxCode: taxCode || null,
+        companyAddr: companyAddr || null,
+        invoiceEmail: invoiceEmail || null,
+        items: orderItemsData.length > 0 ? { create: orderItemsData } : undefined,
         customerName: customerName || (authedUser?.fullName) || 'Khách',
         customerPhone: finalPhone,
         address: finalAddress,
@@ -8691,7 +8741,9 @@ app.post('/api/npp/my-purchase', authenticateToken, async (req, res) => {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 
+
 module.exports = app;
+
 module.exports.app = app;
 module.exports.executeOrderSettlement = executeOrderSettlement;
 module.exports.calculateAndCreateCommissions = calculateAndCreateCommissions;
