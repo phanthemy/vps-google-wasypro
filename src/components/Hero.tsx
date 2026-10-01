@@ -66,19 +66,19 @@ const useCounter = (end: number, duration: number = 2200) => {
 
 const slides: SlideItem[] = [
   {
-    id: 'slide-backdrop',
-    type: 'image',
-    src: '/images/backdrop_banner.webp',
-    badge: 'Chính Hãng Wasy Pro',
-    title: 'Wasy Pro Hydrogen - Nước Tốt, Thân An, Trí Sáng'
-  },
-  {
     id: 'slide-video',
     type: 'video',
     src: '/videos/hero-video.mp4',
     poster: '/images/video-thumb.jpg',
     badge: 'Video Trải Nghiệm',
     title: 'Công Nghệ Hydrogen Tươi Đột Phá'
+  },
+  {
+    id: 'slide-backdrop',
+    type: 'image',
+    src: '/images/backdrop_banner.webp',
+    badge: 'Chính Hãng Wasy Pro',
+    title: 'Wasy Pro Hydrogen - Nước Tốt, Thân An, Trí Sáng'
   }
 ];
 
