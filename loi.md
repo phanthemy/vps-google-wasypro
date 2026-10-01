@@ -218,3 +218,15 @@
 - **Fix**: Bỏ fallback `|| 'AMBASSADOR'` → `|| null`. NPP D1 thêm gate `&& directSponsor.rank`. Xóa 3 record commission sai của U1001 (6.000.000đ).
 - **Quy tắc vĩnh viễn**: ⭐⭐⭐⭐⭐ **Không có RANK = Không nhận commission.** BID = điều kiện cần, RANK = điều kiện đủ. KHÔNG fallback rank thành AMBASSADOR.
 - **Commit**: `8ca367f`
+
+### L30: Admin Panel Crash — Error Boundary sau khi thêm Dynamic Categories
+- **Ngày**: 2026-10-01
+- **Triệu chứng**: Login admin → trang hiện 'Đã xảy ra sự cố hiển thị'. Trang chủ (không login) vẫn OK.
+- **Nguyên nhân**: ProductSection.tsx thay đổi từ hardcoded CATEGORY_TABS sang dynamic fetch /api/product-categories gây crash khi render trong admin view context. Error Boundary bắt nhưng không log chi tiết.
+- **Cách Fix**: Rollback src/ về commit 26ecd85 (trước thay đổi). Commit a71c55b.
+- **Bài học**:
+  1. Sau MỌI build, phải Playwright test CẢ trang chủ VÀ admin panel (login admin → verify no crash)
+  2. Không rm -rf dist trước khi chắc chắn build sẽ pass
+  3. Ghi lỗi vào loi.md NGAY khi phát hiện, kèm commit hash
+  4. Dynamic fetch trong shared component phải guard cho admin vs public context
+- **Trạng thái**: ĐÃ FIX (rollback). Category CRUD + dynamic tabs + CTV order overhaul cần re-implement.
