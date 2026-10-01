@@ -77,6 +77,29 @@ export default function UnifiedAuthModal({
   const hasReferral = Boolean(effectiveRefCode);
   const [regRefCode, setRegRefCode] = useState(effectiveRefCode);
 
+  // CTV / NPP Registration Options
+  const [regRole, setRegRole] = useState<'ctv' | 'customer'>('ctv');
+  const [wantNpp, setWantNpp] = useState(false);
+  const [nppPackages, setNppPackages] = useState<any[]>([]);
+  const [selectedPackageId, setSelectedPackageId] = useState('');
+  const [loadingPackages, setLoadingPackages] = useState(false);
+
+  // Fetch NPP packages when checkbox checked
+  useEffect(() => {
+    if (!wantNpp) { setNppPackages([]); setSelectedPackageId(''); return; }
+    setLoadingPackages(true);
+    fetch('/api/npp/packages').then(r => r.json()).then(d => {
+      if (d.success && Array.isArray(d.data)) setNppPackages(d.data.filter((p: any) => p.isActive));
+      else setNppPackages([]);
+    }).catch(() => setNppPackages([])).finally(() => setLoadingPackages(false));
+  }, [wantNpp]);
+
+  const formatVND = (v: number) => {
+    if (!v) return '0đ';
+    return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(v);
+  };
+  const rankLabel = (r: string) => ({ AMBASSADOR: 'Đại sứ', MANAGER: 'Trưởng nhóm', DIRECTOR: 'Quản lý' } as any)[r] || r;
+
   useEffect(() => {
     setTab(initialTab);
   }, [initialTab]);
@@ -153,6 +176,18 @@ export default function UnifiedAuthModal({
       });
       const data = await res.json();
       if (data.success && data.data) {
+        // NPP registration if selected
+        if (wantNpp && selectedPackageId) {
+          try {
+            const nppRes = await fetch('/api/npp/register', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ packageId: selectedPackageId }),
+              credentials: 'include',
+            }).then(r => r.json());
+            if (!nppRes.success) console.warn('[NPP Register]', nppRes.message);
+          } catch (e) { console.error('[NPP Register error]', e); }
+        }
         onSuccess(data.data);
         onClose();
       } else {
@@ -206,6 +241,11 @@ export default function UnifiedAuthModal({
       setLoading(false);
       return;
     }
+    if (wantNpp && !selectedPackageId) {
+      setError('Vui lòng chọn một gói NPP.');
+      setLoading(false);
+      return;
+    }
 
     try {
       const body: any = {
@@ -214,7 +254,9 @@ export default function UnifiedAuthModal({
         password: regPassword.trim(),
         otp: regOtp.trim(),
         referralCode: regRefCode?.trim() || undefined,
-        joinSystem: true,
+        joinSystem: regRole === 'ctv',
+        registerNpp: wantNpp || undefined,
+        nppPackageId: wantNpp ? selectedPackageId : undefined,
       };
 
       const res = await fetch('/api/auth/register', {
@@ -226,6 +268,18 @@ export default function UnifiedAuthModal({
       const data = await res.json();
 
       if (data.success && data.data) {
+        // NPP registration if selected
+        if (wantNpp && selectedPackageId) {
+          try {
+            const nppRes = await fetch('/api/npp/register', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ packageId: selectedPackageId }),
+              credentials: 'include',
+            }).then(r => r.json());
+            if (!nppRes.success) console.warn('[NPP Register]', nppRes.message);
+          } catch (e) { console.error('[NPP Register error]', e); }
+        }
         onSuccess(data.data);
         onClose();
       } else if (data.success) {
@@ -473,6 +527,102 @@ export default function UnifiedAuthModal({
                 <Gift className="w-5 h-5 text-[#2585eb] absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none stroke-[2.2]" />
               </div>
             </div>
+
+            {/* ═══ LOẠI TÀI KHOẢN ═══ */}
+            <div className="space-y-1.5">
+              <label className="block text-xs font-extrabold text-[#070f30] uppercase tracking-wide">
+                LOẠI TÀI KHOẢN
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setRegRole('ctv')}
+                  className={`h-10 rounded-xl text-xs font-bold uppercase tracking-wider transition-all border-2 ${
+                    regRole === 'ctv'
+                      ? 'bg-gradient-to-r from-[#005deb] to-[#0178ff] text-white border-transparent shadow-md'
+                      : 'bg-white text-[#3d5a80] border-[#cbe4fe] hover:border-[#0178ff]'
+                  }`}
+                >
+                  ⭐ Đại Lý / CTV
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setRegRole('customer'); setWantNpp(false); }}
+                  className={`h-10 rounded-xl text-xs font-bold uppercase tracking-wider transition-all border-2 ${
+                    regRole === 'customer'
+                      ? 'bg-gradient-to-r from-[#005deb] to-[#0178ff] text-white border-transparent shadow-md'
+                      : 'bg-white text-[#3d5a80] border-[#cbe4fe] hover:border-[#0178ff]'
+                  }`}
+                >
+                  👤 Khách Hàng
+                </button>
+              </div>
+            </div>
+
+            {/* ═══ NPP OPTION (chỉ hiện khi chọn CTV) ═══ */}
+            {regRole === 'ctv' && (
+              <div className="rounded-2xl border border-[#cbe4fe] bg-[#f0f6fe] p-3.5 space-y-2.5">
+                <label className="flex items-start gap-2.5 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={wantNpp}
+                    onChange={e => setWantNpp(e.target.checked)}
+                    className="mt-0.5 w-[18px] h-[18px] accent-[#0178ff] flex-shrink-0 rounded"
+                  />
+                  <div>
+                    <span className="text-[13px] font-bold text-[#070f30]">Đăng ký trở thành Nhà Phân Phối (NPP)</span>
+                    <p className="text-[11px] text-[#5a7a9a] mt-0.5 leading-snug">
+                      Tham gia hệ thống NPP và lựa chọn gói combo máy lọc nước.
+                    </p>
+                  </div>
+                </label>
+
+                {wantNpp && (
+                  <div className="border-t border-[#cbe4fe] pt-2.5 space-y-2">
+                    <p className="text-xs font-bold text-[#070f30]">Chọn gói NPP <span className="text-[#ff3b30]">*</span></p>
+                    {loadingPackages ? (
+                      <p className="text-xs text-[#7895b3] text-center py-3">Đang tải gói NPP...</p>
+                    ) : nppPackages.length === 0 ? (
+                      <p className="text-xs text-[#7895b3] text-center py-3">Hiện chưa có gói NPP nào.</p>
+                    ) : (
+                      <div className="flex flex-col gap-2 max-h-[180px] overflow-y-auto pr-1">
+                        {nppPackages.map((pkg: any) => (
+                          <label
+                            key={pkg.id}
+                            className={`flex items-start gap-2.5 p-2.5 rounded-xl cursor-pointer border-2 transition-all ${
+                              selectedPackageId === pkg.id
+                                ? 'border-[#0178ff] bg-[#e8f2ff] shadow-sm'
+                                : 'border-[#dfe9f5] bg-white hover:border-[#91c7f8]'
+                            }`}
+                          >
+                            <input
+                              type="radio"
+                              name="nppPkg"
+                              value={pkg.id}
+                              checked={selectedPackageId === pkg.id}
+                              onChange={() => setSelectedPackageId(pkg.id)}
+                              className="mt-0.5 accent-[#0178ff] flex-shrink-0"
+                            />
+                            <div className="flex-1 min-w-0">
+                              <div className="text-[13px] font-bold text-[#070f30]">{pkg.name}</div>
+                              <div className="text-[11px] text-[#5a7a9a] mt-0.5">
+                                {pkg.packageType === 'CAPITAL'
+                                  ? `${formatVND(pkg.grossPrice)} · ${rankLabel(pkg.assignedRank)}`
+                                  : `${pkg.requiredQuantity} máy · CK ${(pkg.defaultDiscount / 100)}% · ${rankLabel(pkg.assignedRank)}`
+                                }
+                              </div>
+                              {pkg.description && (
+                                <div className="text-[10px] text-[#8a9db5] mt-0.5 leading-snug">{pkg.description}</div>
+                              )}
+                            </div>
+                          </label>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* SUBMIT BUTTON: ĐĂNG KÝ NGAY */}
             <button
