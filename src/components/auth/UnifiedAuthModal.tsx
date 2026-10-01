@@ -258,7 +258,7 @@ export default function UnifiedAuthModal({ isOpen, onClose, initialTab = 'login'
         <button onClick={onClose} className="absolute top-2.5 right-2.5 z-20 w-7 h-7 flex items-center justify-center rounded-full text-white/70 hover:text-white hover:bg-white/20 transition-all"><X className="w-4 h-4" /></button>
 
         {/* Header — Blue Gradient (inline style for reliability) */}
-        <div className="px-6 pt-8 pb-6 rounded-t-2xl text-center" style={{background: 'linear-gradient(to bottom, #2d7db5, #46a1d3)'}}>
+        <div className="px-6 pt-8 pb-6 rounded-t-2xl text-center" style={{backgroundImage: 'linear-gradient(180deg, #2d7db5 0%, #46a1d3 100%)', backgroundColor: '#2d7db5'}}>
           <div className="mx-auto w-14 h-14 rounded-full flex items-center justify-center mb-3" style={{background: 'rgba(255,255,255,0.25)'}}>
             <User className="w-7 h-7 text-white" />
           </div>
