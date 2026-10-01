@@ -201,9 +201,12 @@ export const App: React.FC = () => {
       localStorage.setItem('wasy_admin_user', JSON.stringify(adminData));
       setIsAdminMode(true);
       window.history.pushState(null, '', '/');
+    } else if (loggedInUser.isSystemParticipant || ((loggedInUser as any).nppStatus && (loggedInUser as any).nppStatus !== 'NONE') || ['AMBASSADOR','MANAGER','DIRECTOR'].includes(loggedInUser.rank || '')) {
+      // CTV partner → CTV Portal
+      setActiveSection('ctv');
+      window.history.pushState(null, '', '/ctv');
     } else {
-      // ALL users (CTV, NPP, customer) → stay on homepage so they can browse & buy
-      // CTV can enter portal via nav menu
+      // Regular customer → stay on website
       setActiveSection('hero');
       window.history.pushState(null, '', '/');
     }
