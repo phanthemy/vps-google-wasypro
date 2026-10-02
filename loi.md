@@ -230,3 +230,20 @@
   3. Ghi lỗi vào loi.md NGAY khi phát hiện, kèm commit hash
   4. Dynamic fetch trong shared component phải guard cho admin vs public context
 - **Trạng thái**: ĐÃ FIX (rollback). Category CRUD + dynamic tabs + CTV order overhaul cần re-implement.
+
+## L31: setSuccess is not a function — CTV Reset MK
+- **Ngày**: 2026-10-02
+- **Triệu chứng**: Bấm Reset MK trong Quản Lý CTV → alert 'Lỗi kết nối máy chủ'
+- **Root cause**: Code gọi setSuccess() nhưng component AdminCTVManagement KHÔNG khai báo const [success, setSuccess] = useState(null)
+- **API vẫn trả 200 OK** — MK đã được reset thành công nhưng frontend crash ở dòng setSuccess(...) → rơi vào catch → lert('Lỗi kết nối máy chủ')
+- **Fix**: Thay setSuccess() bằng lert() + 
+avigator.clipboard.writeText()
+- **Bài học**: Trước khi dùng setXxx() trong component, PHẢI kiểm tra useState có khai báo chưa. Grep useState trước khi code.
+- **Commit**: e05915b
+
+## L32: Sửa nhầm file — wasypro vs wasypro-ctv
+- **Ngày**: 2026-10-02
+- **Triệu chứng**: Thêm đổi MK vào SettingsView.jsx nhưng CTV portal không hiện
+- **Root cause**: CTV portal là app RIÊNG ở /var/www/wasypro-ctv (port 5175), KHÔNG phải /var/www/wasypro (port 5005)
+- **Fix**: Phải sửa file ở CẢ HAI thư mục nếu component tồn tại ở cả hai
+- **Bài học**: Luôn kiểm tra PM2 list + nginx config trước khi sửa. Đọc SYSTEM_MAP.md.
