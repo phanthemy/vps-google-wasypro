@@ -52,6 +52,39 @@ export default function NetworkView({ refreshKey, currentUser }) {
     <div className="flex flex-col gap-4 w-full">
       <PageHeader title="SƠ ĐỒ TUYẾN DƯỚI" />
 
+      {/* Upline Sponsor Card (Người bảo trợ F0) */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 bg-gradient-to-r from-sky-50 via-white to-sky-50/50 rounded-2xl border border-sky-200/80 shadow-xs">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-sky-600 text-white flex items-center justify-center font-bold text-sm shadow-xs shrink-0">
+            F0
+          </div>
+          <div>
+            <div className="text-[11px] font-bold text-sky-800 uppercase tracking-wider">Người Bảo Trợ Trực Tiếp (Tuyến Trên)</div>
+            {currentUser?.sponsor ? (
+              <div className="font-extrabold text-slate-900 text-sm flex flex-wrap items-center gap-2 mt-0.5">
+                <span>{currentUser.sponsor.fullName}</span>
+                <span className="text-xs font-mono font-semibold bg-sky-100 text-sky-800 px-2 py-0.5 rounded">
+                  Mã: {currentUser.sponsor.userId || currentUser.sponsor.id}
+                </span>
+                {currentUser.sponsor.phone && (
+                  <span className="text-xs font-mono text-slate-600 bg-gray-100 px-2 py-0.5 rounded">
+                    SĐT: {currentUser.sponsor.phone}
+                  </span>
+                )}
+              </div>
+            ) : (
+              <div className="text-xs font-semibold text-slate-500 mt-0.5">Hệ Thống Trực Tiếp (Công Ty)</div>
+            )}
+          </div>
+        </div>
+        {currentUser?.sponsor?.businessId && (
+          <div className="text-left sm:text-right">
+            <div className="text-[10px] text-slate-400 font-semibold uppercase">Business ID Sponsor</div>
+            <div className="text-xs font-mono font-bold text-slate-800">{currentUser.sponsor.businessId}</div>
+          </div>
+        )}
+      </div>
+
       {/* Control Bar: Mode Switcher & Zoom Controls */}
       <div className="flex flex-wrap items-center justify-between gap-3 p-3 bg-white/90 backdrop-blur-md rounded-2xl border border-gray-200/70 shadow-xs">
         {/* Switch View Mode */}

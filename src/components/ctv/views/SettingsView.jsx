@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { ShieldCheck, User, Award, Star, CheckCircle, AlertCircle, Camera, Trash2, Upload } from 'lucide-react';
+import { ShieldCheck, User, Users, Award, Star, CheckCircle, AlertCircle, Camera, Trash2, Upload } from 'lucide-react';
 import RankBadge from '../components/common/RankBadge.jsx';
 import AmbassadorProgressCard from '../components/common/AmbassadorProgressCard.jsx';
 
@@ -279,6 +279,39 @@ function getCsrfToken() {
               )}
             </div>
           </div>
+        </div>
+
+        {/* Người Bảo Trợ (Sponsor / Tuyến Trên) */}
+        <div className="bg-sky-50/70 border border-sky-200/80 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 mt-1">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-sky-600 text-white flex items-center justify-center font-bold text-sm shadow-xs shrink-0">
+              <Users size={20} />
+            </div>
+            <div>
+              <div className="text-[11px] font-bold text-sky-800 uppercase tracking-wider">Người Bảo Trợ Trực Tiếp (Tuyến Trên)</div>
+              {currentUser.sponsor ? (
+                <div className="font-extrabold text-sky-950 text-sm sm:text-base flex flex-wrap items-center gap-2 mt-0.5">
+                  <span>{currentUser.sponsor.fullName}</span>
+                  <span className="text-xs font-mono font-bold bg-sky-200/70 text-sky-900 px-2 py-0.5 rounded">
+                    Mã: {currentUser.sponsor.userId || currentUser.sponsor.id}
+                  </span>
+                  {currentUser.sponsor.phone && (
+                    <span className="text-xs font-mono text-sky-700 bg-white/80 border border-sky-200 px-2 py-0.5 rounded">
+                      SĐT: {currentUser.sponsor.phone}
+                    </span>
+                  )}
+                </div>
+              ) : (
+                <div className="text-sm font-semibold text-gray-600 mt-0.5">Hệ Thống Trực Tiếp (Công Ty)</div>
+              )}
+            </div>
+          </div>
+          {currentUser.sponsor?.businessId && (
+            <div className="text-left sm:text-right shrink-0">
+              <div className="text-[10px] text-sky-700 font-semibold uppercase">Business ID Sponsor</div>
+              <div className="text-xs font-mono font-bold text-sky-900">{currentUser.sponsor.businessId}</div>
+            </div>
+          )}
         </div>
       </div>
 

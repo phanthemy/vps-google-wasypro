@@ -197,6 +197,15 @@ export const CTVPortalContainer: React.FC<CTVPortalContainerProps> = ({
             <h2 className="text-lg sm:text-xl font-extrabold tracking-wide mt-0.5">
               {currentUser.fullName}
             </h2>
+            {(currentUser as any).sponsor && (
+              <div className="flex items-center gap-1.5 text-xs text-sky-200 mt-1 font-medium">
+                <Users className="w-3.5 h-3.5 text-sky-300" />
+                <span>Người bảo trợ: <b className="text-white">{(currentUser as any).sponsor.fullName}</b> ({(currentUser as any).sponsor.userId || (currentUser as any).sponsor.id})</span>
+                {(currentUser as any).sponsor.phone && (
+                  <span className="text-sky-100 font-mono">• {(currentUser as any).sponsor.phone}</span>
+                )}
+              </div>
+            )}
           </div>
         </div>
 

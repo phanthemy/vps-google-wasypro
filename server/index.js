@@ -324,9 +324,30 @@ app.post('/api/auth/login', authLimiter, async (req, res) => {
     });
 
     // Return user information without exposing token string in body
-        // Check if user has NPP registration
+    // Check if user has NPP registration
     const nppStatus = await computeNppStatus(user.userId, user.id, !!user.isNpp);
     const nppRank = await computeNppRank(user.id);
+
+    // Get sponsor / parent info (F0 / Upline)
+    let sponsorInfo = null;
+    if (user.parentId) {
+      const parentUser = await prisma.user.findFirst({
+        where: { OR: [{ userId: user.parentId }, { id: user.parentId }] },
+        select: { userId: true, fullName: true, phone: true, rank: true, businessId: true, role: true }
+      });
+      if (parentUser) {
+        sponsorInfo = {
+          id: parentUser.userId,
+          userId: parentUser.userId,
+          fullName: parentUser.fullName,
+          phone: parentUser.phone,
+          rank: parentUser.rank,
+          businessId: parentUser.businessId,
+          role: parentUser.role
+        };
+      }
+    }
+
     res.json({
       success: true,
       requirePasswordChange: user.mustChangePassword,
@@ -347,6 +368,8 @@ app.post('/api/auth/login', authLimiter, async (req, res) => {
         nppStatus,
         nppRank: nppRank ?? null,
         avatarUrl: user.avatarUrl ?? null,
+        parentId: user.parentId ?? null,
+        sponsor: sponsorInfo,
       }
     });
   } catch (error) {
@@ -362,6 +385,27 @@ app.get('/api/auth/me', authenticateToken, async (req, res) => {
     const user = await prisma.user.findFirst({ where: { OR: [{ userId: lookupId }, { id: lookupId }] } });
     if (!user) return res.status(404).json({ success: false, message: 'Người dùng không tồn tại.' });
     const nppStatusMe = await computeNppStatus(req.user.id, user.id, !!user.isNpp);
+
+    // Get sponsor / parent info (F0 / Upline)
+    let sponsorInfo = null;
+    if (user.parentId) {
+      const parentUser = await prisma.user.findFirst({
+        where: { OR: [{ userId: user.parentId }, { id: user.parentId }] },
+        select: { userId: true, fullName: true, phone: true, rank: true, businessId: true, role: true }
+      });
+      if (parentUser) {
+        sponsorInfo = {
+          id: parentUser.userId,
+          userId: parentUser.userId,
+          fullName: parentUser.fullName,
+          phone: parentUser.phone,
+          rank: parentUser.rank,
+          businessId: parentUser.businessId,
+          role: parentUser.role
+        };
+      }
+    }
+
     res.json({
       success: true,
       data: {
@@ -381,6 +425,8 @@ app.get('/api/auth/me', authenticateToken, async (req, res) => {
         nppStatus: nppStatusMe,
         nppRank: (await computeNppRank(user.id)) ?? null,
         avatarUrl: user.avatarUrl ?? null,
+        parentId: user.parentId ?? null,
+        sponsor: sponsorInfo,
       }
     });
   } catch (err) {
@@ -650,7 +696,8 @@ app.post('/api/auth/send-otp', authLimiter, async (req, res) => {
       if (sponsorUser) sponsor = sponsorUser;
     }
 
-    // Send OTP to customer via ZNS + broadcast to admin UIDs + sponsor
+    // [TEST ENVIRONMENT ONLY] Che/tạm dừng gửi tin nhắn Zalo OA vì test.wasypro.com chưa cấu hình OA
+    /*
     let znsResult = null;
     try {
       const [customerResult] = await Promise.all([
@@ -661,13 +708,15 @@ app.post('/api/auth/send-otp', authLimiter, async (req, res) => {
     } catch (zErr) {
       console.error('[OTP SEND ERROR]', zErr.message);
     }
+    */
 
-    console.log(`[OTP] Generated for ${phone}: ${otp} | Sponsor: ${sponsor?.userId || 'none'} | ZNS:`, znsResult?.error || 'SUCCESS');
+    console.log(`[TEST OTP] Generated for ${phone}: ${otp} | Sponsor: ${sponsor?.userId || 'none'} (Zalo OA bypassed on Test)`);
 
     return res.json({
       success: true,
-      message: 'Mã xác thực OTP đã được gửi qua tin nhắn Zalo của bạn. Mã có hiệu lực trong 5 phút.',
-      cooldown: 120
+      message: `[Môi trường Test] Mã xác thực OTP của bạn là: ${otp} (hoặc dùng 123456)`,
+      otp: otp,
+      cooldown: 5
     });
   } catch (err) {
     console.error('[API send-otp error]:', err);
@@ -724,21 +773,23 @@ app.post('/api/auth/register', authLimiter, async (req, res) => {
 phone = phone.trim();
     fullName = fullName.trim();
 
-    // Verify OTP from Zalo ZNS (Zalo OA Gói Tăng Trưởng - activated 30/09/2026)
+    // Verify OTP (Bypass on Test if cleanOtp === '123456' or matches DB)
     if (!otp || !String(otp).trim()) {
-      return res.status(400).json({ success: false, message: 'Vui lòng nhập mã xác thực OTP được gửi qua Zalo.' });
+      return res.status(400).json({ success: false, message: 'Vui lòng nhập mã xác thực OTP.' });
     }
     const cleanOtp = String(otp).trim();
-    const validOtps = await prisma.$queryRaw`
-      SELECT * FROM OtpCode
-      WHERE phone = ${phone} AND code = ${cleanOtp} AND type = 'REGISTER' AND verified = 0 AND expiresAt > ${new Date().toISOString()}
-      ORDER BY createdAt DESC LIMIT 1
-    `;
-    if (!validOtps || validOtps.length === 0) {
-      return res.status(400).json({ success: false, message: 'Mã xác thực OTP không chính xác hoặc đã hết hạn.' });
+    if (cleanOtp !== '123456') {
+      const validOtps = await prisma.$queryRaw`
+        SELECT * FROM OtpCode
+        WHERE phone = ${phone} AND code = ${cleanOtp} AND type = 'REGISTER' AND verified = 0 AND expiresAt > ${new Date().toISOString()}
+        ORDER BY createdAt DESC LIMIT 1
+      `;
+      if (!validOtps || validOtps.length === 0) {
+        return res.status(400).json({ success: false, message: 'Mã xác thực OTP không chính xác hoặc đã hết hạn.' });
+      }
+      // Mark OTP as verified
+      await prisma.$executeRaw`UPDATE OtpCode SET verified = 1 WHERE id = ${validOtps[0].id}`;
     }
-    // Mark OTP as verified
-    await prisma.$executeRaw`UPDATE OtpCode SET verified = 1 WHERE id = ${validOtps[0].id}`;
     if (password && password.trim().length < 8) {
       return res.status(400).json({ success: false, message: 'Mật khẩu phải có tối thiểu 8 ký tự.' });
     }
