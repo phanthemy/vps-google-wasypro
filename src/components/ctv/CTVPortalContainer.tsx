@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { UserSession } from '../../hooks/useUnifiedAuth';
 
-// Mockup UI Components
+// Mockup UI Components (Strict Design Tokens)
 import { MockupHeader } from './mockup/MockupHeader';
 import { MockupBottomNav } from './mockup/MockupBottomNav';
 import { MockupDashboard } from './mockup/MockupDashboard';
@@ -11,7 +11,7 @@ import { MockupOrders } from './mockup/MockupOrders';
 import { MockupMore } from './mockup/MockupMore';
 import { MockupDrawer } from './mockup/MockupDrawer';
 
-// Real Functional Views (for subpages)
+// Subviews
 // @ts-ignore
 import NetworkView from './views/NetworkView.jsx';
 // @ts-ignore
@@ -41,7 +41,7 @@ export const CTVPortalContainer: React.FC<CTVPortalContainerProps> = ({
   const [activeTab, setActiveTab] = useState(initialTab);
   const [drawerOpen, setDrawerOpen] = useState(false);
 
-  // Invite member: open register modal with current user's referral
+  // Invite member
   const handleInviteMember = () => {
     if (onOpenAuth) {
       onOpenAuth('register');
@@ -74,8 +74,14 @@ export const CTVPortalContainer: React.FC<CTVPortalContainerProps> = ({
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 font-sans pb-24 text-slate-800">
-      {/* 1. TOP HEADER (Mockup style) */}
+    <div 
+      className="min-h-screen font-sans pb-24 text-[#0F172A]"
+      style={{ 
+        background: '#F8FAFC',
+        fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif'
+      }}
+    >
+      {/* 1. HEADER (64px main / 56px subpage, background #FFFFFF) */}
       <MockupHeader
         title={headerTitle}
         showBack={!isHome}
@@ -86,8 +92,8 @@ export const CTVPortalContainer: React.FC<CTVPortalContainerProps> = ({
         cartCount={cartItemCount}
       />
 
-      {/* 2. MAIN BODY (Max width for phone feel, scales on desktop) */}
-      <main className="max-w-md mx-auto px-4 pt-3.5">
+      {/* 2. MAIN BODY (Page horizontal padding: 16px, max-w-md) */}
+      <main className="max-w-md mx-auto px-4 pt-4">
         {/* Screen 1: Dashboard */}
         {activeTab === 'dashboard' && (
           <MockupDashboard
@@ -112,7 +118,7 @@ export const CTVPortalContainer: React.FC<CTVPortalContainerProps> = ({
           <MockupCommissions
             totalCommission={31920000}
             periodName="10/2026"
-            onViewDetails={() => alert('Chi tiết hoa hồng được tính theo chính sách Water King')}
+            onViewDetails={() => alert('Chi tiết hoa hồng')}
           />
         )}
 
@@ -133,26 +139,44 @@ export const CTVPortalContainer: React.FC<CTVPortalContainerProps> = ({
 
         {/* Subpage: Sơ đồ tuyến dưới */}
         {activeTab === 'network' && (
-          <div className="bg-white rounded-3xl p-4 border border-gray-100 shadow-sm animate-fadeIn">
+          <div 
+            style={{
+              background: '#FFFFFF',
+              border: '1px solid #EEF2F6',
+              borderRadius: '18px',
+              padding: '16px',
+              boxShadow: '0 4px 14px rgba(15,23,42,0.05)'
+            }}
+            className="animate-fadeIn"
+          >
             <NetworkView currentUser={currentUser} />
           </div>
         )}
 
         {/* Subpage: Thông tin tài khoản */}
         {activeTab === 'account' && (
-          <div className="bg-white rounded-3xl p-4 border border-gray-100 shadow-sm animate-fadeIn">
+          <div 
+            style={{
+              background: '#FFFFFF',
+              border: '1px solid #EEF2F6',
+              borderRadius: '18px',
+              padding: '16px',
+              boxShadow: '0 4px 14px rgba(15,23,42,0.05)'
+            }}
+            className="animate-fadeIn"
+          >
             <SettingsView currentUser={currentUser} onLogout={onLogout} />
           </div>
         )}
       </main>
 
-      {/* 3. FIXED BOTTOM NAVIGATION BAR (Mockup style) */}
+      {/* 3. BOTTOM NAVIGATION (Height 66px, 40x40 #0072F5 active icon) */}
       <MockupBottomNav
         activeTab={activeTab}
         onChangeTab={setActiveTab}
       />
 
-      {/* 4. SLIDE-OUT DRAWER MENU (Mockup Screen 6) */}
+      {/* 4. SLIDE-OUT DRAWER MENU (Width 320px, 52px item height) */}
       <MockupDrawer
         isOpen={drawerOpen}
         onClose={() => setDrawerOpen(false)}

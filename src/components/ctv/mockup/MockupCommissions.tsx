@@ -21,31 +21,58 @@ export const MockupCommissions: React.FC<MockupCommissionsProps> = ({
   ];
 
   return (
-    <div className="space-y-4 pb-6">
-      {/* 1. TỔNG HOA HỒNG CARD (Mockup 1 Screen 3) */}
-      <div className="bg-white rounded-3xl p-5 border border-amber-100 shadow-[0_2px_12px_rgba(0,0,0,0.03)] space-y-3">
+    <div className="space-y-4 pb-6" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif' }}>
+      {/* ============================================================
+          SECTION 16: COMMISSION CARD (Total: #0072F5, 32px, 700)
+          ============================================================ */}
+      <div 
+        style={{
+          background: '#FFFFFF',
+          border: '1px solid #EEF2F6',
+          borderRadius: '18px',
+          padding: '20px',
+          boxShadow: '0 4px 14px rgba(15,23,42,0.05)'
+        }}
+        className="space-y-3"
+      >
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-2xl bg-amber-100/80 text-[#D97706] flex items-center justify-center">
+            <div 
+              className="rounded-[12px] flex items-center justify-center shrink-0"
+              style={{ width: '40px', height: '40px', background: '#FFF7E6', color: '#F5A623' }}
+            >
               <Coins className="w-6 h-6 stroke-[2.2]" />
             </div>
-            <span className="text-[15px] font-bold text-gray-800">
+            <span style={{ fontSize: '15px', fontWeight: 600, color: '#0F172A' }}>
               Tổng hoa hồng
             </span>
           </div>
 
-          <span className="bg-[#EBF5FF] text-[#0070F3] font-bold text-[12px] px-3 py-1 rounded-full">
+          <span 
+            className="px-2.5 py-0.5 rounded-full font-bold"
+            style={{ background: '#F0F7FF', color: '#0072F5', fontSize: '12px' }}
+          >
             {periodName}
           </span>
         </div>
 
-        <div className="text-[36px] font-black text-[#0070F3] tracking-tight py-1">
+        {/* SECTION 16: Total commission 32px 700 #0072F5 */}
+        <div style={{ fontSize: '32px', fontWeight: 700, color: '#0072F5', lineHeight: 1.2, paddingTop: '4px' }}>
           {totalCommission.toLocaleString('vi-VN')} đ
         </div>
 
         <button
           onClick={onViewDetails}
-          className="w-full py-3 rounded-2xl border border-gray-200 text-[#0070F3] font-bold text-[14px] hover:bg-blue-50 flex items-center justify-center gap-2 transition-all active:scale-[0.99]"
+          className="w-full flex items-center justify-center gap-2 transition-all active:scale-[0.99]"
+          style={{
+            height: '46px',
+            borderRadius: '14px',
+            border: '1px solid #E2E8F0',
+            color: '#0072F5',
+            fontSize: '14px',
+            fontWeight: 600,
+            background: '#FFFFFF'
+          }}
         >
           <span>Xem chi tiết hoa hồng</span>
           <ArrowRight className="w-4 h-4 stroke-[2.5]" />
@@ -53,18 +80,28 @@ export const MockupCommissions: React.FC<MockupCommissionsProps> = ({
       </div>
 
       {/* 2. LỊCH SỬ HOA HỒNG GẦN ĐÂY */}
-      <div className="bg-white rounded-3xl p-5 border border-gray-100 shadow-[0_2px_12px_rgba(0,0,0,0.03)] space-y-3">
-        <h3 className="text-[15px] font-bold text-gray-800 pb-1">
+      <div 
+        style={{
+          background: '#FFFFFF',
+          border: '1px solid #EEF2F6',
+          borderRadius: '18px',
+          padding: '20px',
+          boxShadow: '0 4px 14px rgba(15,23,42,0.05)'
+        }}
+        className="space-y-3"
+      >
+        <h3 style={{ fontSize: '16px', fontWeight: 600, color: '#0F172A', paddingBottom: '4px' }}>
           Lịch sử hoa hồng gần đây
         </h3>
 
-        <div className="divide-y divide-gray-100">
+        <div className="divide-y divide-[#EEF2F6]">
           {history.map((item, idx) => (
-            <div key={idx} className="flex items-center justify-between py-3.5">
-              <span className="text-[14px] font-bold text-gray-700 font-mono">
+            <div key={idx} className="flex items-center justify-between py-3">
+              <span style={{ fontSize: '15px', fontWeight: 500, color: '#475569', fontFamily: 'monospace' }}>
                 {item.period}
               </span>
-              <span className="text-[15px] font-extrabold text-[#00B050] font-mono">
+              {/* SECTION 16: History positive values: #00B050, 14px, 600 */}
+              <span style={{ fontSize: '14px', fontWeight: 600, color: '#00B050', fontFamily: 'monospace' }}>
                 {item.amount}
               </span>
             </div>
@@ -73,7 +110,16 @@ export const MockupCommissions: React.FC<MockupCommissionsProps> = ({
 
         <button
           onClick={onViewDetails}
-          className="w-full py-3 rounded-2xl bg-sky-50 text-[#0070F3] font-extrabold text-[14px] hover:bg-sky-100 flex items-center justify-center gap-1.5 transition-all active:scale-[0.99]"
+          className="w-full flex items-center justify-center gap-1.5 transition-all active:scale-[0.99]"
+          style={{
+            height: '46px',
+            borderRadius: '14px',
+            background: '#F0F7FF',
+            color: '#0072F5',
+            fontSize: '14px',
+            fontWeight: 600,
+            marginTop: '8px'
+          }}
         >
           <span>Xem tất cả</span>
           <ArrowRight className="w-4 h-4 stroke-[2.5]" />

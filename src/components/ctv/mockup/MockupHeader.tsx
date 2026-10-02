@@ -20,52 +20,52 @@ export const MockupHeader: React.FC<MockupHeaderProps> = ({
   cartCount = 1,
   showBack = false,
 }) => {
+  // Subpage header: height 56px. Main header: height 64px.
+  const heightClass = showBack ? 'h-[56px]' : 'h-[64px]';
+
   return (
-    <header className="sticky top-0 z-30 bg-white border-b border-gray-100 shadow-xs">
-      <div className="max-w-md mx-auto px-4 h-14 flex items-center justify-between">
+    <header className="sticky top-0 z-30 bg-[#FFFFFF] border-b border-[#EEF2F6]">
+      <div className={`max-w-md mx-auto px-4 ${heightClass} flex items-center justify-between`}>
         {showBack ? (
           <div className="flex items-center gap-3">
             <button
               onClick={onBack}
-              className="p-1.5 -ml-1.5 rounded-full hover:bg-gray-100 text-gray-700 transition-colors"
+              className="w-10 h-10 -ml-2 rounded-full flex items-center justify-center text-[#0F172A] hover:bg-[#F8FAFC] active:scale-95 transition-all"
+              style={{ minWidth: '40px', minHeight: '40px' }}
             >
               <ChevronLeft className="w-6 h-6 stroke-[2.5]" />
             </button>
-            {title ? (
-              <h1 className="text-[17px] font-black text-gray-900 tracking-tight">{title}</h1>
-            ) : (
-              <img
-                src="/images/logo-rbg.webp"
-                alt="WASY PRO HYDROGEN"
-                className="h-8 w-auto"
-              />
-            )}
+            <h1 className="text-[17px] font-bold text-[#0F172A] leading-[1.3] truncate max-w-[200px]">
+              {title}
+            </h1>
           </div>
         ) : (
-          <div className="flex items-center gap-2">
+          <div className="flex items-center">
             <img
               src="/images/logo-rbg.webp"
               alt="WASY PRO HYDROGEN"
-              className="h-8 w-auto"
+              className="h-9 w-auto object-contain"
             />
           </div>
         )}
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1">
           <button
             onClick={onSearchClick}
-            className="p-2 rounded-full hover:bg-gray-100 text-gray-700 transition-colors"
+            className="w-11 h-11 rounded-full flex items-center justify-center text-[#334155] hover:bg-[#F8FAFC] active:scale-95 transition-all"
+            title="Tìm kiếm"
           >
-            <Search className="w-5 h-5 stroke-[2.2]" />
+            <Search className="w-6 h-6 stroke-[2]" />
           </button>
 
           <button
             onClick={onCartClick}
-            className="relative p-2 rounded-full hover:bg-gray-100 text-gray-700 transition-colors"
+            className="relative w-11 h-11 rounded-full flex items-center justify-center text-[#334155] hover:bg-[#F8FAFC] active:scale-95 transition-all"
+            title="Giỏ hàng"
           >
-            <ShoppingCart className="w-5 h-5 stroke-[2.2]" />
+            <ShoppingCart className="w-6 h-6 stroke-[2]" />
             {cartCount > 0 && (
-              <span className="absolute top-1 right-1 w-4 h-4 bg-[#ED4956] text-white text-[10px] font-black rounded-full flex items-center justify-center">
+              <span className="absolute top-1.5 right-1.5 min-w-[16px] h-4 px-1 bg-[#ED4956] text-[#FFFFFF] text-[10px] font-bold rounded-full flex items-center justify-center">
                 {cartCount}
               </span>
             )}
@@ -73,9 +73,10 @@ export const MockupHeader: React.FC<MockupHeaderProps> = ({
 
           <button
             onClick={onMenuClick}
-            className="p-2 rounded-full hover:bg-gray-100 text-gray-700 transition-colors"
+            className="w-11 h-11 rounded-full flex items-center justify-center text-[#334155] hover:bg-[#F8FAFC] active:scale-95 transition-all"
+            title="Menu"
           >
-            <Menu className="w-6 h-6 stroke-[2.2]" />
+            <Menu className="w-6 h-6 stroke-[2]" />
           </button>
         </div>
       </div>

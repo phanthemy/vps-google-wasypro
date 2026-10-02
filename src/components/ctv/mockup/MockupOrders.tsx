@@ -15,7 +15,8 @@ export const MockupOrders: React.FC<MockupOrdersProps> = ({ onSelectOrder }) => 
       product: 'Máy tạo nước Hydrogen',
       price: '12.500.000 đ',
       status: 'Đang giao',
-      statusStyle: 'bg-amber-100 text-amber-800'
+      badgeBg: '#FFF7E6',
+      badgeColor: '#B77900'
     },
     {
       id: 'DH25102815',
@@ -23,7 +24,8 @@ export const MockupOrders: React.FC<MockupOrdersProps> = ({ onSelectOrder }) => 
       product: 'Bình thủy tinh Hydrogen',
       price: '3.200.000 đ',
       status: 'Đã giao',
-      statusStyle: 'bg-emerald-100 text-emerald-800'
+      badgeBg: '#ECFDF5',
+      badgeColor: '#008A45'
     },
     {
       id: 'DH25102608',
@@ -31,7 +33,8 @@ export const MockupOrders: React.FC<MockupOrdersProps> = ({ onSelectOrder }) => 
       product: 'Máy lọc nước ion kiềm',
       price: '28.900.000 đ',
       status: 'Đã giao',
-      statusStyle: 'bg-emerald-100 text-emerald-800'
+      badgeBg: '#ECFDF5',
+      badgeColor: '#008A45'
     },
     {
       id: 'DH25102411',
@@ -39,93 +42,122 @@ export const MockupOrders: React.FC<MockupOrdersProps> = ({ onSelectOrder }) => 
       product: 'Bộ lõi lọc thay thế',
       price: '1.250.000 đ',
       status: 'Hủy',
-      statusStyle: 'bg-rose-100 text-rose-700'
+      badgeBg: '#FFF0F2',
+      badgeColor: '#ED4956'
     },
   ];
 
   return (
-    <div className="space-y-4 pb-6">
+    <div className="space-y-4 pb-6" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif' }}>
       {/* 1. FILTER PILLS (Mockup 1 Screen 4) */}
       <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar">
         <button
           onClick={() => setFilter('all')}
-          className={`px-4 py-2 rounded-full text-[13px] font-bold transition-all shrink-0 ${
-            filter === 'all'
-              ? 'bg-[#0070F3] text-white shadow-xs'
-              : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-          }`}
+          className="px-4 py-2 rounded-full transition-all shrink-0 active:scale-95"
+          style={{
+            background: filter === 'all' ? '#0072F5' : '#F1F5F9',
+            color: filter === 'all' ? '#FFFFFF' : '#475569',
+            fontSize: '14px',
+            fontWeight: 600,
+          }}
         >
           Tất cả
         </button>
 
         <button
           onClick={() => setFilter('pending')}
-          className={`px-4 py-2 rounded-full text-[13px] font-bold transition-all shrink-0 ${
-            filter === 'pending'
-              ? 'bg-[#0070F3] text-white shadow-xs'
-              : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-          }`}
+          className="px-4 py-2 rounded-full transition-all shrink-0 active:scale-95"
+          style={{
+            background: filter === 'pending' ? '#0072F5' : '#F1F5F9',
+            color: filter === 'pending' ? '#FFFFFF' : '#475569',
+            fontSize: '14px',
+            fontWeight: 600,
+          }}
         >
           Chờ xử lý
         </button>
 
         <button
           onClick={() => setFilter('delivering')}
-          className={`px-4 py-2 rounded-full text-[13px] font-bold transition-all shrink-0 ${
-            filter === 'delivering'
-              ? 'bg-[#0070F3] text-white shadow-xs'
-              : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-          }`}
+          className="px-4 py-2 rounded-full transition-all shrink-0 active:scale-95"
+          style={{
+            background: filter === 'delivering' ? '#0072F5' : '#F1F5F9',
+            color: filter === 'delivering' ? '#FFFFFF' : '#475569',
+            fontSize: '14px',
+            fontWeight: 600,
+          }}
         >
           Đang giao
         </button>
 
         <button
           onClick={() => setFilter('delivered')}
-          className={`px-4 py-2 rounded-full text-[13px] font-bold transition-all shrink-0 ${
-            filter === 'delivered'
-              ? 'bg-[#0070F3] text-white shadow-xs'
-              : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-          }`}
+          className="px-4 py-2 rounded-full transition-all shrink-0 active:scale-95"
+          style={{
+            background: filter === 'delivered' ? '#0072F5' : '#F1F5F9',
+            color: filter === 'delivered' ? '#FFFFFF' : '#475569',
+            fontSize: '14px',
+            fontWeight: 600,
+          }}
         >
           Đã giao
         </button>
       </div>
 
-      {/* 2. ORDER CARDS LIST (Mockup 1 Screen 4) */}
+      {/* ============================================================
+          SECTION 17: ORDER STATUS BADGES & ORDER CARDS
+          ============================================================ */}
       <div className="space-y-3">
         {orders.map((order) => (
           <div
             key={order.id}
             onClick={() => onSelectOrder && onSelectOrder(order.id)}
-            className="bg-white rounded-3xl p-4.5 border border-gray-100 shadow-[0_2px_12px_rgba(0,0,0,0.03)] hover:shadow-md transition-all cursor-pointer space-y-2 active:scale-[0.99]"
+            className="hover:shadow-md transition-all cursor-pointer space-y-2 active:scale-[0.99]"
+            style={{
+              background: '#FFFFFF',
+              border: '1px solid #EEF2F6',
+              borderRadius: '18px',
+              padding: '16px',
+              boxShadow: '0 4px 14px rgba(15,23,42,0.05)'
+            }}
           >
             {/* Top: Order Code + Date */}
             <div className="flex items-center justify-between">
-              <span className="text-[15px] font-black text-gray-900 font-mono">
+              <span style={{ fontSize: '15px', fontWeight: 600, color: '#0F172A', fontFamily: 'monospace' }}>
                 #{order.id}
               </span>
-              <span className="text-[12px] font-medium text-gray-400">
+              <span style={{ fontSize: '13px', fontWeight: 400, color: '#94A3B8' }}>
                 {order.date}
               </span>
             </div>
 
             {/* Product Name */}
-            <p className="text-[14px] font-bold text-gray-700 truncate">
+            <p style={{ fontSize: '15px', fontWeight: 500, color: '#0F172A' }} className="truncate">
               {order.product}
             </p>
 
             {/* Bottom: Price + Status Pill + Arrow */}
             <div className="flex items-center justify-between pt-1">
-              <span className="text-[18px] font-black text-gray-900 tracking-tight">
+              <span style={{ fontSize: '18px', fontWeight: 700, color: '#0F172A', lineHeight: 1 }}>
                 {order.price}
               </span>
 
               <div className="flex items-center gap-2">
-                <span className={`text-[11px] font-extrabold px-3 py-1 rounded-full ${order.statusStyle}`}>
+                {/* SECTION 17: Status Badge (5px 10px, 999px radius, font 11-12px 600) */}
+                <span 
+                  style={{
+                    background: order.badgeBg,
+                    color: order.badgeColor,
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    borderRadius: '999px',
+                    padding: '5px 10px',
+                    lineHeight: 1
+                  }}
+                >
                   {order.status}
                 </span>
-                <ChevronRight className="w-4 h-4 text-gray-400 stroke-[2.5]" />
+                <ChevronRight className="w-4 h-4 text-[#94A3B8] stroke-[2.5]" />
               </div>
             </div>
           </div>
