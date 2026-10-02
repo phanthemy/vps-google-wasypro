@@ -530,10 +530,10 @@ export default function CreateOrderModal({ currentUser, onClose, onSuccess }) {
                         borderBottom: '1px solid #f1f5f9',
                       }}
                     >
-                      <div className="flex items-center gap-3 min-w-0 pr-2 flex-1 cursor-pointer" onClick={() => setDetailProduct(p)}>
+                      <div className="flex items-center gap-3 min-w-0 pr-2 flex-1 cursor-pointer" onClick={() => window.open('/#products', '_blank')}>
                         <div
                           className="w-16 h-16 rounded-xl bg-white border border-slate-200 overflow-hidden flex-shrink-0 flex items-center justify-center p-0.5 hover:border-indigo-400 hover:shadow-md"
-                          title="Nhấn để xem chi tiết"
+                          title="Nhấn để xem chi tiết trên trang chủ"
                         >
                           {p.image ? (
                             <img
@@ -548,14 +548,9 @@ export default function CreateOrderModal({ currentUser, onClose, onSuccess }) {
                         </div>
                         <div className="min-w-0">
                           <div className="font-bold text-sm text-slate-800 truncate">{p.title}</div>
-                          <div className="flex items-center gap-2 mt-1">
-                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
-                              ⭐ {new Intl.NumberFormat('vi-VN').format(p.commissionPoints || 0)} CP
-                            </span>
-                            {p.specs?.origin && (
-                              <span className="text-[10px] text-slate-400">· {p.specs.origin}</span>
-                            )}
-                          </div>
+                          {p.specs?.origin && (
+                            <div className="text-[11px] text-slate-400 mt-0.5">{p.specs.origin}</div>
+                          )}
                         </div>
                       </div>
                       <div className="flex items-center gap-4 flex-shrink-0">
@@ -763,10 +758,10 @@ export default function CreateOrderModal({ currentUser, onClose, onSuccess }) {
                         borderBottom: '1px solid #f1f5f9',
                       }}
                     >
-                      <div className="flex items-center gap-3 min-w-0 pr-2 flex-1 cursor-pointer" onClick={() => setDetailProduct(p)}>
+                      <div className="flex items-center gap-3 min-w-0 pr-2 flex-1 cursor-pointer" onClick={() => window.open('/#products', '_blank')}>
                         <div
                           className="w-16 h-16 rounded-xl bg-white border border-slate-200 overflow-hidden flex-shrink-0 flex items-center justify-center p-0.5 hover:border-amber-400 hover:shadow-md"
-                          title="Nhấn để xem chi tiết"
+                          title="Nhấn để xem chi tiết trên trang chủ"
                         >
                           {p.image ? (
                             <img
@@ -781,14 +776,9 @@ export default function CreateOrderModal({ currentUser, onClose, onSuccess }) {
                         </div>
                         <div className="min-w-0">
                           <div className="font-bold text-sm text-slate-800 truncate">{p.title}</div>
-                          <div className="flex items-center gap-2 mt-1">
-                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
-                              ⭐ {new Intl.NumberFormat('vi-VN').format(p.commissionPoints || 0)} CP
-                            </span>
-                            {p.specs?.origin && (
-                              <span className="text-[10px] text-slate-400">· {p.specs.origin}</span>
-                            )}
-                          </div>
+                          {p.specs?.origin && (
+                            <div className="text-[11px] text-slate-400 mt-0.5">{p.specs.origin}</div>
+                          )}
                         </div>
                       </div>
                       <div className="flex items-center gap-4 flex-shrink-0">
