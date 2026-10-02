@@ -41,10 +41,10 @@ const CATEGORY_TABS: CustomTab[] = [
     description: 'Máy lọc nước Ion kiềm & Hydrogen công nghệ cao'
   },
   { 
-    id: 'binh-ly-hydrogen', 
-    name: 'Bình Ly Hydrogen', 
+    id: 'dung-cu-test-nuoc', 
+    name: 'Dụng Cụ Test Nước', 
     icon: Coffee,
-    description: 'Bình & ly tạo nước Hydrogen di động cao cấp'
+    description: 'Dụng cụ đo kiểm tra chất lượng nước'
   },
   { 
     id: 'phu-kien', 
@@ -113,9 +113,9 @@ export const ProductSection: React.FC<ProductSectionProps> = ({
       return isMachine && !isAccessory;
     }
 
-    // 2. BÌNH LY HYDROGEN: cat-03 hoặc chứa chữ bình, ly
-    if (tabId === 'binh-ly-hydrogen') {
-      return catId === 'cat-03' || titleLower.includes('bình') || titleLower.includes('ly');
+    // 2. DỤNG CỤ TEST NƯỚC: cat-03 hoặc sản phẩm test nước
+    if (tabId === 'dung-cu-test-nuoc') {
+      return catId === 'cat-03' || titleLower.includes('test') || titleLower.includes('đo') || titleLower.includes('bút');
     }
 
     // 3. PHỤ KIỆN MÁY LỌC NƯỚC: Lõi lọc, màng lọc, bút đo, phụ kiện
@@ -298,17 +298,17 @@ export const ProductSection: React.FC<ProductSectionProps> = ({
           </div>
         )}
 
-        {/* Trạng thái 3: Trống (Ví dụ khi click vào Bình Ly Hydrogen mà chưa có sản phẩm) */}
+        {/* Trạng thái 3: Trống (Ví dụ khi click vào Dụng Cụ Test Nước mà chưa có sản phẩm) */}
         {!isLoading && !error && displayedProducts.length === 0 && (
           <div className="bg-white rounded-2xl p-10 text-center max-w-md mx-auto my-8 border border-slate-100 shadow-sm">
             <Coffee className="w-12 h-12 text-amber-500/60 mx-auto mb-3" />
             <h3 className="text-base font-bold text-slate-800 mb-1">
-              {selectedCategory === 'binh-ly-hydrogen' 
+              {selectedCategory === 'dung-cu-test-nuoc' 
                 ? 'Dòng Bình & Ly Hydrogen sắp ra mắt' 
                 : 'Không tìm thấy sản phẩm phù hợp'}
             </h3>
             <p className="text-xs sm:text-sm text-slate-500 mb-5 leading-relaxed">
-              {selectedCategory === 'binh-ly-hydrogen'
+              {selectedCategory === 'dung-cu-test-nuoc'
                 ? 'Các mẫu bình ly tạo Hydrogen di động đang được chuẩn bị lên kệ. Quý khách vui lòng liên hệ tư vấn để nhận thông tin ưu đãi mở bán sớm!'
                 : 'Vui lòng kiểm tra lại từ khóa tìm kiếm hoặc bấm xem mục khác.'}
             </p>

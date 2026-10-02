@@ -265,3 +265,15 @@ avigator.clipboard.writeText()
      □ Cần authenticateToken? → Thêm middleware
      □ Dùng cookie auth? → Thêm CSRF exempt
      □ Cập nhật SYSTEM_MAP.md section 4.3
+
+## L34: Danh mục đổi tên trong Admin nhưng không hiện trên trang chủ ⭐⭐⭐
+- **Ngày**: 2026-10-02
+- **Triệu chứng**: Admin đổi 'Bình Ly Hydrogen' → 'Dụng Cụ Test Nước' trong CSDL, nhưng trang chủ vẫn hiện tên cũ
+- **Root cause**: ProductSection.tsx HARDCODE tên + slug danh mục (line 44-45: id='binh-ly-hydrogen', name='Bình Ly Hydrogen')
+- **API trả đúng**: Cả port 3011 và 5005 đều trả 'Dụng Cụ Test Nước'
+- **Tại sao frontend sai**: Line 218 dùng categoryNames[tab.id] || tab.name — tab.id = 'binh-ly-hydrogen' nhưng API trả slug = 'dung-cu-test-nuoc' → không match → fallback sang hardcoded name
+- **Fix**: Đổi tất cả reference 'binh-ly-hydrogen' → 'dung-cu-test-nuoc' trong ProductSection.tsx
+- **BÀI HỌC**: 
+  1. Khi sửa danh mục (tên/slug) trong Admin → PHẢI kiểm tra ProductSection.tsx có hardcode slug cũ không
+  2. KHÔNG hardcode tên/slug danh mục — nên fetch động từ API
+  3. Tab ID trong CATEGORY_TABS phải KHỚP với slug trong database
