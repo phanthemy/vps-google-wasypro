@@ -2149,7 +2149,9 @@ app.post('/api/admin/users/:id/reset-password', authenticateToken, requireRole([
     }
 
     // Generate random strong temporary password
-    const tempPassword = crypto.randomBytes(3).toString('hex') + 'Aa1!';
+    const chars = 'abcdefghjkmnpqrstuvwxyz23456789';
+    let tempPassword = 'wasy';
+    for (let i = 0; i < 4; i++) tempPassword += chars[Math.floor(Math.random() * chars.length)];
     const hashed = await bcrypt.hash(tempPassword, 10);
 
     await prisma.user.update({
