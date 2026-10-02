@@ -390,6 +390,42 @@ app.get('/api/auth/me', authenticateToken, async (req, res) => {
 // LOGOUT (Clear Cookies)
 app.post('/api/auth/logout', (req, res) => {
   res.clearCookie('auth_token', { path: '/' });
+
+// POST /api/auth/change-password — CTV/member self-change password
+app.post('/api/auth/change-password', authenticateToken, async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    if (!newPassword || newPassword.length < 4) {
+      return res.status(400).json({ success: false, message: 'Mật khẩu mới phải có ít nhất 4 ký tự' });
+    }
+
+    const user = await prisma.user.findUnique({ where: { userId: req.user.id } });
+    if (!user) return res.status(404).json({ success: false, message: 'Không tìm thấy tài khoản' });
+
+    // If mustChangePassword is true, skip current password check (first login after reset)
+    if (!user.mustChangePassword) {
+      if (!currentPassword) {
+        return res.status(400).json({ success: false, message: 'Vui lòng nhập mật khẩu hiện tại' });
+      }
+      const isMatch = await bcrypt.compare(currentPassword, user.password);
+      if (!isMatch) {
+        return res.status(400).json({ success: false, message: 'Mật khẩu hiện tại không đúng' });
+      }
+    }
+
+    const hashed = await bcrypt.hash(newPassword, 10);
+    await prisma.user.update({
+      where: { userId: req.user.id },
+      data: { password: hashed, mustChangePassword: false }
+    });
+
+    res.json({ success: true, message: 'Đổi mật khẩu thành công!' });
+  } catch (error) {
+    console.error('Change password error:', error);
+    res.status(500).json({ success: false, message: 'Lỗi hệ thống' });
+  }
+});
+
   res.clearCookie('csrf_token', { path: '/' });
   res.json({ success: true, message: 'Đã đăng xuất thành công.' });
 });
@@ -2156,7 +2192,7 @@ app.post('/api/admin/users/:id/reset-password', authenticateToken, requireRole([
 
     await prisma.user.update({
       where: { userId: id },
-      data: { password: hashed, mustChangePassword: false /* AUTO-DISABLED: no frontend UI yet */ }
+      data: { password: hashed, mustChangePassword: true }
     });
 
     // Audit Log: only record target ID and admin ID - NEVER log the plain password!

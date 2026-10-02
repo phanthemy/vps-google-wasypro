@@ -350,6 +350,131 @@ function getCsrfToken() {
           <AmbassadorProgressCard userId={currentUser.id || currentUser.userId} />
         </div>
       )}
+
+      {/* Đổi Mật Khẩu */}
+      <ChangePasswordSection mustChange={currentUser.mustChangePassword || currentUser.requirePasswordChange} />
+    </div>
+  );
+}
+
+function ChangePasswordSection({ mustChange }) {
+  const [currentPw, setCurrentPw] = useState('');
+  const [newPw, setNewPw] = useState('');
+  const [confirmPw, setConfirmPw] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [msg, setMsg] = useState(null);
+  const [showForm, setShowForm] = useState(!!mustChange);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (newPw.length < 4) { setMsg({ type: 'error', text: 'Mật khẩu mới phải có ít nhất 4 ký tự' }); return; }
+    if (newPw !== confirmPw) { setMsg({ type: 'error', text: 'Mật khẩu xác nhận không khớp' }); return; }
+
+    setLoading(true);
+    setMsg(null);
+    try {
+      // Get CSRF token
+      let csrfToken = '';
+      try {
+        const metaEl = document.querySelector('meta[name="csrf-token"]');
+        if (metaEl) csrfToken = metaEl.getAttribute('content');
+        if (!csrfToken) {
+          const r = await fetch('/api/csrf-token', { credentials: 'include' });
+          const d = await r.json();
+          csrfToken = d.csrfToken || '';
+        }
+      } catch(e) {}
+
+      const res = await fetch('/api/auth/change-password', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken },
+        body: JSON.stringify({ currentPassword: currentPw, newPassword: newPw })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setMsg({ type: 'success', text: '✅ Đổi mật khẩu thành công!' });
+        setCurrentPw(''); setNewPw(''); setConfirmPw('');
+        setTimeout(() => setShowForm(false), 2000);
+      } else {
+        setMsg({ type: 'error', text: data.message || 'Lỗi đổi mật khẩu' });
+      }
+    } catch (err) {
+      setMsg({ type: 'error', text: 'Lỗi kết nối' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="space-y-2">
+      <div className="text-xs font-bold text-secondary uppercase tracking-wider px-1 flex items-center justify-between">
+        <span>Đổi Mật Khẩu</span>
+        {!mustChange && !showForm && (
+          <button onClick={() => setShowForm(true)} className="text-xs text-blue-600 hover:text-blue-800 font-semibold normal-case">
+            Đổi mật khẩu →
+          </button>
+        )}
+      </div>
+
+      {mustChange && (
+        <div className="flex items-start gap-3 p-3.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-800">
+          <AlertCircle size={20} className="text-amber-600 shrink-0 mt-0.5" />
+          <div>
+            <div className="font-bold text-sm text-amber-900">Bạn cần đổi mật khẩu</div>
+            <div className="text-xs text-amber-700 mt-0.5">
+              Admin đã reset mật khẩu của bạn. Vui lòng đặt mật khẩu mới để bảo mật tài khoản.
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showForm && (
+        <form onSubmit={handleSubmit} className="bg-white rounded-2xl border border-slate-200 p-4 space-y-3">
+          {msg && (
+            <div className={`p-3 rounded-xl text-sm font-bold flex items-center gap-2 ${msg.type === 'error' ? 'bg-red-50 border border-red-200 text-red-700' : 'bg-green-50 border border-green-200 text-green-700'}`}>
+              {msg.type === 'error' ? <AlertCircle size={16} /> : <CheckCircle size={16} />}
+              {msg.text}
+            </div>
+          )}
+
+          {!mustChange && (
+            <div>
+              <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Mật khẩu hiện tại</label>
+              <input type="password" value={currentPw} onChange={e => setCurrentPw(e.target.value)}
+                placeholder="Nhập mật khẩu hiện tại" required
+                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            </div>
+          )}
+
+          <div>
+            <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Mật khẩu mới</label>
+            <input type="text" value={newPw} onChange={e => setNewPw(e.target.value)}
+              placeholder="Nhập mật khẩu mới (tối thiểu 4 ký tự)" required
+              className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono" />
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Xác nhận mật khẩu mới</label>
+            <input type="text" value={confirmPw} onChange={e => setConfirmPw(e.target.value)}
+              placeholder="Nhập lại mật khẩu mới" required
+              className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono" />
+          </div>
+
+          <div className="flex gap-2">
+            {!mustChange && (
+              <button type="button" onClick={() => { setShowForm(false); setMsg(null); }}
+                className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-sm transition-colors">
+                Hủy
+              </button>
+            )}
+            <button type="submit" disabled={loading}
+              className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-sm transition-colors disabled:opacity-50">
+              {loading ? 'Đang lưu...' : '🔑 Đổi Mật Khẩu'}
+            </button>
+          </div>
+        </form>
+      )}
     </div>
   );
 }
