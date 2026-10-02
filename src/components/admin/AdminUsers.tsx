@@ -52,6 +52,13 @@ const AdminUsers: React.FC = () => {
   const [changingPassword, setChangingPassword] = useState(false);
   const [showPassword, setShowPassword] = useState(true);
 
+  const generatePassword = () => {
+    const chars = 'abcdefghjkmnpqrstuvwxyz23456789';
+    let pw = 'wasy';
+    for (let i = 0; i < 4; i++) pw += chars[Math.floor(Math.random() * chars.length)];
+    setPasswordForm({ newPassword: pw });
+  };
+
   // Delete confirm
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deletingUser, setDeletingUser] = useState<AdminUser | null>(null);
@@ -154,7 +161,10 @@ const AdminUsers: React.FC = () => {
 
   const openPasswordModal = (user: AdminUser) => {
     setPasswordUser(user);
-    setPasswordForm({ newPassword: '', confirmPassword: '' });
+    const chars = 'abcdefghjkmnpqrstuvwxyz23456789';
+    let pw = 'wasy';
+    for (let i = 0; i < 4; i++) pw += chars[Math.floor(Math.random() * chars.length)];
+    setPasswordForm({ newPassword: pw });
     setShowPasswordModal(true);
     setCreateError(null);
   };
@@ -373,13 +383,22 @@ const AdminUsers: React.FC = () => {
               {createError && <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700 font-bold flex items-center gap-2"><AlertCircle className="w-4 h-4" />{createError}</div>}
               <div>
                 <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Mật khẩu mới *</label>
-                <input type={showPassword ? 'text' : 'password'} value={passwordForm.newPassword} onChange={e => setPasswordForm({...passwordForm, newPassword: e.target.value})} placeholder="Nhập mật khẩu mới"
-                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-ocean-500" required />
+                <div className="flex gap-2">
+                  <input type="text" value={passwordForm.newPassword} onChange={e => setPasswordForm({...passwordForm, newPassword: e.target.value})} placeholder="Nhập hoặc bấm Tạo ngẫu nhiên"
+                    className="flex-1 px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-ocean-500 font-mono text-lg tracking-wider" required />
+                  <button type="button" onClick={() => { navigator.clipboard.writeText(passwordForm.newPassword); setSuccess('Đã copy!'); setTimeout(() => setSuccess(null), 1500); }}
+                    className="px-3 py-2.5 bg-slate-100 hover:bg-slate-200 rounded-xl text-sm font-bold text-slate-600 transition-colors whitespace-nowrap" title="Copy">📋</button>
+                </div>
+                <button type="button" onClick={generatePassword}
+                  className="w-full mt-2 py-2 bg-blue-50 hover:bg-blue-100 border border-blue-200 text-blue-700 font-bold rounded-xl text-sm transition-colors">
+                  🎲 Tạo mật khẩu ngẫu nhiên
+                </button>
+                {passwordForm.newPassword && (
+                  <p className="mt-2 text-center text-lg font-mono font-bold text-green-600 bg-green-50 rounded-xl py-2 select-all">{passwordForm.newPassword}</p>
+                )}
               </div>
 
-              <label className="flex items-center gap-2 text-xs text-slate-500 cursor-pointer">
-                <input type="checkbox" checked={showPassword} onChange={() => setShowPassword(!showPassword)} /> Hiện mật khẩu
-              </label>
+              
               <button type="submit" disabled={changingPassword} className="w-full py-3 bg-amber-500 hover:bg-amber-600 text-white font-bold rounded-xl text-sm flex items-center justify-center gap-2 disabled:opacity-50">
                 {changingPassword ? <Loader2 className="w-4 h-4 animate-spin" /> : <Key className="w-4 h-4" />}
                 {changingPassword ? 'Đang đổi...' : 'Đổi Mật Khẩu'}
