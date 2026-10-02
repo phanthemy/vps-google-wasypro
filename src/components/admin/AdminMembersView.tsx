@@ -57,7 +57,8 @@ const AdminMembersView: React.FC = () => {
       const res = await fetch(`/api/admin/users/${m.userId}/reset-password`, { method: "POST", credentials: "include", headers: { "Content-Type": "application/json", "X-CSRF-Token": getCsrfToken() } });
       const data = await res.json();
       if (data.success) {
-        setSuccess(`✅ Đã reset MK "${m.fullName}" → Mật khẩu mới: ${data.tempPassword}`);
+        navigator.clipboard.writeText(data.tempPassword).catch(() => {});
+        alert(`✅ Đã reset MK "${m.fullName}"\n\nMật khẩu mới: ${data.tempPassword}\n\n(Đã copy vào clipboard)`);
         navigator.clipboard.writeText(data.tempPassword).catch(() => {});
       }
       else alert("Lỗi: " + (data.message || "Không thể reset"));
