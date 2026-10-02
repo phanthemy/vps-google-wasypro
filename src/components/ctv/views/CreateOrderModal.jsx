@@ -530,7 +530,7 @@ export default function CreateOrderModal({ currentUser, onClose, onSuccess }) {
                         borderBottom: '1px solid #f1f5f9',
                       }}
                     >
-                      <div className="flex items-center gap-3 min-w-0 pr-2 flex-1 cursor-pointer" onClick={() => window.open('/#products', '_blank')}>
+                      <div className="flex items-center gap-3 min-w-0 pr-2 flex-1 cursor-pointer" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setDetailProduct(p); }}>
                         <div
                           className="w-16 h-16 rounded-xl bg-white border border-slate-200 overflow-hidden flex-shrink-0 flex items-center justify-center p-0.5 hover:border-indigo-400 hover:shadow-md"
                           title="Nhấn để xem chi tiết trên trang chủ"
@@ -758,7 +758,7 @@ export default function CreateOrderModal({ currentUser, onClose, onSuccess }) {
                         borderBottom: '1px solid #f1f5f9',
                       }}
                     >
-                      <div className="flex items-center gap-3 min-w-0 pr-2 flex-1 cursor-pointer" onClick={() => window.open('/#products', '_blank')}>
+                      <div className="flex items-center gap-3 min-w-0 pr-2 flex-1 cursor-pointer" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setDetailProduct(p); }}>
                         <div
                           className="w-16 h-16 rounded-xl bg-white border border-slate-200 overflow-hidden flex-shrink-0 flex items-center justify-center p-0.5 hover:border-amber-400 hover:shadow-md"
                           title="Nhấn để xem chi tiết trên trang chủ"
@@ -1055,62 +1055,107 @@ export default function CreateOrderModal({ currentUser, onClose, onSuccess }) {
 
       {/* Product Detail Popup */}
       {detailProduct && (
-        <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white rounded-2xl max-w-sm w-full shadow-2xl overflow-hidden flex flex-col relative">
-            <button 
-              onClick={() => setDetailProduct(null)}
-              className="absolute top-3 right-3 p-1.5 bg-white/80 backdrop-blur-md rounded-full text-slate-500 hover:bg-slate-100 hover:text-slate-800 transition-colors z-10"
-            >
-              <X size={20} />
-            </button>
-            
-            <div className="w-full h-64 bg-slate-50 flex items-center justify-center p-6 border-b border-slate-100">
-              {detailProduct.image ? (
-                <img src={detailProduct.image} alt={detailProduct.title} className="w-full h-full object-contain drop-shadow-md" />
-              ) : (
-                <Package size={64} className="text-slate-300" />
-              )}
+        <div className="fixed inset-0 z-[10000] flex items-center justify-center p-3" style={{background:'rgba(0,0,0,0.6)',backdropFilter:'blur(4px)'}} onClick={() => setDetailProduct(null)}>
+          <div className="bg-white rounded-2xl w-full shadow-2xl overflow-hidden flex flex-col relative" style={{maxWidth:'540px',maxHeight:'85vh'}} onClick={e => e.stopPropagation()}>
+            {/* Header */}
+            <div className="flex items-center justify-between px-5 py-3 border-b border-slate-100 bg-slate-50 sticky top-0 z-10">
+              <h3 className="font-extrabold text-base text-slate-900 truncate pr-4">Chi tiết sản phẩm</h3>
+              <button onClick={() => setDetailProduct(null)} className="p-2 bg-slate-200 rounded-full text-slate-600 hover:bg-red-100 hover:text-red-500 transition-colors flex-shrink-0">
+                <X size={18} />
+              </button>
             </div>
-            
-            <div className="p-5 flex flex-col gap-3">
-              <div className="flex flex-wrap gap-2">
-                {detailProduct.category && (
-                  <span className="px-2 py-1 rounded text-[10px] font-bold bg-indigo-50 text-indigo-600 border border-indigo-100 uppercase tracking-wider">
-                    {detailProduct.category}
-                  </span>
-                )}
-                {detailProduct.commissionPoints > 0 && (
-                  <span className="px-2 py-1 rounded text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200 uppercase tracking-wider">
-                    ⭐ {new Intl.NumberFormat('vi-VN').format(detailProduct.commissionPoints)} CP
-                  </span>
+
+            {/* Scrollable content */}
+            <div className="overflow-y-auto flex-1" style={{WebkitOverflowScrolling:'touch'}}>
+              {/* Large image */}
+              <div className="w-full flex items-center justify-center p-8 bg-gradient-to-b from-slate-50 to-white" style={{minHeight:'200px'}}>
+                {detailProduct.image ? (
+                  <img src={detailProduct.image} alt={detailProduct.title} className="object-contain drop-shadow-lg" style={{maxHeight:'200px',width:'auto'}} />
+                ) : (
+                  <Package size={80} className="text-slate-200" />
                 )}
               </div>
-              
-              <h3 className="font-extrabold text-lg text-slate-900 leading-tight">
-                {detailProduct.title}
-              </h3>
-              
-              <div className="text-sm text-slate-500 whitespace-pre-line max-h-32 overflow-y-auto pr-2">
-                {detailProduct.description || "Chưa có mô tả chi tiết."}
-              </div>
-              
-              <div className="mt-2 pt-4 border-t border-slate-100 flex items-end justify-between">
-                <div>
-                  <div className="text-xs font-bold text-slate-400 mb-1">Giá bán</div>
-                  <div className="text-xl font-black text-emerald-600">
-                    {new Intl.NumberFormat('vi-VN').format(detailProduct.price)}đ
+
+              <div className="px-5 pb-4">
+                {/* Title */}
+                <h2 className="font-extrabold text-xl text-slate-900 leading-tight mt-2">{detailProduct.title}</h2>
+
+                {/* Badges */}
+                <div className="flex flex-wrap gap-2 mt-3">
+                  {detailProduct.category && (
+                    <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-indigo-50 text-indigo-600 border border-indigo-100">{detailProduct.category}</span>
+                  )}
+                  {detailProduct.commissionPoints > 0 && (
+                    <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                      ⭐ {new Intl.NumberFormat('vi-VN').format(detailProduct.commissionPoints)} CP
+                    </span>
+                  )}
+                  {detailProduct.specs?.origin && (
+                    <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-blue-50 text-blue-600 border border-blue-100">🌍 {detailProduct.specs.origin}</span>
+                  )}
+                </div>
+
+                {/* Specs grid */}
+                {detailProduct.specs && (detailProduct.specs.pH || detailProduct.specs.hydrogenPpb || detailProduct.specs.filterCount) && (
+                  <div className="mt-4">
+                    <div className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Thông số kỹ thuật</div>
+                    <div className="grid grid-cols-3 gap-2">
+                      {detailProduct.specs.pH && (
+                        <div className="bg-blue-50 rounded-lg p-2 text-center">
+                          <div className="text-sm font-black text-blue-600">pH {detailProduct.specs.pH}</div>
+                          <div className="text-[9px] text-blue-400">Nước kiềm</div>
+                        </div>
+                      )}
+                      {detailProduct.specs.orp && (
+                        <div className="bg-green-50 rounded-lg p-2 text-center">
+                          <div className="text-sm font-black text-green-600">{detailProduct.specs.orp}</div>
+                          <div className="text-[9px] text-green-400">Chống oxy hoá</div>
+                        </div>
+                      )}
+                      {detailProduct.specs.hydrogenPpb && (
+                        <div className="bg-purple-50 rounded-lg p-2 text-center">
+                          <div className="text-sm font-black text-purple-600">{detailProduct.specs.hydrogenPpb}</div>
+                          <div className="text-[9px] text-purple-400">Hydrogen</div>
+                        </div>
+                      )}
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 mt-2">
+                      {detailProduct.specs.filterCount && (
+                        <div className="bg-orange-50 rounded-lg p-2 text-center">
+                          <div className="text-sm font-black text-orange-600">{detailProduct.specs.filterCount} lõi lọc</div>
+                        </div>
+                      )}
+                      {detailProduct.specs.warrantyYears && (
+                        <div className="bg-teal-50 rounded-lg p-2 text-center">
+                          <div className="text-sm font-black text-teal-600">BH {detailProduct.specs.warrantyYears} năm</div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Description */}
+                <div className="mt-4">
+                  <div className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Mô tả sản phẩm</div>
+                  <div className="text-sm text-slate-600 whitespace-pre-line leading-relaxed">
+                    {detailProduct.description || "Chưa có mô tả chi tiết."}
                   </div>
                 </div>
-                <button
-                  onClick={() => {
-                    addToCart(detailProduct);
-                    setDetailProduct(null);
-                  }}
-                  className="px-5 py-2.5 rounded-xl font-bold text-white bg-indigo-600 hover:bg-indigo-700 shadow-md transition-colors"
-                >
-                  Thêm vào đơn
-                </button>
               </div>
+            </div>
+
+            {/* Sticky footer */}
+            <div className="px-5 py-3 border-t border-slate-100 bg-white flex items-center justify-between sticky bottom-0">
+              <div>
+                <div className="text-[10px] font-bold text-slate-400 uppercase">Giá bán</div>
+                <div className="text-xl font-black text-emerald-600">{new Intl.NumberFormat('vi-VN').format(detailProduct.price)}đ</div>
+              </div>
+              <button
+                onClick={() => { addToCart(detailProduct); setDetailProduct(null); }}
+                className="px-5 py-2.5 rounded-xl font-bold text-white text-sm shadow-lg transition-all" style={{background:'#4f46e5'}}
+              >
+                🛒 Thêm vào đơn
+              </button>
             </div>
           </div>
         </div>
