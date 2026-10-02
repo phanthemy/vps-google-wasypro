@@ -443,6 +443,8 @@ export default function UnifiedAuthModal({
                 <MessageCircle className="w-5 h-5 text-[#2585eb] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none stroke-[2.2]" />
                 <input
                   type="text"
+                  name="otp"
+                  autoComplete="one-time-code"
                   inputMode="numeric"
                   maxLength={6}
                   value={regOtp}
