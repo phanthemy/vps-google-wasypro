@@ -40,6 +40,7 @@ SSH VPS → Edit → Test → Commit → Push GitHub
 
 ```
 1. Đọc AGENTS.md (file này)
+1b. Đọc SYSTEM_MAP.md ⭐⭐⭐⭐⭐ (bản đồ kỹ thuật — component, state, API, file location)
 2. Đọc BUSINESS_RULES.md ⭐⭐⭐ (9 quy tắc bất biến — VI PHẠM = BUG PRODUCTION)
 3. Đọc .agents/rules/project-workflow.md (AI Engineering Playbook)
 4. Xác định Source of Truth → Nếu VPS → KHÔNG sửa local
