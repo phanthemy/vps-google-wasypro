@@ -314,3 +314,65 @@ px vite build --force hoặc build vào folder tạm rồi swap
   1. Thêm image: p.image || null và commissionPoints: p.commissionPoints || 0 vào mapping setComboItems.
   2. Trong comboItems.map, thêm fallback: const prodImage = ci.image || products.find(p => p.id === ci.productId)?.image; để luôn lấy được hình ảnh sản phẩm.
 - **Commit**: (sẽ commit ngay sau đây)
+
+---
+
+## L38 — Google VPS: 2 repo git khác nhau gây lệch code 41 commits (02/10/2026)
+
+**Triệu chứng**: test.wasypro.com chạy code cũ (commit 110c83a) trong khi wasypro.com đã ở ca20a6d. `git pull origin main` trả "Already up to date" nhưng code vẫn cũ.
+
+**Nguyên nhân**: Oracle VPS dùng remote `origin` → `phanthemy/wasypro.git`. Google VPS dùng `origin` → `phanthemy/vps-google-wasypro.git`. Hai repo khác nhau nên push/pull không giao nhau.
+
+**Cách fix**: 
+```bash
+# Thêm remote production trên Google VPS
+git remote add production https://...@github.com/phanthemy/wasypro.git
+git pull production main
+```
+
+**Quy tắc**: Đồng bộ Google VPS luôn dùng `git pull production main`, KHÔNG dùng `git pull origin main`.
+
+## L39 — Google VPS: DB thiếu cột sortOrder trong NppPackage (02/10/2026)
+
+**Triệu chứng**: "Lỗi tải danh sách gói NPP" trên test.wasypro.com.
+
+**Nguyên nhân**: Git pull chỉ đồng bộ code, KHÔNG đồng bộ SQLite database. Commit mới có cột NppPackage.sortOrder nhưng DB trên Google VPS chưa có.
+
+**Cách fix**: `ALTER TABLE NppPackage ADD COLUMN sortOrder INTEGER DEFAULT 0;` + `prisma generate` + `pm2 restart 3`
+
+**Quy tắc**: Sau mỗi git pull, PHẢI kiểm tra schema diff:
+```bash
+git diff HEAD~N -- server/prisma/schema.prisma
+# Nếu có model/column mới → ALTER TABLE hoặc CREATE TABLE thủ công
+```
+
+## L40 — Google VPS: DB data hoàn toàn sai (users ngược, thiếu gói NPP) (02/10/2026)
+
+**Triệu chứng**: Tài khoản 0968616263 trên Google VPS là CTV (đáng lẽ Admin), 0937353535 là Admin (đáng lẽ CTV). Chỉ có 5/10 gói NPP, danh mục sản phẩm cũ, thiếu bảng NewsArticle + OtpCode.
+
+**Nguyên nhân**: Database SQLite trên mỗi VPS là riêng biệt. Google VPS giữ data từ lần setup đầu, chưa bao giờ được đồng bộ sau khi Oracle VPS swap tài khoản và thêm data mới.
+
+**Cách fix**: Copy dev.db từ Oracle → Google VPS:
+```bash
+scp dev.db mapgovn@34.173.189.105:~/
+sudo cp ~/dev.db /var/www/wasypro/server/dev.db
+sudo chown mapsgo_vn:mapsgo_vn /var/www/wasypro/server/dev.db
+pm2 restart 3
+```
+
+**Quy tắc**: Khi cần Google VPS data giống Oracle → copy nguyên file dev.db. Backup trước khi ghi đè.
+
+## L41 — Google VPS: Lỗi attempt to write a readonly database khi cập nhật / Reset mật khẩu (02/10/2026)
+
+**Triệu chứng**: Khi Admin reset mật khẩu CTV hoặc backend thực hiện ghi vào database, hệ thống báo lỗi ConnectorError: SqliteError 1544: attempt to write a readonly database.
+
+**Nguyên nhân**: Quá trình PM2 happylife-backend chạy dưới user Linux mapsgo_vn. Khi phân quyền thư mục /var/www/wasypro đổi sang mapgovn:mapgovn, user mapsgo_vn bị mất quyền ghi vào file SQLite dev.db và thư mục cha /var/www/wasypro/server (cần thiết để tạo file khóa WAL -wal và -shm).
+
+**Cách fix**:
+\\\ash
+sudo chmod 777 /var/www/wasypro/server
+sudo chmod 666 /var/www/wasypro/server/dev.db*
+sudo -u mapsgo_vn pm2 restart happylife-backend
+\\\
+
+**Quy tắc**: File SQLite dev.db và thư mục chứa nó (/var/www/wasypro/server) phải luôn có quyền ghi cho user chạy PM2 backend (mapsgo_vn).
