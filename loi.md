@@ -303,3 +303,14 @@ px vite build --force hoặc build vào folder tạm rồi swap
   3. Giá sản phẩm trên card và popup chi tiết luôn là GIÁ GỐC 100%, chiết khấu % chỉ hiển thị trên tổng tiền ở Tóm Tắt Đơn Hàng.
   4. Danh sách sản phẩm trong Tóm Tắt Đơn Hàng hiển thị từng dòng riêng biệt (không dùng .join(', ')).
 - **Commit**: (sẽ commit ngay sau đây)
+
+## L37: NPP Combo không hiện hình ảnh sản phẩm (hiện icon hộp vuông) ⭐⭐⭐
+- **Ngày**: 2026-10-02
+- **Triệu chứng**: Trong modal Tạo Đơn Hàng của tài khoản NPP, tab Mua Lẻ hiện hình ảnh sản phẩm bình thường nhưng tab Combo NPP chỉ hiện icon hộp vuông màu xanh.
+- **Root cause**: 
+  1. Trong CreateOrderModal.jsx, hàm setComboItems khi map dữ liệu từ /api/npp/my-combo chỉ map { productId, productName, price, discountedPrice, qty }, bỏ sót trường image: p.image.
+  2. Đoạn render JSX không có cơ chế fallback lấy hình ảnh từ danh mục products.
+- **Cách Fix**: 
+  1. Thêm image: p.image || null và commissionPoints: p.commissionPoints || 0 vào mapping setComboItems.
+  2. Trong comboItems.map, thêm fallback: const prodImage = ci.image || products.find(p => p.id === ci.productId)?.image; để luôn lấy được hình ảnh sản phẩm.
+- **Commit**: (sẽ commit ngay sau đây)

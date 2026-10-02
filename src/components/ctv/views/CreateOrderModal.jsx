@@ -81,6 +81,8 @@ export default function CreateOrderModal({ currentUser, onClose, onSuccess }) {
               productName: p.productName,
               price: p.price,
               discountedPrice: p.discountedPrice,
+              image: p.image || null,
+              commissionPoints: p.commissionPoints || 0,
               qty: 0,
             })));
           }
@@ -648,7 +650,10 @@ export default function CreateOrderModal({ currentUser, onClose, onSuccess }) {
                   Danh Sách Các Loại Máy Lựa Chọn
                 </label>
                 <div className="mt-2 max-h-56 overflow-y-auto rounded-xl" style={{ border: '1px solid #bfdbfe' }}>
-                  {comboItems.map((ci, idx) => (
+                  {comboItems.map((ci, idx) => {
+                    const matchedProd = products.find(p => p.id === ci.productId);
+                    const prodImage = ci.image || matchedProd?.image;
+                    return (
                     <div
                       key={ci.productId}
                       className="flex items-center justify-between p-3 transition-colors"
@@ -668,9 +673,9 @@ export default function CreateOrderModal({ currentUser, onClose, onSuccess }) {
                           className="w-16 h-16 rounded-xl bg-white border border-slate-200 overflow-hidden flex-shrink-0 flex items-center justify-center p-0.5 hover:border-indigo-400 hover:shadow-md"
                           title="Nhấn để xem chi tiết sản phẩm"
                         >
-                          {ci.image ? (
+                          {prodImage ? (
                             <img
-                              src={ci.image}
+                              src={prodImage}
                               alt={ci.productName}
                               className="w-full h-full object-contain"
                               onError={(e) => { e.currentTarget.style.display = 'none'; }}
@@ -730,7 +735,7 @@ export default function CreateOrderModal({ currentUser, onClose, onSuccess }) {
                         </button>
                       </div>
                     </div>
-                  ))}
+                  );})}
                 </div>
               </div>
             </div>
