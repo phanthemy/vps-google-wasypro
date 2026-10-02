@@ -682,11 +682,8 @@ export default function CreateOrderModal({ currentUser, onClose, onSuccess }) {
                         <div className="min-w-0">
                           <div className="font-bold text-sm text-slate-800 truncate">{ci.productName}</div>
                           <div className="flex items-center gap-2 mt-0.5">
-                            <span className="text-xs line-through text-slate-400">
+                            <span className="text-xs font-extrabold text-slate-700">
                               {new Intl.NumberFormat('vi-VN').format(ci.price)}đ
-                            </span>
-                            <span className="text-xs font-extrabold text-sky-600">
-                              {new Intl.NumberFormat('vi-VN').format(ci.discountedPrice)}đ
                             </span>
                             {ci.commissionPoints > 0 && (
                               <span className="text-[10px] font-bold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">
@@ -861,7 +858,11 @@ export default function CreateOrderModal({ currentUser, onClose, onSuccess }) {
                   <span style={{ color: '#64748b' }}>Sản phẩm</span>
                   <div className="text-right flex flex-col items-end gap-1" style={{ color: '#1e293b' }}>
                     {purchaseSubject === 'SELF' && pricingMode === 'COMBO'
-                      ? <span className="font-bold">{`Combo ${comboItems.filter(ci => ci.qty > 0).length} loại máy`}</span>
+                      ? comboItems.filter(ci => ci.qty > 0).map((ci, idx) => (
+                        <div key={idx} className="font-bold text-sm leading-relaxed">
+                          {ci.productName} (x{ci.qty})
+                        </div>
+                      ))
                       : cartItems.map((ci, idx) => (
                         <div key={idx} className="font-bold text-sm leading-relaxed">
                           {ci.product.title} (x{ci.qty})
