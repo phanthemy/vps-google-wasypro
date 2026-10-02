@@ -247,3 +247,21 @@ avigator.clipboard.writeText()
 - **Root cause**: CTV portal là app RIÊNG ở /var/www/wasypro-ctv (port 5175), KHÔNG phải /var/www/wasypro (port 5005)
 - **Fix**: Phải sửa file ở CẢ HAI thư mục nếu component tồn tại ở cả hai
 - **Bài học**: Luôn kiểm tra PM2 list + nginx config trước khi sửa. Đọc SYSTEM_MAP.md.
+
+## L33: CSRF lỗi lặp — /api/auth/change-password không exempt ⭐⭐⭐
+- **Ngày**: 2026-10-02
+- **Triệu chứng**: CTV đổi MK → 'Yêu cầu bị từ chối do thiếu hoặc không khớp mã CSRF Token'
+- **Root cause**: Thêm API mới POST /api/auth/change-password nhưng QUÊN thêm vào CSRF exempt list
+- **Lỗi lặp từ**: L-CSRF trước đó (đã ghi trong loi.md nhưng không kiểm tra khi thêm API mới)
+- **Fix**: Thêm req.path === '/api/auth/change-password' vào csrfProtection middleware (line ~72)
+- **Commit**: (pending)
+- **BÀI HỌC BẮT BUỘC**: ⭐⭐⭐⭐⭐
+  1. KHI THÊM BẤT KỲ API ENDPOINT MỚI NÀO:
+     → MỞ server/index.js, tìm function csrfProtection (line 62-113)
+     → Kiểm tra endpoint có cần exempt không
+     → Nếu endpoint dùng cookie auth → CẦN thêm vào exempt list
+  2. Đọc SYSTEM_MAP.md section 4.3 (CSRF Exempt Routes) TRƯỚC khi code
+  3. Mọi API mới phải qua checklist:
+     □ Cần authenticateToken? → Thêm middleware
+     □ Dùng cookie auth? → Thêm CSRF exempt
+     □ Cập nhật SYSTEM_MAP.md section 4.3

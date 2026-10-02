@@ -230,6 +230,7 @@ State: KHÔNG CÓ useState — dùng async handlers trực tiếp
 '/api/auth/logout'
 '/api/auth/register'
 '/api/auth/send-otp'
+'/api/auth/change-password'    # ← MỚI (L33)
 '/api/upload'
 '/api/orders/website'
 '/api/leads'
@@ -311,7 +312,24 @@ name, slug, price, salePrice, points, categorySlug, images, specs
 
 ---
 
-## 8. REBUILD COMMANDS
+## 8. QUY TẮC KHI THÊM API MỚI ⭐⭐⭐⭐⭐
+
+> 🛑 **MỖI KHI THÊM ENDPOINT MỚI** phải qua checklist này (từ bài học L33):
+
+```
+□ 1. Endpoint cần authenticateToken middleware?
+     → Thêm: app.post('/api/xxx', authenticateToken, handler)
+□ 2. Endpoint dùng cookie auth (credentials: include)?
+     → PHẢI thêm vào CSRF exempt list (server/index.js line 62-90)
+     → Nếu QUÊN → lỗi 'CSRF Token không khớp'
+□ 3. Cập nhật SYSTEM_MAP.md section 4.3
+□ 4. Cập nhật SYSTEM_MAP.md section 4.1/4.2
+□ 5. Restart: pm2 restart happylife-backend
+```
+
+---
+
+## 9. REBUILD COMMANDS
 
 ```bash
 # Sửa frontend wasypro (admin + landing)

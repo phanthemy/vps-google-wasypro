@@ -71,6 +71,7 @@ const csrfProtection = (req, res, next) => {
     req.path === '/api/auth/logout' ||
     req.path === '/api/auth/register' ||
     req.path === '/api/auth/send-otp' ||
+    req.path === '/api/auth/change-password' ||  // CTV self-change password (authenticated via cookie)
     req.path === '/api/upload' ||
     req.path === '/api/orders/website' ||   // Public order form
     req.path === '/api/leads' ||              // Public consultation form — accepts guest + logged-in users
