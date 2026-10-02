@@ -290,3 +290,16 @@ px vite build — trong 6-7s build, PM2 serve trang không có dist/index.html �
 px vite build --force hoặc build vào folder tạm rồi swap
   3. Luôn kiểm tra ls dist/index.html sau build trước khi restart PM2
   4. Nếu cần rm: m -rf dist.bak ; mv dist dist.bak ; npx vite build ; pm2 restart wasypro
+
+## L36: Click tên sản phẩm trong modal Tạo đơn gây crash React Error #31 (Objects are not valid as React child) ⭐⭐⭐⭐⭐
+- **Ngày**: 2026-10-02
+- **Triệu chứng**: Trong CTV Portal, khi bấm vào tên/hình sản phẩm trong modal Tạo Đơn Hàng -> trang crash hiện 'Đã xảy ra sự cố hiển thị'.
+- **Root cause**: 
+  1. Trong CreateOrderModal.jsx, popup chi tiết render {detailProduct.category} trực tiếp trong thẻ <span>. Nhưng API trả về category là một object { id, name, slug, description, image, icon } thay vì string -> React throw Invariant Violation #31 ('Objects are not valid as a React child').
+  2. Trong danh sách combo NPP, còn sót onMouseLeave={handleImageLeave} trong khi hàm này không tồn tại -> ReferenceError: handleImageLeave is not defined.
+- **Cách Fix**: 
+  1. Sửa {detailProduct.category?.name || detailProduct.category} để render tên danh mục an toàn.
+  2. Xóa bỏ handleImageLeave và thay bằng handler click xem chi tiết setDetailProduct.
+  3. Giá sản phẩm trên card và popup chi tiết luôn là GIÁ GỐC 100%, chiết khấu % chỉ hiển thị trên tổng tiền ở Tóm Tắt Đơn Hàng.
+  4. Danh sách sản phẩm trong Tóm Tắt Đơn Hàng hiển thị từng dòng riêng biệt (không dùng .join(', ')).
+- **Commit**: (sẽ commit ngay sau đây)

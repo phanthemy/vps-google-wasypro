@@ -530,10 +530,10 @@ export default function CreateOrderModal({ currentUser, onClose, onSuccess }) {
                         borderBottom: '1px solid #f1f5f9',
                       }}
                     >
-                      <div className="flex items-center gap-3 min-w-0 pr-2 flex-1 cursor-pointer" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setDetailProduct(p); }}>
+                      <div className="flex items-center gap-3 min-w-0 pr-2 flex-1 cursor-pointer" onClick={() => setDetailProduct(p)}>
                         <div
                           className="w-16 h-16 rounded-xl bg-white border border-slate-200 overflow-hidden flex-shrink-0 flex items-center justify-center p-0.5 hover:border-indigo-400 hover:shadow-md"
-                          title="Nhấn để xem chi tiết trên trang chủ"
+                          title="Nhấn để xem chi tiết"
                         >
                           {p.image ? (
                             <img
@@ -548,9 +548,14 @@ export default function CreateOrderModal({ currentUser, onClose, onSuccess }) {
                         </div>
                         <div className="min-w-0">
                           <div className="font-bold text-sm text-slate-800 truncate">{p.title}</div>
-                          {p.specs?.origin && (
-                            <div className="text-[11px] text-slate-400 mt-0.5">{p.specs.origin}</div>
-                          )}
+                          <div className="flex items-center gap-2 mt-1">
+                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                              ⭐ {new Intl.NumberFormat('vi-VN').format(p.commissionPoints || 0)} CP
+                            </span>
+                            {p.specs?.origin && (
+                              <span className="text-[10px] text-slate-400">· {p.specs.origin}</span>
+                            )}
+                          </div>
                         </div>
                       </div>
                       <div className="flex items-center gap-4 flex-shrink-0">
@@ -652,13 +657,16 @@ export default function CreateOrderModal({ currentUser, onClose, onSuccess }) {
                         background: ci.qty > 0 ? '#eff6ff' : '#ffffff',
                       }}
                     >
-                      <div className="flex items-center gap-3 flex-1 min-w-0 pr-2">
+                      <div 
+                        className="flex items-center gap-3 flex-1 min-w-0 pr-2 cursor-pointer"
+                        onClick={() => {
+                          const prod = products.find(p => p.id === ci.productId);
+                          if (prod) setDetailProduct(prod);
+                        }}
+                      >
                         <div
-                          className="w-16 h-16 rounded-xl bg-white border border-slate-200 overflow-hidden flex-shrink-0 flex items-center justify-center p-0.5 cursor-zoom-in transition-all duration-200 hover:scale-105 hover:border-indigo-400 hover:shadow-md"
-                          onMouseEnter={(e) => handleImageHover(e, ci)}
-                          onMouseLeave={handleImageLeave}
-                          onClick={(e) => { e.stopPropagation(); handleImageHover(e, ci); }}
-                          title="Rê chuột để phóng to ảnh sản phẩm"
+                          className="w-16 h-16 rounded-xl bg-white border border-slate-200 overflow-hidden flex-shrink-0 flex items-center justify-center p-0.5 hover:border-indigo-400 hover:shadow-md"
+                          title="Nhấn để xem chi tiết sản phẩm"
                         >
                           {ci.image ? (
                             <img
@@ -758,10 +766,10 @@ export default function CreateOrderModal({ currentUser, onClose, onSuccess }) {
                         borderBottom: '1px solid #f1f5f9',
                       }}
                     >
-                      <div className="flex items-center gap-3 min-w-0 pr-2 flex-1 cursor-pointer" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setDetailProduct(p); }}>
+                      <div className="flex items-center gap-3 min-w-0 pr-2 flex-1 cursor-pointer" onClick={() => setDetailProduct(p)}>
                         <div
                           className="w-16 h-16 rounded-xl bg-white border border-slate-200 overflow-hidden flex-shrink-0 flex items-center justify-center p-0.5 hover:border-amber-400 hover:shadow-md"
-                          title="Nhấn để xem chi tiết trên trang chủ"
+                          title="Nhấn để xem chi tiết"
                         >
                           {p.image ? (
                             <img
@@ -776,9 +784,14 @@ export default function CreateOrderModal({ currentUser, onClose, onSuccess }) {
                         </div>
                         <div className="min-w-0">
                           <div className="font-bold text-sm text-slate-800 truncate">{p.title}</div>
-                          {p.specs?.origin && (
-                            <div className="text-[11px] text-slate-400 mt-0.5">{p.specs.origin}</div>
-                          )}
+                          <div className="flex items-center gap-2 mt-1">
+                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                              ⭐ {new Intl.NumberFormat('vi-VN').format(p.commissionPoints || 0)} CP
+                            </span>
+                            {p.specs?.origin && (
+                              <span className="text-[10px] text-slate-400">· {p.specs.origin}</span>
+                            )}
+                          </div>
                         </div>
                       </div>
                       <div className="flex items-center gap-4 flex-shrink-0">
@@ -846,7 +859,7 @@ export default function CreateOrderModal({ currentUser, onClose, onSuccess }) {
 
                 <div className="flex justify-between items-start">
                   <span style={{ color: '#64748b' }}>Sản phẩm</span>
-                  <div className="text-right" style={{ color: '#1e293b', maxWidth: '60%' }}>
+                  <div className="text-right flex flex-col items-end gap-1" style={{ color: '#1e293b' }}>
                     {purchaseSubject === 'SELF' && pricingMode === 'COMBO'
                       ? <span className="font-bold">{`Combo ${comboItems.filter(ci => ci.qty > 0).length} loại máy`}</span>
                       : cartItems.map((ci, idx) => (
@@ -1055,104 +1068,108 @@ export default function CreateOrderModal({ currentUser, onClose, onSuccess }) {
 
       {/* Product Detail Popup */}
       {detailProduct && (
-        <div className="fixed inset-0 z-[10000] flex items-center justify-center p-3" style={{background:'rgba(0,0,0,0.6)',backdropFilter:'blur(4px)'}} onClick={() => setDetailProduct(null)}>
-          <div className="bg-white rounded-2xl w-full shadow-2xl overflow-hidden flex flex-col relative" style={{maxWidth:'540px',maxHeight:'85vh'}} onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 z-[10000] flex items-center justify-center p-3" style={{ background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(4px)' }} onClick={() => setDetailProduct(null)}>
+          <div className="bg-white rounded-2xl w-full shadow-2xl overflow-hidden flex flex-col relative" style={{ maxWidth: '540px', maxHeight: '88vh' }} onClick={e => e.stopPropagation()}>
             {/* Header */}
-            <div className="flex items-center justify-between px-5 py-3 border-b border-slate-100 bg-slate-50 sticky top-0 z-10">
-              <h3 className="font-extrabold text-base text-slate-900 truncate pr-4">Chi tiết sản phẩm</h3>
-              <button onClick={() => setDetailProduct(null)} className="p-2 bg-slate-200 rounded-full text-slate-600 hover:bg-red-100 hover:text-red-500 transition-colors flex-shrink-0">
+            <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-100 bg-slate-50/90 sticky top-0 z-10">
+              <h3 className="font-extrabold text-base text-slate-900 truncate pr-4">Thông tin chi tiết sản phẩm</h3>
+              <button 
+                onClick={() => setDetailProduct(null)} 
+                className="p-1.5 bg-white border border-slate-200 rounded-full text-slate-500 hover:bg-red-50 hover:text-red-500 hover:border-red-200 transition-colors flex-shrink-0"
+              >
                 <X size={18} />
               </button>
             </div>
 
-            {/* Scrollable content */}
-            <div className="overflow-y-auto flex-1" style={{WebkitOverflowScrolling:'touch'}}>
-              {/* Large image */}
-              <div className="w-full flex items-center justify-center p-8 bg-gradient-to-b from-slate-50 to-white" style={{minHeight:'200px'}}>
+            {/* Scrollable body */}
+            <div className="overflow-y-auto flex-1 p-5 space-y-4">
+              {/* Product Image */}
+              <div className="w-full flex items-center justify-center p-4 bg-slate-50 rounded-xl border border-slate-100" style={{ minHeight: '180px' }}>
                 {detailProduct.image ? (
-                  <img src={detailProduct.image} alt={detailProduct.title} className="object-contain drop-shadow-lg" style={{maxHeight:'200px',width:'auto'}} />
+                  <img src={detailProduct.image} alt={detailProduct.title} className="object-contain drop-shadow-md" style={{ maxHeight: '180px', width: 'auto' }} />
                 ) : (
-                  <Package size={80} className="text-slate-200" />
+                  <Package size={64} className="text-slate-300" />
                 )}
               </div>
 
-              <div className="px-5 pb-4">
-                {/* Title */}
-                <h2 className="font-extrabold text-xl text-slate-900 leading-tight mt-2">{detailProduct.title}</h2>
-
-                {/* Badges */}
-                <div className="flex flex-wrap gap-2 mt-3">
-                  {detailProduct.category && (
-                    <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-indigo-50 text-indigo-600 border border-indigo-100">{detailProduct.category}</span>
+              {/* Title & Badges */}
+              <div>
+                <h2 className="font-extrabold text-lg text-slate-900 leading-snug">{detailProduct.title}</h2>
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {(detailProduct.category?.name || (typeof detailProduct.category === 'string' && detailProduct.category)) && (
+                    <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-indigo-50 text-indigo-600 border border-indigo-100">
+                      {detailProduct.category?.name || detailProduct.category}
+                    </span>
                   )}
                   {detailProduct.commissionPoints > 0 && (
-                    <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                    <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
                       ⭐ {new Intl.NumberFormat('vi-VN').format(detailProduct.commissionPoints)} CP
                     </span>
                   )}
                   {detailProduct.specs?.origin && (
-                    <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-blue-50 text-blue-600 border border-blue-100">🌍 {detailProduct.specs.origin}</span>
+                    <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-blue-50 text-blue-600 border border-blue-100">
+                      🌍 {detailProduct.specs.origin}
+                    </span>
                   )}
                 </div>
+              </div>
 
-                {/* Specs grid */}
-                {detailProduct.specs && (detailProduct.specs.pH || detailProduct.specs.hydrogenPpb || detailProduct.specs.filterCount) && (
-                  <div className="mt-4">
-                    <div className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Thông số kỹ thuật</div>
-                    <div className="grid grid-cols-3 gap-2">
-                      {detailProduct.specs.pH && (
-                        <div className="bg-blue-50 rounded-lg p-2 text-center">
-                          <div className="text-sm font-black text-blue-600">pH {detailProduct.specs.pH}</div>
-                          <div className="text-[9px] text-blue-400">Nước kiềm</div>
-                        </div>
-                      )}
-                      {detailProduct.specs.orp && (
-                        <div className="bg-green-50 rounded-lg p-2 text-center">
-                          <div className="text-sm font-black text-green-600">{detailProduct.specs.orp}</div>
-                          <div className="text-[9px] text-green-400">Chống oxy hoá</div>
-                        </div>
-                      )}
-                      {detailProduct.specs.hydrogenPpb && (
-                        <div className="bg-purple-50 rounded-lg p-2 text-center">
-                          <div className="text-sm font-black text-purple-600">{detailProduct.specs.hydrogenPpb}</div>
-                          <div className="text-[9px] text-purple-400">Hydrogen</div>
-                        </div>
-                      )}
-                    </div>
-                    <div className="grid grid-cols-2 gap-2 mt-2">
-                      {detailProduct.specs.filterCount && (
-                        <div className="bg-orange-50 rounded-lg p-2 text-center">
-                          <div className="text-sm font-black text-orange-600">{detailProduct.specs.filterCount} lõi lọc</div>
-                        </div>
-                      )}
-                      {detailProduct.specs.warrantyYears && (
-                        <div className="bg-teal-50 rounded-lg p-2 text-center">
-                          <div className="text-sm font-black text-teal-600">BH {detailProduct.specs.warrantyYears} năm</div>
-                        </div>
-                      )}
-                    </div>
+              {/* Technical Specifications */}
+              {detailProduct.specs && (detailProduct.specs.pH || detailProduct.specs.hydrogenPpb || detailProduct.specs.filterCount || detailProduct.specs.warrantyYears) && (
+                <div className="rounded-xl p-3 bg-slate-50 border border-slate-100">
+                  <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">Thông số kỹ thuật</div>
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    {detailProduct.specs.pH && (
+                      <div className="bg-white p-2 rounded-lg border border-slate-100">
+                        <span className="text-slate-400 block text-[10px]">Độ pH</span>
+                        <span className="font-bold text-blue-600">{detailProduct.specs.pH}</span>
+                      </div>
+                    )}
+                    {detailProduct.specs.hydrogenPpb && (
+                      <div className="bg-white p-2 rounded-lg border border-slate-100">
+                        <span className="text-slate-400 block text-[10px]">Nồng độ Hydrogen</span>
+                        <span className="font-bold text-purple-600">{detailProduct.specs.hydrogenPpb}</span>
+                      </div>
+                    )}
+                    {detailProduct.specs.filterCount && (
+                      <div className="bg-white p-2 rounded-lg border border-slate-100">
+                        <span className="text-slate-400 block text-[10px]">Số lõi lọc</span>
+                        <span className="font-bold text-orange-600">{detailProduct.specs.filterCount} lõi</span>
+                      </div>
+                    )}
+                    {detailProduct.specs.warrantyYears && (
+                      <div className="bg-white p-2 rounded-lg border border-slate-100">
+                        <span className="text-slate-400 block text-[10px]">Bảo hành</span>
+                        <span className="font-bold text-emerald-600">{detailProduct.specs.warrantyYears} năm chính hãng</span>
+                      </div>
+                    )}
                   </div>
-                )}
+                </div>
+              )}
 
-                {/* Description */}
-                <div className="mt-4">
-                  <div className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Mô tả sản phẩm</div>
-                  <div className="text-sm text-slate-600 whitespace-pre-line leading-relaxed">
-                    {detailProduct.description || "Chưa có mô tả chi tiết."}
-                  </div>
+              {/* Description */}
+              <div>
+                <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Mô tả sản phẩm</div>
+                <div className="text-xs text-slate-600 leading-relaxed whitespace-pre-line max-h-48 overflow-y-auto pr-1">
+                  {detailProduct.description || "Chưa có mô tả chi tiết."}
                 </div>
               </div>
             </div>
 
-            {/* Sticky footer */}
+            {/* Footer with Price and Add Button */}
             <div className="px-5 py-3 border-t border-slate-100 bg-white flex items-center justify-between sticky bottom-0">
               <div>
-                <div className="text-[10px] font-bold text-slate-400 uppercase">Giá bán</div>
-                <div className="text-xl font-black text-emerald-600">{new Intl.NumberFormat('vi-VN').format(detailProduct.price)}đ</div>
+                <div className="text-[10px] font-bold text-slate-400 uppercase">Giá gốc niêm yết</div>
+                <div className="text-xl font-black text-emerald-600">
+                  {new Intl.NumberFormat('vi-VN').format(detailProduct.price)}đ
+                </div>
               </div>
               <button
-                onClick={() => { addToCart(detailProduct); setDetailProduct(null); }}
-                className="px-5 py-2.5 rounded-xl font-bold text-white text-sm shadow-lg transition-all" style={{background:'#4f46e5'}}
+                onClick={() => {
+                  addToCart(detailProduct);
+                  setDetailProduct(null);
+                }}
+                className="px-5 py-2.5 rounded-xl font-bold text-white text-sm bg-indigo-600 hover:bg-indigo-700 shadow-md transition-colors"
               >
                 🛒 Thêm vào đơn
               </button>
