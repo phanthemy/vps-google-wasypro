@@ -53,7 +53,7 @@ export default function UnifiedAuthModal({
   // Register Form State
   const [regFullName, setRegFullName] = useState('');
   const [regPhone, setRegPhone] = useState('');
-  const [regOtp, setRegOtp] = useState('');
+  const [regOtp, setRegOtp] = useState('123456');
   const [regPassword, setRegPassword] = useState('');
   const [regConfirmPassword, setRegConfirmPassword] = useState('');
   const [showRegPassword, setShowRegPassword] = useState(false);
@@ -424,23 +424,22 @@ export default function UnifiedAuthModal({
                 </div>
                 <button
                   type="button"
-                  onClick={handleSendOtp}
-                  disabled={otpLoading || otpCooldown > 0 || !regPhone.trim()}
-                  className="h-11 sm:h-12 px-4 sm:px-5 rounded-2xl bg-[#0164ff] hover:bg-[#0054db] active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5 shadow-[0_4px_12px_rgba(1,100,255,0.35)] shrink-0 transition-all cursor-pointer whitespace-nowrap"
+                  disabled
+                  className="h-11 sm:h-12 px-4 sm:px-5 rounded-2xl bg-emerald-600 text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5 shrink-0 whitespace-nowrap cursor-default shadow-xs"
                 >
                   <Shield className="w-4 h-4 stroke-[2.4]" />
-                  <span>{otpLoading ? '...' : otpCooldown > 0 ? `${otpCooldown}s` : 'Gửi OTP'}</span>
+                  <span>OTP: 123456</span>
                 </button>
               </div>
             </div>
 
-            {/* MÃ XÁC THỰC ZALO (OTP) */}
+            {/* MÃ XÁC THỰC ZALO (OTP) - MÔI TRƯỜNG TEST */}
             <div className="space-y-1">
               <label className="block text-xs font-extrabold text-[#070f30] uppercase tracking-wide">
-                MÃ XÁC THỰC ZALO (OTP) <span className="text-[#ff3b30]">*</span>
+                MÃ XÁC THỰC OTP (MÔI TRƯỜNG TEST) <span className="text-emerald-600">(ĐÃ KHÓA SẴN 123456)</span>
               </label>
               <div className="relative">
-                <MessageCircle className="w-5 h-5 text-[#2585eb] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none stroke-[2.2]" />
+                <MessageCircle className="w-5 h-5 text-emerald-600 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none stroke-[2.2]" />
                 <input
                   type="text"
                   name="otp"
@@ -448,15 +447,14 @@ export default function UnifiedAuthModal({
                   inputMode="numeric"
                   maxLength={6}
                   value={regOtp}
-                  onChange={e => setRegOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                  placeholder="Nhập mã 6 số gửi từ Zalo Water King"
-                  className="w-full pl-11 pr-4 h-11 sm:h-12 bg-white border border-[#91c7f8] hover:border-[#0178ff] focus:border-[#0178ff] focus:ring-2 focus:ring-[#0178ff]/20 rounded-2xl text-sm font-medium text-slate-800 placeholder-[#9ab3d1] focus:outline-none shadow-xs transition-all font-mono tracking-wider"
+                  readOnly
+                  className="w-full pl-11 pr-4 h-11 sm:h-12 bg-emerald-50/60 border border-emerald-300 rounded-2xl text-sm font-bold text-emerald-800 cursor-not-allowed shadow-xs font-mono tracking-widest select-none"
                   required
                 />
               </div>
-              <div className="flex items-center gap-1.5 text-[11px] text-[#527394] font-normal pt-0.5">
-                <Info className="w-3.5 h-3.5 text-[#527394] shrink-0" />
-                <span>Tin nhắn từ Zalo OA Water King chứa mã xác thực gồm 6 số.</span>
+              <div className="flex items-center gap-1.5 text-[11px] text-emerald-700 font-semibold pt-0.5">
+                <Info className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                <span>Môi trường Test đã khóa sẵn OTP 123456. Bạn không cần gửi mã qua Zalo.</span>
               </div>
             </div>
 
