@@ -793,25 +793,9 @@ export default function CreateOrderModal({ currentUser, onClose, onSuccess }) {
                       </div>
                       <div className="flex items-center gap-4 flex-shrink-0">
                         <div className="text-right flex flex-col items-end">
-                          {hasBID ? (
-                            <>
-                              <div className="flex items-center gap-2">
-                                <div className="text-xs line-through text-gray-400">
-                                  {new Intl.NumberFormat('vi-VN').format(p.price)}đ
-                                </div>
-                                <span className="text-[10px] font-bold px-1 py-0.5 rounded bg-red-100 text-red-600">
-                                  -{selfDiscountPercent}%
-                                </span>
-                              </div>
-                              <div className="font-extrabold text-sm text-green-500">
-                                {new Intl.NumberFormat('vi-VN').format(Math.round(p.price * (1 - selfDiscountRate)))}đ
-                              </div>
-                            </>
-                          ) : (
-                            <div className="font-extrabold text-sm" style={{ color: '#059669' }}>
-                              {new Intl.NumberFormat('vi-VN').format(p.price)}đ
-                            </div>
-                          )}
+                          <div className="font-extrabold text-sm" style={{ color: '#059669' }}>
+                            {new Intl.NumberFormat('vi-VN').format(p.price)}đ
+                          </div>
                         </div>
                         {qtyInCart > 0 ? (
                           <div className="flex items-center gap-2">
@@ -870,13 +854,17 @@ export default function CreateOrderModal({ currentUser, onClose, onSuccess }) {
                   </div>
                 )}
 
-                <div className="flex justify-between items-center">
+                <div className="flex justify-between items-start">
                   <span style={{ color: '#64748b' }}>Sản phẩm</span>
-                  <span className="font-bold text-right" style={{ color: '#1e293b' }}>
+                  <div className="text-right" style={{ color: '#1e293b', maxWidth: '60%' }}>
                     {purchaseSubject === 'SELF' && pricingMode === 'COMBO'
-                      ? `Combo ${comboItems.filter(ci => ci.qty > 0).length} loại máy`
-                      : cartItems.map(ci => `${ci.product.title} (x${ci.qty})`).join(', ')}
-                  </span>
+                      ? <span className="font-bold">{`Combo ${comboItems.filter(ci => ci.qty > 0).length} loại máy`}</span>
+                      : cartItems.map((ci, idx) => (
+                        <div key={idx} className="font-bold text-sm leading-relaxed">
+                          {ci.product.title} (x{ci.qty})
+                        </div>
+                      ))}
+                  </div>
                 </div>
 
                 {/* Điểm sản phẩm CP hiển thị rõ ràng theo yêu cầu của Sếp */}
@@ -1119,19 +1107,9 @@ export default function CreateOrderModal({ currentUser, onClose, onSuccess }) {
               <div className="mt-2 pt-4 border-t border-slate-100 flex items-end justify-between">
                 <div>
                   <div className="text-xs font-bold text-slate-400 mb-1">Giá bán</div>
-                  {(purchaseSubject === 'SELF' && pricingMode === 'RETAIL' && hasBID) ? (
-                    <div className="flex flex-col">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm line-through text-slate-400">{new Intl.NumberFormat('vi-VN').format(detailProduct.price)}đ</span>
-                        <span className="text-xs font-bold px-1.5 py-0.5 rounded bg-red-100 text-red-600">-{selfDiscountPercent}%</span>
-                      </div>
-                      <span className="text-xl font-black text-green-500">{new Intl.NumberFormat('vi-VN').format(Math.round(detailProduct.price * (1 - selfDiscountRate)))}đ</span>
-                    </div>
-                  ) : (
-                    <div className="text-xl font-black text-emerald-600">
-                      {new Intl.NumberFormat('vi-VN').format(detailProduct.price)}đ
-                    </div>
-                  )}
+                  <div className="text-xl font-black text-emerald-600">
+                    {new Intl.NumberFormat('vi-VN').format(detailProduct.price)}đ
+                  </div>
                 </div>
                 <button
                   onClick={() => {
