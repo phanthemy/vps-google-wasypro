@@ -40,27 +40,30 @@ SSH VPS → Edit → Test → Commit → Push GitHub
 
 ```
 1. Đọc AGENTS.md (file này)
-1b. Đọc SYSTEM_MAP.md ⭐⭐⭐⭐⭐ (bản đồ kỹ thuật — component, state, API, file location)
 2. Đọc BUSINESS_RULES.md ⭐⭐⭐ (9 quy tắc bất biến — VI PHẠM = BUG PRODUCTION)
 3. Đọc .agents/rules/project-workflow.md (AI Engineering Playbook)
-4. Xác định Source of Truth → Nếu VPS → KHÔNG sửa local
-5. git pull (trên VPS hoặc local tùy Source of Truth)
-6. Đọc README.md
-7. Đọc .antigravity/STATE.md
-8. Đọc .antigravity/project.json
-9. Đọc memory.md (nhật ký bộ nhớ & quyết định kỹ thuật)
-10. Đọc loi.md (sổ tay lỗi & cách fix)
-11. Đọc changelog.md (lịch sử cập nhật)
-12. Kiểm tra git status, git branch, HEAD hash (Local vs Remote)
-13. Plan Resume: Khôi phục Unfinished Plans, Blocked Tasks, Dependencies
-14. Báo cáo trạng thái ngắn gọn
+4. Đọc SYSTEM_MAP.md ⭐⭐⭐ (Bản đồ định vị GPS: Port, App, API, State — Tuân thủ Drift Check)
+5. Xác định Source of Truth → Nếu VPS → KHÔNG sửa local
+6. git pull (trên VPS hoặc local tùy Source of Truth)
+7. Đọc README.md
+8. Đọc .antigravity/STATE.md
+9. Đọc .antigravity/project.json
+10. Đọc memory.md (nhật ký bộ nhớ & quyết định kỹ thuật)
+11. Đọc loi.md (sổ tay lỗi & cách fix)
+12. Đọc changelog.md (lịch sử cập nhật)
+13. Kiểm tra git status, git branch, HEAD hash (Local vs Remote)
+14. Plan Resume: Khôi phục Unfinished Plans, Blocked Tasks, Dependencies
+15. Báo cáo trạng thái ngắn gọn
 ```
 
 > ⚠️ **QUY TẮC VÀNG — TRƯỚC KHI SỬA CODE** ⭐⭐⭐⭐⭐
 > 1. `git log --oneline | grep <keyword>` — tìm commit gốc tạo tính năng liên quan
 > 2. Đọc `BUSINESS_RULES.md` — check có invariant nào bị ảnh hưởng không
-> 3. Nếu thêm flow mới → tìm guard/check trong flow cũ → port sang flow mới
-> 4. KHÔNG xóa/sửa tính năng cũ nếu chưa hiểu tại sao nó tồn tại
+> 3. **INVARIANT: SYSTEM MAP DRIFT CHECK**:
+>    `SYSTEM_MAP.md` chỉ được sử dụng để định vị (technical navigation / GPS index). Trước mọi thay đổi code, Agent **BẮT BUỘC** mở và xác minh source thực tế tương ứng. Nếu `SYSTEM_MAP.md` và source không khớp, phải đánh dấu `SYSTEM_MAP_DRIFT`, dừng implementation, xác định nguồn sự thật (Source code, Git hay Production) và cập nhật map trước khi tiếp tục. Không được coi `SYSTEM_MAP.md` là source of truth.
+>    *(Tuyệt đối KHÔNG tuyên bố rằng `SYSTEM_MAP.md` loại bỏ hoàn toàn bug; nó chỉ giảm mạnh nguy cơ sửa nhầm app/file nhưng không đảm bảo tuyệt đối)*.
+> 4. Nếu thêm flow mới → tìm guard/check trong flow cũ → port sang flow mới
+> 5. KHÔNG xóa/sửa tính năng cũ nếu chưa hiểu tại sao nó tồn tại
 
 > **Lưu ý**: `project-workflow.md` định nghĩa đầy đủ quy trình Multi-Agent,
 > QA Verification, Memory Management, Session Commands, Production Safety.

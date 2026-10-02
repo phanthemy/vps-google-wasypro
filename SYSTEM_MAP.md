@@ -1,8 +1,74 @@
 # SYSTEM_MAP.md — Bản Đồ Kỹ Thuật WasyPro
-> ⚠️ **ĐỌC FILE NÀY TRƯỚC KHI SỬA BẤT KỲ CODE NÀO**
-> Cập nhật lần cuối: 2026-10-02 | Commit: e05915b
+> ⚠️ **BẢN ĐỒ ĐỊNH VỊ KỸ THUẬT (GPS INDEX) — KHÔNG PHẢI SOURCE OF TRUTH**
+> - **Last verified**: 2026-10-02 14:00
+> - **Verified against**: Git HEAD `ca20a6d` | PM2: `wasypro` (5005), `wasypro-ctv` (5175), `happylife-backend` (3011) | Nginx: `wasypro.com`, `app.wasypro.com`
+> - **Source verification status**: PASS
 
 ---
+
+### 🔒 INVARIANT: SYSTEM MAP DRIFT CHECK ⭐⭐⭐⭐⭐
+
+> ⚠️ **BẢO VỆ VĨNH VIỄN — TUÂN THỦ TRƯỚC MỌI THAY ĐỔI CODE**
+
+`SYSTEM_MAP.md` chỉ được sử dụng để định vị (technical navigation / GPS index). Trước mọi thay đổi code, Agent **BẮT BUỘC** mở và xác minh source thực tế tương ứng.
+
+Nếu `SYSTEM_MAP.md` và source không khớp, phải đánh dấu `SYSTEM_MAP_DRIFT`, dừng implementation, xác định nguồn sự thật (Source code, Git hay Production) và cập nhật map trước khi tiếp tục. Không được coi `SYSTEM_MAP.md` là source of truth.
+
+> 🛑 **NGHIÊM CẤM TUYÊN BỐ**: Tuyệt đối **KHÔNG** tuyên bố rằng `SYSTEM_MAP.md` loại bỏ hoàn toàn bug. Nó chỉ giảm mạnh nguy cơ sửa nhầm app/file nhưng không đảm bảo tuyệt đối.
+
+```
+SYSTEM_MAP
+    ↓
+ĐỊNH VỊ (Component / API / Route / File)
+    ↓
+MỞ SOURCE THẬT TRÊN ĐĨA
+    ↓
+ĐỐI CHIẾU MAP ↔ SOURCE
+    ↓
+┌────────────────────────────────────────┐
+│ KHỚP                                   │
+│ → Tiến hành sửa code                   │
+└────────────────────────────────────────┘
+hoặc
+┌────────────────────────────────────────┐
+│ KHÔNG KHỚP                             │
+│ → DRIFT DETECTED                       │
+│ → STOP (Dừng implementation ngay)      │
+│ → Xác định nguồn sự thật (Source, Git, │
+│   hay Production)                      │
+│ → Xác định nguyên nhân drift           │
+│ → Cập nhật SYSTEM_MAP.md               │
+│ → Verify lại                           │
+│ → Mới được sửa code                    │
+└────────────────────────────────────────┘
+```
+
+---
+
+### PHÂN CẤP NGUỒN SỰ THẬT (HIERARCHY OF TRUTH)
+
+```
+                    ┌─────────────────┐
+                    │ BUSINESS RULES  │  "PHẢI LÀM GÌ" (Nghiệp vụ cốt lõi, công thức, hoa hồng, rank)
+                    └────────┬────────┘
+                             │
+                    ┌────────▼────────┐
+                    │ PROJECT WORKFLOW│  "LÀM THẾ NÀO" (Quy trình Sub-Agent, QA Gate, Safety)
+                    └────────┬────────┘
+                             │
+                    ┌────────▼────────┐
+                    │   SYSTEM MAP    │  "NÓ NẰM Ở ĐÂU" (Bản đồ định vị GPS: Port, App, API, State)
+                    └────────┬────────┘
+                             │
+                    ┌────────▼────────┐
+                    │  SOURCE CODE    │  "THỰC TẾ LÀ GÌ" (Sự thật kỹ thuật tối thượng)
+                    └────────┬────────┘
+                             │
+                    ┌────────▼────────┐
+                    │  RUNTIME / DB   │  "ĐANG CHẠY GÌ" (Sự thật vận hành tối thượng)
+                    └─────────────────┘
+```
+
 
 ## 1. KIẾN TRÚC TỔNG QUAN
 
@@ -303,8 +369,8 @@ name, slug, price, salePrice, points, categorySlug, images, specs
 
 | Lỗi | Nguyên nhân | Phòng tránh |
 |---|---|---|
-| `setSuccess is not a function` | Gọi hàm chưa khai báo useState | Grep `useState` trước khi code |
-| Sửa nhầm file | wasypro vs wasypro-ctv | Xem Section 1 bảng File Location |
+| `setSuccess is not a function` | Gọi hàm chưa khai báo useState | Mở file thật để verify state trước khi code (Drift Check) |
+| Sửa nhầm file | wasypro vs wasypro-ctv | Xem Section 1 bảng File Location & verify đường dẫn thật |
 | Lỗi kết nối máy chủ | JS error trong catch block | Dùng alert() thay vì state chưa có |
 | CSRF 403 | Endpoint thiếu exempt | Check Section 4.3 |
 | Build crash | Self-referencing const | Test build ngay sau khi sửa |
