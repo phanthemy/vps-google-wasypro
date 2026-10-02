@@ -277,3 +277,16 @@ avigator.clipboard.writeText()
   1. Khi sửa danh mục (tên/slug) trong Admin → PHẢI kiểm tra ProductSection.tsx có hardcode slug cũ không
   2. KHÔNG hardcode tên/slug danh mục — nên fetch động từ API
   3. Tab ID trong CATEGORY_TABS phải KHỚP với slug trong database
+
+## L35: rm -rf dist gây downtime 6s khi rebuild ⭐⭐⭐⭐⭐
+- **Ngày**: 2026-10-02
+- **Triệu chứng**: Trang hiện 'Đã xảy ra sự cố hiển thị' (React ErrorBoundary)
+- **Root cause**: Agent chạy m -rf dist rồi 
+px vite build — trong 6-7s build, PM2 serve trang không có dist/index.html → ENOENT error → React crash
+- **Fix**: Rebuild lại dist folder
+- **BÀI HỌC QUAN TRỌNG**:
+  1. **KHÔNG BAO GIỜ m -rf dist trên production** trước khi build
+  2. Nếu cần clean build: 
+px vite build --force hoặc build vào folder tạm rồi swap
+  3. Luôn kiểm tra ls dist/index.html sau build trước khi restart PM2
+  4. Nếu cần rm: m -rf dist.bak ; mv dist dist.bak ; npx vite build ; pm2 restart wasypro
