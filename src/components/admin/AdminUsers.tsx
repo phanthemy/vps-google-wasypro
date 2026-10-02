@@ -48,9 +48,9 @@ const AdminUsers: React.FC = () => {
   // Change password modal
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [passwordUser, setPasswordUser] = useState<AdminUser | null>(null);
-  const [passwordForm, setPasswordForm] = useState({ newPassword: '', confirmPassword: '' });
+  const [passwordForm, setPasswordForm] = useState({ newPassword: '' });
   const [changingPassword, setChangingPassword] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
+  const [showPassword, setShowPassword] = useState(true);
 
   // Delete confirm
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -112,10 +112,6 @@ const AdminUsers: React.FC = () => {
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!passwordUser) return;
-    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
-      setCreateError('Mật khẩu xác nhận không khớp');
-      return;
-    }
     if (passwordForm.newPassword.length < 4) {
       setCreateError('Mật khẩu phải có ít nhất 4 ký tự');
       return;
@@ -125,7 +121,7 @@ const AdminUsers: React.FC = () => {
     try {
       await api.changePassword(passwordUser.id, '', passwordForm.newPassword);
       setShowPasswordModal(false);
-      setPasswordForm({ newPassword: '', confirmPassword: '' });
+      setPasswordForm({ newPassword: '' });
       setSuccess('Đổi mật khẩu thành công!');
     } catch (e: any) {
       setCreateError(e.message);
@@ -380,11 +376,7 @@ const AdminUsers: React.FC = () => {
                 <input type={showPassword ? 'text' : 'password'} value={passwordForm.newPassword} onChange={e => setPasswordForm({...passwordForm, newPassword: e.target.value})} placeholder="Nhập mật khẩu mới"
                   className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-ocean-500" required />
               </div>
-              <div>
-                <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Xác nhận mật khẩu *</label>
-                <input type={showPassword ? 'text' : 'password'} value={passwordForm.confirmPassword} onChange={e => setPasswordForm({...passwordForm, confirmPassword: e.target.value})} placeholder="Nhập lại mật khẩu"
-                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-ocean-500" required />
-              </div>
+
               <label className="flex items-center gap-2 text-xs text-slate-500 cursor-pointer">
                 <input type="checkbox" checked={showPassword} onChange={() => setShowPassword(!showPassword)} /> Hiện mật khẩu
               </label>
