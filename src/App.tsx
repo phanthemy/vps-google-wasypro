@@ -373,8 +373,9 @@ export const App: React.FC = () => {
         </div>
       )}
 
-      {/* Main Unified Header */}
-      <Header
+      {/* Main Unified Header (Hidden on CTV Portal to avoid duplicate headers) */}
+      {activeSection !== 'ctv' && (
+        <Header
         activeSection={activeSection}
         onNavigate={handleNavigate}
         onOpenWarranty={handleOpenWarranty}
@@ -386,9 +387,10 @@ export const App: React.FC = () => {
         cartItemCount={totalItems}
         onCartClick={() => setIsCartOpen(true)}
       />
+      )}
 
       {/* Main Container Content */}
-      <main className="pt-28 sm:pt-32">
+      <main className={activeSection === 'ctv' ? 'pt-0' : 'pt-28 sm:pt-32'}>
         {activeSection === 'my-orders' && user ? (
           <MyOrdersView
             user={user}
@@ -402,6 +404,10 @@ export const App: React.FC = () => {
                 currentUser={user}
                 onLogout={handleLogout}
                 onNavigateHome={() => handleNavigate('hero')}
+                onOpenAuth={handleOpenAuthModal}
+                onOpenAdmin={handleOpenAdminPortal}
+                cartItemCount={totalItems}
+                onCartClick={() => setIsCartOpen(true)}
               />
             ) : (
               <div className="max-w-xl mx-auto px-4 py-16 text-center animate-fadeIn">
@@ -527,8 +533,9 @@ export const App: React.FC = () => {
         onSuccessLogin={handleSuccessAdminLogin}
       />
 
-      {/* Sticky Floating Action Buttons (Right Bottom) */}
-      <div className="fixed bottom-6 right-6 z-40 flex flex-col gap-3">
+      {/* Sticky Floating Action Buttons (Right Bottom - Hidden on CTV Portal) */}
+      {activeSection !== 'ctv' && (
+        <div className="fixed bottom-6 right-6 z-40 flex flex-col gap-3">
         <button
           onClick={handleCallHotline}
           className="w-13 h-13 sm:w-14 sm:h-14 rounded-full bg-gradient-to-r from-amber-500 to-orange-500 text-white flex items-center justify-center shadow-lg hover:shadow-xl hover:scale-110 transition-all duration-300 group"
@@ -551,6 +558,7 @@ export const App: React.FC = () => {
           </span>
         </button>
       </div>
+      )}
 
       {/* Scroll to Top Button */}
       {showScrollTop && (
