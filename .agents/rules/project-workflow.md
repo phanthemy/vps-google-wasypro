@@ -133,6 +133,30 @@ Khi thực hiện kiểm thử nghiệm thu, báo cáo bắt buộc chỉ rõ:
    - Acceptance criteria
 4. ❌ **Do not infer successful deployment from user claims alone.** (Tuyệt đối không suy đoán deploy thành công chỉ dựa trên phỏng đoán hoặc lời nói).
 
+
+### 7. UI Visual Verification Gate (Cổng Xác Nhận Giao Diện Bằng Mắt) ⭐⭐⭐⭐⭐
+
+> 🚨 **QUY TẮC BẤT DI BẤT DỊCH**:
+> **Agent KHÔNG ĐƯỢC tuyên bố PASS hoặc báo hoàn thành nếu user chưa xác nhận giao diện bằng mắt.**
+
+**Quy trình bắt buộc sau MỌI thay đổi UI:**
+
+1. **Chụp screenshot thực tế** bằng Playwright từ local (KHÔNG phải mock/giả lập):
+   - Mobile: `viewport 390×844, deviceScaleFactor 2, isMobile true`
+   - Desktop: `viewport 1920×1080` (nếu có giao diện desktop)
+   - Chụp đủ các trạng thái: default, loading, empty, error, hover/active (nếu áp dụng)
+2. **Gửi screenshot cho user** dưới dạng artifact image — user phải NHÌN THẤY được.
+3. **Chờ user xác nhận**:
+   - User nói "OK" / "được" / "đẹp" → mới được PASS.
+   - User chỉ ra lỗi → fix → chụp lại → gửi lại → chờ confirm lần nữa.
+4. **Nếu user chưa confirm → tuyệt đối KHÔNG được**:
+   - Báo PASS / DONE / VERIFIED
+   - Commit với message "feat: ..." hoặc "fix: ..."
+   - Gửi thông báo Telegram hoàn thành
+   - Chuyển sang task khác
+
+**Ngoại lệ duy nhất**: Thay đổi backend-only (API, database, logic) không ảnh hưởng UI → không cần screenshot, nhưng phải có bằng chứng API response (curl output).
+
 ---
 
 ## V. UI DESIGN SYSTEM & MOBILE ERGONOMICS

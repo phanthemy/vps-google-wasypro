@@ -63,19 +63,23 @@ export const ProductQuickViewModal: React.FC<ProductQuickViewModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-gray-900/70 backdrop-blur-md overflow-y-auto" onClick={onClose}>
+    <div className="fixed inset-0 z-50 bg-gray-900/70 backdrop-blur-md overflow-hidden" onClick={onClose}>
       <div 
-        className="bg-white w-full max-w-4xl rounded-md overflow-y-auto max-h-[90vh] shadow-xl relative animate-in fade-in zoom-in duration-200 my-8 border border-primary-light"
+        className="bg-white w-full sm:max-w-2xl lg:max-w-4xl sm:rounded-2xl overflow-y-auto shadow-xl relative animate-in fade-in zoom-in duration-200 sm:border border-gray-200 mx-auto"
+        style={{ height: '100dvh', maxHeight: '100dvh' }}
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Close Button */}
-        <button onClick={onClose} className="fixed sm:absolute top-4 right-4 z-50 w-10 h-10 rounded-full bg-white hover:bg-gray-100 text-gray-700 flex items-center justify-center shadow-lg transition-all border border-gray-200">
-          <X className="w-5 h-5" />
-        </button>
+        {/* Sticky Header with X Button */}
+        <div className="sticky top-0 z-50 flex items-center justify-between px-4 py-3 bg-white/95 backdrop-blur-sm border-b border-gray-100" style={{ minHeight: '48px' }}>
+          <h3 className="text-[15px] font-bold text-gray-800 truncate pr-3">Chi tiết sản phẩm</h3>
+          <button onClick={onClose} className="w-9 h-9 rounded-full bg-gray-100 hover:bg-red-50 text-gray-600 hover:text-red-500 flex items-center justify-center transition-all flex-shrink-0">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-0">
-          {/* Left: Image Gallery Slider */}
-          <div className="lg:col-span-6 bg-gray-50 p-4 sm:p-6">
+        <div className="flex flex-col">
+          {/* Image Gallery */}
+          <div className="bg-gray-50 p-3 sm:p-6">
             {/* Badges */}
             <div className="flex gap-2 mb-3">
               {product.isHot && (
@@ -201,11 +205,11 @@ export const ProductQuickViewModal: React.FC<ProductQuickViewModalProps> = ({
             </div>
           </div>
 
-          {/* Right Column: Details & Specs */}
-          <div className="lg:col-span-6 flex flex-col justify-between space-y-6 p-4 sm:p-6">
+          {/* Product Details */}
+          <div className="flex flex-col space-y-4 p-4 sm:p-6">
             <div>
               {/* Category & Rating */}
-              <div className="flex items-center justify-between gap-2 mb-2">
+              <div className="flex flex-wrap items-center gap-2 mb-2">
                 <span className="text-[11px] font-bold text-primary uppercase tracking-wider bg-sky-50 px-2 py-1 rounded-sm border border-primary-light">
                   {product.specs.origin} • Premium Series
                 </span>
@@ -216,31 +220,20 @@ export const ProductQuickViewModal: React.FC<ProductQuickViewModalProps> = ({
                     ))}
                   </div>
                   <span className="font-bold text-gray-800">{product.rating}</span>
-                  <span className="text-gray-500">({product.reviewsCount} đánh giá)</span>
+                  <span className="text-gray-500">({product.reviewsCount})</span>
                 </div>
               </div>
 
-              <h2 className="text-[20px] sm:text-[24px] font-heading font-bold text-gray-900 leading-snug mb-3 uppercase">
+              <h2 className="text-[17px] sm:text-[22px] font-bold text-gray-900 leading-snug mb-2">
                 {product.title}
               </h2>
 
-              <div className="text-[13px] sm:text-[14px] text-gray-600 mb-4 leading-relaxed">
-                {product.description?.split(/[.。](?=\s|[A-ZĐÀ-ɏ])/g)
-                  .filter(s => s?.trim())
-                  .reduce((acc: string[][], s: string, i: number) => {
-                    const groupIdx = Math.floor(i / 3);
-                    if (!acc[groupIdx]) acc[groupIdx] = [];
-                    acc[groupIdx].push(s.trim());
-                    return acc;
-                  }, [])
-                  .map((group: string[], idx: number) => (
-                    <p key={idx} className="mb-2">{group.join('. ')}.</p>
-                  ))
-                }
+              <div className="text-[13px] text-gray-600 mb-3 leading-relaxed" style={{ maxHeight: '80px', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 4, WebkitBoxOrient: 'vertical' as any }}>
+                {product.description}
               </div>
 
               {/* Pricing Box */}
-              <div className="p-4 rounded-md bg-gray-50 border border-gray-200 mb-6 flex flex-wrap items-baseline justify-between gap-2">
+              <div className="p-3 rounded-xl bg-gray-50 border border-gray-200 mb-4 flex flex-wrap items-center gap-2">
                 <div>
                   <span className="text-[24px] sm:text-[28px] font-heading font-extrabold text-price">
                     {formatPrice(product.price)}
@@ -261,7 +254,7 @@ export const ProductQuickViewModal: React.FC<ProductQuickViewModalProps> = ({
               <div className="space-y-3 mb-6">
                 <h3 className="text-[12px] font-bold text-gray-800 uppercase tracking-wider flex items-center gap-1.5">
                   <Sliders className="w-4 h-4 text-primary" />
-                  <span>Bảng Thông Số Kỹ Thuật Ion Kiềm</span>
+                  <span>Thông Số Kỹ Thuật</span>
                 </h3>
                 <div className="grid grid-cols-2 gap-2 text-[13px]">
                   <div className="p-2.5 rounded-md bg-white border border-gray-200 shadow-sm">
@@ -284,7 +277,7 @@ export const ProductQuickViewModal: React.FC<ProductQuickViewModalProps> = ({
               </div>
 
               {/* Benefits */}
-              <ul className="space-y-2 text-[13px] text-gray-600 mb-6">
+              <ul className="space-y-1.5 text-[13px] text-gray-600 mb-4">
                 <li className="flex items-center gap-2">
                   <CheckCircle2 className="w-4 h-4 text-primary flex-shrink-0" />
                   <span>Miễn phí vận chuyển & lắp đặt tận nhà toàn quốc.</span>
@@ -327,7 +320,7 @@ export const ProductQuickViewModal: React.FC<ProductQuickViewModalProps> = ({
         </div>
 
         {/* Bottom: Tabs */}
-        <div className="border-t border-gray-200 p-6 sm:p-8 bg-gray-50">
+        <div className="border-t border-gray-200 p-4 sm:p-6 bg-gray-50">
           <div className="flex items-center gap-4 border-b border-gray-200 pb-2 mb-4">
             <button className="text-[14px] font-bold text-primary border-b-2 border-primary pb-2 -mb-[9px]">Mô tả chi tiết</button>
             <button className="text-[14px] font-bold text-gray-500 hover:text-gray-800 pb-2 -mb-[9px]">Thông số</button>

@@ -248,3 +248,19 @@ req.user = { id: "U199", userId: "U199", dbId: cuid, role, fullName, phone }
 4. **Môi trường triển khai**:
    - Toàn bộ triển khai và thử nghiệm thực hiện trên Google Cloud VPS (	est.wasypro.com).
    - TUYỆT ĐỐI KHÔNG can thiệp, không sửa đổi code trên VPS Oracle (wasypro.com).
+
+
+---
+
+### Phiên 03/10/2026 — UI Fixes + Hệ Thống Đại Lý (test.wasypro.com)
+
+#### Quyết định kỹ thuật:
+1. **Popup SP trang chủ redesign**: Sticky header "Chi tiết sản phẩm" + X button luôn hiện, full screen mobile (100dvh), flex-col thay grid-cols-12, description clamp 4 dòng (full ở tab dưới)
+2. **Dealer Network architecture**: SQLite table Dealer (tạo trực tiếp, không qua prisma db push vì SQLite constraint issue), 2 public API + 4 admin CRUD, DealerSection component với Google Maps iframe + province filter
+3. **X button pattern**: Trên mobile, KHÔNG dùng `position: fixed` cho X button trong modal — bị header/ancestor `contain: paint` tạo new containing block. Dùng `sticky top-0` trong header div.
+4. **Prisma db push SQLite limitation**: `npx prisma db push --accept-data-loss` fail trên SQLite với "index associated with UNIQUE constraint cannot be dropped". Giải pháp: tạo table trực tiếp bằng sqlite3 command hoặc Python sqlite3.
+5. **authenticateToken ordering**: Routes sử dụng middleware phải đặt SAU khi middleware được define trong server/index.js (hoisted function vs const arrow function).
+
+#### Bài học lỗi:
+- L38: Dealer routes chèn ở dòng 25 nhưng authenticateToken ở dòng 342 → "Cannot access before initialization" → phải di chuyển routes xuống sau authenticateToken definition
+- L39: `position: fixed` cho X button trong modal → trên mobile bị che bởi header → dùng sticky header thay thế

@@ -1,5 +1,29 @@
 # WasyPro — Changelog
 
+## 2026-10-03 (test.wasypro.com)
+
+### UI Fixes
+- **Popup SP trang chủ responsive** — Sticky X header, flex-col, description clamp, 100dvh mobile
+- **Thu gọn danh sách KH + ô tìm SP** — CreateOrderModal: show 2 KH expand/collapse, product search box, 50vh area
+- **Fix popup X tạo đơn** — marginTop 48px, 100dvh Safari, bigger X button
+- **Ẩn hamburger + HỖ TRỢ CTV** — MockupHeader + MockupMore cleanup
+- **Avatar display CTV** — MockupDashboard img tag với fallback
+- **Responsive KH** — CustomersView flexWrap fix
+- **Nút đăng xuất drawer** — MobileLandingView LogOut button
+- **Format mô tả SP** — ProductQuickViewModal paragraph split
+
+### Tính năng mới: Hệ Thống Đại Lý
+- **DB**: Model Dealer + 6 đại lý mẫu (HCM, HN, ĐN, CT, BD, HP)
+- **Backend**: GET /api/dealers (public), GET/POST/PUT/DELETE /api/admin/dealers (auth)
+- **Homepage**: DealerSection.tsx — Google Maps iframe, province filter, dealer cards, "Chỉ đường" + "Gọi ngay"
+- **Shortcut**: Bubble "Đại Lý" (MapPin icon) + drawer link "HỆ THỐNG ĐẠI LÝ"
+- **Admin**: AdminDealerManagement.tsx — Full CRUD panel
+
+### Docs
+- **project-workflow.md** — Thêm Section IV.7: UI Visual Verification Gate (screenshot + user confirm trước PASS)
+
+
+
 > Lịch sử cập nhật dự án. Mỗi session ghi nhận các thay đổi quan trọng.
 
 ## 2026-09-30

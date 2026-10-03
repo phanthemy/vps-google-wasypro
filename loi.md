@@ -265,3 +265,24 @@
      - Danh sách đơn hàng thực tế lấy từ /api/orders/my, hỗ trợ bộ lọc trạng thái và popup xem chi tiết đơn hàng.
      - Tích hợp Sơ đồ tuyến dưới, Khách hàng của tôi, Bảng giá chiết khấu, Thông tin tài khoản và Đổi mật khẩu.
 - **Môi trường**: Đã test và xác nhận đạt chuẩn 100% trên https://test.wasypro.com/ctv (Không can thiệp VPS Oracle).
+
+## L38: Dealer routes "Cannot access authenticateToken before initialization" ⭐⭐⭐
+- **Ngày**: 2026-10-03 (test.wasypro.com)
+- **Triệu chứng**: Backend crash ngay khi khởi động, PM2 restart loop
+- **Root cause**: Python script chèn dealer routes (dùng `authenticateToken` middleware) ở dòng 25 trong server/index.js, nhưng `const authenticateToken = async (req, res, next) => ...` chỉ được khai báo ở dòng 342. Vì dùng `const` (không hoisted như `function`), truy cập trước khi khai báo gây ReferenceError.
+- **Fix**: Di chuyển toàn bộ block dealer routes xuống sau dòng khai báo authenticateToken
+- **BÀI HỌC**: Khi chèn code tự động vào file lớn, LUÔN kiểm tra vị trí chèn so với dependencies (middleware, helper functions). `const` arrow functions KHÔNG được hoisted.
+
+## L39: position: fixed cho nút X trong modal bị che trên mobile ⭐⭐⭐
+- **Ngày**: 2026-10-03 (test.wasypro.com)
+- **Triệu chứng**: Nút X đóng popup sản phẩm bị ẩn, phải vuốt lên mới thấy
+- **Root cause**: `position: fixed; top: 4; right: 4` nhưng trên mobile nó nằm cố định theo viewport, bị header che hoặc ancestor có `contain: paint` tạo new containing block
+- **Fix**: Đổi sang sticky header bar chứa title "Chi tiết sản phẩm" + X button, `position: sticky; top: 0; z-index: 50`
+- **BÀI HỌC**: Trên mobile modal, KHÔNG dùng `position: fixed` cho X button. Dùng sticky header bar — luôn hiện khi scroll, không bị ancestor ảnh hưởng.
+
+## L40: Prisma db push fail trên SQLite với UNIQUE constraint ⭐⭐
+- **Ngày**: 2026-10-03 (test.wasypro.com)
+- **Triệu chứng**: `npx prisma db push --accept-data-loss` trả lỗi "index associated with UNIQUE or PRIMARY KEY constraint cannot be dropped"
+- **Root cause**: SQLite không hỗ trợ DROP INDEX trên constraint index khi schema có thay đổi phức tạp (Prisma cố drop rồi recreate)
+- **Fix**: Tạo table trực tiếp bằng Python sqlite3 module, bypass Prisma migration
+- **BÀI HỌC**: Với SQLite, khi Prisma db push fail → dùng sqlite3 CLI hoặc Python script tạo table trực tiếp. Prisma generate vẫn hoạt động bình thường sau đó.
