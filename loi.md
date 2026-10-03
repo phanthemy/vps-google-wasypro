@@ -286,3 +286,42 @@
 - **Root cause**: SQLite không hỗ trợ DROP INDEX trên constraint index khi schema có thay đổi phức tạp (Prisma cố drop rồi recreate)
 - **Fix**: Tạo table trực tiếp bằng Python sqlite3 module, bypass Prisma migration
 - **BÀI HỌC**: Với SQLite, khi Prisma db push fail → dùng sqlite3 CLI hoặc Python script tạo table trực tiếp. Prisma generate vẫn hoạt động bình thường sau đó.
+
+## L41: Prisma P2023 - Không thể convert giá trị timestamp sang DateTime trên SQLite ⭐⭐⭐
+- **Ngày**: 2026-10-03 (test.wasypro.com)
+- **Triệu chứng**: Khi thêm đại lý mới qua POST /api/admin/dealers, database insert thành công nhưng query sau đó (hoặc GET /api/dealers) crash với lỗi: `P2023: Inconsistent column data: Could not convert value "1791028300551" of the field createdAt to type DateTime`.
+- **Root cause**: Khi tạo bảng `Dealer` thủ công bằng SQL, cột `createdAt` và `updatedAt` được khai báo kiểu `TEXT`. Khi Prisma tạo record trên SQLite với `@default(now())`, Prisma gửi giá trị Unix epoch milliseconds (dạng số). Do cột là TEXT, SQLite ép thành chuỗi `"1791028300551"`. Khi đọc lại, Prisma thấy kiểu chuỗi nhưng không phải chuẩn ISO-8601 (`YYYY-MM-DDTHH:mm:ss.sssZ`) nên crash.
+- **Fix**: Chuyển kiểu cột sang `DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP`, chuẩn hóa dữ liệu cũ sang chuỗi ISO-8601 UTC.
+- **BÀI HỌC**: Trên SQLite dùng với Prisma, tất cả các trường `DateTime` BẮT BUỘC phải khai báo kiểu `DATETIME` (không được dùng `TEXT`).
+
+## L42: Desktop landing view thiếu component DealerSection ⭐⭐
+- **Ngày**: 2026-10-03 (test.wasypro.com)
+- **Triệu chứng**: Giao diện mobile hiển thị section Đại Lý nhưng màn hình desktop (viewport > 768px) không thấy khối Hệ Thống Đại Lý và Header thiếu menu Đại Lý.
+- **Root cause**: Component `DealerSection` chỉ được import vào `MobileLandingView.tsx`, chưa được đưa vào khối desktop trong `App.tsx`.
+- **Fix**: Thêm `<DealerSection />` vào sau `<WarrantyLookupSection />` trong desktop view của `App.tsx` và thêm tab `{ id: 'dealers', label: 'ĐẠI LÝ' }` vào `Header.tsx`.
+- **BÀI HỌC**: Dự án dùng kiến trúc tách 2 view song song (MobileLandingView và Desktop View), khi bổ sung section mới trên trang chủ PHẢI tích hợp đồng thời ở cả 2 view.
+
+## L43: Prisma P2022 - Cột googleMapUrl thiếu trên bảng SystemPolicyConfig trong SQLite ⭐⭐⭐
+- **Ngày**: 2026-10-03 (test.wasypro.com)
+- **Triệu chứng**: Khi gọi endpoint `GET /api/public/contact-config` hoặc truy vấn `prisma.systemPolicyConfig.findMany()`, backend báo lỗi `PrismaClientKnownRequestError: The column main.SystemPolicyConfig.googleMapUrl does not exist in the current database.` (Error code `P2022`).
+- **Root cause**: Trường `googleMapUrl String?` được thêm vào schema Prisma nhưng database SQLite thực tế chưa được chạy migration/alter để thêm cột này.
+- **Fix**: Thực thi lệnh SQL: `ALTER TABLE SystemPolicyConfig ADD COLUMN googleMapUrl TEXT;` trực tiếp trên SQLite `dev.db`.
+- **BÀI HỌC**: Khi truy vấn một model Prisma trên database SQLite, nếu schema Prisma có khai báo cột mới mà chưa migrate trên file db thực tế, Prisma sẽ crash toàn bộ lệnh `findMany()`. Luôn kiểm tra `PRAGMA table_info(...)` trên SQLite để đồng bộ cấu trúc cột.
+
+## L44: Nút X bị che, vỡ responsive và xê dịch trên các Popup/Modal (ĐÃ CHỐT TIÊU CHUẨN BẮT BUỘC) ⭐⭐⭐⭐⭐
+- **Ngày**: 2026-10-03 (Toàn hệ thống wasypro / test.wasypro.com)
+- **Triệu chứng**:
+  1. Nút X đóng modal bị che khuất hoặc trôi mất khi người dùng cuộn form dài trên thiết bị di động (đặc biệt là form đăng ký hoặc xem chi tiết).
+  2. Modal không co giãn responsive mượt mà trên các màn hình nhỏ (iPhone SE, 375px), bị dính sát mép hoặc đỉnh modal bị đẩy ra ngoài mép trên màn hình.
+  3. Sử dụng position: fixed hoặc bsolute tự do cho nút X dẫn đến lệch tọa độ hoặc bị các thành phần khác đè lên.
+- **Nguyên nhân cốt lõi**:
+  - Không tuân thủ cấu trúc 3 tầng chuẩn (Sticky Header -> Scrollable Body -> Sticky Footer).
+  - Đặt nút X trôi nổi trong container cuộn hoặc dùng fixed định vị theo viewport thay vì gắn vào modal header.
+- **Biện pháp khắc phục triệt để & Tiêu chuẩn kỹ thuật áp dụng vĩnh viễn**:
+  1. **Khung 3 tầng chuẩn**:
+     - **Header**: BẮT BUỘC sticky top-0 z-50 với nền solid/backdrop-blur chống nhìn xuyên thấu, chứa Tiêu đề + Nút [X].
+     - **Body**: overflow-y-auto max-h-[90dvh] flex-1 overscroll-contain chỉ cuộn vùng nội dung này.
+     - **Footer**: sticky bottom-0 z-40 nếu có nút hành động Lưu/Đóng.
+  2. **Nút [X]**: Kích thước $\ge 36\text{px} \times 36\text{px}$, màu sắc tương phản rõ ràng, nằm ở góc trên bên phải của Header.
+  3. **Responsive**: Chiều rộng w-full max-w-[calc(100vw-24px)], căn giữa an toàn my-auto, dùng dvh chống co kéo thanh địa chỉ trình duyệt.
+- **BÀI HỌC VĨNH VIỄN**: Bất kỳ popup/modal nào được tạo mới hoặc chỉnh sửa trong tương lai đều PHẢI kiểm tra Checklist này trước khi bàn giao.

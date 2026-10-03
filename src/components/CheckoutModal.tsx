@@ -134,41 +134,54 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   }
 
   return (
-    <div className="fixed inset-0 z-[60] bg-black bg-opacity-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col md:flex-row">
-        
-        {/* Order Summary */}
-        <div className="w-full md:w-1/3 bg-gray-50 p-6 overflow-y-auto border-b md:border-b-0 md:border-r border-gray-200">
-          <h3 className="text-lg font-bold mb-4">Tóm tắt đơn hàng</h3>
-          <div className="flex flex-col gap-3 mb-6">
-            {items.map(item => (
-              <div key={item.productId} className="flex gap-3">
-                <div className="relative">
-                  <img src={item.image} alt={item.title} className="w-16 h-16 object-cover rounded-md border" />
-                  <span className="absolute -top-2 -right-2 bg-gray-500 text-white text-xs w-5 h-5 flex items-center justify-center rounded-full">
-                    {item.quantity}
-                  </span>
-                </div>
-                <div className="flex-1">
-                  <p className="text-sm font-medium line-clamp-2">{item.title}</p>
-                  <p className="text-primary text-sm font-semibold">{formatVND(item.price)}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-          <div className="pt-4 border-t flex justify-between items-center font-bold text-lg">
-            <span>Tổng cộng:</span>
-            <span className="text-primary">{formatVND(totalAmount)}</span>
-          </div>
+    <div className="fixed inset-0 z-[60] bg-black/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto" onClick={onClose}>
+      <div 
+        className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90dvh] overflow-hidden flex flex-col my-auto relative animate-in fade-in zoom-in duration-200"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Sticky Header with Title and X Button */}
+        <div className="sticky top-0 z-50 px-4 py-3 sm:px-6 sm:py-3.5 bg-white border-b border-gray-100 flex items-center justify-between shrink-0 shadow-2xs">
+          <h2 className="text-base sm:text-lg font-bold text-gray-800">Thanh Toán & Đặt Hàng</h2>
+          <button 
+            type="button"
+            onClick={onClose} 
+            aria-label="Đóng"
+            className="w-9 h-9 min-w-[36px] min-h-[36px] rounded-full bg-gray-100 hover:bg-red-50 text-gray-600 hover:text-red-500 flex items-center justify-center transition-all cursor-pointer shrink-0"
+          >
+            <X className="w-5 h-5 stroke-[2.5]" />
+          </button>
         </div>
 
-        {/* Checkout Form */}
-        <div className="w-full md:w-2/3 p-6 overflow-y-auto relative">
-          <button onClick={onClose} className="absolute top-4 right-4 p-2 hover:bg-gray-100 rounded-full">
-            <X size={20} />
-          </button>
-          
-          <h2 className="text-2xl font-bold mb-6">Thông tin giao hàng</h2>
+        {/* 2-Column Body Container */}
+        <div className="flex-1 overflow-y-auto flex flex-col md:flex-row overscroll-contain">
+          {/* Order Summary */}
+          <div className="w-full md:w-1/3 bg-gray-50 p-5 sm:p-6 overflow-y-auto border-b md:border-b-0 md:border-r border-gray-200">
+            <h3 className="text-base font-bold mb-4 text-gray-800">Tóm tắt đơn hàng</h3>
+            <div className="flex flex-col gap-3 mb-6">
+              {items.map(item => (
+                <div key={item.productId} className="flex gap-3">
+                  <div className="relative">
+                    <img src={item.image} alt={item.title} className="w-14 h-14 object-cover rounded-md border" />
+                    <span className="absolute -top-2 -right-2 bg-gray-500 text-white text-xs w-5 h-5 flex items-center justify-center rounded-full">
+                      {item.quantity}
+                    </span>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium line-clamp-2 text-gray-800">{item.title}</p>
+                    <p className="text-primary text-sm font-semibold">{formatVND(item.price)}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="pt-4 border-t flex justify-between items-center font-bold text-base sm:text-lg">
+              <span>Tổng cộng:</span>
+              <span className="text-primary">{formatVND(totalAmount)}</span>
+            </div>
+          </div>
+
+          {/* Checkout Form */}
+          <div className="w-full md:w-2/3 p-5 sm:p-6 overflow-y-auto">
+            <h3 className="text-lg font-bold mb-4 text-gray-800">Thông tin giao hàng</h3>
           
           {error && (
             <div className="mb-4 p-3 bg-red-50 text-red-600 rounded-lg text-sm">
@@ -237,5 +250,6 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
         </div>
       </div>
     </div>
-  );
+  </div>
+);
 };

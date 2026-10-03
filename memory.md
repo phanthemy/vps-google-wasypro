@@ -264,3 +264,116 @@ req.user = { id: "U199", userId: "U199", dbId: cuid, role, fullName, phone }
 #### Bài học lỗi:
 - L38: Dealer routes chèn ở dòng 25 nhưng authenticateToken ở dòng 342 → "Cannot access before initialization" → phải di chuyển routes xuống sau authenticateToken definition
 - L39: `position: fixed` cho X button trong modal → trên mobile bị che bởi header → dùng sticky header thay thế
+
+---
+
+### Phiên 03/10/2026 (Tiếp tục) — Hoàn thiện Quản Lý Hệ Thống Đại Lý & Google Maps (test.wasypro.com)
+
+#### Đã làm:
+1. **Database Schema**:
+   - Thêm trường `googleMapUrl` vào model `Dealer` trong `prisma/schema.prisma` và SQLite.
+   - Chuẩn hóa kiểu cột `createdAt` và `updatedAt` sang `DATETIME` tương thích hoàn toàn với Prisma runtime.
+   - Cập nhật link Google Maps mẫu cho 6 đại lý/showroom hiện có.
+2. **Backend API (/api/admin/dealers)**:
+   - Hỗ trợ đầy đủ `googleMapUrl`, `isActive`, `sortOrder`.
+   - Tự động bóc tách tọa độ latitude/longitude từ link Google Maps nếu có dạng `@lat,lng` hoặc `?q=lat,lng`.
+   - Tự động sinh mã đại lý (`DL-xxxx`) nếu để trống.
+3. **Frontend Admin (AdminDealerManagement.tsx)**:
+   - Giao diện quản trị toàn diện: Thẻ KPIs (tổng điểm bán, showroom, đại lý, TTBH, số tỉnh thành).
+   - Thanh tìm kiếm và bộ lọc đa năng (Tỉnh/Thành, Phân loại, Trạng thái).
+   - Cột Google Maps với nút "Xem Map ↗" mở trực tiếp link.
+   - Nút bật/tắt hiển thị nhanh (Active toggle).
+   - Form Thêm/Sửa modal có ô nhập link Google Maps kèm nút "Mở thử link".
+   - Hiển thị thông báo lỗi trực tiếp bên trong modal.
+4. **Trang chủ Client (DealerSection.tsx & App.tsx)**:
+   - Tích hợp `DealerSection` trên cả giao diện Desktop và Mobile.
+   - Thêm nút menu "ĐẠI LÝ" trên thanh Header desktop.
+   - Nút "Chỉ đường" ưu tiên mở trực tiếp `googleMapUrl` đã gắn trong Admin.
+   - Nút "Gọi ngay" kích hoạt cuộc gọi hotline.
+   - Khắc phục lỗi lặp tên Quận/Huyện, Tỉnh/Thành trong địa chỉ.
+5. **Kiểm thử tự động Playwright**:
+   - Chạy test toàn trình 6/6 bước: Đăng nhập Admin -> Vào menu Đại Lý -> Thêm mới với link Google Maps -> Sửa thông tin -> Kiểm tra trang chủ khách hàng -> Xóa dọn dẹp dữ liệu test.
+   - 100% PASS, chụp ảnh màn hình lưu trữ làm bằng chứng kiểm nghiệm.
+
+### Phiên làm việc: Tối ưu Compact Mobile UX cho Hệ Thống Đại Lý (2026-10-03)
+- **Yêu cầu**: Nội dung phần đại lý trên thiết bị di động quá dài (danh sách dọc 6-10 thẻ kèm bản đồ 350px chiếm hơn 1600px chiều dọc màn hình). Tái thiết kế giao diện mobile gọn gàng, trực quan và tiện thao tác.
+- **Giải pháp triển khai trên DealerSection.tsx**:
+  1. **Tab Switcher (Bản đồ / Danh sách)**: Cho phép chuyển đổi linh hoạt giữa xem danh sách thẻ và xem bản đồ vị trí, tránh tình trạng cuộn trang vô tận.
+  2. **Horizontal Quick-Filter Chips**: Hàng chip lọc Tỉnh/Thành trượt ngang gọn gàng kèm số lượng đại lý ở từng tỉnh.
+  3. **Progressive Disclosure**: Mặc định chỉ hiển thị 2 thẻ đại lý tiêu biểu trên mobile kèm nút bấm nổi bật " Xem thêm N điểm bán khác ⌵\ / \Thu gọn danh sách ⌃\.
+ 4. **Compact Card Layout**: Tối ưu padding (p-3.5), chiều cao nút chuẩn 36px, bổ sung nút liên kết nhanh \Xem bản đồ\ ngay trên từng thẻ để chuyển thẳng sang xem vị trí đại lý trên bản đồ.
+- **Kiểm thử Playwright Mobile (375x812)**:
+ - 5/5 bước kiểm thử đạt PASS (Hiển thị 2 thẻ -> Bấm xem thêm -> Chuyển tab bản đồ -> Lọc tỉnh thành -> Bấm xem bản đồ từ thẻ).
+ - Ảnh chụp kiểm nghiệm: mobile_dealer_01_compact_list.png, mobile_dealer_02_expanded_list.png, mobile_dealer_03_map_view.png, mobile_dealer_04_filter_province.png, mobile_dealer_05_dealer_map_focus.png.
+
+### Phiên làm việc: Tái cấu trúc khu vực hành động CTV Portal A, B, C, D, E & Chuẩn hóa thuật ngữ đại lý (2026-10-03)
+- **Yêu cầu**: 
+  - Thay thế cụm 3 nút cũ trên Profile Card thành 5 nhóm chức năng khoa học:
+    + A. Tài Khoản & Link Giới Thiệu (Thông tin cá nhân sửa được; Ngân hàng nhập 1 lần là khóa cố định chống gian lận hoa hồng; Người bảo trợ).
+    + B. Hệ Thống (Thay cho 'Giới thiệu thành viên', hiển thị số đối tác, điểm CP/SP, hoa hồng).
+    + C. Điều Khoản (Quy chế hoạt động công ty, có nút tải file PDF).
+    + D. Hỗ Trợ (Zalo OA, Hotline CSKH 1900 98 98 78).
+    + E. Đăng Xuất (Xác nhận đăng xuất an toàn).
+  - **Quy tắc bất biến**: Tuyệt đối không dùng chữ 'F1', 'F2', 'Đa cấp' trên giao diện, thay toàn bộ bằng 'Trực tiếp' và 'Gián tiếp'.
+- **Triển khai kỹ thuật**:
+  - DB: Thêm các cột vào bảng User (email, address, bankAccount, bankName, bankBranch, isBankLocked) và tạo bảng CompanyDocument.
+  - Backend: Bổ sung API PUT /api/users/me/profile (kiểm soát khóa ngân hàng nghiêm ngặt), GET /api/system/terms, GET /api/ctv/network-summary.
+  - Frontend: Xây dựng 4 modal độc lập AccountModal.tsx, NetworkSystemModal.tsx, TermsModal.tsx, SupportModal.tsx, tích hợp vào MockupDashboard.tsx theo bố cục 2 hàng (2 nút lớn + 3 nút phụ).
+- **Kiểm thử Playwright**: Đạt 7/7 bước 100% PASS, chụp đầy đủ ảnh minh chứng cho từng modal.
+
+### Phiên làm việc: Tối ưu Form Đăng Ký / Đăng Nhập & Bổ sung Quản trị Footer, Zalo OA, Hotline (2026-10-03)
+- **Yêu cầu người dùng**:
+  1. Bỏ phần gạch chéo trong hình (dòng chữ phân cách "HOẶC ĐĂNG KÝ BẰNG" / "HOẶC ĐĂNG NHẬP BẰNG" và nút đăng nhập Google). Giữ lại 3 icon tròn: Facebook, Zalo, và Hotline.
+  2. Thêm vào Quản trị Admin chỗ cấu hình Footer và các icon liên hệ Facebook, Zalo OA, Hotline để quản trị viên có thể chủ động sửa đổi link Fanpage, link Zalo OA hoặc số Hotline sau này.
+- **Triển khai kỹ thuật**:
+  - **Backend (server/index.js)**:
+    + Bổ sung endpoint public `GET /api/public/contact-config` trả về link Facebook, Zalo OA, số Hotline hiển thị & quay số, email, địa chỉ.
+    + Bổ sung endpoint admin `POST /api/admin/contact-config` lưu trữ linh hoạt vào bảng `SystemPolicyConfig` trong SQLite `dev.db`.
+  - **Admin Portal (AdminContactSettings.tsx & AdminSidebar.tsx)**:
+    + Thêm menu điều hướng mới "Cấu Hình Footer & Hotline" (icon PhoneCall).
+    + Giao diện chỉnh sửa chi tiết các kênh liên kết: Facebook URL, Zalo OA URL, Số Hotline hiển thị, Số Hotline quay số (`tel:`), Email CSKH, Địa chỉ trụ sở.
+    + Tích hợp bộ thẻ xem trước thời gian thực (Live Preview) mô phỏng chính xác cụm 3 icon trên biểu mẫu và khối liên hệ chân trang (Footer).
+    + Bổ sung thông báo phản hồi xanh mượt (Toast) khi lưu thành công và nút khôi phục mặc định.
+  - **Biểu mẫu xác thực (UnifiedAuthModal.tsx)**:
+    + Xóa bỏ divider "HOẶC ĐĂNG KÝ/ĐĂNG NHẬP BẰNG" và icon Google theo đúng hình gạch chéo của khách hàng.
+    + Giữ lại 3 nút tròn tinh tế: Facebook (xanh), Zalo (viền xanh), Hotline (đỏ).
+    + Liên kết động trực tiếp đường dẫn của 3 nút tới dữ liệu cấu hình từ API backend.
+  - **Chân trang website (Footer.tsx)**:
+    + Cập nhật hiển thị địa chỉ, số hotline và email theo dữ liệu cấu hình động.
+    + Bổ sung hàng 3 icon tròn (Facebook, Zalo, Hotline) tại Cột 1 "Kết nối:".
+- **Kiểm thử Playwright**:
+  + Chụp kiểm nghiệm Desktop & Mobile Form Đăng nhập/Đăng ký (`verified_modal_desktop.png`, `verified_modal_mobile.png`, `verified_admin_contact_page.png`).
+  + Chụp kiểm nghiệm Website Footer (`verified_footer_desktop.png`).
+  + Chụp kiểm nghiệm giao diện Quản trị Admin & Lưu cấu hình (`verified_admin_footer_settings.png`, `verified_admin_save_action.png`).
+
+### Phiên làm việc: Tái thiết kế toàn diện Menu 3 gạch (Mobile Drawer) trên test.wasypro.com (2026-10-03)
+- **Yêu cầu người dùng**:
+  + Trang chủ của test.wasypro.com: chỗ menu 3 gạch ngang (hamburger menu drawer góc trên bên phải) nội dung bên trong bố cục hiện tại chưa đẹp mắt. Áp dụng tư duy thiết kế Mobile UI/UX mới nhất 2026 để làm đẹp lại toàn diện.
+- **Triển khai kỹ thuật**:
+  - Tái cấu trúc component MobileLandingView.tsx (Drawer Menu):
+    + **Header Drawer**: Logo thương hiệu WASY PRO + huy hiệu trạng thái 'MENU' gradient + nút đóng tròn mượt mà.
+    + **Hero Welcome Card**: Gradient thẻ chào mừng bo góc tròn hiện đại, hiển thị lời chào trân trọng + 2 nút thao tác nhanh phân cấp rõ ràng: 'Đăng Nhập' (thẻ trắng nổi bật) và 'Đăng Ký' (thẻ glassmorphism viền mềm). Khi người dùng đã đăng nhập, tự động chuyển thành thẻ thành viên hiển thị Avatar, Tên, Số điện thoại, cấp bậc CTV và nút truy cập nhanh vào Cổng Quản Trị CTV.
+    + **Danh mục Sản phẩm**: Thiết kế dạng khối thẻ chạm bo góc (Touch Cards) kèm Icon Chip đa sắc (Xanh dương cho Máy lọc nước ion kiềm, Xanh ngọc cho Dụng cụ test nước, Cam hổ phách cho Phụ kiện, Tím cho Tất cả) kèm Badge số lượng sản phẩm trực quan.
+    + **Khám phá & Tiện ích**: Tinh chỉnh font chữ Title-case thanh lịch kèm Icon bo tròn màu pastel dịu mắt, các thẻ trạng thái nổi bật ('Mới', '5 Năm', 'Toàn quốc', 'FAQs') và hiệu ứng chevron điều hướng.
+    + **Chân trang Drawer (Sticky Contact Bar)**: Banner đỏ năng động gọi điện trực tiếp 'Hotline Hỗ Trợ 24/7: 1900 98 98 78' kèm cụm 3 nút icon mạng xã hội tròn (Facebook, Zalo, Hotline) đồng bộ cấu hình động từ Admin.
+- **Kiểm thử Playwright**:
+  + Chụp ảnh màn hình kiểm thử Mobile Viewport (390x844) tại 	est.wasypro.com.
+  + Đã lưu minh chứng: drawer_menu_mobile_top.png và drawer_menu_mobile_bottom.png.
+
+### Phiên làm việc: Chuẩn hóa Quy chuẩn Kỹ thuật Bất Biến cho Popup/Modal/Dialog (2026-10-03)
+- **Yêu cầu người dùng**:
+  + Phát hiện lỗi đã từng xảy ra: Các popup mới làm bị che dấu X, không responsive và bị xê dịch.
+  + Đưa tiêu chí này thành tiêu chuẩn kỹ thuật bất biến vào hệ thống để các lần sau và các mục mới tuyệt đối không lặp lại lỗi này.
+- **Tiêu chuẩn kỹ thuật đã đưa vào hệ thống**:
+  1. Cập nhật wasypro-rules (SKILL.md) mục III: Quy chuẩn Kỹ thuật Bắt Buộc cho Popup / Modal / Dialog.
+  2. Cập nhật Playbook chung project-workflow.md mục V: Chuẩn công thái học và cấu trúc 3 tầng cho modal.
+  3. Cập nhật loi.md ghi nhận lỗi L44 (Tiêu chuẩn ngăn chặn vĩnh viễn lỗi che nút X, xê dịch và vỡ responsive).
+- **Quy tắc cốt lõi đã áp dụng**:
+  - **Khung 3 tầng chuẩn**: Sticky Header (sticky top-0 z-50 chứa Tiêu đề + Nút [X] $\ge 36\text{px}$) $\rightarrow$ Scrollable Body (overflow-y-auto max-h-[90dvh] flex-1) $\rightarrow$ Sticky Footer (nếu có action).
+  - **Cấm hoàn toàn**: Không dùng position: fixed tự do cho nút X; Không đặt nút X trôi nổi trong body cuộn; Không để modal card vượt quá max-h-[90dvh].
+- **Thực thi refactor đồng bộ**:
+  - UnifiedAuthModal.tsx: Thêm Sticky Header chứa Tiêu đề và nút [X] cố định, form body cuộn riêng biệt, chống tràn chiều ngang.
+  - ContactModal.tsx: Thay thế ixed sm:absolute bằng Sticky Header chuẩn.
+  - CheckoutModal.tsx: Thêm Sticky Header ở đỉnh card, loại bỏ nút X ẩn sâu trong Checkout Form.
+  - AccountModal.tsx, NetworkSystemModal.tsx, TermsModal.tsx, SupportModal.tsx: Nâng cấp kích thước nút [X] lên $\ge 36\text{px}$, bổ sung ria-label= Đóng và khóa max-h-[90dvh].
+- **Nghiệm thu**: Playwright đã kiểm thử và xác nhận nút [X] luôn hiển thị và bấm được 100% khi cuộn form.

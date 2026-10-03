@@ -17,6 +17,12 @@ model User {
   password           String   @default("123456")
   cccd               String?
   bankInfo           String?
+  email              String?
+  address            String?
+  bankAccount        String?
+  bankName           String?
+  bankBranch         String?
+  isBankLocked       Boolean  @default(false)
   tier               String   @default("NONE") // DIAMOND, GOLD, SILVER
   role               String   @default("ctv") // admin, accountant, ctv
   parentId           String?
@@ -136,6 +142,7 @@ model Service {
 
   price       Float
   description String?
+  googleMapUrl String?
   imageUrl    String?
 
   // Phase 2A: Product type for S-Points and wholesale classification
@@ -244,6 +251,7 @@ model SPointTransaction {
   points      Float // Positive = earn, Negative = redeem/deduct
   type        String // EARN, REDEEM, EXPIRE, ADJUST
   description String?
+  googleMapUrl String?
   createdAt   DateTime @default(now())
 
   // Phase 2C: Qualifying audit fields (FINAL SPEC v3.6)
@@ -259,6 +267,7 @@ model ProductCategory {
   name        String    @unique
   slug        String    @unique
   description String?
+  googleMapUrl String?
   image       String?
   icon        String?
   products    Product[]
@@ -446,6 +455,7 @@ model SystemPolicyConfig {
   key         String   @unique
   value       String
   description String?
+  googleMapUrl String?
   version     String   @default("1.0.0")
   updatedBy   String? // User ID or ADMIN who updated the policy
   createdAt   DateTime @default(now())
@@ -825,6 +835,20 @@ model Dealer {
   isActive    Boolean  @default(true)
   sortOrder   Int      @default(0)
   description String?                   // Mô tả ngắn
+  googleMapUrl String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+
+model CompanyDocument {
+  id          String   @id @default(cuid())
+  title       String
+  category    String   @default("TERMS")
+  fileUrl     String
+  description String?
+  version     String?  @default("1.0")
+  isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }

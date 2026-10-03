@@ -78,6 +78,7 @@ export const Header: React.FC<HeaderProps> = ({
   const navItems = [
     { id: 'hero', label: 'TRANG CHỦ' },
     { id: 'products', label: 'SẢN PHẨM' },
+    { id: 'dealers', label: 'ĐẠI LÝ' },
     { id: 'news', label: 'TIN TỨC' },
     { id: 'warranty', label: 'CHÍNH SÁCH BẢO HÀNH' },
     { id: 'benefits', label: 'LỢI ÍCH' },

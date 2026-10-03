@@ -516,6 +516,12 @@ app.post('/api/auth/login', authLimiter, async (req, res) => {
         nppStatus,
         nppRank: nppRank ?? null,
         avatarUrl: user.avatarUrl ?? null,
+        email: user.email ?? null,
+        address: user.address ?? null,
+        bankAccount: user.bankAccount ?? null,
+        bankName: user.bankName ?? null,
+        bankBranch: user.bankBranch ?? null,
+        isBankLocked: !!user.isBankLocked,
         parentId: user.parentId ?? null,
         sponsor: sponsorInfo,
       }
@@ -581,6 +587,281 @@ app.get('/api/auth/me', authenticateToken, async (req, res) => {
     res.status(500).json({ success: false, message: 'Lỗi máy chủ.' });
   }
 });
+
+
+// ── PUT /api/users/me/profile ──────────────────────────────────────────
+// Cho phép CTV cập nhật thông tin cá nhân (họ tên, sđt, email, địa chỉ).
+// Riêng tài khoản ngân hàng: nhập xong lần đầu sẽ TỰ ĐỘNG KHÓA (isBankLocked=true).
+// Khi đã khóa, từ chối mọi yêu cầu chỉnh sửa ngân hàng để bảo mật.
+app.put('/api/users/me/profile', authenticateToken, async (req, res) => {
+  try {
+    const lookupId = req.user.userId || req.user.id;
+    const user = await prisma.user.findFirst({ where: { OR: [{ userId: lookupId }, { id: lookupId }] } });
+    if (!user) return res.status(404).json({ success: false, message: 'Người dùng không tồn tại.' });
+
+    const { fullName, phone, email, address, bankAccount, bankName, bankBranch } = req.body;
+    const updateData = {};
+
+    if (fullName && typeof fullName === 'string' && fullName.trim()) {
+      updateData.fullName = fullName.trim();
+    }
+    if (phone && typeof phone === 'string' && phone.trim()) {
+      if (phone.trim() !== user.phone) {
+        const existing = await prisma.user.findUnique({ where: { phone: phone.trim() } });
+        if (existing) {
+          return res.status(400).json({ success: false, message: 'Số điện thoại này đã được sử dụng bởi tài khoản khác.' });
+        }
+      }
+      updateData.phone = phone.trim();
+    }
+    if (email !== undefined) {
+      updateData.email = typeof email === 'string' ? email.trim() : null;
+    }
+    if (address !== undefined) {
+      updateData.address = typeof address === 'string' ? address.trim() : null;
+    }
+
+    // Security check: ngân hàng đã khóa chưa?
+    const isChangingBank = (bankAccount !== undefined && bankAccount !== user.bankAccount) ||
+                           (bankName !== undefined && bankName !== user.bankName) ||
+                           (bankBranch !== undefined && bankBranch !== user.bankBranch);
+
+    if (user.isBankLocked && isChangingBank) {
+      return res.status(400).json({
+        success: false,
+        message: 'Thông tin tài khoản ngân hàng đã được khóa bảo mật. Vui lòng liên hệ Admin/CSKH nếu cần thay đổi.'
+      });
+    }
+
+    if (!user.isBankLocked) {
+      if (bankAccount && typeof bankAccount === 'string' && bankAccount.trim()) {
+        updateData.bankAccount = bankAccount.trim();
+      }
+      if (bankName && typeof bankName === 'string' && bankName.trim()) {
+        updateData.bankName = bankName.trim();
+      }
+      if (bankBranch && typeof bankBranch === 'string' && bankBranch.trim()) {
+        updateData.bankBranch = bankBranch.trim();
+      }
+      // Nếu đã có cả số tài khoản và tên ngân hàng -> tự động khóa vĩnh viễn
+      if (updateData.bankAccount && updateData.bankName) {
+        updateData.isBankLocked = true;
+      }
+    }
+
+    const updatedUser = await prisma.user.update({
+      where: { id: user.id },
+      data: updateData
+    });
+
+    res.json({
+      success: true,
+      message: updateData.isBankLocked 
+        ? 'Cập nhật thành công! Thông tin ngân hàng đã được khóa bảo vệ an toàn.' 
+        : 'Cập nhật thông tin thành công!',
+      data: {
+        id: updatedUser.userId,
+        fullName: updatedUser.fullName,
+        phone: updatedUser.phone,
+        email: updatedUser.email,
+        address: updatedUser.address,
+        bankAccount: updatedUser.bankAccount,
+        bankName: updatedUser.bankName,
+        bankBranch: updatedUser.bankBranch,
+        isBankLocked: !!updatedUser.isBankLocked
+      }
+    });
+  } catch (err) {
+    console.error('Update profile error:', err);
+    res.status(500).json({ success: false, message: 'Lỗi cập nhật: ' + err.message });
+  }
+});
+
+// ── GET /api/system/terms ──────────────────────────────────────────────
+// Lấy thông tin điều khoản và file văn bản cập nhật của công ty
+app.get('/api/system/terms', async (req, res) => {
+  try {
+    const doc = await prisma.companyDocument.findFirst({
+      where: { category: 'TERMS', isActive: true },
+      orderBy: { updatedAt: 'desc' }
+    });
+    res.json({
+      success: true,
+      data: doc || {
+        id: 'doc-terms-default',
+        title: 'Quy chế hoạt động & Chính sách đối tác kinh doanh WasyPro',
+        category: 'TERMS',
+        fileUrl: '/docs/quy-che-doi-tac-wasypro.pdf',
+        description: 'Văn bản quy định quyền lợi, hoa hồng và trách nhiệm đối tác kinh doanh WasyPro ban hành.',
+        version: '2026.1',
+        updatedAt: new Date().toISOString()
+      }
+    });
+  } catch (err) {
+    res.json({
+      success: true,
+      data: {
+        id: 'doc-terms-default',
+        title: 'Quy chế hoạt động & Chính sách đối tác kinh doanh WasyPro',
+        category: 'TERMS',
+        fileUrl: '/docs/quy-che-doi-tac-wasypro.pdf',
+        description: 'Văn bản quy định quyền lợi, hoa hồng và trách nhiệm đối tác kinh doanh WasyPro ban hành.',
+        version: '2026.1',
+        updatedAt: new Date().toISOString()
+      }
+    });
+  }
+});
+
+// ── GET /api/ctv/network-summary ───────────────────────────────────────
+// Chuẩn hóa tên gọi nghiệp vụ phân phối: "Trực tiếp" & "Gián tiếp" (Tuyệt đối không dùng F1/F2)
+app.get('/api/ctv/network-summary', authenticateToken, async (req, res) => {
+  try {
+    const lookupId = req.user.userId || req.user.id;
+    const user = await prisma.user.findFirst({ where: { OR: [{ userId: lookupId }, { id: lookupId }] } });
+    if (!user) return res.status(404).json({ success: false, message: 'Người dùng không tồn tại.' });
+
+    // 1. Đối tác Trực tiếp (Direct partners)
+    const directUsers = await prisma.user.findMany({
+      where: { parentId: user.userId },
+      select: {
+        id: true,
+        userId: true,
+        fullName: true,
+        phone: true,
+        tier: true,
+        rank: true,
+        businessId: true,
+        createdAt: true,
+        qualifyingPoints: true,
+        sPoints: true
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    const directUserIds = directUsers.map(u => u.userId);
+
+    // 2. Đối tác Gián tiếp (Indirect partners)
+    let indirectUsers = [];
+    if (directUserIds.length > 0) {
+      indirectUsers = await prisma.user.findMany({
+        where: { parentId: { in: directUserIds } },
+        select: {
+          id: true,
+          userId: true,
+          fullName: true,
+          phone: true,
+          tier: true,
+          rank: true,
+          businessId: true,
+          parentId: true,
+          createdAt: true,
+          qualifyingPoints: true,
+          sPoints: true
+        },
+        orderBy: { createdAt: 'desc' }
+      });
+    }
+
+    const directMap = {};
+    directUsers.forEach(d => { directMap[d.userId] = d.fullName; });
+    const indirectMapped = indirectUsers.map(u => ({
+      ...u,
+      sponsorName: directMap[u.parentId] || u.parentId
+    }));
+
+    // 3. Tính toán Doanh số (Sales) cho mạng lưới Trực tiếp & Gián tiếp
+    const allUserIds = [...directUserIds, ...indirectUsers.map(u => u.userId)];
+    const allUserDbIds = [...directUsers.map(u => u.id), ...indirectUsers.map(u => u.id)];
+
+    const completedOrders = await prisma.order.findMany({
+      where: {
+        status: 'COMPLETED',
+        OR: [
+          { ordererUserId: { in: allUserIds } },
+          { customer: { sourceCtvId: { in: allUserIds } } },
+          { customer: { linkedUserId: { in: allUserDbIds } } }
+        ]
+      },
+      select: {
+        ordererUserId: true,
+        totalAmount: true,
+        customer: { select: { sourceCtvId: true, linkedUserId: true } }
+      }
+    });
+
+    const salesMap = {};
+    const countMap = {};
+    completedOrders.forEach(o => {
+      const uid = o.ordererUserId || o.customer?.sourceCtvId;
+      if (uid) {
+        salesMap[uid] = (salesMap[uid] || 0) + (Number(o.totalAmount) || 0);
+        countMap[uid] = (countMap[uid] || 0) + 1;
+      }
+    });
+
+    let directSales = 0;
+    const directPartnersWithSales = directUsers.map(u => {
+      const s = salesMap[u.userId] || 0;
+      directSales += s;
+      return { ...u, sales: s, ordersCount: countMap[u.userId] || 0 };
+    });
+
+    let indirectSales = 0;
+    const indirectPartnersWithSales = indirectMapped.map(u => {
+      const s = salesMap[u.userId] || 0;
+      indirectSales += s;
+      return { ...u, sales: s, ordersCount: countMap[u.userId] || 0 };
+    });
+
+    const totalSales = directSales + indirectSales;
+
+    // 4. Hoa hồng Trực tiếp & Gián tiếp
+    const allCommissions = await prisma.commission.findMany({
+      where: { receiverId: user.userId }
+    });
+
+    let directCommission = 0;
+    let indirectCommission = 0;
+    let totalCommission = 0;
+
+    allCommissions.forEach(c => {
+      const amt = Number(c.amount) || Number(c.earnedMoney) || 0;
+      totalCommission += amt;
+      const type = (c.type || '').toUpperCase();
+      const role = (c.role || '').toUpperCase();
+      if (type.includes('DIRECT') || role.includes('DIRECT') || type.includes('F1') || c.policyRef === 'OVERRIDE_F1') {
+        directCommission += amt;
+      } else {
+        indirectCommission += amt;
+      }
+    });
+
+    res.json({
+      success: true,
+      data: {
+        directCount: directUsers.length,
+        indirectCount: indirectUsers.length,
+        totalMembers: directUsers.length + indirectUsers.length,
+        qualifyingPoints: user.qualifyingPoints || 0,
+        sPoints: user.sPoints || 0,
+        rank: user.rank || 'AMBASSADOR',
+        directSales,
+        indirectSales,
+        totalSales,
+        directCommission,
+        indirectCommission,
+        totalCommission,
+        directPartners: directPartnersWithSales,
+        indirectPartners: indirectPartnersWithSales
+      }
+    });
+  } catch (err) {
+    console.error('Network summary error:', err);
+    res.status(500).json({ success: false, message: 'Lỗi tải dữ liệu mạng lưới: ' + err.message });
+  }
+});
+
 
 // LOGOUT (Clear Cookies)
 app.post('/api/auth/logout', (req, res) => {
@@ -1388,6 +1669,128 @@ app.put('/api/admin/policy/:key', authenticateToken, requireRole(['admin']), asy
     res.status(500).json({ success: false, message: 'Không thể cập nhật policy. Vui lòng thử lại.' });
   }
 });
+
+// ═══════════════════════════════════════════════════════════════
+// FOOTER & CONTACT SETTINGS (Facebook, Zalo OA, Hotline)
+// ═══════════════════════════════════════════════════════════════
+
+// GET /api/public/contact-config — Public for Footer, Auth Modal, Support
+app.get('/api/public/contact-config', async (req, res) => {
+  try {
+    const keys = [
+      'CONTACT_FACEBOOK',
+      'CONTACT_ZALO_OA',
+      'CONTACT_HOTLINE',
+      'CONTACT_HOTLINE_TEL',
+      'CONTACT_EMAIL',
+      'CONTACT_ADDRESS'
+    ];
+    const records = await prisma.systemPolicyConfig.findMany({
+      where: { key: { in: keys } }
+    });
+    const map = Object.fromEntries(records.map(r => [r.key, r.value]));
+
+    res.json({
+      success: true,
+      data: {
+        facebook: map['CONTACT_FACEBOOK'] || 'https://facebook.com/wasypro',
+        zalo: map['CONTACT_ZALO_OA'] || 'https://zalo.me/2928413591064686973',
+        hotline: map['CONTACT_HOTLINE'] || '1900 98 98 78',
+        hotlineTel: map['CONTACT_HOTLINE_TEL'] || '1900989878',
+        email: map['CONTACT_EMAIL'] || 'support@wasypro.com',
+        address: map['CONTACT_ADDRESS'] || 'Tầng 6, Tòa nhà WASY Tower, Q. Cầu Giấy, TP. Hà Nội'
+      }
+    });
+  } catch (err) {
+    console.error('[PUBLIC CONTACT CONFIG GET]', err);
+    res.status(500).json({ success: false, message: 'Lỗi tải cấu hình liên hệ' });
+  }
+});
+
+// GET /api/admin/contact-config — Admin view
+app.get('/api/admin/contact-config', authenticateToken, requireRole(['admin', 'accountant']), async (req, res) => {
+  try {
+    const keys = [
+      'CONTACT_FACEBOOK',
+      'CONTACT_ZALO_OA',
+      'CONTACT_HOTLINE',
+      'CONTACT_HOTLINE_TEL',
+      'CONTACT_EMAIL',
+      'CONTACT_ADDRESS'
+    ];
+    const records = await prisma.systemPolicyConfig.findMany({
+      where: { key: { in: keys } }
+    });
+    const map = Object.fromEntries(records.map(r => [r.key, r.value]));
+
+    res.json({
+      success: true,
+      data: {
+        facebook: map['CONTACT_FACEBOOK'] || 'https://facebook.com/wasypro',
+        zalo: map['CONTACT_ZALO_OA'] || 'https://zalo.me/2928413591064686973',
+        hotline: map['CONTACT_HOTLINE'] || '1900 98 98 78',
+        hotlineTel: map['CONTACT_HOTLINE_TEL'] || '1900989878',
+        email: map['CONTACT_EMAIL'] || 'support@wasypro.com',
+        address: map['CONTACT_ADDRESS'] || 'Tầng 6, Tòa nhà WASY Tower, Q. Cầu Giấy, TP. Hà Nội'
+      }
+    });
+  } catch (err) {
+    console.error('[ADMIN CONTACT CONFIG GET]', err);
+    res.status(500).json({ success: false, message: 'Lỗi tải cấu hình liên hệ admin' });
+  }
+});
+
+// POST /api/admin/contact-config — Admin update
+app.post('/api/admin/contact-config', async (req, res) => {
+  try {
+    const { facebook, zalo, hotline, hotlineTel, email, address } = req.body;
+    const adminUser = req.user?.userId || req.user?.phone || req.user?.username || 'admin';
+
+    const updates = [
+      { key: 'CONTACT_FACEBOOK', value: facebook ? String(facebook).trim() : 'https://facebook.com/wasypro', description: 'Link Fanpage / Facebook WASY PRO' },
+      { key: 'CONTACT_ZALO_OA', value: zalo ? String(zalo).trim() : 'https://zalo.me/2928413591064686973', description: 'Link Zalo Official Account / Zalo CSKH' },
+      { key: 'CONTACT_HOTLINE', value: hotline ? String(hotline).trim() : '1900 98 98 78', description: 'Số Hotline hiển thị trên website & form' },
+      { key: 'CONTACT_HOTLINE_TEL', value: hotlineTel ? String(hotlineTel).trim().replace(/\s+/g, '') : (hotline ? String(hotline).replace(/\s+/g, '') : '1900989878'), description: 'Số Hotline dùng để quay số (tel:)' },
+      { key: 'CONTACT_EMAIL', value: email ? String(email).trim() : 'support@wasypro.com', description: 'Email hỗ trợ CSKH' },
+      { key: 'CONTACT_ADDRESS', value: address ? String(address).trim() : 'Tầng 6, Tòa nhà WASY Tower, Q. Cầu Giấy, TP. Hà Nội', description: 'Địa chỉ trụ sở công ty hiển thị ở Footer' },
+    ];
+
+    for (const item of updates) {
+      await prisma.systemPolicyConfig.upsert({
+        where: { key: item.key },
+        create: {
+          key: item.key,
+          value: item.value,
+          description: item.description,
+          updatedBy: adminUser,
+          version: '1.0.0'
+        },
+        update: {
+          value: item.value,
+          description: item.description,
+          updatedBy: adminUser
+        }
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'Cập nhật cấu hình kênh liên hệ & Footer thành công!',
+      data: {
+        facebook: updates.find(u => u.key === 'CONTACT_FACEBOOK').value,
+        zalo: updates.find(u => u.key === 'CONTACT_ZALO_OA').value,
+        hotline: updates.find(u => u.key === 'CONTACT_HOTLINE').value,
+        hotlineTel: updates.find(u => u.key === 'CONTACT_HOTLINE_TEL').value,
+        email: updates.find(u => u.key === 'CONTACT_EMAIL').value,
+        address: updates.find(u => u.key === 'CONTACT_ADDRESS').value
+      }
+    });
+  } catch (err) {
+    console.error('[ADMIN CONTACT CONFIG POST]', err);
+    res.status(500).json({ success: false, message: 'Lỗi cập nhật cấu hình liên hệ' });
+  }
+});
+
 
 
 

@@ -170,31 +170,40 @@ export const ContactModal: React.FC<ContactModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-gray-900/70 backdrop-blur-md overflow-y-auto" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-gray-900/70 backdrop-blur-xs overflow-y-auto" onClick={onClose}>
       <div 
-        className="bg-white w-full max-w-lg rounded-md overflow-y-auto max-h-[90vh] shadow-xl relative animate-in fade-in zoom-in duration-200 my-4"
+        className="bg-white w-full max-w-lg rounded-2xl overflow-hidden max-h-[90dvh] flex flex-col shadow-2xl relative animate-in fade-in zoom-in duration-200 my-auto"
         onClick={(e) => e.stopPropagation()}
       >
-        <button
-          onClick={onClose}
-          className="fixed sm:absolute top-4 right-4 z-50 w-10 h-10 rounded-full bg-white hover:bg-gray-100 text-gray-700 flex items-center justify-center shadow-lg transition-all border border-gray-200"
-        >
-          <X className="w-5 h-5" />
-        </button>
-
-        <div className={`p-6 text-white text-center relative overflow-hidden ${isOrderMode ? 'bg-primary' : 'bg-primary-darker'}`}>
-          <div className="w-12 h-12 rounded-md bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center mx-auto mb-3">
-            {isOrderMode ? <ShoppingBag className="w-6 h-6 text-accent" /> : <PhoneCall className="w-6 h-6 text-accent animate-pulse" />}
+        {/* Sticky Header with Title and X Button */}
+        <div className={`sticky top-0 z-50 flex items-center justify-between px-5 py-3.5 text-white shrink-0 ${isOrderMode ? 'bg-primary' : 'bg-primary-darker'} shadow-xs`}>
+          <div className="flex items-center gap-2.5 min-w-0 pr-2">
+            <div className="w-8 h-8 rounded-lg bg-white/15 flex items-center justify-center text-white shrink-0">
+              {isOrderMode ? <ShoppingBag className="w-4 h-4 text-accent" /> : <PhoneCall className="w-4 h-4 text-accent" />}
+            </div>
+            <h3 className="text-base font-heading font-extrabold uppercase truncate">
+              {isOrderMode ? 'Đặt Hàng Ngay' : 'Đăng Ký Tư Vấn & Lắp Đặt'}
+            </h3>
           </div>
-          <h3 className="text-xl font-heading font-extrabold uppercase">
-            {isOrderMode ? 'Đặt Hàng Ngay' : 'Đăng Ký Tư Vấn & Lắp Đặt'}
-          </h3>
-          <p className="text-[13px] text-gray-200 mt-1 max-w-xs mx-auto">
-            {isOrderMode ? 'Điền thông tin để chúng tôi xác nhận đơn hàng nhanh nhất.' : 'Hỗ trợ miễn phí kiểm tra nguồn nước & khảo sát vị trí lắp đặt tại nhà.'}
-          </p>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Đóng"
+            className="w-9 h-9 min-w-[36px] min-h-[36px] rounded-full bg-white/20 hover:bg-white/30 text-white flex items-center justify-center transition-all cursor-pointer shrink-0"
+          >
+            <X className="w-5 h-5 stroke-[2.5]" />
+          </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 sm:p-8 space-y-4 bg-white">
+        {/* Scrollable Form Body */}
+        <div className="overflow-y-auto flex-1 overscroll-contain">
+          <div className="p-4 sm:p-6 pb-2 text-center">
+            <p className="text-[13px] text-gray-600 max-w-xs mx-auto">
+              {isOrderMode ? 'Điền thông tin để chúng tôi xác nhận đơn hàng nhanh nhất.' : 'Hỗ trợ miễn phí kiểm tra nguồn nước & khảo sát vị trí lắp đặt tại nhà.'}
+            </p>
+          </div>
+
+          <form onSubmit={handleSubmit} className="p-5 sm:p-6 pt-2 space-y-4 bg-white">
           {error && (
             <div className="p-3 rounded-md bg-red-50 border border-red-200 text-[13px] text-red-700 font-bold flex items-center gap-2">
               <AlertCircle className="w-4 h-4 text-red-500 flex-shrink-0" />
@@ -289,6 +298,7 @@ export const ContactModal: React.FC<ContactModalProps> = ({
             <span>WASY PRO bảo mật thông tin khách hàng tuyệt đối.</span>
           </p>
         </form>
+        </div>
       </div>
     </div>
   );

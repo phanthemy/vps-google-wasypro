@@ -15,6 +15,7 @@ import { Footer } from './components/Footer';
 import { ContactModal } from './components/ContactModal';
 import { AdminLoginModal } from './components/admin/AdminLoginModal';
 import { AdminSidebar } from './components/admin/AdminSidebar';
+import { AdminContactSettings } from './components/admin/AdminContactSettings';
 import { AdminHeader } from './components/admin/AdminHeader';
 import { AdminOverview } from './components/admin/AdminOverview';
 import { AdminProducts } from './components/admin/AdminProducts';
@@ -28,6 +29,7 @@ import AdminUsers from './components/admin/AdminUsers';
 import AdminPolicyConfig from './components/admin/AdminPolicyConfig';
 import AdminSystemView from './components/admin/AdminSystemView';
 import { AdminDealerManagement } from './components/admin/AdminDealerManagement';
+import { DealerSection } from './components/DealerSection';
 import AdminPeriods from './components/admin/AdminPeriods';
 import AdminNppPackages from './components/admin/AdminNppPackages';
 import AdminNppManagement from './components/admin/AdminNppManagement';
@@ -343,6 +345,7 @@ export const App: React.FC = () => {
                 : <AdminPeriods onSelectPeriod={(id) => setSelectedPeriodId(id)} />
             )}
             {adminActiveTab === 'policy' && <AdminPolicyConfig />}
+            {adminActiveTab === 'footer-settings' && <AdminContactSettings />}
             {adminActiveTab === 'npp-packages' && <AdminNppPackages />}
             {adminActiveTab === 'npp-management' && <AdminNppManagement />}
             {adminActiveTab === 'dealers' && <AdminDealerManagement />}
@@ -518,6 +521,7 @@ export const App: React.FC = () => {
               <HydrogenBenefits />
               <SocialProof />
               <WarrantyLookupSection />
+              <DealerSection />
               <NewsSection />
               <FaqSection />
             </div>

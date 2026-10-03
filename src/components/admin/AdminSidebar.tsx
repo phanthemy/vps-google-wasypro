@@ -25,6 +25,7 @@ export const NAV_ITEMS = [
   { id: 'npp-packages', label: 'Gói NPP', icon: ShoppingBag, badge: null },
   { id: 'npp-management', label: 'Quản Lý NPP', icon: ShoppingBag, badge: 'Mới' },
   { id: 'policy', label: 'Cấu Hình Hoa Hồng', icon: Settings2, badge: null },
+  { id: 'footer-settings', label: 'Cấu Hình Footer & Hotline', icon: PhoneCall, badge: null },
   { id: 'dealers', label: 'Đại Lý', icon: MapPin, badge: null },
   { id: 'system', label: 'Hệ Thống', icon: Settings2, badge: null },
 ];

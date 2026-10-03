@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Droplets, 
   PhoneCall, 
@@ -29,6 +29,26 @@ export const Footer: React.FC<FooterProps> = ({
 }) => {
   const [newsletterEmail, setNewsletterEmail] = useState('');
   const [policyModal, setPolicyModal] = useState<'privacy' | 'terms' | null>(null);
+  const [contactConfig, setContactConfig] = useState({
+    facebook: 'https://facebook.com/wasypro',
+    zalo: 'https://zalo.me/2928413591064686973',
+    hotline: '1900 98 98 78',
+    hotlineTel: '1900989878',
+    email: 'support@wasypro.com',
+    address: 'Tầng 6, Tòa nhà WASY Tower, Q. Cầu Giấy, TP. Hà Nội',
+  });
+
+  useEffect(() => {
+    fetch('/api/public/contact-config')
+      .then(r => r.json())
+      .then(d => {
+        if (d && d.success && d.data) {
+          setContactConfig(prev => ({ ...prev, ...d.data }));
+        }
+      })
+      .catch(() => {});
+  }, []);
+
 
   const handleSubscribe = (e: React.FormEvent) => {
     e.preventDefault();
@@ -90,17 +110,56 @@ export const Footer: React.FC<FooterProps> = ({
             <div className="space-y-3 text-[13px] mt-4">
               <div className="flex items-start gap-2.5 text-gray-300">
                 <MapPin className="w-4 h-4 text-accent flex-shrink-0 mt-0.5" />
-                <span>Trụ sở chính: Tầng 6, Tòa nhà WASY Tower, Q. Cầu Giấy, TP. Hà Nội</span>
+                <span>Trụ sở chính: {contactConfig.address}</span>
               </div>
               <div className="flex items-center gap-2.5 text-gray-300">
                 <PhoneCall className="w-4 h-4 text-accent flex-shrink-0" />
-                <a href="tel:1900989878" className="font-bold text-accent hover:underline">
-                  Hotline 24/7: 1900 98 98 78
+                <a href={`tel:${contactConfig.hotlineTel}`} className="font-bold text-accent hover:underline">
+                  Hotline 24/7: {contactConfig.hotline}
                 </a>
               </div>
               <div className="flex items-center gap-2.5 text-gray-300">
                 <Mail className="w-4 h-4 text-accent flex-shrink-0" />
-                <span>Email: support@wasypro.com</span>
+                <span>Email: {contactConfig.email}</span>
+              </div>
+            </div>
+
+            {/* Social Icons: Facebook, Zalo, Hotline */}
+            <div className="pt-2 flex items-center gap-3">
+              <span className="text-xs font-semibold text-gray-300">Kết nối:</span>
+              <div className="flex items-center gap-2.5">
+                {/* Facebook */}
+                <a
+                  href={contactConfig.facebook}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-8 h-8 rounded-full bg-[#1877F2] text-white flex items-center justify-center hover:scale-110 active:scale-95 transition-all shadow-sm cursor-pointer"
+                  title="Facebook WASY PRO"
+                >
+                  <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
+                    <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
+                  </svg>
+                </a>
+
+                {/* Zalo */}
+                <a
+                  href={contactConfig.zalo}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-8 h-8 rounded-full bg-white text-[#0068FF] border border-blue-200 flex items-center justify-center hover:scale-110 active:scale-95 transition-all shadow-sm cursor-pointer"
+                  title="Zalo Official Account"
+                >
+                  <span className="font-extrabold text-[10px]">Zalo</span>
+                </a>
+
+                {/* Hotline */}
+                <a
+                  href={`tel:${contactConfig.hotlineTel}`}
+                  className="w-8 h-8 rounded-full bg-gradient-to-br from-[#ff3b30] to-[#e60000] text-white flex items-center justify-center hover:scale-110 active:scale-95 transition-all shadow-sm cursor-pointer"
+                  title={`Gọi Hotline ${contactConfig.hotline}`}
+                >
+                  <PhoneCall className="w-4 h-4" />
+                </a>
               </div>
             </div>
           </div>
@@ -257,7 +316,7 @@ export const Footer: React.FC<FooterProps> = ({
               </div>
             ))}
             <div className="pt-4 border-t border-gray-100 text-center">
-              <p className="text-[13px] text-gray-500">Liên hệ Hotline <strong className="text-primary">1900 98 98 78</strong> nếu cần hỗ trợ thêm.</p>
+              <p className="text-[13px] text-gray-500">Liên hệ Hotline <strong className="text-primary">{contactConfig.hotline}</strong> nếu cần hỗ trợ thêm.</p>
             </div>
           </div>
         </div>

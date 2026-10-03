@@ -12,9 +12,17 @@ import {
   ChevronRight,
   Check,
   Plus,
-  GitBranch
+  GitBranch,
+  FileText,
+  Headphones,
+  ShieldCheck,
+  AlertCircle
 } from 'lucide-react';
 import { UserSession } from '../../../hooks/useUnifiedAuth';
+import { AccountModal } from './AccountModal';
+import { NetworkSystemModal } from './NetworkSystemModal';
+import { TermsModal } from './TermsModal';
+import { SupportModal } from './SupportModal';
 
 interface MockupDashboardProps {
   currentUser: UserSession;
@@ -31,12 +39,19 @@ export const MockupDashboard: React.FC<MockupDashboardProps> = ({
   onLogout,
   onInviteMember,
 }) => {
-  const [copied, setCopied] = useState(false);
+  const [userSession, setUserSession] = useState(currentUser);
   const [stats, setStats] = useState({
     orderCount: 12,
     commissionTotal: 31920000,
-    f1Count: 5,
+    directCount: 5,
   });
+
+  // Modals state (A, B, C, D, E)
+  const [accountModalOpen, setAccountModalOpen] = useState(false);
+  const [networkModalOpen, setNetworkModalOpen] = useState(false);
+  const [termsModalOpen, setTermsModalOpen] = useState(false);
+  const [supportModalOpen, setSupportModalOpen] = useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   useEffect(() => {
     // 1. Fetch Orders Count
@@ -61,28 +76,19 @@ export const MockupDashboard: React.FC<MockupDashboardProps> = ({
       })
       .catch(() => {});
 
-    // 3. Fetch F1 Count
-    fetch('/api/tree', { credentials: 'include' })
+    // 3. Fetch Direct count (thay cho F1 count)
+    fetch('/api/ctv/network-summary', { credentials: 'include' })
       .then(r => r.json())
       .then(res => {
-        if (res.success && Array.isArray(res.data)) {
-          const validF1 = res.data.filter((u: any) => u.depth === 1 || u.level === 1).length;
-          if (validF1 > 0) setStats(prev => ({ ...prev, f1Count: validF1 }));
+        if (res.success && res.data && typeof res.data.directCount === 'number') {
+          setStats(prev => ({ ...prev, directCount: res.data.directCount }));
         }
       })
       .catch(() => {});
   }, []);
 
-  const handleCopyLink = () => {
-    const origin = typeof window !== 'undefined' ? window.location.origin : '';
-    const ref = currentUser.id || currentUser.userId;
-    navigator.clipboard?.writeText(`${origin}/?ref=${ref}`);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2500);
-  };
-
-  const partnerCode = (currentUser as any).businessId || `WK-${currentUser.id || currentUser.userId || '10002'}`;
-  const rankText = (currentUser.rank === 'MANAGER' ? '★ QUẢN LÝ' : currentUser.rank === 'DIRECTOR' ? '★ GIÁM ĐỐC' : '★ ĐẠI SỨ');
+  const partnerCode = (userSession as any).businessId || `WK-${userSession.id || userSession.userId || '10002'}`;
+  const rankText = (userSession.rank === 'MANAGER' ? '★ QUẢN LÝ' : userSession.rank === 'DIRECTOR' ? '★ GIÁM ĐỐC' : '★ ĐẠI SỨ');
 
   return (
     <div className="space-y-4 pb-4">
@@ -99,26 +105,22 @@ export const MockupDashboard: React.FC<MockupDashboardProps> = ({
       >
         <div className="flex items-center gap-3.5">
           {/* Avatar Circle: 64x64px white circle, blue user icon */}
-          {/* Avatar with double ring matching Screen 1 */}
           <div 
             className="rounded-full flex items-center justify-center shrink-0 border-2 border-white/60 bg-white/20 p-1 shadow-sm"
             style={{ width: '64px', height: '64px' }}
           >
-            {(currentUser as any).avatarUrl ? (
+            {(userSession as any).avatarUrl ? (
               <img 
-                src={(currentUser as any).avatarUrl} 
+                src={(userSession as any).avatarUrl} 
                 alt="Avatar"
                 className="w-full h-full rounded-full object-cover"
-                onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; (e.target as HTMLImageElement).nextElementSibling && ((e.target as HTMLImageElement).nextElementSibling as HTMLElement).style.removeProperty('display'); }}
+                onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
               />
             ) : (
               <div className="w-full h-full rounded-full bg-[#FFFFFF] flex items-center justify-center">
                 <User className="w-8 h-8 text-[#0072F5] stroke-[2.2]" />
               </div>
             )}
-            <div className="w-full h-full rounded-full bg-[#FFFFFF] flex items-center justify-center" style={{ display: (currentUser as any).avatarUrl ? 'none' : undefined }}>
-              <User className="w-8 h-8 text-[#0072F5] stroke-[2.2]" />
-            </div>
           </div>
 
           {/* Details */}
@@ -139,72 +141,83 @@ export const MockupDashboard: React.FC<MockupDashboardProps> = ({
             </div>
 
             <div className="text-[14px] font-medium text-white/90">
-              ID: {currentUser.id || currentUser.userId} (Đối Tác CTV)
+              ID: {userSession.id || userSession.userId} (Đối Tác CTV)
             </div>
 
             <h2 className="text-[23px] font-bold text-[#FFFFFF] leading-[1.3] truncate mt-0.5">
-              {currentUser.fullName || 'Phan Thế Mỹ'}
+              {userSession.fullName || 'Phan Thế Mỹ'}
             </h2>
           </div>
         </div>
 
-        {/* SECTION 7: 3 Action Buttons (Exact height 74–76px, radius 16px, font 15px 600) */}
-        <div className="grid grid-cols-3 gap-2.5 mt-4 pt-3.5 border-t border-white/20">
+        {/* ============================================================
+            SECTION A, B, C, D, E: ACTION BUTTONS (High Contrast Modern Layout)
+            ============================================================ */}
+        {/* ROW 1: 2 HERO BUTTONS (A & B) — CRISP WHITE CARDS ON BLUE BACKGROUND */}
+        <div className="grid grid-cols-2 gap-2.5 mt-4 pt-3.5 border-t border-white/25">
+          {/* NÚT A: TÀI KHOẢN & LINK (NỀN TRẮNG NỔI BẬT) */}
           <button
-            onClick={handleCopyLink}
-            className="flex flex-col items-center justify-center text-center transition-all active:scale-95"
-            style={{
-              height: '75px',
-              borderRadius: '16px',
-              background: '#0052CC',
-              color: '#FFFFFF',
-              fontSize: '15px',
-              fontWeight: 600,
-              padding: '6px 4px'
-            }}
+            type="button"
+            onClick={() => setAccountModalOpen(true)}
+            className="flex items-center gap-2.5 p-3 rounded-2xl bg-white hover:bg-slate-50 text-slate-900 transition-all active:scale-[0.98] shadow-md border border-white/80 text-left cursor-pointer"
+            style={{ minHeight: '66px' }}
           >
-            {copied ? <Check className="w-5 h-5 text-emerald-300" /> : <LinkIcon className="w-5 h-5" />}
-            <span className="text-[14px] font-semibold mt-1 leading-tight">
-              {copied ? 'Đã chép!' : <>Link<br />Giới thiệu</>}
-            </span>
+            <div className="w-10 h-10 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center text-[#0072F5] shrink-0 shadow-2xs">
+              <User className="w-5 h-5 stroke-[2.3]" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="text-[13px] font-extrabold text-slate-900 leading-tight truncate">Tài Khoản & Link</div>
+              <div className="text-[10px] text-slate-500 font-semibold leading-tight truncate mt-0.5">Hồ sơ, Ngân hàng, Ref</div>
+            </div>
           </button>
 
+          {/* NÚT B: HỆ THỐNG ĐỐI TÁC (NỀN TRẮNG NỔI BẬT) */}
           <button
-            onClick={onInviteMember}
-            className="flex flex-col items-center justify-center text-center transition-all active:scale-95"
-            style={{
-              height: '75px',
-              borderRadius: '16px',
-              background: '#00B050',
-              color: '#FFFFFF',
-              fontSize: '15px',
-              fontWeight: 600,
-              padding: '6px 4px'
-            }}
+            type="button"
+            onClick={() => setNetworkModalOpen(true)}
+            className="flex items-center gap-2.5 p-3 rounded-2xl bg-white hover:bg-slate-50 text-slate-900 transition-all active:scale-[0.98] shadow-md border border-white/80 text-left cursor-pointer"
+            style={{ minHeight: '66px' }}
           >
-            <UserPlus className="w-5 h-5" />
-            <span className="text-[14px] font-semibold mt-1 leading-tight">
-              Giới thiệu<br />Thành viên
-            </span>
+            <div className="w-10 h-10 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-[#00B050] shrink-0 shadow-2xs">
+              <Users className="w-5 h-5 stroke-[2.3]" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="text-[13px] font-extrabold text-slate-900 leading-tight truncate">Hệ Thống</div>
+              <div className="text-[10px] text-slate-500 font-semibold leading-tight truncate mt-0.5">Trực tiếp & Gián tiếp</div>
+            </div>
+          </button>
+        </div>
+
+        {/* ROW 2: 3 SECONDARY BUTTONS (C, D, E) — HIGH CONTRAST */}
+        <div className="grid grid-cols-3 gap-2 mt-2.5">
+          {/* NÚT C: ĐIỀU KHOẢN */}
+          <button
+            type="button"
+            onClick={() => setTermsModalOpen(true)}
+            className="flex items-center justify-center gap-1.5 h-10 rounded-xl bg-white/20 hover:bg-white/30 border border-white/35 text-white transition-all active:scale-95 text-xs font-bold shadow-2xs"
+          >
+            <FileText className="w-3.5 h-3.5 text-sky-200" />
+            <span>Điều khoản</span>
           </button>
 
+          {/* NÚT D: SUPPORT / HỖ TRỢ */}
           <button
-            onClick={onLogout}
-            className="flex flex-col items-center justify-center text-center transition-all active:scale-95"
-            style={{
-              height: '75px',
-              borderRadius: '16px',
-              background: '#ED4956',
-              color: '#FFFFFF',
-              fontSize: '15px',
-              fontWeight: 600,
-              padding: '6px 4px'
-            }}
+            type="button"
+            onClick={() => setSupportModalOpen(true)}
+            className="flex items-center justify-center gap-1.5 h-10 rounded-xl bg-white/20 hover:bg-white/30 border border-white/35 text-white transition-all active:scale-95 text-xs font-bold shadow-2xs"
           >
-            <LogOut className="w-5 h-5" />
-            <span className="text-[14px] font-semibold mt-1 leading-tight">
-              Đăng xuất
-            </span>
+            <Headphones className="w-3.5 h-3.5 text-emerald-300" />
+            <span>Hỗ trợ</span>
+          </button>
+
+          {/* NÚT E: ĐĂNG XUẤT */}
+          <button
+            type="button"
+            onClick={() => setShowLogoutConfirm(true)}
+            className="flex items-center justify-center gap-1.5 h-10 rounded-xl bg-[#EF4444] hover:bg-red-600 border border-rose-300/40 text-white transition-all active:scale-95 text-xs font-bold shadow-xs"
+          >
+            <LogOut className="w-3.5 h-3.5 text-white" />
+            <span>Đăng xuất</span>
           </button>
         </div>
 
@@ -218,7 +231,7 @@ export const MockupDashboard: React.FC<MockupDashboardProps> = ({
               borderRadius: '14px',
               background: '#FFFFFF',
               color: '#0072F5',
-              fontSize: '16px',
+              fontSize: '15px',
               fontWeight: 600,
               boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
             }}
@@ -247,7 +260,7 @@ export const MockupDashboard: React.FC<MockupDashboardProps> = ({
       </button>
 
       {/* ============================================================
-          SECTION 5, 8, 9, 10: 4 DASHBOARD CARDS (Pixel-perfect & Fully Responsive)
+          4 DASHBOARD CARDS (Đơn hàng, Hoa hồng, Cấp bậc, Đội ngũ đối tác)
           ============================================================ */}
       <div className="grid grid-cols-2" style={{ gap: '12px' }}>
         {/* Card 1: Đơn hàng */}
@@ -369,9 +382,9 @@ export const MockupDashboard: React.FC<MockupDashboardProps> = ({
           </div>
         </div>
 
-        {/* Card 4: Đội nhóm */}
+        {/* Card 4: Đội ngũ đối tác (Chuẩn hóa không dùng F1) */}
         <div
-          onClick={() => onSelectTab('rank')}
+          onClick={() => setNetworkModalOpen(true)}
           className="cursor-pointer hover:shadow-md transition-all active:scale-95 flex flex-col justify-between"
           style={{
             background: '#FFFFFF',
@@ -390,29 +403,29 @@ export const MockupDashboard: React.FC<MockupDashboardProps> = ({
               <Users className="w-5 h-5 stroke-[2.2]" />
             </div>
             <span style={{ fontSize: '15px', fontWeight: 600, color: '#0F172A', lineHeight: 1.2 }}>
-              Đội nhóm
+              Đội ngũ đối tác
             </span>
           </div>
 
           <div className="flex items-baseline justify-between mt-1 mb-0.5">
             <span style={{ fontSize: '23px', fontWeight: 700, color: '#0F172A', lineHeight: 1 }}>
-              {stats.f1Count} / 5
+              {stats.directCount} / 5
             </span>
             <span style={{ fontSize: '19px', fontWeight: 600, color: '#94A3B8' }}>›</span>
           </div>
 
           <div className="flex items-center justify-between">
             <span style={{ fontSize: '13px', fontWeight: 400, color: '#94A3B8' }}>
-              Thành viên F1 hợp lệ
+              Đối tác Trực tiếp
             </span>
             <span style={{ fontSize: '17px', fontWeight: 600, color: '#94A3B8' }}>›</span>
           </div>
         </div>
       </div>
 
-      {/* Card 5: Sơ đồ cấp dưới (Full width) */}
+      {/* Card 5: Mạng lưới đối tác (Chuẩn hóa không dùng F1/F2) */}
       <div
-        onClick={() => onSelectTab('network')}
+        onClick={() => setNetworkModalOpen(true)}
         className="cursor-pointer hover:shadow-md transition-all active:scale-95 flex items-center justify-between mt-3"
         style={{
           background: 'linear-gradient(135deg, #F0F7FF 0%, #EEF6FF 100%)',
@@ -431,17 +444,17 @@ export const MockupDashboard: React.FC<MockupDashboardProps> = ({
           </div>
           <div>
             <div style={{ fontSize: '16px', fontWeight: 700, color: '#0F172A', lineHeight: 1.2 }}>
-              Sơ đồ cấp dưới
+              Mạng lưới đối tác kinh doanh
             </div>
             <div style={{ fontSize: '12px', fontWeight: 400, color: '#64748B', marginTop: '2px' }}>
-              Xem cây tuyến F1, F2 của bạn
+              Xem danh sách đối tác Trực tiếp & Gián tiếp của bạn
             </div>
           </div>
         </div>
         <span style={{ fontSize: '19px', fontWeight: 600, color: '#0072F5' }}>›</span>
       </div>
 
-      {/* PROMO BANNER (Chuẩn Mockup 1 Screen 1) */}
+      {/* PROMO BANNER */}
       <div 
         onClick={onNavigateHome}
         className="relative overflow-hidden cursor-pointer group shadow-sm"
@@ -473,6 +486,68 @@ export const MockupDashboard: React.FC<MockupDashboardProps> = ({
           </div>
         </div>
       </div>
+
+      {/* ============================================================
+          ALL 5 MODALS (A, B, C, D, E)
+          ============================================================ */}
+      {/* MODAL A: TÀI KHOẢN & LINK GIỚI THIỆU */}
+      <AccountModal
+        isOpen={accountModalOpen}
+        onClose={() => setAccountModalOpen(false)}
+        currentUser={userSession}
+        onUserUpdated={(updated) => setUserSession(prev => ({ ...prev, ...updated }))}
+      />
+
+      {/* MODAL B: HỆ THỐNG ĐỐI TÁC (TRỰC TIẾP & GIÁN TIẾP) */}
+      <NetworkSystemModal
+        isOpen={networkModalOpen}
+        onClose={() => setNetworkModalOpen(false)}
+        currentUser={userSession}
+        onOpenNetworkTree={() => onSelectTab('network')}
+      />
+
+      {/* MODAL C: ĐIỀU KHOẢN */}
+      <TermsModal
+        isOpen={termsModalOpen}
+        onClose={() => setTermsModalOpen(false)}
+      />
+
+      {/* MODAL D: HỖ TRỢ */}
+      <SupportModal
+        isOpen={supportModalOpen}
+        onClose={() => setSupportModalOpen(false)}
+      />
+
+      {/* MODAL E: XÁC NHẬN ĐĂNG XUẤT */}
+      {showLogoutConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fadeIn">
+          <div className="bg-white rounded-3xl p-5 max-w-xs w-full text-center space-y-4 shadow-2xl">
+            <div className="w-12 h-12 rounded-2xl bg-rose-100 text-rose-600 flex items-center justify-center mx-auto">
+              <LogOut className="w-6 h-6" />
+            </div>
+            <div>
+              <h4 className="font-bold text-base text-slate-900">Xác nhận đăng xuất</h4>
+              <p className="text-xs text-slate-500 mt-1">Bạn có chắc chắn muốn đăng xuất khỏi cổng đối tác WasyPro?</p>
+            </div>
+            <div className="flex gap-2 pt-1">
+              <button
+                type="button"
+                onClick={() => setShowLogoutConfirm(false)}
+                className="flex-1 py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors"
+              >
+                Hủy bỏ
+              </button>
+              <button
+                type="button"
+                onClick={() => { setShowLogoutConfirm(false); onLogout(); }}
+                className="flex-1 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition-colors shadow-xs"
+              >
+                Đăng xuất
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

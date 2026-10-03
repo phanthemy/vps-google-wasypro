@@ -32,9 +32,14 @@ import {
   Coffee,
   Wrench,
   Video,
-  Gift,
   LogOut,
   MapPin,
+  Home,
+  HelpCircle,
+  Newspaper,
+  Droplets,
+  Layers,
+  Gift,
 } from 'lucide-react';
 import { api } from '../services/api';
 import { Product, Article } from '../types/schema';
@@ -86,6 +91,27 @@ export const MobileLandingView: React.FC<MobileLandingViewProps> = ({
   user,
   onNavigate
 }) => {
+  // Dynamic Contact Config for Drawer & Mobile Footer
+  const [contactConfig, setContactConfig] = useState({
+    facebook: 'https://facebook.com/wasypro',
+    zalo: 'https://zalo.me/2928413591064686973',
+    hotline: '1900 98 98 78',
+    hotlineTel: '1900989878',
+    email: 'support@wasypro.com',
+    address: 'Tầng 6, Tòa nhà WASY Tower, Q. Cầu Giấy, TP. Hà Nội',
+  });
+
+  useEffect(() => {
+    fetch('/api/public/contact-config')
+      .then(r => r.json())
+      .then(d => {
+        if (d && d.success && d.data) {
+          setContactConfig(prev => ({ ...prev, ...d.data }));
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   // Banner Slider State
   const bannerImages = [
     '/images/banner1.jpg?v=20261001',
@@ -1264,131 +1290,331 @@ export const MobileLandingView: React.FC<MobileLandingViewProps> = ({
         />
       )}
 
-      {/* Mobile Drawer Menu — Với Danh Mục Giống wasypro.com */}
+      {/* ─── Mobile Drawer Menu (Tư Duy Mới Nhất 2026 - Chuẩn App Đẳng Cấp) ─── */}
       {drawerOpen && (
         <div className="fixed inset-0 z-50 flex">
+          {/* Backdrop Blur */}
           <div 
             onClick={() => setDrawerOpen(false)}
-            className="fixed inset-0 bg-black/50 backdrop-blur-2xs transition-opacity" 
+            className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs transition-opacity duration-300 animate-in fade-in" 
           />
 
-          <div className="relative ml-auto w-[82%] max-w-xs bg-white h-full shadow-2xl p-4 flex flex-col justify-between overflow-y-auto z-10 animate-slideInRight">
-            <div>
-              <div className="flex items-center justify-between pb-3 border-b border-gray-100">
-                <img src="/images/logo-rbg.webp" alt="WASY PRO" className="h-8 w-auto" />
-                <button onClick={() => setDrawerOpen(false)} className="p-1 text-gray-500">
-                  <X className="w-5 h-5" />
-                </button>
+          {/* Drawer Container */}
+          <div className="relative ml-auto w-[85%] max-w-[340px] bg-white h-full shadow-2xl flex flex-col justify-between overflow-hidden z-10 animate-slideInRight border-l border-slate-100">
+            {/* 1. Header Bar */}
+            <div className="p-4 bg-gradient-to-r from-slate-50 via-white to-sky-50/40 border-b border-slate-100 flex items-center justify-between shrink-0">
+              <div className="flex items-center gap-2.5">
+                <img src="/images/logo-rbg.webp" alt="WASY PRO" className="h-8 w-auto object-contain" />
+                <span className="px-2 py-0.5 rounded-full bg-sky-100 text-sky-700 text-[10px] font-extrabold tracking-wide uppercase">
+                  Menu
+                </span>
               </div>
+              <button 
+                onClick={() => setDrawerOpen(false)} 
+                className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-800 flex items-center justify-center active:scale-90 transition-all cursor-pointer"
+                aria-label="Đóng menu"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
 
-              {/* User Login Section in Drawer */}
-              <div className="mt-3 p-3 rounded-xl bg-slate-50 border border-slate-200">
-                {!user ? (
-                  <div>
-                    <p className="text-xs text-slate-500">Chào mừng quý khách đến với WASY PRO</p>
+            {/* 2. Scrollable Body */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+              {/* User / Member Welcome Card */}
+              {!user ? (
+                <div className="p-4 rounded-2xl bg-gradient-to-br from-blue-600 via-sky-600 to-cyan-500 text-white shadow-[0_8px_20px_rgba(0,102,245,0.22)] relative overflow-hidden">
+                  <div className="absolute -right-3 -bottom-3 w-20 h-20 bg-white/10 rounded-full blur-xl pointer-events-none" />
+                  <div className="flex items-center gap-2.5 mb-1.5 relative z-10">
+                    <div className="w-8 h-8 rounded-xl bg-white/20 backdrop-blur-xs flex items-center justify-center text-white font-bold shadow-xs">
+                      <Sparkles className="w-4 h-4 text-amber-300" />
+                    </div>
+                    <div>
+                      <div className="text-xs font-black leading-tight">Chào mừng quý khách!</div>
+                      <div className="text-[10px] text-white/80">Trải nghiệm hệ sinh thái Water King</div>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 mt-3 pt-2.5 border-t border-white/15 relative z-10">
                     <button
                       onClick={() => {
                         setDrawerOpen(false);
                         onOpenAuth('login');
                       }}
-                      className="mt-2 w-full py-2 bg-[#0072F5] text-white rounded-lg font-bold text-xs flex items-center justify-center gap-1.5 shadow-2xs"
+                      className="py-2 px-3 rounded-xl bg-white text-blue-700 font-extrabold text-xs shadow-xs hover:bg-blue-50 active:scale-95 transition-all text-center flex items-center justify-center gap-1.5 cursor-pointer"
                     >
-                      <User className="w-3.5 h-3.5" />
-                      <span>ĐĂNG NHẬP NGAY</span>
+                      <User className="w-3.5 h-3.5 text-blue-600" />
+                      <span>Đăng Nhập</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        setDrawerOpen(false);
+                        onOpenAuth('register');
+                      }}
+                      className="py-2 px-3 rounded-xl bg-white/15 backdrop-blur-xs text-white border border-white/30 font-bold text-xs hover:bg-white/25 active:scale-95 transition-all text-center flex items-center justify-center gap-1.5 cursor-pointer"
+                    >
+                      <Gift className="w-3.5 h-3.5 text-amber-300" />
+                      <span>Đăng Ký</span>
                     </button>
                   </div>
-                ) : (
-                  <div>
-                    <p className="text-xs font-bold text-slate-900">{user.fullName}</p>
-                    <p className="text-[11px] text-slate-500">{user.phone}</p>
-                    <a
-                      href="/ctv"
-                      className="mt-2 block w-full py-1.5 bg-[#0072F5] text-white text-center rounded-lg font-bold text-xs"
-                    >
-                      Vào Quản Lý CTV
-                    </a>
+                </div>
+              ) : (
+                <div className="p-3.5 rounded-2xl bg-gradient-to-br from-slate-900 via-slate-850 to-slate-900 text-white shadow-lg border border-slate-700/60 relative overflow-hidden">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-cyan-400 to-blue-600 flex items-center justify-center text-white font-black text-sm shadow-md">
+                      {user.fullName ? user.fullName.charAt(0).toUpperCase() : 'U'}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="text-xs font-black truncate">{user.fullName}</div>
+                      <div className="text-[11px] text-cyan-300 font-mono flex items-center gap-1.5">
+                        <span>{user.phone}</span>
+                        <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-cyan-400/20 text-cyan-200 font-bold">
+                          CTV
+                        </span>
+                      </div>
+                    </div>
                   </div>
-                )}
+                  <a
+                    href="/ctv"
+                    className="mt-3 w-full py-2 bg-gradient-to-r from-cyan-500 to-blue-600 text-white rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 shadow-md active:scale-95 transition-all text-center cursor-pointer"
+                  >
+                    <LayoutGrid className="w-3.5 h-3.5" />
+                    <span>Vào Bảng Quản Trị CTV</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </a>
+                </div>
+              )}
+
+              {/* 3. Danh Mục Sản Phẩm (Thiết Kế Thẻ Trực Quan) */}
+              <div className="space-y-2 pt-1">
+                <div className="flex items-center justify-between px-1">
+                  <div className="flex items-center gap-1.5 text-[11px] font-extrabold text-slate-400 uppercase tracking-wider">
+                    <Layers className="w-3.5 h-3.5 text-sky-500" />
+                    <span>Danh Mục Sản Phẩm</span>
+                  </div>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-sky-50 text-sky-600 border border-sky-100">
+                    {tabCounts['all'] || 8} sản phẩm
+                  </span>
+                </div>
+
+                <div className="space-y-1.5">
+                  {[
+                    { id: 'may-loc-nuoc', name: 'Máy Lọc Nước Ion Kiềm', icon: Droplets, color: 'bg-blue-50 text-blue-600 border-blue-100' },
+                    { id: 'dung-cu-test-nuoc', name: 'Dụng Cụ Test Nước', icon: Coffee, color: 'bg-emerald-50 text-emerald-600 border-emerald-100' },
+                    { id: 'phu-kien', name: 'Phụ Kiện Máy Lọc', icon: Wrench, color: 'bg-amber-50 text-amber-600 border-amber-100' },
+                    { id: 'all', name: 'Tất Cả Sản Phẩm', icon: CheckCircle2, color: 'bg-purple-50 text-purple-600 border-purple-100' },
+                  ].map((cat) => {
+                    const Icon = cat.icon;
+                    const count = tabCounts[cat.id] || (cat.id === 'all' ? 8 : (cat.id === 'phu-kien' ? 5 : 2));
+                    const isSelected = selectedCategory === cat.id;
+
+                    return (
+                      <button
+                        key={cat.id}
+                        onClick={() => {
+                          setSelectedCategory(cat.id);
+                          setDrawerOpen(false);
+                          const el = document.getElementById('featured-products-section');
+                          if (el) el.scrollIntoView({ behavior: 'smooth' });
+                        }}
+                        className={`w-full flex items-center justify-between p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
+                          isSelected 
+                            ? 'bg-blue-50/80 border-blue-300 shadow-xs ring-1 ring-blue-400/20' 
+                            : 'bg-slate-50/70 border-slate-100/90 hover:bg-slate-100 hover:border-slate-200'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <div className={`w-8 h-8 rounded-xl flex items-center justify-center font-bold border ${cat.color} shadow-2xs`}>
+                            <Icon className="w-4 h-4" />
+                          </div>
+                          <span className={`text-xs font-bold ${isSelected ? 'text-blue-700' : 'text-slate-800'}`}>
+                            {cat.name}
+                          </span>
+                        </div>
+                        <span className="text-[10px] font-bold font-mono px-2 py-0.5 rounded-full bg-white border border-slate-200 text-slate-500 shadow-2xs">
+                          {count} SP
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
 
-              {/* Danh Mục Sản Phẩm Chuẩn wasypro.com */}
-              <div className="mt-4 pt-3 border-t border-slate-100">
-                <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5 px-3">
-                  Danh Mục Sản Phẩm
+              {/* 4. Khám Phá & Tiện Ích */}
+              <div className="space-y-1 pt-2">
+                <div className="flex items-center gap-1.5 text-[11px] font-extrabold text-slate-400 uppercase tracking-wider px-1 mb-1">
+                  <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                  <span>Khám Phá & Tiện Ích</span>
                 </div>
-                {CATEGORY_TABS.map((cat) => {
-                  const Icon = cat.icon;
+
+                {[
+                  { 
+                    label: 'Trang Chủ', 
+                    sub: 'Về đầu website',
+                    badge: null,
+                    icon: Home, 
+                    color: 'text-blue-600 bg-blue-50',
+                    action: () => onNavigate('hero') 
+                  },
+                  { 
+                    label: 'Sức Khỏe Hydrogen', 
+                    sub: 'Lợi ích & công nghệ',
+                    badge: 'Mới',
+                    icon: Droplet, 
+                    color: 'text-cyan-600 bg-cyan-50',
+                    action: () => onNavigate('benefits') 
+                  },
+                  { 
+                    label: 'Tra Cứu Bảo Hành', 
+                    sub: 'Chính hãng 5 năm',
+                    badge: '5 Năm',
+                    icon: ShieldCheck, 
+                    color: 'text-emerald-600 bg-emerald-50',
+                    action: () => onOpenWarranty() 
+                  },
+                  { 
+                    label: 'Hệ Thống Đại Lý', 
+                    sub: 'Showroom & điểm bán',
+                    badge: 'Toàn quốc',
+                    icon: MapPin, 
+                    color: 'text-amber-600 bg-amber-50',
+                    action: () => { const el = document.getElementById('dealers'); if(el) el.scrollIntoView({behavior: 'smooth'}) } 
+                  },
+                  { 
+                    label: 'Tin Tức & Sự Kiện', 
+                    sub: 'Bài viết y tế & video',
+                    badge: null,
+                    icon: Newspaper, 
+                    color: 'text-indigo-600 bg-indigo-50',
+                    action: () => onNavigate('news') 
+                  },
+                  { 
+                    label: 'Câu Hỏi Thường Gặp', 
+                    sub: 'Giải đáp nhanh',
+                    badge: 'FAQs',
+                    icon: HelpCircle, 
+                    color: 'text-purple-600 bg-purple-50',
+                    action: () => onNavigate('faq') 
+                  },
+                  { 
+                    label: 'Liên Hệ & Tư Vấn', 
+                    sub: 'Chuyên viên 24/7',
+                    badge: null,
+                    icon: PhoneCall, 
+                    color: 'text-rose-600 bg-rose-50',
+                    action: () => onOpenContact() 
+                  }
+                ].map((item, i) => {
+                  const ItemIcon = item.icon;
                   return (
                     <button
-                      key={cat.id}
+                      key={i}
                       onClick={() => {
-                        setSelectedCategory(cat.id);
                         setDrawerOpen(false);
-                        const el = document.getElementById('featured-products-section');
-                        if (el) el.scrollIntoView({ behavior: 'smooth' });
+                        item.action();
                       }}
-                      className="w-full flex items-center justify-between py-2 px-3 rounded-lg text-xs font-bold text-slate-700 hover:bg-[#F0F7FF] hover:text-[#0072F5] text-left transition-colors"
+                      className="w-full flex items-center justify-between p-2 rounded-xl text-left hover:bg-slate-50 active:bg-slate-100 transition-colors group cursor-pointer"
                     >
-                      <span className="flex items-center gap-2">
-                        <Icon className="w-3.5 h-3.5 text-[#0072F5]" />
-                        <span>{cat.name}</span>
-                      </span>
-                      <span className="text-[10px] font-mono text-slate-400">
-                        {tabCounts[cat.id] || 0}
-                      </span>
+                      <div className="flex items-center gap-2.5">
+                        <div className={`w-7 h-7 rounded-lg flex items-center justify-center ${item.color}`}>
+                          <ItemIcon className="w-3.5 h-3.5" />
+                        </div>
+                        <div>
+                          <div className="text-xs font-bold text-slate-800 group-hover:text-blue-600 transition-colors">
+                            {item.label}
+                          </div>
+                          <div className="text-[10px] text-slate-400 font-medium">
+                            {item.sub}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-1.5">
+                        {item.badge && (
+                          <span className="text-[9px] font-bold px-1.5 py-0.2 rounded-full bg-slate-100 text-slate-600">
+                            {item.badge}
+                          </span>
+                        )}
+                        <ChevronRight className="w-3.5 h-3.5 text-slate-300 group-hover:text-slate-500 transition-transform group-hover:translate-x-0.5" />
+                      </div>
                     </button>
                   );
                 })}
               </div>
-
-              {/* Navigation Items */}
-              <div className="mt-3 pt-3 border-t border-slate-100 space-y-1">
-                <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5 px-3">
-                  Liên Kết Nhanh
-                </div>
-                {[
-                  { label: 'TRANG CHỦ', action: () => onNavigate('hero') },
-                  { label: 'SỨC KHỎE HYDROGEN', action: () => onNavigate('benefits') },
-                  { label: 'TRA CỨU BẢO HÀNH', action: () => onOpenWarranty() },
-                  { label: 'TIN TỨC & VIDEO SỰ KIỆN', action: () => onNavigate('news') },
-                  { label: 'HỆ THỐNG ĐẠI LÝ', action: () => { const el = document.getElementById('dealers'); if(el) el.scrollIntoView({behavior: 'smooth'}) } },
-                  { label: 'HỎI ĐÁP (FAQS)', action: () => onNavigate('faq') },
-                  { label: 'LIÊN HỆ TƯ VẤN', action: () => onOpenContact() }
-                ].map((item, i) => (
-                  <button
-                    key={i}
-                    onClick={() => {
-                      setDrawerOpen(false);
-                      item.action();
-                    }}
-                    className="w-full flex items-center justify-between py-2 px-3 rounded-lg text-xs font-bold text-slate-700 hover:bg-slate-100 text-left"
-                  >
-                    <span>{item.label}</span>
-                    <ChevronRight className="w-3.5 h-3.5 text-gray-400" />
-                  </button>
-                ))}
-              </div>
             </div>
 
-            {/* Đăng xuất button - chỉ hiện khi đã login */}
-            {user && (
-              <div className="pt-3 border-t border-gray-100">
+            {/* 5. Drawer Sticky Footer Bar */}
+            <div className="p-3.5 bg-slate-50 border-t border-slate-100 shrink-0 space-y-3">
+              {/* Đăng xuất nếu đã login */}
+              {user && (
                 <button
                   onClick={() => {
                     setDrawerOpen(false);
                     fetch('/api/auth/logout', { method: 'POST', credentials: 'include' })
                       .finally(() => window.location.reload());
                   }}
-                  className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-[13px] font-bold text-red-500 bg-red-50 hover:bg-red-100 transition-colors"
+                  className="w-full flex items-center justify-center gap-2 py-2 rounded-xl text-xs font-bold text-red-600 bg-red-50 hover:bg-red-100 transition-colors border border-red-100 cursor-pointer"
                 >
-                  <LogOut className="w-4 h-4" />
-                  <span>Đăng xuất</span>
+                  <LogOut className="w-3.5 h-3.5" />
+                  <span>Đăng Xuất Khỏi Tài Khoản</span>
                 </button>
-              </div>
-            )}
+              )}
 
-            <div className="pt-4 border-t border-gray-100 text-[11px] text-slate-400 text-center">
-              Hotline hỗ trợ: <span className="font-bold text-[#0072F5]">1900 98 98 78</span>
+              {/* Nút Gọi Hotline Nổi Bật */}
+              <a
+                href={`tel:${contactConfig.hotlineTel}`}
+                className="w-full flex items-center justify-between p-2.5 rounded-xl bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-700 hover:to-rose-700 text-white shadow-md shadow-red-500/20 active:scale-95 transition-all cursor-pointer"
+              >
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 rounded-lg bg-white/20 flex items-center justify-center">
+                    <PhoneCall className="w-3.5 h-3.5" />
+                  </div>
+                  <div className="text-left">
+                    <div className="text-[10px] text-white/80 font-semibold leading-tight">Hotline Hỗ Trợ 24/7</div>
+                    <div className="text-xs font-black font-mono tracking-wide">{contactConfig.hotline}</div>
+                  </div>
+                </div>
+                <span className="text-[10px] font-bold px-2 py-0.8 rounded-lg bg-white/20 backdrop-blur-xs">
+                  Gọi Ngay
+                </span>
+              </a>
+
+              {/* 3 Icon Mạng Xã Hội Tròn Đồng Bộ Admin */}
+              <div className="flex items-center justify-between pt-1 px-1">
+                <span className="text-[10px] text-slate-400 font-semibold">Kết nối:</span>
+                <div className="flex items-center gap-2">
+                  {/* Facebook */}
+                  <a
+                    href={contactConfig.facebook}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-7 h-7 rounded-full bg-[#1877F2] text-white flex items-center justify-center hover:scale-110 active:scale-95 transition-transform shadow-xs"
+                    title="Facebook"
+                  >
+                    <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
+                      <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
+                    </svg>
+                  </a>
+
+                  {/* Zalo */}
+                  <a
+                    href={contactConfig.zalo}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-7 h-7 rounded-full bg-white text-[#0068FF] border border-blue-200 flex items-center justify-center hover:scale-110 active:scale-95 transition-transform shadow-xs"
+                    title="Zalo OA"
+                  >
+                    <span className="font-extrabold text-[9px]">Zalo</span>
+                  </a>
+
+                  {/* Hotline */}
+                  <a
+                    href={`tel:${contactConfig.hotlineTel}`}
+                    className="w-7 h-7 rounded-full bg-gradient-to-br from-[#ff3b30] to-[#e60000] text-white flex items-center justify-center hover:scale-110 active:scale-95 transition-transform shadow-xs"
+                    title="Gọi Hotline"
+                  >
+                    <PhoneCall className="w-3.5 h-3.5" />
+                  </a>
+                </div>
+              </div>
             </div>
           </div>
         </div>
