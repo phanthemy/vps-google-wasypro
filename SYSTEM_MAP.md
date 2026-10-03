@@ -603,3 +603,30 @@ cd /var/www/wasypro ; git add -A ; git commit -m 'message' ; git push origin mai
 - [ ] Cuộn nội dung form xuống tận đáy: Nút `[X]` vẫn phải hiển thị cố định 100% ở góc trên bên phải và bấm đóng được ngay.
 - [ ] Không xuất hiện thanh cuộn ngang (`overflow-x`).
 - [ ] Nút `[X]` có vùng chạm tối thiểu $\ge 36\text{px} \times 36\text{px}$.
+
+## 12. QA Testing Protocol (BẮT BUỘC trước khi báo PASS)
+
+### Quy tắc:
+- KHÔNG BAO GIỜ báo PASS nếu chưa chụp screenshot từng bước
+- Dùng Playwright test trên máy local, chụp ảnh TỪNG tính năng
+- Test cả Mobile (390x844) VÀ Desktop (1440x900)
+
+### Checklist tối thiểu:
+1. T01: Mobile homepage (banner không zoom)
+2. T03: Mobile menu drawer (mở/đóng)
+3. T06: Auth modal (đăng nhập/đăng ký)
+4. T07: Input focus trên mobile (KHÔNG bị zoom)
+5. T10: Product QuickView modal
+6. T11: Nút Đặt Mua Ngay trong QuickView (PHẢI hoạt động)
+7. T13: Nút MUA NGAY trực tiếp trang chủ
+8. T18: Contact modal
+9. T19: Checkout modal
+10. T02: Desktop homepage
+11. T14: Desktop products page
+12. T17: Footer (social icons)
+
+### Lỗi thường gặp cần check:
+- Background overlay chặn pointer events (z-index)
+- Prop name mismatch giữa parent/child component
+- Input font-size < 16px gây iOS auto-zoom
+- viewport meta maximum-scale > 1 cho phép zoom
