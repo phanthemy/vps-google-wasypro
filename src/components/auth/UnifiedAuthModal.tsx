@@ -321,7 +321,7 @@ export default function UnifiedAuthModal({
     <div className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-4 overflow-y-auto" style={{ WebkitOverflowScrolling: "touch" }}>
       {/* Background with pure crystal hydrogen water - bright daylight water splash */}
       <div
-        className="fixed inset-0 bg-cover bg-center bg-no-repeat transition-opacity cursor-pointer"
+        className="fixed inset-0 bg-cover bg-center bg-no-repeat transition-opacity cursor-pointer z-0"
         style={{ backgroundImage: "url('/images/water-auth-bg.jpg')" }}
         onClick={onClose}
       />
