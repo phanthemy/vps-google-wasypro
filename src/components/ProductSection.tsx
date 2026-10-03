@@ -476,7 +476,7 @@ export const ProductSection: React.FC<ProductSectionProps> = ({
                       <div className="flex items-center gap-1.5">
                         <button
                           onClick={() => setSelectedQuickViewProduct(product)}
-                          className="py-2 px-2.5 rounded-xl text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors flex items-center justify-center text-xs font-bold"
+                          className="py-2.5 px-3 rounded-xl text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors flex items-center justify-center text-xs font-bold"
                           title="Xem thông số kỹ thuật"
                         >
                           <Eye className="w-3.5 h-3.5" />

@@ -289,7 +289,7 @@ export const MobileLandingView: React.FC<MobileLandingViewProps> = ({
           {!user ? (
             <button
               onClick={() => onOpenAuth('login')}
-              className="px-2.5 py-1.5 rounded-full bg-[#0072F5]/10 border border-[#0072F5] text-[#0072F5] text-xs font-bold flex items-center gap-1 active:scale-95 transition-all shadow-xs"
+              className="px-3 py-2 rounded-full bg-[#0072F5]/10 border border-[#0072F5] text-[#0072F5] text-xs font-bold flex items-center gap-1 active:scale-95 transition-all shadow-xs"
               title="Đăng nhập tài khoản"
             >
               <User className="w-3.5 h-3.5" />
@@ -311,7 +311,7 @@ export const MobileLandingView: React.FC<MobileLandingViewProps> = ({
               const el = document.getElementById('product-search-input');
               if (el) el.focus();
             }}
-            className="p-1.5 text-[#334155] hover:text-[#0072F5]"
+            className="p-2 text-[#334155] hover:text-[#0072F5]"
             aria-label="Tìm kiếm"
           >
             <Search className="w-5 h-5" />
@@ -320,7 +320,7 @@ export const MobileLandingView: React.FC<MobileLandingViewProps> = ({
           {/* Cart Icon */}
           <button 
             onClick={onCartClick}
-            className="relative p-1.5 text-[#334155] hover:text-[#0072F5]"
+            className="relative p-2 text-[#334155] hover:text-[#0072F5]"
             aria-label="Giỏ hàng"
           >
             <ShoppingCart className="w-5 h-5" />
@@ -334,7 +334,7 @@ export const MobileLandingView: React.FC<MobileLandingViewProps> = ({
           {/* Hamburger Menu */}
           <button 
             onClick={() => setDrawerOpen(true)}
-            className="p-1.5 text-[#334155] hover:text-[#0072F5]"
+            className="p-2 text-[#334155] hover:text-[#0072F5]"
             aria-label="Menu"
           >
             <Menu className="w-6 h-6" />
@@ -611,7 +611,7 @@ export const MobileLandingView: React.FC<MobileLandingViewProps> = ({
               <button
                 key={tab.id}
                 onClick={() => setSelectedCategory(tab.id)}
-                className={`px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 ${
+                className={`px-3.5 py-2.5 rounded-full text-xs font-bold min-h-[40px] whitespace-nowrap transition-all flex items-center gap-1.5 ${
                   selectedCategory === tab.id
                     ? 'bg-[#0072F5] text-white shadow-xs'
                     : 'bg-white text-[#475569] border border-[#E2E8F0] hover:bg-slate-50'
@@ -752,7 +752,7 @@ export const MobileLandingView: React.FC<MobileLandingViewProps> = ({
 
                   <button
                     onClick={() => onOrderProduct(p)}
-                    className="flex-1 h-9 rounded-xl bg-[#0072F5] hover:bg-[#0052CC] text-white font-bold text-xs flex items-center justify-center gap-1 shadow-2xs active:scale-95 transition-all"
+                    className="flex-1 h-10 rounded-xl bg-[#0072F5] hover:bg-[#0052CC] text-white font-bold text-xs flex items-center justify-center gap-1 shadow-2xs active:scale-95 transition-all"
                   >
                     <ShoppingCart className="w-3.5 h-3.5" />
                     <span>MUA NGAY</span>

@@ -133,7 +133,7 @@ export const Footer: React.FC<FooterProps> = ({
                   href={contactConfig.facebook}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="w-8 h-8 rounded-full bg-[#1877F2] text-white flex items-center justify-center hover:scale-110 active:scale-95 transition-all shadow-sm cursor-pointer"
+                  className="w-10 h-10 rounded-full bg-[#1877F2] text-white flex items-center justify-center hover:scale-110 active:scale-95 transition-all shadow-sm cursor-pointer"
                   title="Facebook WASY PRO"
                 >
                   <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
@@ -146,7 +146,7 @@ export const Footer: React.FC<FooterProps> = ({
                   href={contactConfig.zalo}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="w-8 h-8 rounded-full bg-white text-[#0068FF] border border-blue-200 flex items-center justify-center hover:scale-110 active:scale-95 transition-all shadow-sm cursor-pointer"
+                  className="w-10 h-10 rounded-full bg-white text-[#0068FF] border border-blue-200 flex items-center justify-center hover:scale-110 active:scale-95 transition-all shadow-sm cursor-pointer"
                   title="Zalo Official Account"
                 >
                   <span className="font-extrabold text-[10px]">Zalo</span>
@@ -155,7 +155,7 @@ export const Footer: React.FC<FooterProps> = ({
                 {/* Hotline */}
                 <a
                   href={`tel:${contactConfig.hotlineTel}`}
-                  className="w-8 h-8 rounded-full bg-gradient-to-br from-[#ff3b30] to-[#e60000] text-white flex items-center justify-center hover:scale-110 active:scale-95 transition-all shadow-sm cursor-pointer"
+                  className="w-10 h-10 rounded-full bg-gradient-to-br from-[#ff3b30] to-[#e60000] text-white flex items-center justify-center hover:scale-110 active:scale-95 transition-all shadow-sm cursor-pointer"
                   title={`Gọi Hotline ${contactConfig.hotline}`}
                 >
                   <PhoneCall className="w-4 h-4" />
