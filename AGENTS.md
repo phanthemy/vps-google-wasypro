@@ -40,7 +40,7 @@ SSH VPS → Edit → Test → Commit → Push GitHub
 
 ```
 1. Đọc AGENTS.md (file này)
-2. Đọc BUSINESS_RULES.md ⭐⭐⭐ (9 quy tắc bất biến — VI PHẠM = BUG PRODUCTION)
+2. Đọc BUSINESS_RULES.md ⭐⭐⭐ (10 quy tắc bất biến gồm Tiêu Chuẩn Kỹ Thuật Popup/Modal — VI PHẠM = BUG PRODUCTION)
 3. Đọc .agents/rules/project-workflow.md (AI Engineering Playbook)
 4. Đọc SYSTEM_MAP.md ⭐⭐⭐ (Bản đồ định vị GPS: Port, App, API, State — Tuân thủ Drift Check)
 5. Xác định Source of Truth → Nếu VPS → KHÔNG sửa local
@@ -63,6 +63,7 @@ SSH VPS → Edit → Test → Commit → Push GitHub
 >    `SYSTEM_MAP.md` chỉ được sử dụng để định vị (technical navigation / GPS index). Trước mọi thay đổi code, Agent **BẮT BUỘC** mở và xác minh source thực tế tương ứng. Nếu `SYSTEM_MAP.md` và source không khớp, phải đánh dấu `SYSTEM_MAP_DRIFT`, dừng implementation, xác định nguồn sự thật (Source code, Git hay Production) và cập nhật map trước khi tiếp tục. Không được coi `SYSTEM_MAP.md` là source of truth.
 >    *(Tuyệt đối KHÔNG tuyên bố rằng `SYSTEM_MAP.md` loại bỏ hoàn toàn bug; nó chỉ giảm mạnh nguy cơ sửa nhầm app/file nhưng không đảm bảo tuyệt đối)*.
 > 4. Nếu thêm flow mới → tìm guard/check trong flow cũ → port sang flow mới
+5. Mọi popup/modal mới hoặc sửa đổi BẮT BUỘC tuân thủ Quy chuẩn Kỹ thuật 3 tầng tại SYSTEM_MAP.md Section 11 và BUSINESS_RULES.md Rule 10 (Nút [X] Sticky Header min 36px, max-h-[90dvh], tuyệt đối chống trôi và chống xê dịch)
 > 5. KHÔNG xóa/sửa tính năng cũ nếu chưa hiểu tại sao nó tồn tại
 
 > **Lưu ý**: `project-workflow.md` định nghĩa đầy đủ quy trình Multi-Agent,

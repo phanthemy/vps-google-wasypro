@@ -63,3 +63,16 @@
 5. [ ] Nếu thêm flow mới → tìm guard/check trong flow cũ → port sang
 6. [ ] Nếu xóa/sửa code cũ → `git show <commit>` hiểu tại sao nó tồn tại
 7. [ ] Test trên VPS trước khi báo xong
+
+## 10. TIÊU CHUẨN KỸ THUẬT CHO POPUP / MODAL / DIALOG ⭐⭐⭐⭐⭐
+- **Áp dụng**: Tất cả các modal popup hiện tại và các popup tạo mới sau này.
+- **Quy tắc Bất Biến 1 (Nút X)**: Nút [X] BẮT BUỘC nằm trong Sticky Header (sticky top-0 z-50), KHÔNG dùng position: fixed, KHÔNG để nút X trôi nổi trong body cuộn. Kích thước chạm tối thiểu $\ge 36\text{px} \times 36\text{px}$.
+- **Quy tắc Bất Biến 2 (Cấu trúc 3 tầng)**:
+  1. Sticky Header: Tiêu đề + Nút X (luôn hiển thị 100%, không bị cuộn trôi).
+  2. Scrollable Body: overflow-y-auto max-h-[90dvh] flex-1 overscroll-contain (chỉ cuộn riêng nội dung này).
+  3. Sticky Footer: Chứa nút Lưu/Hành động (nếu có).
+- **Quy tắc Bất Biến 3 (Chống xê dịch & Tràn màn hình)**:
+  - Chiều rộng: w-full max-w-[calc(100vw-24px)] hoặc max-w-lg kèm padding mép an toàn p-3 sm:p-4.
+  - Căn giữa ổn định: my-auto trong overlay flex items-center justify-center.
+  - Tuyệt đối không sinh thanh cuộn ngang overflow-x.
+- **Vi phạm = BUG PRODUCTION**.

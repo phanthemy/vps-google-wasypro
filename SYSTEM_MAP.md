@@ -546,3 +546,60 @@ cd /var/www/wasypro ; npx vite build ; cd /var/www/wasypro-ctv ; npx vite build 
 # Git commit
 cd /var/www/wasypro ; git add -A ; git commit -m 'message' ; git push origin main
 ```
+
+
+---
+
+## 11. QUY CHUẨN KỸ THUẬT GIAO DIỆN MODAL / POPUP TOÀN HỆ THỐNG ⭐⭐⭐⭐⭐
+
+> ⚠️ **BẢO VỆ VĨNH VIỄN — ÁP DỤNG CHO MỌI POPUP / MODAL / DIALOG HIỆN TẠI VÀ TƯƠNG LAI**  
+> Khi tạo mới hoặc sửa đổi bất kỳ modal nào, Agent BẮT BUỘC tuân thủ khung kỹ thuật 3 tầng chuẩn này:
+
+### 11.1 Cấu Trúc Khung 3 Tầng Chuẩn (Fixed 3-Tier Container)
+```tsx
+{/* 1. Backdrop Overlay (Căn giữa ổn định, có padding an toàn) */}
+<div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
+  {/* 2. Modal Card Frame (Khóa chiều cao max-h-[90dvh], flex-col) */}
+  <div className="bg-white rounded-2xl sm:rounded-3xl w-full max-w-[calc(100vw-24px)] sm:max-w-lg max-h-[90dvh] flex flex-col overflow-hidden my-auto shadow-2xl relative animate-in fade-in zoom-in duration-200">
+    
+    {/* TẦNG 1: STICKY HEADER (CỐ ĐỊNH 100%, KHÔNG CUỘN TRÔI) */}
+    <div className="sticky top-0 z-50 px-4 py-3 sm:px-6 sm:py-3.5 bg-white/95 backdrop-blur-md border-b border-gray-100 flex items-center justify-between shrink-0 shadow-2xs">
+      <div className="flex items-center gap-2.5 min-w-0 pr-2">
+        {/* Icon + Tiêu đề modal */}
+        <h3 className="font-bold text-base text-gray-800 truncate">Tiêu Đề Modal</h3>
+      </div>
+      {/* NÚT ĐÓNG [X] CHUẨN CÔNG THÁI HỌC (MIN 36x36px, BẤM DỄ, KHÔNG BAO GIỜ BỊ CHE) */}
+      <button
+        type="button"
+        onClick={onClose}
+        aria-label="Đóng"
+        className="w-9 h-9 min-w-[36px] min-h-[36px] rounded-full bg-gray-100 hover:bg-red-50 text-gray-600 hover:text-red-500 flex items-center justify-center transition-all cursor-pointer shrink-0"
+      >
+        <X className="w-5 h-5 stroke-[2.5]" />
+      </button>
+    </div>
+
+    {/* TẦNG 2: SCROLLABLE BODY (CHỈ CUỘN RIÊNG VÙNG NỘI DUNG NÀY) */}
+    <div className="p-4 sm:p-6 overflow-y-auto overscroll-contain flex-1">
+      {/* Toàn bộ nội dung form, trường nhập liệu, danh sách dữ liệu */}
+    </div>
+
+    {/* TẦNG 3: STICKY FOOTER (NẾU CÓ NÚT HÀNH ĐỘNG/LƯU) */}
+    <div className="sticky bottom-0 z-40 px-4 py-3 sm:px-6 sm:py-3 bg-gray-50/95 backdrop-blur-md border-t border-gray-100 flex items-center justify-end gap-3 shrink-0">
+      {/* Nút Hủy / Lưu / Xác nhận */}
+    </div>
+  </div>
+</div>
+```
+
+### 11.2 Điều Cấm Kỹ Thuật (Negative Constraints)
+1. ❌ **CẤM**: Không dùng `position: fixed` cho nút `[X]` (gây bay lệch tọa độ, vỡ viewport mobile, bị đè bởi tai thỏ / status bar).
+2. ❌ **CẤM**: Không đặt nút `[X]` trôi nổi `absolute` trong vùng body cuộn (khi cuộn form dài, nút X sẽ bị trôi mất).
+3. ❌ **CẤM**: Không dùng chiều cao cố định hoặc vượt quá màn hình (`h-[800px]`, `h-full`); Bắt buộc dùng `max-h-[90dvh]` kết hợp `flex flex-col` và `overscroll-contain`.
+4. ❌ **CẤM**: Không để chiều rộng dính sát mép (`w-full` không có margin/padding); Bắt buộc có padding an toàn `p-3 sm:p-4` và `max-w-[calc(100vw-24px)]`.
+
+### 11.3 Checklist Kiểm Thử Trước Khi Bàn Giao
+- [ ] Mở modal trên thiết bị di động (Mobile Viewport: 375x667 và 390x844).
+- [ ] Cuộn nội dung form xuống tận đáy: Nút `[X]` vẫn phải hiển thị cố định 100% ở góc trên bên phải và bấm đóng được ngay.
+- [ ] Không xuất hiện thanh cuộn ngang (`overflow-x`).
+- [ ] Nút `[X]` có vùng chạm tối thiểu $\ge 36\text{px} \times 36\text{px}$.
