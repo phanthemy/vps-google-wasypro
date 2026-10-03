@@ -43,21 +43,21 @@ export const MockupCommissions: React.FC<MockupCommissionsProps> = ({
             >
               <Coins className="w-6 h-6 stroke-[2.2]" />
             </div>
-            <span style={{ fontSize: '15px', fontWeight: 600, color: '#0F172A' }}>
+            <span style={{ fontSize: '16px', fontWeight: 600, color: '#0F172A' }}>
               Tổng hoa hồng
             </span>
           </div>
 
           <span 
             className="px-2.5 py-0.5 rounded-full font-bold"
-            style={{ background: '#F0F7FF', color: '#0072F5', fontSize: '12px' }}
+            style={{ background: '#F0F7FF', color: '#0072F5', fontSize: '13px' }}
           >
             {periodName}
           </span>
         </div>
 
-        {/* SECTION 16: Total commission 32px 700 #0072F5 */}
-        <div style={{ fontSize: '32px', fontWeight: 700, color: '#0072F5', lineHeight: 1.2, paddingTop: '4px' }}>
+        {/* SECTION 16: Total commission 33px 700 #0072F5 */}
+        <div style={{ fontSize: '33px', fontWeight: 700, color: '#0072F5', lineHeight: 1.2, paddingTop: '4px' }}>
           {totalCommission.toLocaleString('vi-VN')} đ
         </div>
 
@@ -69,7 +69,7 @@ export const MockupCommissions: React.FC<MockupCommissionsProps> = ({
             borderRadius: '14px',
             border: '1px solid #E2E8F0',
             color: '#0072F5',
-            fontSize: '14px',
+            fontSize: '15px',
             fontWeight: 600,
             background: '#FFFFFF'
           }}
@@ -90,18 +90,18 @@ export const MockupCommissions: React.FC<MockupCommissionsProps> = ({
         }}
         className="space-y-3"
       >
-        <h3 style={{ fontSize: '16px', fontWeight: 600, color: '#0F172A', paddingBottom: '4px' }}>
+        <h3 style={{ fontSize: '17px', fontWeight: 600, color: '#0F172A', paddingBottom: '4px' }}>
           Lịch sử hoa hồng gần đây
         </h3>
 
         <div className="divide-y divide-[#EEF2F6]">
           {history.map((item, idx) => (
             <div key={idx} className="flex items-center justify-between py-3">
-              <span style={{ fontSize: '15px', fontWeight: 500, color: '#475569', fontFamily: 'monospace' }}>
+              <span style={{ fontSize: '16px', fontWeight: 500, color: '#475569' }}>
                 {item.period}
               </span>
-              {/* SECTION 16: History positive values: #00B050, 14px, 600 */}
-              <span style={{ fontSize: '14px', fontWeight: 600, color: '#00B050', fontFamily: 'monospace' }}>
+              {/* SECTION 16: History positive values: #00B050, 15px, 600 */}
+              <span style={{ fontSize: '15px', fontWeight: 600, color: '#00B050' }}>
                 {item.amount}
               </span>
             </div>
@@ -116,7 +116,7 @@ export const MockupCommissions: React.FC<MockupCommissionsProps> = ({
             borderRadius: '14px',
             background: '#F0F7FF',
             color: '#0072F5',
-            fontSize: '14px',
+            fontSize: '15px',
             fontWeight: 600,
             marginTop: '8px'
           }}

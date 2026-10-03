@@ -1,12 +1,11 @@
 import React from 'react';
-import { ChevronLeft, Search, ShoppingCart, Menu } from 'lucide-react';
+import { ChevronLeft, Search, ShoppingCart } from 'lucide-react';
 
 interface MockupHeaderProps {
   title?: string;
   onBack?: () => void;
   onSearchClick?: () => void;
   onCartClick?: () => void;
-  onMenuClick?: () => void;
   cartCount?: number;
   showBack?: boolean;
 }
@@ -16,7 +15,6 @@ export const MockupHeader: React.FC<MockupHeaderProps> = ({
   onBack,
   onSearchClick,
   onCartClick,
-  onMenuClick,
   cartCount = 1,
   showBack = false,
 }) => {
@@ -35,7 +33,7 @@ export const MockupHeader: React.FC<MockupHeaderProps> = ({
             >
               <ChevronLeft className="w-6 h-6 stroke-[2.5]" />
             </button>
-            <h1 className="text-[17px] font-bold text-[#0F172A] leading-[1.3] truncate max-w-[200px]">
+            <h1 className="text-[18px] font-bold text-[#0F172A] leading-[1.3] truncate max-w-[200px]">
               {title}
             </h1>
           </div>
@@ -65,19 +63,13 @@ export const MockupHeader: React.FC<MockupHeaderProps> = ({
           >
             <ShoppingCart className="w-6 h-6 stroke-[2]" />
             {cartCount > 0 && (
-              <span className="absolute top-1.5 right-1.5 min-w-[16px] h-4 px-1 bg-[#ED4956] text-[#FFFFFF] text-[10px] font-bold rounded-full flex items-center justify-center">
+              <span className="absolute top-1.5 right-1.5 min-w-[16px] h-4 px-1 bg-[#ED4956] text-[#FFFFFF] text-[11px] font-bold rounded-full flex items-center justify-center">
                 {cartCount}
               </span>
             )}
           </button>
 
-          <button
-            onClick={onMenuClick}
-            className="w-11 h-11 rounded-full flex items-center justify-center text-[#334155] hover:bg-[#F8FAFC] active:scale-95 transition-all"
-            title="Menu"
-          >
-            <Menu className="w-6 h-6 stroke-[2]" />
-          </button>
+
         </div>
       </div>
     </header>

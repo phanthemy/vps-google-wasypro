@@ -299,7 +299,7 @@ export default function UnifiedAuthModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-5 overflow-y-auto">
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-5 overflow-y-auto overflow-x-hidden" style={{ WebkitOverflowScrolling: "touch", maxWidth: "100vw" }}>
       {/* Background Overlay with crystal aquatic splash atmosphere */}
       <div
         className="fixed inset-0 bg-[#07192f]/70 backdrop-blur-md transition-opacity"
@@ -308,7 +308,7 @@ export default function UnifiedAuthModal({
 
       {/* Main Registration Card */}
       <div
-        className="relative bg-white rounded-[32px] sm:rounded-[36px] shadow-[0_25px_70px_rgba(1,100,255,0.3)] border border-[#cbe4fe] w-full max-w-[430px] my-auto overflow-hidden p-5 sm:p-7 z-10 animate-in fade-in zoom-in-95 duration-200"
+        className="relative bg-white rounded-[32px] sm:rounded-[36px] shadow-[0_25px_70px_rgba(1,100,255,0.3)] border border-[#cbe4fe] w-full max-w-[min(430px,calc(100vw-24px))] my-auto overflow-hidden p-5 sm:p-7 z-10 animate-in fade-in zoom-in-95 duration-200"
         onClick={e => e.stopPropagation()}
       >
         {/* Subtle Close Button */}

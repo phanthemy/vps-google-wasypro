@@ -224,9 +224,20 @@ export const ProductQuickViewModal: React.FC<ProductQuickViewModalProps> = ({
                 {product.title}
               </h2>
 
-              <p className="text-[13px] sm:text-[14px] text-gray-600 mb-4 leading-relaxed">
-                {product.description}
-              </p>
+              <div className="text-[13px] sm:text-[14px] text-gray-600 mb-4 leading-relaxed">
+                {product.description?.split(/[.。](?=\s|[A-ZĐÀ-ɏ])/g)
+                  .filter(s => s?.trim())
+                  .reduce((acc: string[][], s: string, i: number) => {
+                    const groupIdx = Math.floor(i / 3);
+                    if (!acc[groupIdx]) acc[groupIdx] = [];
+                    acc[groupIdx].push(s.trim());
+                    return acc;
+                  }, [])
+                  .map((group: string[], idx: number) => (
+                    <p key={idx} className="mb-2">{group.join('. ')}.</p>
+                  ))
+                }
+              </div>
 
               {/* Pricing Box */}
               <div className="p-4 rounded-md bg-gray-50 border border-gray-200 mb-6 flex flex-wrap items-baseline justify-between gap-2">
@@ -323,7 +334,18 @@ export const ProductQuickViewModal: React.FC<ProductQuickViewModalProps> = ({
             <button className="text-[14px] font-bold text-gray-500 hover:text-gray-800 pb-2 -mb-[9px]">Đánh giá ({product.reviewsCount})</button>
           </div>
           <div className="text-[14px] text-gray-700 leading-relaxed prose max-w-none">
-            <p className="mb-4">{product.description}</p>
+            {product.description?.split(/[.。](?=\s|[A-ZĐÀ-ɏ])/g)
+              .filter((s: string) => s?.trim())
+              .reduce((acc: string[][], s: string, i: number) => {
+                const groupIdx = Math.floor(i / 3);
+                if (!acc[groupIdx]) acc[groupIdx] = [];
+                acc[groupIdx].push(s.trim());
+                return acc;
+              }, [])
+              .map((group: string[], idx: number) => (
+                <p key={idx} className="mb-3">{group.join('. ')}.</p>
+              ))
+            }
             <p>Sản phẩm ứng dụng Công nghệ Super Water King với quy trình xử lý 4 tầng gồm làm sạch nguồn nước, bổ sung Mg²⁺, Ca²⁺, K⁺, Na⁺, tạo môi trường ion kiềm cân bằng bằng công nghệ điện li và tạo Hydrogen hòa tan H₂, mang đến nguồn nước Hydrogen giàu ion kiềm sạch phục vụ nhiều nhu cầu sử dụng trong gia đình.</p>
           </div>
         </div>

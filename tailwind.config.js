@@ -45,8 +45,8 @@ export default {
         }
       },
       fontFamily: {
-        sans: ['Inter', 'Nunito Sans', 'Arial', 'Helvetica', 'sans-serif'],
-        heading: ['Outfit', 'Nunito Sans', 'sans-serif'],
+        sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Arial', 'sans-serif'],
+        heading: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Arial', 'sans-serif'],
       },
       boxShadow: {
         glass: '0 8px 32px 0 rgba(1, 120, 255, 0.10)',

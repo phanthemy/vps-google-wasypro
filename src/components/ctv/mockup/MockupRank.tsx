@@ -35,10 +35,10 @@ export const MockupRank: React.FC<MockupRankProps> = ({
             <Trophy className="w-7 h-7 stroke-[2.2]" />
           </div>
           <div>
-            <h2 style={{ fontSize: '20px', fontWeight: 700, color: '#7C3AED', lineHeight: 1.3 }}>
+            <h2 style={{ fontSize: '21px', fontWeight: 700, color: '#7C3AED', lineHeight: 1.3 }}>
               ĐẠI SỨ
             </h2>
-            <p style={{ fontSize: '14px', fontWeight: 400, color: '#475569', marginTop: '2px' }}>
+            <p style={{ fontSize: '15px', fontWeight: 400, color: '#475569', marginTop: '2px' }}>
               Tiến trình lên cấp Trưởng nhóm (Manager)
             </p>
           </div>
@@ -55,16 +55,16 @@ export const MockupRank: React.FC<MockupRankProps> = ({
                 style={{ background: '#0072F5', height: '8px', borderRadius: '999px', width: '20%' }} 
               />
             </div>
-            <span style={{ fontSize: '14px', fontWeight: 700, color: '#0F172A' }}>20%</span>
+            <span style={{ fontSize: '15px', fontWeight: 700, color: '#0F172A' }}>20%</span>
           </div>
         </div>
 
         {/* Condition note */}
         <div className="pt-2 border-t border-[#EEF2F6]">
-          <div style={{ fontSize: '15px', fontWeight: 700, color: '#0072F5' }}>
+          <div style={{ fontSize: '16px', fontWeight: 700, color: '#0072F5' }}>
             1 / 5 F1 Đại sứ
           </div>
-          <p style={{ fontSize: '13px', fontWeight: 400, color: '#94A3B8', marginTop: '2px', lineHeight: 1.4 }}>
+          <p style={{ fontSize: '14px', fontWeight: 400, color: '#94A3B8', marginTop: '2px', lineHeight: 1.4 }}>
             Cần đủ 5 thành viên F1 trực tiếp đạt chuẩn Đại sứ (có Business ID)
           </p>
         </div>
@@ -84,7 +84,7 @@ export const MockupRank: React.FC<MockupRankProps> = ({
       >
         <div className="flex items-center gap-3">
           <Users className="w-5 h-5 text-[#7C3AED] stroke-[2.2]" />
-          <span style={{ fontSize: '15px', fontWeight: 600, color: '#0F172A' }}>
+          <span style={{ fontSize: '16px', fontWeight: 600, color: '#0F172A' }}>
             Danh sách F1 hợp lệ (1)
           </span>
         </div>
@@ -92,7 +92,7 @@ export const MockupRank: React.FC<MockupRankProps> = ({
       </button>
 
       {/* ============================================================
-          SECTION 15: CP CARD (background #F0F7FF, border #D6E8FF, radius 20px, number 32px 700 #0052CC)
+          SECTION 15: CP CARD (background #F0F7FF, border #D6E8FF, radius 20px, number 33px 700 #0052CC)
           ============================================================ */}
       <div 
         style={{
@@ -106,29 +106,29 @@ export const MockupRank: React.FC<MockupRankProps> = ({
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <TrendingUp className="w-5 h-5 text-[#0052CC] stroke-[2.5]" />
-            <span style={{ fontSize: '13px', fontWeight: 700, color: '#0052CC', letterSpacing: '0.05em' }}>
+            <span style={{ fontSize: '14px', fontWeight: 700, color: '#0052CC', letterSpacing: '0.05em' }}>
               ĐIỂM TÍCH LŨY (CP)
             </span>
           </div>
           <span 
             className="px-2.5 py-0.5 rounded-full"
-            style={{ background: '#E0EEFF', color: '#0072F5', fontSize: '12px', fontWeight: 600 }}
+            style={{ background: '#E0EEFF', color: '#0072F5', fontSize: '13px', fontWeight: 600 }}
           >
             Xét chuẩn
           </span>
         </div>
 
-        <div style={{ fontSize: '32px', fontWeight: 700, color: '#0052CC', lineHeight: 1.2, paddingTop: '4px' }}>
-          {qp.toLocaleString('vi-VN')} <span style={{ fontSize: '20px', fontWeight: 600 }}>CP</span>
+        <div style={{ fontSize: '33px', fontWeight: 700, color: '#0052CC', lineHeight: 1.2, paddingTop: '4px' }}>
+          {qp.toLocaleString('vi-VN')} <span style={{ fontSize: '21px', fontWeight: 600 }}>CP</span>
         </div>
 
-        <p style={{ fontSize: '13px', fontWeight: 400, color: '#475569', paddingTop: '4px', lineHeight: 1.4 }}>
+        <p style={{ fontSize: '14px', fontWeight: 400, color: '#475569', paddingTop: '4px', lineHeight: 1.4 }}>
           Điểm chuẩn tích lũy từ các đơn hàng cá nhân trên hệ thống
         </p>
       </div>
 
       {/* ============================================================
-          SECTION 15: S POINT CARD (background #FAF5FF, border #EDE0FF, radius 20px, number 30px 700 #7C3AED)
+          SECTION 15: S POINT CARD (background #FAF5FF, border #EDE0FF, radius 20px, number 31px 700 #7C3AED)
           ============================================================ */}
       <div 
         style={{
@@ -140,12 +140,12 @@ export const MockupRank: React.FC<MockupRankProps> = ({
         className="space-y-2"
       >
         <div className="flex items-center justify-between">
-          <span style={{ fontSize: '15px', fontWeight: 700, color: '#7C3AED' }}>
+          <span style={{ fontSize: '16px', fontWeight: 700, color: '#7C3AED' }}>
             Điểm S tích lũy
           </span>
           <span 
             className="px-2.5 py-0.5 rounded-full"
-            style={{ background: '#FAF5FF', color: '#7C3AED', border: '1px solid #EDE0FF', fontSize: '12px', fontWeight: 600 }}
+            style={{ background: '#FAF5FF', color: '#7C3AED', border: '1px solid #EDE0FF', fontSize: '13px', fontWeight: 600 }}
           >
             1 điểm = 1.000đ
           </span>
@@ -153,18 +153,18 @@ export const MockupRank: React.FC<MockupRankProps> = ({
 
         <div className="flex items-end justify-between pt-1">
           <div>
-            <div style={{ fontSize: '30px', fontWeight: 700, color: '#7C3AED', lineHeight: 1 }}>
+            <div style={{ fontSize: '31px', fontWeight: 700, color: '#7C3AED', lineHeight: 1 }}>
               {sPoints.toLocaleString('vi-VN')}
             </div>
-            <div style={{ fontSize: '14px', fontWeight: 600, color: '#7C3AED', marginTop: '6px' }}>
+            <div style={{ fontSize: '15px', fontWeight: 600, color: '#7C3AED', marginTop: '6px' }}>
               ≈ {(sPoints * 1000).toLocaleString('vi-VN')}đ
             </div>
           </div>
 
           <div className="text-right">
-            <div style={{ fontSize: '13px', fontWeight: 400, color: '#94A3B8' }}>Số máy đã mua</div>
-            <div style={{ fontSize: '24px', fontWeight: 700, color: '#0F172A', marginTop: '2px' }}>
-              0 <span style={{ fontSize: '14px', fontWeight: 400, color: '#94A3B8' }}>máy</span>
+            <div style={{ fontSize: '14px', fontWeight: 400, color: '#94A3B8' }}>Số máy đã mua</div>
+            <div style={{ fontSize: '25px', fontWeight: 700, color: '#0F172A', marginTop: '2px' }}>
+              0 <span style={{ fontSize: '15px', fontWeight: 400, color: '#94A3B8' }}>máy</span>
             </div>
           </div>
         </div>

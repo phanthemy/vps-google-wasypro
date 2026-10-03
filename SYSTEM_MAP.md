@@ -1,6 +1,6 @@
 # SYSTEM_MAP.md — Bản Đồ Kỹ Thuật WasyPro
 > ⚠️ **BẢN ĐỒ ĐỊNH VỊ KỸ THUẬT (GPS INDEX) — KHÔNG PHẢI SOURCE OF TRUTH**
-> - **Last verified**: 2026-10-02 14:00
+> - **Last verified**: 2026-10-03 09:45
 > - **Verified against**: Git HEAD `ca20a6d` | PM2: `wasypro` (5005), `wasypro-ctv` (5175), `happylife-backend` (3011) | Nginx: `wasypro.com`, `app.wasypro.com`
 > - **Source verification status**: PASS
 
@@ -394,6 +394,139 @@ name, slug, price, salePrice, points, categorySlug, images, specs
 ```
 
 ---
+
+
+---
+
+## 10. TEST.WASYPRO.COM — GOOGLE CLOUD VPS (STAGING)
+
+> ⚠️ **TUYỆT ĐỐI KHÔNG ĐỤNG CODE CỦA WASYPRO.COM KHI SỬA TEST.WASYPRO.COM**
+
+### 10.1 Thông tin kết nối
+
+| Thuộc tính | Giá trị |
+|---|---|
+| **IP** | `34.173.189.105` |
+| **SSH User** | `mapgovn` |
+| **SSH Key** | `C:\Users\editor02\.ssh\vps_google` |
+| **Sudo Password** | `Baoan1985&` |
+| **Domain** | `test.wasypro.com` |
+| **App Directory** | `/var/www/wasypro` |
+| **Database** | SQLite (`/var/www/wasypro/server/dev.db`) |
+
+### 10.2 PM2 Processes (Google VPS)
+
+| PM2 ID | Tên | Port | Thư mục | Vai trò |
+|---|---|---|---|---|
+| 3 | `happylife-backend` | 3011 | `/var/www/wasypro/server` | Backend API |
+| 1 | `wasypro` | 5005 | `/var/www/wasypro` | Landing + CTV Portal |
+| 2 | `wasypro-ctv` | 5175 | `/var/www/wasypro-ctv` | CTV Portal (app riêng) |
+
+### 10.3 Kiến trúc CTV Portal trên test.wasypro.com
+
+CTV Portal phục vụ tại `https://test.wasypro.com/ctv` bởi app `wasypro` (PM2 id 1, port 5005).
+
+```
+src/
+├── App.tsx                      ← Root component, route /ctv → CTVPortalContainer
+├── index.css                    ← Global CSS (Inter font, overflow-x: hidden, Tailwind)
+├── components/
+│   ├── MobileLandingView.tsx     ← Trang chủ mobile (banner, video YouTube, sản phẩm, login button)
+│   ├── auth/
+│   │   └── UnifiedAuthModal.tsx  ← Login/Register modal (z-[9999])
+│   ├── ctv/
+│   │   ├── CTVPortalContainer.tsx  ← Container chính CTV (max-w-md, bottom nav, tabs)
+│   │   ├── mockup/               ← Mockup components (design token chuẩn)
+│   │   │   ├── MockupBottomNav.tsx  ← 5 tabs: Trang chủ, Đơn hàng, Hoa hồng, Đội nhóm, Thêm
+│   │   │   ├── MockupCommissions.tsx
+│   │   │   ├── MockupDashboard.tsx  ← Profile card, stats grid, promo banner
+│   │   │   ├── MockupDrawer.tsx     ← Slide-out menu (320px, right)
+│   │   │   ├── MockupHeader.tsx     ← Sticky header (64px main, 56px sub)
+│   │   │   ├── MockupMore.tsx       ← Menu "Thêm" (Sơ đồ, KH, Bảng giá, TK, Đổi MK)
+│   │   │   ├── MockupOrders.tsx     ← Tạo/xem đơn hàng
+│   │   │   └── MockupRank.tsx       ← Cấp bậc & điểm
+│   │   ├── views/                 ← Các subpage view (JSX)
+│   │   │   ├── CustomersView.jsx    ← ⭐ Khách hàng (card-based, mobile-first, 2026-10-03)
+│   │   │   ├── CommissionHistoryView.jsx
+│   │   │   ├── CreateOrderModal.jsx ← Modal tạo đơn (62KB)
+│   │   │   ├── DashboardView.jsx    ← Dashboard thống kê
+│   │   │   ├── LoginView.jsx        ← Login page CTV
+│   │   │   ├── MoreMenuView.jsx
+│   │   │   ├── NetworkView.jsx      ← Sơ đồ tuyến dưới
+│   │   │   ├── OrdersView.jsx       ← Danh sách đơn hàng
+│   │   │   ├── PriceListView.jsx    ← Bảng giá & chiết khấu
+│   │   │   ├── RankView.jsx         ← Chi tiết cấp bậc (25KB)
+│   │   │   ├── SettingsView.jsx     ← Thông tin tài khoản
+│   │   │   └── WholesaleOrdersView.jsx ← Đơn NPP
+│   │   └── components/
+│   │       ├── common/
+│   │       │   └── PageHeader.jsx   ← Header chung subpage (cần cập nhật light theme)
+│   │       ├── modals/
+│   │       │   └── ChangePasswordModal.jsx
+│   │       └── network/
+│   └── admin/                    ← Admin panel components (22 files)
+```
+
+### 10.4 Design System (test.wasypro.com/ctv)
+
+| Token | Giá trị | Dùng cho |
+|---|---|---|
+| Primary Blue | `#0072F5` | Active nav, buttons, CTA, profile card, links |
+| Primary Dark | `#0052CC` | Dark button variant |
+| Text Primary | `#0F172A` | Tiêu đề, text chính |
+| Text Secondary | `#475569` | Body text |
+| Text Muted | `#94A3B8` | Label, helper text |
+| Page BG | `#F8FAFC` | Nền trang |
+| Card BG | `#FFFFFF` | Nền card |
+| Border | `#EEF2F6` | Viền card, divider |
+| Success | `#00B050` | Nút xanh lá |
+| Danger | `#ED4956` | Nút đỏ |
+| Font | `Inter` | Fallback: `-apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif` |
+| Card radius | `18px` | Border-radius card chính |
+| Button radius | `14px` | Border-radius nút |
+| Button height | `48px` | Chiều cao nút chính |
+| Max width | `max-w-md` (448px) | Container CTV |
+| Page padding | `px-4` (16px) | Padding ngang |
+
+### 10.5 Responsive Fixes Applied (2026-10-03)
+
+| Layer | File | Fix |
+|---|---|---|
+| HTML `<meta>` | `index.html` | `viewport-fit=cover, maximum-scale=5` |
+| Global CSS | `src/index.css` | `html, body { overflow-x: hidden; width: 100%; -webkit-text-size-adjust: 100% }` |
+| App root | `src/App.tsx` | `overflow-x-hidden`, `maxWidth: 100%, width: 100%` |
+| CTV container | `CTVPortalContainer.tsx` | `overflow-x-hidden`, inline `overflowX: hidden, maxWidth: 100%` |
+| CTV `<main>` | `CTVPortalContainer.tsx` | `overflow-x-hidden w-full` |
+| CustomersView | `CustomersView.jsx` | Thay `<table>` → card-based layout mobile-first |
+
+### 10.6 Build & Deploy (Google VPS)
+
+```powershell
+$KEY = "C:\Users\editor02\.ssh\vps_google"
+
+# SSH vào Google VPS
+ssh -o StrictHostKeyChecking=no -i $KEY mapgovn@34.173.189.105
+
+# Upload file
+scp -o StrictHostKeyChecking=no -i $KEY <local_file> mapgovn@34.173.189.105:/var/www/wasypro/<path>
+
+# Build + restart (trên VPS)
+cd /var/www/wasypro && npx vite build
+sudo -u mapsgo_vn pm2 restart 1    # wasypro frontend
+sudo -u mapsgo_vn pm2 restart 3    # backend
+
+# Restart CTV app riêng
+sudo -u mapsgo_vn pm2 restart 2    # wasypro-ctv
+```
+
+### 10.7 Tài khoản Test
+
+| Tài khoản | SĐT | Mật khẩu | Role | User ID |
+|---|---|---|---|---|
+| CTV mặc định | `0937353535` | `Matkhau@123` | ctv | U1001 |
+| Admin chính | `0968616263` | (xem admin panel) | admin | - |
+| Reset hệ thống | `0999999999` | (reserved) | admin | - |
+
 
 ## 9. REBUILD COMMANDS
 

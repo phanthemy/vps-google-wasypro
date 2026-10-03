@@ -20,6 +20,7 @@ const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '24h';
 const prisma = new PrismaClient();
 const znsService = require('./services/znsService');
 const app = express();
+
 const PORT = process.env.PORT || 3011;
 
 // ENVIRONMENT-BASED CORS CONFIGURATION (Strict Production Whitelist vs Dev)
@@ -257,6 +258,153 @@ const authenticateToken = async (req, res, next) => {
     return res.status(401).json({ success: false, message: 'Mã xác thực không hợp lệ.', code: 'INVALID_TOKEN' });
   }
 };
+
+
+// ═══════════════════════════════════════════════════
+// HỆ THỐNG ĐẠI LÝ (Dealer Network) API
+// ═══════════════════════════════════════════════════
+
+// GET /api/dealers — Public: danh sách đại lý
+app.get('/api/dealers', async (req, res) => {
+  try {
+    const { province, type, search } = req.query;
+    const where = { isActive: true };
+    if (province) where.province = province;
+    if (type) where.type = type;
+    
+    let dealers = await prisma.dealer.findMany({
+      where,
+      orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
+    });
+    
+    if (search) {
+      const q = search.toLowerCase();
+      dealers = dealers.filter(d => 
+        d.name.toLowerCase().includes(q) || 
+        d.address.toLowerCase().includes(q) ||
+        (d.district || '').toLowerCase().includes(q)
+      );
+    }
+    
+    // Get unique provinces for filter dropdown
+    const allDealers = await prisma.dealer.findMany({
+      where: { isActive: true },
+      select: { province: true },
+      distinct: ['province'],
+      orderBy: { province: 'asc' },
+    });
+    const provinces = allDealers.map(d => d.province);
+    
+    res.json({ dealers, provinces });
+  } catch (err) {
+    console.error('GET /api/dealers error:', err);
+    res.status(500).json({ error: 'Lỗi tải danh sách đại lý' });
+  }
+});
+
+// GET /api/dealers/:id — Public: chi tiết đại lý
+app.get('/api/dealers/:id', async (req, res) => {
+  try {
+    const dealer = await prisma.dealer.findUnique({ where: { id: req.params.id } });
+    if (!dealer) return res.status(404).json({ error: 'Không tìm thấy đại lý' });
+    res.json(dealer);
+  } catch (err) {
+    res.status(500).json({ error: 'Lỗi tải chi tiết đại lý' });
+  }
+});
+
+// POST /api/admin/dealers — Admin: thêm đại lý
+app.post('/api/admin/dealers', authenticateToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin' && req.user.role !== 'accountant') {
+      return res.status(403).json({ error: 'Không có quyền' });
+    }
+    const { name, code, phone, email, address, province, district, latitude, longitude, openHours, imageUrl, type, description, sortOrder } = req.body;
+    if (!name || !address || !province) {
+      return res.status(400).json({ error: 'Tên, địa chỉ và tỉnh/thành là bắt buộc' });
+    }
+    const dealer = await prisma.dealer.create({
+      data: {
+        name, code: code || null, phone: phone || null, email: email || null,
+        address, province, district: district || null,
+        latitude: latitude ? parseFloat(latitude) : null,
+        longitude: longitude ? parseFloat(longitude) : null,
+        openHours: openHours || null, imageUrl: imageUrl || null,
+        type: type || 'dealer', description: description || null,
+        sortOrder: sortOrder ? parseInt(sortOrder) : 0,
+      }
+    });
+    res.json(dealer);
+  } catch (err) {
+    console.error('POST /api/admin/dealers error:', err);
+    res.status(500).json({ error: 'Lỗi tạo đại lý' });
+  }
+});
+
+// PUT /api/admin/dealers/:id — Admin: sửa đại lý
+app.put('/api/admin/dealers/:id', authenticateToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin' && req.user.role !== 'accountant') {
+      return res.status(403).json({ error: 'Không có quyền' });
+    }
+    const { name, code, phone, email, address, province, district, latitude, longitude, openHours, imageUrl, type, description, sortOrder, isActive } = req.body;
+    const dealer = await prisma.dealer.update({
+      where: { id: req.params.id },
+      data: {
+        ...(name !== undefined && { name }),
+        ...(code !== undefined && { code: code || null }),
+        ...(phone !== undefined && { phone: phone || null }),
+        ...(email !== undefined && { email: email || null }),
+        ...(address !== undefined && { address }),
+        ...(province !== undefined && { province }),
+        ...(district !== undefined && { district: district || null }),
+        ...(latitude !== undefined && { latitude: latitude ? parseFloat(latitude) : null }),
+        ...(longitude !== undefined && { longitude: longitude ? parseFloat(longitude) : null }),
+        ...(openHours !== undefined && { openHours: openHours || null }),
+        ...(imageUrl !== undefined && { imageUrl: imageUrl || null }),
+        ...(type !== undefined && { type }),
+        ...(description !== undefined && { description: description || null }),
+        ...(sortOrder !== undefined && { sortOrder: parseInt(sortOrder) || 0 }),
+        ...(isActive !== undefined && { isActive }),
+      }
+    });
+    res.json(dealer);
+  } catch (err) {
+    console.error('PUT /api/admin/dealers error:', err);
+    res.status(500).json({ error: 'Lỗi cập nhật đại lý' });
+  }
+});
+
+// DELETE /api/admin/dealers/:id — Admin: xóa đại lý
+app.delete('/api/admin/dealers/:id', authenticateToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin' && req.user.role !== 'accountant') {
+      return res.status(403).json({ error: 'Không có quyền' });
+    }
+    await prisma.dealer.delete({ where: { id: req.params.id } });
+    res.json({ success: true });
+  } catch (err) {
+    console.error('DELETE /api/admin/dealers error:', err);
+    res.status(500).json({ error: 'Lỗi xóa đại lý' });
+  }
+});
+
+// GET /api/admin/dealers — Admin: tất cả đại lý (kể cả inactive)
+app.get('/api/admin/dealers', authenticateToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin' && req.user.role !== 'accountant') {
+      return res.status(403).json({ error: 'Không có quyền' });
+    }
+    const dealers = await prisma.dealer.findMany({
+      orderBy: [{ sortOrder: 'asc' }, { createdAt: 'desc' }],
+    });
+    res.json(dealers);
+  } catch (err) {
+    res.status(500).json({ error: 'Lỗi tải danh sách đại lý' });
+  }
+});
+
+
 
 const requireRole = (allowedRoles) => {
   return (req, res, next) => {

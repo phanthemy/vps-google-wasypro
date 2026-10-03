@@ -27,6 +27,7 @@ import { AdminNews } from './components/admin/AdminNews';
 import AdminUsers from './components/admin/AdminUsers';
 import AdminPolicyConfig from './components/admin/AdminPolicyConfig';
 import AdminSystemView from './components/admin/AdminSystemView';
+import { AdminDealerManagement } from './components/admin/AdminDealerManagement';
 import AdminPeriods from './components/admin/AdminPeriods';
 import AdminNppPackages from './components/admin/AdminNppPackages';
 import AdminNppManagement from './components/admin/AdminNppManagement';
@@ -36,6 +37,7 @@ import AdminMembersView from './components/admin/AdminMembersView';
 
 // CTV & Unified Auth Integrations
 import { CTVPortalContainer } from './components/ctv/CTVPortalContainer';
+import { MobileLandingView } from './components/MobileLandingView';
 import UnifiedAuthModal from './components/auth/UnifiedAuthModal';
 import { useUnifiedAuth, UserSession } from './hooks/useUnifiedAuth';
 import { useReferralAttribution } from './hooks/useReferralAttribution';
@@ -343,6 +345,7 @@ export const App: React.FC = () => {
             {adminActiveTab === 'policy' && <AdminPolicyConfig />}
             {adminActiveTab === 'npp-packages' && <AdminNppPackages />}
             {adminActiveTab === 'npp-management' && <AdminNppManagement />}
+            {adminActiveTab === 'dealers' && <AdminDealerManagement />}
             {adminActiveTab === 'system' && <AdminSystemView />}
             {activeSection === 'order-lookup' && <OrderLookup />}
       </main>
@@ -353,7 +356,7 @@ export const App: React.FC = () => {
 
   // Render Unified Client Website View
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-800 font-sans relative selection:bg-ocean-500 selection:text-white">
+    <div className="min-h-screen bg-slate-50 text-slate-800 font-sans relative selection:bg-ocean-500 selection:text-white " style={{ width: "100%" }}>
       {/* Toast Alert Notification */}
       {toastMessage && (
         <div className="fixed top-20 right-4 sm:right-6 z-50 max-w-md bg-slate-900 text-white rounded-2xl p-4 shadow-2xl border border-cyan-400/40 flex items-start gap-3 animate-in fade-in slide-in-from-top-4 duration-300">
@@ -373,24 +376,26 @@ export const App: React.FC = () => {
         </div>
       )}
 
-      {/* Main Unified Header (Hidden on CTV Portal to avoid duplicate headers) */}
+      {/* Main Unified Header (Hidden on CTV Portal and Mobile Landing Page) */}
       {activeSection !== 'ctv' && (
-        <Header
-        activeSection={activeSection}
-        onNavigate={handleNavigate}
-        onOpenWarranty={handleOpenWarranty}
-        onOpenContact={() => handleOpenContact(null)}
-        onOpenAdmin={handleOpenAdminPortal}
-        onOpenAuth={handleOpenAuthModal}
-        onLogout={handleLogout}
-        user={user}
-        cartItemCount={totalItems}
-        onCartClick={() => setIsCartOpen(true)}
-      />
+        <div className="hidden md:block">
+          <Header
+            activeSection={activeSection}
+            onNavigate={handleNavigate}
+            onOpenWarranty={handleOpenWarranty}
+            onOpenContact={() => handleOpenContact(null)}
+            onOpenAdmin={handleOpenAdminPortal}
+            onOpenAuth={handleOpenAuthModal}
+            onLogout={handleLogout}
+            user={user}
+            cartItemCount={totalItems}
+            onCartClick={() => setIsCartOpen(true)}
+          />
+        </div>
       )}
 
       {/* Main Container Content */}
-      <main className={activeSection === 'ctv' ? 'pt-0' : 'pt-28 sm:pt-32'}>
+      <main className={activeSection === 'ctv' ? 'pt-0' : 'pt-0 md:pt-28 sm:pt-32'}>
         {activeSection === 'my-orders' && user ? (
           <MyOrdersView
             user={user}
@@ -471,39 +476,66 @@ export const App: React.FC = () => {
         ) : (
           /* Landing Page Sections */
           <>
-            <Hero
-              onExploreClick={() => handleNavigate('products')}
-              onContactClick={() => handleOpenContact(null)}
-            />
-            <ProductSection
-              onOrderProduct={(product) => {
-                // CTV with rank → redirect to CTV Portal via ContactModal
-                if (user && user.isSystemParticipant && user.rank && ['AMBASSADOR','MANAGER','DIRECTOR'].includes((user.rank || '').toUpperCase())) {
-                  handleOpenContact(product);
-                  return;
-                }
-                addItem({ productId: product.id, title: product.title, image: product.image, price: product.price }); setIsCartOpen(true);
-              }}
-              onCallHotline={handleCallHotline}
-            />
-            <HydrogenBenefits />
-            <SocialProof />
-            <WarrantyLookupSection />
-            <NewsSection />
-            <FaqSection />
+            {/* Mobile Landing View: 100% Matching ChatGPT Mockup Layout */}
+            <div className="block md:hidden">
+              <MobileLandingView
+                onOrderProduct={(product) => {
+                  if (user && user.isSystemParticipant && user.rank && ['AMBASSADOR','MANAGER','DIRECTOR'].includes((user.rank || '').toUpperCase())) {
+                    handleOpenContact(product);
+                    return;
+                  }
+                  addItem({ productId: product.id, title: product.title, image: product.image, price: product.price });
+                  setIsCartOpen(true);
+                }}
+                onCallHotline={handleCallHotline}
+                onOpenWarranty={handleOpenWarranty}
+                onOpenContact={(product) => handleOpenContact(product || null)}
+                onOpenAuth={handleOpenAuthModal}
+                onCartClick={() => setIsCartOpen(true)}
+                cartItemCount={totalItems}
+                user={user}
+                onNavigate={handleNavigate}
+              />
+            </div>
+
+            {/* Desktop Landing View */}
+            <div className="hidden md:block">
+              <Hero
+                onExploreClick={() => handleNavigate('products')}
+                onContactClick={() => handleOpenContact(null)}
+              />
+              <ProductSection
+                onOrderProduct={(product) => {
+                  // CTV with rank → redirect to CTV Portal via ContactModal
+                  if (user && user.isSystemParticipant && user.rank && ['AMBASSADOR','MANAGER','DIRECTOR'].includes((user.rank || '').toUpperCase())) {
+                    handleOpenContact(product);
+                    return;
+                  }
+                  addItem({ productId: product.id, title: product.title, image: product.image, price: product.price }); setIsCartOpen(true);
+                }}
+                onCallHotline={handleCallHotline}
+              />
+              <HydrogenBenefits />
+              <SocialProof />
+              <WarrantyLookupSection />
+              <NewsSection />
+              <FaqSection />
+            </div>
           </>
         )}
         {activeSection === 'order-lookup' && <OrderLookup />}
       </main>
 
-      {/* Main Unified Footer */}
-      <Footer
-        onNavigate={handleNavigate}
-        onOpenWarranty={handleOpenWarranty}
-        onOpenContact={() => handleOpenContact(null)}
-        onOpenAdmin={handleOpenAdminPortal}
-        onSuccessToast={showToast}
-      />
+      {/* Main Unified Footer (Desktop only - MobileLandingView has its own mobile footer) */}
+      <div className="hidden md:block">
+        <Footer
+          onNavigate={handleNavigate}
+          onOpenWarranty={handleOpenWarranty}
+          onOpenContact={() => handleOpenContact(null)}
+          onOpenAdmin={handleOpenAdminPortal}
+          onSuccessToast={showToast}
+        />
+      </div>
 
       {/* Contact & Consultation Drawer Modal */}
       <ContactModal
@@ -533,9 +565,9 @@ export const App: React.FC = () => {
         onSuccessLogin={handleSuccessAdminLogin}
       />
 
-      {/* Sticky Floating Action Buttons (Right Bottom - Hidden on CTV Portal) */}
+      {/* Sticky Floating Action Buttons (Desktop Only - Right Bottom - Hidden on CTV Portal) */}
       {activeSection !== 'ctv' && (
-        <div className="fixed bottom-6 right-6 z-40 flex flex-col gap-3">
+        <div className="hidden md:flex fixed bottom-6 right-6 z-40 flex-col gap-3">
         <button
           onClick={handleCallHotline}
           className="w-13 h-13 sm:w-14 sm:h-14 rounded-full bg-gradient-to-r from-amber-500 to-orange-500 text-white flex items-center justify-center shadow-lg hover:shadow-xl hover:scale-110 transition-all duration-300 group"
@@ -560,11 +592,11 @@ export const App: React.FC = () => {
       </div>
       )}
 
-      {/* Scroll to Top Button */}
+      {/* Scroll to Top Button (Desktop Only) */}
       {showScrollTop && (
         <button
           onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-          className="fixed bottom-6 left-6 z-40 w-12 h-12 rounded-full bg-primary-darker text-white flex items-center justify-center shadow-lg hover:shadow-xl hover:bg-primary-dark hover:scale-110 transition-all duration-300"
+          className="hidden md:flex fixed bottom-6 left-6 z-40 w-12 h-12 rounded-full bg-primary-darker text-white items-center justify-center shadow-lg hover:shadow-xl hover:bg-primary-dark hover:scale-110 transition-all duration-300"
           title="Lên đầu trang"
         >
           <ArrowUp className="w-5 h-5" />

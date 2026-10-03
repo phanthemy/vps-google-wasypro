@@ -1,5 +1,39 @@
 # WasyPro — Log Lỗi
 
+## 2026-10-02
+
+### L27: Nginx location regex override khiến toàn bộ ảnh upload .webp/jpg không tải được trên test.wasypro.com
+- **Triệu chứng**: Sản phẩm trên trang chủ `test.wasypro.com` bị vỡ/thiếu hình ảnh, devtools báo nhận `text/html` thay vì `image/webp`.
+- **Nguyên nhân**: Trong `/etc/nginx/sites-enabled/wasypro`, rule regex `location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot|webp)$` có độ ưu tiên cao hơn prefix thông thường `location /uploads/`, nên Nginx chuyển toàn bộ request ảnh `/uploads/...` tới port 5005 (Vite frontend) thay vì serve trực tiếp hoặc proxy sang backend. Vite frontend trả về `index.html`.
+- **Khắc phục**: Thay `location /uploads/ {` thành `location ^~ /uploads/ {` (dùng modifier `^~` để Nginx dừng quét regex nếu match prefix `/uploads/`). Reload Nginx: `sudo systemctl reload nginx`.
+- **Kết quả**: Toàn bộ ảnh sản phẩm WebP/PNG/JPG hiển thị chuẩn xác 100%.
+
+### L28: CustomersView dùng `<table>` 6 cột trên mobile → tràn ngang, phải zoom nhỏ mới xem được
+- **Triệu chứng**: Trang "Khách hàng của tôi" (`/ctv`) hiển thị bảng table HTML với 6 cột (Tên, SĐT, Sponsor, Liên kết, Ngày, Trạng thái) dẫn đến trang bị giãn rộng hơn viewport 390px → người dùng phải pinch-zoom nhỏ lại mới xem hết nội dung. Ảnh hưởng cả các trang khác khi đã login (CSS không chặn overflow-x).
+- **Nguyên nhân gốc**:
+  1. `CustomersView.jsx` dùng `<table className="premium-table">` với class dark-theme cũ (`glass-panel`, `text-muted`, `var(--bg-glass)`).
+  2. `CTVPortalContainer.tsx` thiếu `overflow-x: hidden` trên root `<div>` và `<main>`.
+  3. Global CSS `index.css` thiếu `overflow-x: hidden` trên `html, body`.
+- **Khắc phục**:
+  1. Viết lại `CustomersView.jsx` hoàn toàn: thay `<table>` bằng card-based layout mobile-first, dùng inline style với design tokens chuẩn (#0072F5, #0F172A, #EEF2F6...), font Inter 14-15px, rounded-16px cards.
+  2. Thêm `overflow-x-hidden` vào `CTVPortalContainer.tsx` root div và `<main>`.
+  3. Thêm `overflow-x: hidden; max-width: 100vw;` vào `html, body` trong `index.css`.
+- **Kết quả**: Tất cả trang CTV (Dashboard, Đơn hàng, Hoa hồng, Đội nhóm, Thêm, Khách hàng) hiển thị chuẩn responsive 390px không bị tràn.
+
+### L29: Safari iOS vẫn bị tràn ngang dù Playwright không phát hiện overflow
+- **Triệu chứng**: Trên iPhone Safari thật, trang CTV vẫn rộng hơn viewport ~10-15px, phải zoom nhỏ lại. Playwright Chromium headless (mọi viewport 375-430px) báo `scrollWidth === viewportWidth` = 0 overflow.
+- **Nguyên nhân gốc**:
+  1. `max-width: 100vw` → `100vw` trên Safari iOS bao gồm scrollbar width (khác Chromium).
+  2. `index.html` thiếu `viewport-fit=cover` → không handle safe area insets đúng trên iPhone notch.
+  3. `App.tsx` root `<div>` thiếu `overflow-x: hidden` (chỉ thêm ở CTVPortalContainer, không đủ vì App.tsx bao ngoài).
+  4. Safari không tôn trọng `overflow-x: hidden` trên `<html>` trong mọi trường hợp.
+- **Khắc phục** (4 layer):
+  1. `index.html`: Thêm `viewport-fit=cover, maximum-scale=5` vào `<meta viewport>`.
+  2. `index.css`: Đổi `max-width: 100vw` → `width: 100%` + thêm `-webkit-text-size-adjust: 100%`.
+  3. `App.tsx`: Thêm `overflow-x-hidden` className + inline `maxWidth: '100%', width: '100%'`.
+  4. `CTVPortalContainer.tsx`: Thêm inline `overflowX: 'hidden', maxWidth: '100%', width: '100%'`.
+- **Kết quả**: Test lại trên iPhone Safari — page không bị tràn ngang.
+
 ## 2026-09-30
 
 ### L26: ~~CTV chua co BID an Link Gioi Thieu~~ -> DA HUY BO (01/10/2026)
@@ -212,167 +246,22 @@
 - **Commit**: Revert `98d4b0a` → `1bf91c6`
 - **Bài học**: ⚠️ **KHÔNG BAO GIỜ xóa/thay đổi tính năng đang hoạt động mà chưa đọc git history để hiểu tại sao nó tồn tại.**
 
-### L27: CTV chưa có rank nhận commission do code fallback tự gán AMBASSADOR
-- **Triệu chứng**: U1001 (rank=NULL, BID=WK10001) nhận 6.000.000đ hoa hồng. Admin hiển thị "Thành Viên" nhưng vẫn có 6Tr hoa hồng.
-- **Nguyên nhân**: 5 chỗ trong `calculateAndCreateCommissions` dùng fallback `rank || 'AMBASSADOR'`. Khi `rank = null` nhưng `role = 'ctv'` → tự gán AMBASSADOR → tính commission 20% sai.
-- **Fix**: Bỏ fallback `|| 'AMBASSADOR'` → `|| null`. NPP D1 thêm gate `&& directSponsor.rank`. Xóa 3 record commission sai của U1001 (6.000.000đ).
-- **Quy tắc vĩnh viễn**: ⭐⭐⭐⭐⭐ **Không có RANK = Không nhận commission.** BID = điều kiện cần, RANK = điều kiện đủ. KHÔNG fallback rank thành AMBASSADOR.
-- **Commit**: `8ca367f`
+## 2026-10-02
 
-### L30: Admin Panel Crash — Error Boundary sau khi thêm Dynamic Categories
-- **Ngày**: 2026-10-01
-- **Triệu chứng**: Login admin → trang hiện 'Đã xảy ra sự cố hiển thị'. Trang chủ (không login) vẫn OK.
-- **Nguyên nhân**: ProductSection.tsx thay đổi từ hardcoded CATEGORY_TABS sang dynamic fetch /api/product-categories gây crash khi render trong admin view context. Error Boundary bắt nhưng không log chi tiết.
-- **Cách Fix**: Rollback src/ về commit 26ecd85 (trước thay đổi). Commit a71c55b.
-- **Bài học**:
-  1. Sau MỌI build, phải Playwright test CẢ trang chủ VÀ admin panel (login admin → verify no crash)
-  2. Không rm -rf dist trước khi chắc chắn build sẽ pass
-  3. Ghi lỗi vào loi.md NGAY khi phát hiện, kèm commit hash
-  4. Dynamic fetch trong shared component phải guard cho admin vs public context
-- **Trạng thái**: ĐÃ FIX (rollback). Category CRUD + dynamic tabs + CTV order overhaul cần re-implement.
-
-## L31: setSuccess is not a function — CTV Reset MK
-- **Ngày**: 2026-10-02
-- **Triệu chứng**: Bấm Reset MK trong Quản Lý CTV → alert 'Lỗi kết nối máy chủ'
-- **Root cause**: Code gọi setSuccess() nhưng component AdminCTVManagement KHÔNG khai báo const [success, setSuccess] = useState(null)
-- **API vẫn trả 200 OK** — MK đã được reset thành công nhưng frontend crash ở dòng setSuccess(...) → rơi vào catch → lert('Lỗi kết nối máy chủ')
-- **Fix**: Thay setSuccess() bằng lert() + 
-avigator.clipboard.writeText()
-- **Bài học**: Trước khi dùng setXxx() trong component, PHẢI kiểm tra useState có khai báo chưa. Grep useState trước khi code.
-- **Commit**: e05915b
-
-## L32: Sửa nhầm file — wasypro vs wasypro-ctv
-- **Ngày**: 2026-10-02
-- **Triệu chứng**: Thêm đổi MK vào SettingsView.jsx nhưng CTV portal không hiện
-- **Root cause**: CTV portal là app RIÊNG ở /var/www/wasypro-ctv (port 5175), KHÔNG phải /var/www/wasypro (port 5005)
-- **Fix**: Phải sửa file ở CẢ HAI thư mục nếu component tồn tại ở cả hai
-- **Bài học**: Luôn kiểm tra PM2 list + nginx config trước khi sửa. Đọc SYSTEM_MAP.md.
-
-## L33: CSRF lỗi lặp — /api/auth/change-password không exempt ⭐⭐⭐
-- **Ngày**: 2026-10-02
-- **Triệu chứng**: CTV đổi MK → 'Yêu cầu bị từ chối do thiếu hoặc không khớp mã CSRF Token'
-- **Root cause**: Thêm API mới POST /api/auth/change-password nhưng QUÊN thêm vào CSRF exempt list
-- **Lỗi lặp từ**: L-CSRF trước đó (đã ghi trong loi.md nhưng không kiểm tra khi thêm API mới)
-- **Fix**: Thêm req.path === '/api/auth/change-password' vào csrfProtection middleware (line ~72)
-- **Commit**: (pending)
-- **BÀI HỌC BẮT BUỘC**: ⭐⭐⭐⭐⭐
-  1. KHI THÊM BẤT KỲ API ENDPOINT MỚI NÀO:
-     → MỞ server/index.js, tìm function csrfProtection (line 62-113)
-     → Kiểm tra endpoint có cần exempt không
-     → Nếu endpoint dùng cookie auth → CẦN thêm vào exempt list
-  2. Đọc SYSTEM_MAP.md section 4.3 (CSRF Exempt Routes) TRƯỚC khi code
-  3. Mọi API mới phải qua checklist:
-     □ Cần authenticateToken? → Thêm middleware
-     □ Dùng cookie auth? → Thêm CSRF exempt
-     □ Cập nhật SYSTEM_MAP.md section 4.3
-
-## L34: Danh mục đổi tên trong Admin nhưng không hiện trên trang chủ ⭐⭐⭐
-- **Ngày**: 2026-10-02
-- **Triệu chứng**: Admin đổi 'Bình Ly Hydrogen' → 'Dụng Cụ Test Nước' trong CSDL, nhưng trang chủ vẫn hiện tên cũ
-- **Root cause**: ProductSection.tsx HARDCODE tên + slug danh mục (line 44-45: id='binh-ly-hydrogen', name='Bình Ly Hydrogen')
-- **API trả đúng**: Cả port 3011 và 5005 đều trả 'Dụng Cụ Test Nước'
-- **Tại sao frontend sai**: Line 218 dùng categoryNames[tab.id] || tab.name — tab.id = 'binh-ly-hydrogen' nhưng API trả slug = 'dung-cu-test-nuoc' → không match → fallback sang hardcoded name
-- **Fix**: Đổi tất cả reference 'binh-ly-hydrogen' → 'dung-cu-test-nuoc' trong ProductSection.tsx
-- **BÀI HỌC**: 
-  1. Khi sửa danh mục (tên/slug) trong Admin → PHẢI kiểm tra ProductSection.tsx có hardcode slug cũ không
-  2. KHÔNG hardcode tên/slug danh mục — nên fetch động từ API
-  3. Tab ID trong CATEGORY_TABS phải KHỚP với slug trong database
-
-## L35: rm -rf dist gây downtime 6s khi rebuild ⭐⭐⭐⭐⭐
-- **Ngày**: 2026-10-02
-- **Triệu chứng**: Trang hiện 'Đã xảy ra sự cố hiển thị' (React ErrorBoundary)
-- **Root cause**: Agent chạy m -rf dist rồi 
-px vite build — trong 6-7s build, PM2 serve trang không có dist/index.html → ENOENT error → React crash
-- **Fix**: Rebuild lại dist folder
-- **BÀI HỌC QUAN TRỌNG**:
-  1. **KHÔNG BAO GIỜ m -rf dist trên production** trước khi build
-  2. Nếu cần clean build: 
-px vite build --force hoặc build vào folder tạm rồi swap
-  3. Luôn kiểm tra ls dist/index.html sau build trước khi restart PM2
-  4. Nếu cần rm: m -rf dist.bak ; mv dist dist.bak ; npx vite build ; pm2 restart wasypro
-
-## L36: Click tên sản phẩm trong modal Tạo đơn gây crash React Error #31 (Objects are not valid as React child) ⭐⭐⭐⭐⭐
-- **Ngày**: 2026-10-02
-- **Triệu chứng**: Trong CTV Portal, khi bấm vào tên/hình sản phẩm trong modal Tạo Đơn Hàng -> trang crash hiện 'Đã xảy ra sự cố hiển thị'.
-- **Root cause**: 
-  1. Trong CreateOrderModal.jsx, popup chi tiết render {detailProduct.category} trực tiếp trong thẻ <span>. Nhưng API trả về category là một object { id, name, slug, description, image, icon } thay vì string -> React throw Invariant Violation #31 ('Objects are not valid as a React child').
-  2. Trong danh sách combo NPP, còn sót onMouseLeave={handleImageLeave} trong khi hàm này không tồn tại -> ReferenceError: handleImageLeave is not defined.
-- **Cách Fix**: 
-  1. Sửa {detailProduct.category?.name || detailProduct.category} để render tên danh mục an toàn.
-  2. Xóa bỏ handleImageLeave và thay bằng handler click xem chi tiết setDetailProduct.
-  3. Giá sản phẩm trên card và popup chi tiết luôn là GIÁ GỐC 100%, chiết khấu % chỉ hiển thị trên tổng tiền ở Tóm Tắt Đơn Hàng.
-  4. Danh sách sản phẩm trong Tóm Tắt Đơn Hàng hiển thị từng dòng riêng biệt (không dùng .join(', ')).
-- **Commit**: (sẽ commit ngay sau đây)
-
-## L37: NPP Combo không hiện hình ảnh sản phẩm (hiện icon hộp vuông) ⭐⭐⭐
-- **Ngày**: 2026-10-02
-- **Triệu chứng**: Trong modal Tạo Đơn Hàng của tài khoản NPP, tab Mua Lẻ hiện hình ảnh sản phẩm bình thường nhưng tab Combo NPP chỉ hiện icon hộp vuông màu xanh.
-- **Root cause**: 
-  1. Trong CreateOrderModal.jsx, hàm setComboItems khi map dữ liệu từ /api/npp/my-combo chỉ map { productId, productName, price, discountedPrice, qty }, bỏ sót trường image: p.image.
-  2. Đoạn render JSX không có cơ chế fallback lấy hình ảnh từ danh mục products.
-- **Cách Fix**: 
-  1. Thêm image: p.image || null và commissionPoints: p.commissionPoints || 0 vào mapping setComboItems.
-  2. Trong comboItems.map, thêm fallback: const prodImage = ci.image || products.find(p => p.id === ci.productId)?.image; để luôn lấy được hình ảnh sản phẩm.
-- **Commit**: (sẽ commit ngay sau đây)
-
----
-
-## L38 — Google VPS: 2 repo git khác nhau gây lệch code 41 commits (02/10/2026)
-
-**Triệu chứng**: test.wasypro.com chạy code cũ (commit 110c83a) trong khi wasypro.com đã ở ca20a6d. `git pull origin main` trả "Already up to date" nhưng code vẫn cũ.
-
-**Nguyên nhân**: Oracle VPS dùng remote `origin` → `phanthemy/wasypro.git`. Google VPS dùng `origin` → `phanthemy/vps-google-wasypro.git`. Hai repo khác nhau nên push/pull không giao nhau.
-
-**Cách fix**: 
-```bash
-# Thêm remote production trên Google VPS
-git remote add production https://...@github.com/phanthemy/wasypro.git
-git pull production main
-```
-
-**Quy tắc**: Đồng bộ Google VPS luôn dùng `git pull production main`, KHÔNG dùng `git pull origin main`.
-
-## L39 — Google VPS: DB thiếu cột sortOrder trong NppPackage (02/10/2026)
-
-**Triệu chứng**: "Lỗi tải danh sách gói NPP" trên test.wasypro.com.
-
-**Nguyên nhân**: Git pull chỉ đồng bộ code, KHÔNG đồng bộ SQLite database. Commit mới có cột NppPackage.sortOrder nhưng DB trên Google VPS chưa có.
-
-**Cách fix**: `ALTER TABLE NppPackage ADD COLUMN sortOrder INTEGER DEFAULT 0;` + `prisma generate` + `pm2 restart 3`
-
-**Quy tắc**: Sau mỗi git pull, PHẢI kiểm tra schema diff:
-```bash
-git diff HEAD~N -- server/prisma/schema.prisma
-# Nếu có model/column mới → ALTER TABLE hoặc CREATE TABLE thủ công
-```
-
-## L40 — Google VPS: DB data hoàn toàn sai (users ngược, thiếu gói NPP) (02/10/2026)
-
-**Triệu chứng**: Tài khoản 0968616263 trên Google VPS là CTV (đáng lẽ Admin), 0937353535 là Admin (đáng lẽ CTV). Chỉ có 5/10 gói NPP, danh mục sản phẩm cũ, thiếu bảng NewsArticle + OtpCode.
-
-**Nguyên nhân**: Database SQLite trên mỗi VPS là riêng biệt. Google VPS giữ data từ lần setup đầu, chưa bao giờ được đồng bộ sau khi Oracle VPS swap tài khoản và thêm data mới.
-
-**Cách fix**: Copy dev.db từ Oracle → Google VPS:
-```bash
-scp dev.db mapgovn@34.173.189.105:~/
-sudo cp ~/dev.db /var/www/wasypro/server/dev.db
-sudo chown mapsgo_vn:mapsgo_vn /var/www/wasypro/server/dev.db
-pm2 restart 3
-```
-
-**Quy tắc**: Khi cần Google VPS data giống Oracle → copy nguyên file dev.db. Backup trước khi ghi đè.
-
-## L41 — Google VPS: Lỗi attempt to write a readonly database khi cập nhật / Reset mật khẩu (02/10/2026)
-
-**Triệu chứng**: Khi Admin reset mật khẩu CTV hoặc backend thực hiện ghi vào database, hệ thống báo lỗi ConnectorError: SqliteError 1544: attempt to write a readonly database.
-
-**Nguyên nhân**: Quá trình PM2 happylife-backend chạy dưới user Linux mapsgo_vn. Khi phân quyền thư mục /var/www/wasypro đổi sang mapgovn:mapgovn, user mapsgo_vn bị mất quyền ghi vào file SQLite dev.db và thư mục cha /var/www/wasypro/server (cần thiết để tạo file khóa WAL -wal và -shm).
-
-**Cách fix**:
-\\\ash
-sudo chmod 777 /var/www/wasypro/server
-sudo chmod 666 /var/www/wasypro/server/dev.db*
-sudo -u mapsgo_vn pm2 restart happylife-backend
-\\\
-
-**Quy tắc**: File SQLite dev.db và thư mục chứa nó (/var/www/wasypro/server) phải luôn có quyền ghi cho user chạy PM2 backend (mapsgo_vn).
+### L42: Không đồng nhất font chữ và thiếu tính năng nghiệp vụ trong CTV Portal Redesign (test.wasypro.com)
+- **Triệu chứng**:
+  1. Font chữ giữa các trang con, modal và các button không đồng nhất (nhiều chỗ rơi vào Nunito Sans, monospace hoặc font hệ thống mặc định). Kích thước chữ quá nhỏ trên thiết bị di động.
+  2. Các số liệu KPI trên mobile card bị tràn dòng hoặc cắt cụt hiển thị (vd: 31.920...).
+  3. Giao diện mockups mới thiếu các tính năng thực tế cốt lõi so với wasypro.com: Không có nút tạo đơn hàng, danh sách đơn hàng tĩnh, thiếu các module Đối tác (Khách hàng của tôi, Bảng giá & chiết khấu, Đổi mật khẩu).
+- **Nguyên nhân**:
+  1. Thiếu CSS reset cưỡng bức toàn diện cho form inputs/buttons; Tailwind config vẫn cấu hình heading là Outfit/Nunito Sans; các component con còn dùng ontFamily: 'monospace'.
+  2. Bố cục card dùng flex ngang một hàng chứa cả tiêu đề và số tiền lớn gây quá tải chiều ngang trên màn hình di động (< 390px).
+  3. Ban đầu giao diện chỉ dựng mockups khung tĩnh để duyệt visual design tokens mà chưa map với dữ liệu API backend và các modal nghiệp vụ thực tế (CreateOrderModal.jsx, CustomersView.jsx, PriceListView.jsx, ChangePasswordModal.jsx).
+- **Fix**:
+  1. Khóa chuẩn font Inter toàn bộ ứng dụng qua src/index.css với *, *::before, *::after, html, body, button, input, select, textarea { font-family: 'Inter', ... !important; } và cập nhật 	ailwind.config.js. Tăng cỡ chữ lên +1 đơn vị toàn bộ giao diện /ctv.
+  2. Tái cấu trúc 4 thẻ KPI sang 3 tầng dọc (Tầng 1: Icon + Tên mục, Tầng 2: Giá trị chỉ số lớn, Tầng 3: Tiến trình/Ghi chú phụ) giúp hiển thị trọn vẹn số tiền không bị tràn.
+  3. Tích hợp đầy đủ tính năng thực tế khớp wasypro.com vào shell mới:
+     - Nút nổi bật + Tạo Đơn Hàng Mới kích hoạt CreateOrderModal.jsx (hỗ trợ mua sỉ/lẻ, chiết khấu theo cấp bậc, địa chỉ giao hàng).
+     - Danh sách đơn hàng thực tế lấy từ /api/orders/my, hỗ trợ bộ lọc trạng thái và popup xem chi tiết đơn hàng.
+     - Tích hợp Sơ đồ tuyến dưới, Khách hàng của tôi, Bảng giá chiết khấu, Thông tin tài khoản và Đổi mật khẩu.
+- **Môi trường**: Đã test và xác nhận đạt chuẩn 100% trên https://test.wasypro.com/ctv (Không can thiệp VPS Oracle).

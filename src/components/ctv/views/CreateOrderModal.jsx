@@ -20,6 +20,8 @@ export default function CreateOrderModal({ currentUser, onClose, onSuccess }) {
   const [products, setProducts] = useState([]);
   const [cartItems, setCartItems] = useState([]);
   const [detailProduct, setDetailProduct] = useState(null);
+  const [showAllCustomers, setShowAllCustomers] = useState(false);
+  const [productSearchQuery, setProductSearchQuery] = useState('');
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
@@ -392,8 +394,8 @@ export default function CreateOrderModal({ currentUser, onClose, onSuccess }) {
 
                 {/* Danh sách khách hàng */}
                 {!loading && filteredCustomers.length > 0 && (
-                  <div className="mt-2 max-h-40 overflow-y-auto rounded-xl" style={{ border: '1px solid #e2e8f0' }}>
-                    {filteredCustomers.map(c => (
+                  <div className="mt-2 rounded-xl" style={{ border: '1px solid #e2e8f0' }}>
+                    {(showAllCustomers || customerSearch.trim() ? filteredCustomers : filteredCustomers.slice(0, 2)).map(c => (
                       <button
                         key={c.id}
                         type="button"
@@ -415,6 +417,26 @@ export default function CreateOrderModal({ currentUser, onClose, onSuccess }) {
                         {selectedCustomer?.id === c.id && <CheckCircle size={14} style={{ color: '#10b981' }} />}
                       </button>
                     ))}
+                    {!showAllCustomers && !customerSearch.trim() && filteredCustomers.length > 2 && (
+                      <button
+                        type="button"
+                        onClick={() => setShowAllCustomers(true)}
+                        className="w-full py-2 text-xs font-bold transition-colors"
+                        style={{ color: '#0072F5', background: '#f0f7ff', borderTop: '1px solid #e2e8f0' }}
+                      >
+                        Xem thêm {filteredCustomers.length - 2} khách hàng ▼
+                      </button>
+                    )}
+                    {showAllCustomers && filteredCustomers.length > 2 && (
+                      <button
+                        type="button"
+                        onClick={() => setShowAllCustomers(false)}
+                        className="w-full py-2 text-xs font-bold transition-colors"
+                        style={{ color: '#64748b', background: '#f8fafc', borderTop: '1px solid #e2e8f0' }}
+                      >
+                        Thu gọn ▲
+                      </button>
+                    )}
                   </div>
                 )}
 
@@ -519,8 +541,21 @@ export default function CreateOrderModal({ currentUser, onClose, onSuccess }) {
               {/* Chọn sản phẩm lẻ bán khách */}
               <div>
                 <label className="text-xs font-bold uppercase tracking-wider" style={{ color: '#64748b' }}>Sản Phẩm</label>
-                <div className="mt-2 max-h-56 overflow-y-auto rounded-xl" style={{ border: '1px solid #e2e8f0' }}>
-                  {products.map(p => {
+                {/* Search products */}
+                <input
+                  type="text"
+                  placeholder="🔎 Tìm tên sản phẩm..."
+                  value={productSearchQuery}
+                  onChange={e => setProductSearchQuery(e.target.value)}
+                  className="w-full mt-2 p-2.5 rounded-xl text-sm"
+                  style={{ border: '1px solid #e2e8f0' }}
+                />
+                <div className="mt-2 overflow-y-auto rounded-xl" style={{ border: '1px solid #e2e8f0', maxHeight: '50vh' }}>
+                  {products.filter(p => {
+                    if (!productSearchQuery.trim()) return true;
+                    const q = productSearchQuery.toLowerCase();
+                    return (p.title || '').toLowerCase().includes(q) || (p.category?.name || '').toLowerCase().includes(q);
+                  }).map(p => {
                     const cartItem = cartItems.find(item => item.product.id === p.id);
                     const qtyInCart = cartItem ? cartItem.qty : 0;
                     return (
@@ -649,7 +684,7 @@ export default function CreateOrderModal({ currentUser, onClose, onSuccess }) {
                 <label className="text-xs font-bold uppercase tracking-wider" style={{ color: '#64748b' }}>
                   Danh Sách Các Loại Máy Lựa Chọn
                 </label>
-                <div className="mt-2 max-h-56 overflow-y-auto rounded-xl" style={{ border: '1px solid #bfdbfe' }}>
+                <div className="mt-2 overflow-y-auto rounded-xl" style={{ border: '1px solid #bfdbfe', maxHeight: '50vh' }}>
                   {comboItems.map((ci, idx) => {
                     const matchedProd = products.find(p => p.id === ci.productId);
                     const prodImage = ci.image || matchedProd?.image;
@@ -755,8 +790,21 @@ export default function CreateOrderModal({ currentUser, onClose, onSuccess }) {
               {/* Chọn sản phẩm */}
               <div>
                 <label className="text-xs font-bold uppercase tracking-wider" style={{ color: '#64748b' }}>Sản Phẩm</label>
-                <div className="mt-2 max-h-56 overflow-y-auto rounded-xl" style={{ border: '1px solid #e2e8f0' }}>
-                  {products.map(p => {
+                {/* Search products */}
+                <input
+                  type="text"
+                  placeholder="🔎 Tìm tên sản phẩm..."
+                  value={productSearchQuery}
+                  onChange={e => setProductSearchQuery(e.target.value)}
+                  className="w-full mt-2 p-2.5 rounded-xl text-sm"
+                  style={{ border: '1px solid #e2e8f0' }}
+                />
+                <div className="mt-2 overflow-y-auto rounded-xl" style={{ border: '1px solid #e2e8f0', maxHeight: '50vh' }}>
+                  {products.filter(p => {
+                    if (!productSearchQuery.trim()) return true;
+                    const q = productSearchQuery.toLowerCase();
+                    return (p.title || '').toLowerCase().includes(q) || (p.category?.name || '').toLowerCase().includes(q);
+                  }).map(p => {
                     const cartItem = cartItems.find(item => item.product.id === p.id);
                     const qtyInCart = cartItem ? cartItem.qty : 0;
                     return (
@@ -1074,16 +1122,16 @@ export default function CreateOrderModal({ currentUser, onClose, onSuccess }) {
 
       {/* Product Detail Popup */}
       {detailProduct && (
-        <div className="fixed inset-0 z-[10000] flex items-center justify-center p-3" style={{ background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(4px)' }} onClick={() => setDetailProduct(null)}>
-          <div className="bg-white rounded-2xl w-full shadow-2xl overflow-hidden flex flex-col relative" style={{ maxWidth: '540px', maxHeight: '88vh' }} onClick={e => e.stopPropagation()}>
-            {/* Header */}
-            <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-100 bg-slate-50/90 sticky top-0 z-10">
+        <div className="fixed inset-0 z-[10000] flex flex-col items-center justify-start" style={{ background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(4px)', paddingTop: 'max(12px, env(safe-area-inset-top, 12px))' }} onClick={() => setDetailProduct(null)}>
+          <div className="bg-white rounded-2xl w-full shadow-2xl overflow-hidden flex flex-col relative mx-3" style={{ maxWidth: '540px', maxHeight: 'calc(100dvh - max(24px, env(safe-area-inset-top, 24px)) - env(safe-area-inset-bottom, 0px) - 60px)', marginTop: '48px' }} onClick={e => e.stopPropagation()}>
+            {/* Header with X button always visible */}
+            <div className="flex items-center justify-between px-5 py-3 border-b border-slate-100 bg-slate-50/90 sticky top-0 z-10" style={{ minHeight: '48px' }}>
               <h3 className="font-extrabold text-base text-slate-900 truncate pr-4">Thông tin chi tiết sản phẩm</h3>
               <button 
                 onClick={() => setDetailProduct(null)} 
-                className="p-1.5 bg-white border border-slate-200 rounded-full text-slate-500 hover:bg-red-50 hover:text-red-500 hover:border-red-200 transition-colors flex-shrink-0"
+                className="p-2 bg-white border border-slate-200 rounded-full text-slate-500 hover:bg-red-50 hover:text-red-500 hover:border-red-200 transition-colors flex-shrink-0 shadow-sm"
               >
-                <X size={18} />
+                <X size={20} />
               </button>
             </div>
 

@@ -804,3 +804,27 @@ model WebsiteOrderItem {
 
   websiteOrder     WebsiteOrder @relation(fields: [websiteOrderId], references: [id], onDelete: Cascade)
 }
+
+// ═══════════════════════════════════════════════════
+// HỆ THỐNG ĐẠI LÝ (Dealer Network)
+// ═══════════════════════════════════════════════════
+model Dealer {
+  id          String   @id @default(cuid())
+  name        String                    // "Đại lý WasyPro Hà Nội"
+  code        String?  @unique          // "DL-HN-001"
+  phone       String?                   // SĐT liên hệ
+  email       String?
+  address     String                    // Địa chỉ đầy đủ
+  province    String                    // Tỉnh/Thành
+  district    String?                   // Quận/Huyện
+  latitude    Float?                    // Tọa độ GPS
+  longitude   Float?                    // Tọa độ GPS
+  openHours   String?                   // "8:00 - 18:00"
+  imageUrl    String?                   // Ảnh showroom
+  type        String   @default("dealer")  // dealer | showroom | service_center
+  isActive    Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  description String?                   // Mô tả ngắn
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}

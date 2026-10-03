@@ -16,11 +16,19 @@ import { MockupDrawer } from './mockup/MockupDrawer';
 import NetworkView from './views/NetworkView.jsx';
 // @ts-ignore
 import SettingsView from './views/SettingsView.jsx';
+// @ts-ignore
+import CustomersView from './views/CustomersView.jsx';
+// @ts-ignore
+import PriceListView from './views/PriceListView.jsx';
+// @ts-ignore
+import CommissionHistoryView from './views/CommissionHistoryView.jsx';
+// @ts-ignore
+import ChangePasswordModal from './components/modals/ChangePasswordModal.jsx';
 
 interface CTVPortalContainerProps {
   currentUser: UserSession;
   onLogout: () => void;
-  onNavigateHome: () => void;
+  onNavigateHome: (section?: string) => void;
   initialTab?: string;
   onOpenAuth?: (tab?: 'login' | 'register') => void;
   onOpenAdmin?: () => void;
@@ -40,6 +48,7 @@ export const CTVPortalContainer: React.FC<CTVPortalContainerProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState(initialTab);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [passModalOpen, setPassModalOpen] = useState(false);
 
   // Invite member
   const handleInviteMember = () => {
@@ -58,27 +67,43 @@ export const CTVPortalContainer: React.FC<CTVPortalContainerProps> = ({
   const headerTitle = (() => {
     if (activeTab === 'rank') return 'Cấp bậc & điểm';
     if (activeTab === 'commissions') return 'Hoa hồng của bạn';
+    if (activeTab === 'commissions-detail') return 'Lịch sử hoa hồng';
     if (activeTab === 'orders') return 'Đơn hàng của tôi';
     if (activeTab === 'more') return 'Menu Thêm';
     if (activeTab === 'network') return 'Sơ đồ Tuyến dưới';
     if (activeTab === 'account') return 'Thông tin tài khoản';
+    if (activeTab === 'customers') return 'Khách hàng của tôi';
+    if (activeTab === 'price-list') return 'Bảng giá & Chiết khấu';
     return undefined;
   })();
 
   const handleHeaderBack = () => {
-    if (activeTab === 'network' || activeTab === 'account') {
+    if (['network', 'account', 'customers', 'price-list'].includes(activeTab)) {
       setActiveTab('more');
+    } else if (activeTab === 'commissions-detail') {
+      setActiveTab('commissions');
     } else {
       setActiveTab('dashboard');
     }
   };
 
+  const handleSelectMoreTab = (tab: string) => {
+    if (tab === 'change-password') {
+      setPassModalOpen(true);
+    } else {
+      setActiveTab(tab);
+    }
+  };
+
   return (
     <div 
-      className="min-h-screen font-sans pb-24 text-[#0F172A]"
+      className="min-h-screen font-sans pb-24 text-[#0F172A] overflow-x-hidden"
       style={{ 
         background: '#F8FAFC',
-        fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif'
+        fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif',
+        maxWidth: '100%',
+        width: '100%',
+        overflowX: 'hidden'
       }}
     >
       {/* 1. HEADER (64px main / 56px subpage, background #FFFFFF) */}
@@ -86,20 +111,20 @@ export const CTVPortalContainer: React.FC<CTVPortalContainerProps> = ({
         title={headerTitle}
         showBack={!isHome}
         onBack={handleHeaderBack}
-        onSearchClick={onNavigateHome}
-        onCartClick={onCartClick || onNavigateHome}
+        onSearchClick={() => onNavigateHome()}
+        onCartClick={onCartClick || (() => onNavigateHome())}
         onMenuClick={() => setDrawerOpen(true)}
         cartCount={cartItemCount}
       />
 
       {/* 2. MAIN BODY (Page horizontal padding: 16px, max-w-md) */}
-      <main className="max-w-md mx-auto px-4 pt-4">
+      <main className="max-w-md mx-auto px-4 pt-4 overflow-x-hidden w-full">
         {/* Screen 1: Dashboard */}
         {activeTab === 'dashboard' && (
           <MockupDashboard
             currentUser={currentUser}
             onSelectTab={setActiveTab}
-            onNavigateHome={onNavigateHome}
+            onNavigateHome={() => onNavigateHome()}
             onLogout={onLogout}
             onInviteMember={handleInviteMember}
           />
@@ -118,22 +143,42 @@ export const CTVPortalContainer: React.FC<CTVPortalContainerProps> = ({
           <MockupCommissions
             totalCommission={31920000}
             periodName="10/2026"
-            onViewDetails={() => alert('Chi tiết hoa hồng')}
+            onViewDetails={() => setActiveTab('commissions-detail')}
           />
+        )}
+
+        {/* Screen 3 Subview: Chi tiết lịch sử hoa hồng */}
+        {activeTab === 'commissions-detail' && (
+          <div 
+            style={{
+              background: '#FFFFFF',
+              border: '1px solid #EEF2F6',
+              borderRadius: '18px',
+              padding: '16px',
+              boxShadow: '0 4px 14px rgba(15,23,42,0.05)'
+            }}
+            className="animate-fadeIn"
+          >
+            <CommissionHistoryView 
+              currentUser={currentUser} 
+              setActiveTab={setActiveTab} 
+            />
+          </div>
         )}
 
         {/* Screen 4: Trang đơn hàng */}
         {activeTab === 'orders' && (
           <MockupOrders
-            onSelectOrder={(id) => alert(`Chi tiết đơn hàng #${id}`)}
+            currentUser={currentUser}
+            onSelectOrder={(id) => console.log(`Selected order #${id}`)}
           />
         )}
 
         {/* Screen 5: Menu "Thêm" */}
         {activeTab === 'more' && (
           <MockupMore
-            onSelectSubtab={setActiveTab}
-            onNavigateHome={onNavigateHome}
+            onSelectSubtab={handleSelectMoreTab}
+            onNavigateHome={(sec) => onNavigateHome(sec)}
           />
         )}
 
@@ -168,11 +213,43 @@ export const CTVPortalContainer: React.FC<CTVPortalContainerProps> = ({
             <SettingsView currentUser={currentUser} onLogout={onLogout} />
           </div>
         )}
+
+        {/* Subpage: Khách hàng của tôi */}
+        {activeTab === 'customers' && (
+          <div 
+            style={{
+              background: '#FFFFFF',
+              border: '1px solid #EEF2F6',
+              borderRadius: '18px',
+              padding: '16px',
+              boxShadow: '0 4px 14px rgba(15,23,42,0.05)'
+            }}
+            className="animate-fadeIn"
+          >
+            <CustomersView currentUser={currentUser} />
+          </div>
+        )}
+
+        {/* Subpage: Bảng giá & Chiết khấu */}
+        {activeTab === 'price-list' && (
+          <div 
+            style={{
+              background: '#FFFFFF',
+              border: '1px solid #EEF2F6',
+              borderRadius: '18px',
+              padding: '16px',
+              boxShadow: '0 4px 14px rgba(15,23,42,0.05)'
+            }}
+            className="animate-fadeIn"
+          >
+            <PriceListView />
+          </div>
+        )}
       </main>
 
       {/* 3. BOTTOM NAVIGATION (Height 66px, 40x40 #0072F5 active icon) */}
       <MockupBottomNav
-        activeTab={activeTab}
+        activeTab={['network', 'account', 'customers', 'price-list', 'more'].includes(activeTab) ? 'more' : activeTab === 'commissions-detail' ? 'commissions' : activeTab}
         onChangeTab={setActiveTab}
       />
 
@@ -180,11 +257,19 @@ export const CTVPortalContainer: React.FC<CTVPortalContainerProps> = ({
       <MockupDrawer
         isOpen={drawerOpen}
         onClose={() => setDrawerOpen(false)}
-        onNavigateHome={onNavigateHome}
+        onNavigateHome={(sec) => { onNavigateHome(sec); setDrawerOpen(false); }}
         onNavigateCTV={() => { setActiveTab('dashboard'); setDrawerOpen(false); }}
         onNavigateOrders={() => { setActiveTab('orders'); setDrawerOpen(false); }}
         onLogout={onLogout}
       />
+
+      {/* 5. MODAL: ĐỔI MẬT KHẨU */}
+      {passModalOpen && (
+        <ChangePasswordModal
+          currentUser={currentUser}
+          onClose={() => setPassModalOpen(false)}
+        />
+      )}
     </div>
   );
 };

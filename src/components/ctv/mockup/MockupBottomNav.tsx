@@ -36,12 +36,12 @@ export const MockupBottomNav: React.FC<MockupBottomNavProps> = ({
                 className="flex flex-col items-center justify-center w-full h-full text-[#0072F5]"
               >
                 <div 
-                  className="w-10 h-10 rounded-[12px] bg-[#0072F5] text-[#FFFFFF] flex items-center justify-center shadow-xs"
+                  className="rounded-[12px] bg-[#0072F5] text-[#FFFFFF] flex items-center justify-center shadow-xs"
                   style={{ width: '40px', height: '40px' }}
                 >
                   <Icon className="w-5 h-5 stroke-[2.2]" />
                 </div>
-                <span className="text-[11px] font-medium text-[#0072F5] leading-tight mt-0.5">
+                <span className="text-[11px] font-medium text-[#0072F5] leading-tight mt-1">
                   {tab.label}
                 </span>
               </button>
@@ -54,10 +54,13 @@ export const MockupBottomNav: React.FC<MockupBottomNavProps> = ({
               onClick={() => onChangeTab(tab.id)}
               className="flex flex-col items-center justify-center w-full h-full text-[#64748B] hover:text-[#0F172A] transition-colors"
             >
-              <div className="w-10 h-10 flex items-center justify-center">
+              <div 
+                className="flex items-center justify-center"
+                style={{ width: '40px', height: '40px' }}
+              >
                 <Icon className="w-6 h-6 stroke-[1.8] text-[#64748B]" />
               </div>
-              <span className="text-[11px] font-medium text-[#64748B] leading-tight">
+              <span className="text-[11px] font-medium text-[#64748B] leading-tight mt-1">
                 {tab.label}
               </span>
             </button>

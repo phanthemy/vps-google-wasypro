@@ -66,11 +66,11 @@ export const MockupDrawer: React.FC<MockupDrawerProps> = ({
                 SECTION 19: DRAWER — SECTION WEBSITE
                 ============================================================ */}
             <div className="p-4 space-y-1">
-              <div style={{ fontSize: '12px', fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', marginBottom: '8px' }}>
+              <div style={{ fontSize: '13px', fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', marginBottom: '8px' }}>
                 WEBSITE
               </div>
 
-              {/* Menu items: height 52px, font-size 15px, font-weight 600, color #334155 */}
+              {/* Menu items: height 52px, font-size 16px, font-weight 600, color #334155 */}
               <button
                 onClick={() => { onNavigateHome('hero'); onClose(); }}
                 className="w-full flex items-center justify-between px-2 hover:bg-[#F8FAFC] rounded-xl transition-colors text-left"
@@ -78,7 +78,7 @@ export const MockupDrawer: React.FC<MockupDrawerProps> = ({
               >
                 <div className="flex items-center gap-3">
                   <Home className="w-5 h-5 text-[#334155] stroke-[2]" />
-                  <span style={{ fontSize: '15px', fontWeight: 600, color: '#334155' }}>Trang chủ</span>
+                  <span style={{ fontSize: '16px', fontWeight: 600, color: '#334155' }}>Trang chủ</span>
                 </div>
                 <ChevronRight className="w-4 h-4 text-[#94A3B8] stroke-[2.5]" />
               </button>
@@ -90,7 +90,7 @@ export const MockupDrawer: React.FC<MockupDrawerProps> = ({
               >
                 <div className="flex items-center gap-3">
                   <Package className="w-5 h-5 text-[#334155] stroke-[2]" />
-                  <span style={{ fontSize: '15px', fontWeight: 600, color: '#334155' }}>Sản phẩm</span>
+                  <span style={{ fontSize: '16px', fontWeight: 600, color: '#334155' }}>Sản phẩm</span>
                 </div>
                 <ChevronRight className="w-4 h-4 text-[#94A3B8] stroke-[2.5]" />
               </button>
@@ -102,7 +102,7 @@ export const MockupDrawer: React.FC<MockupDrawerProps> = ({
               >
                 <div className="flex items-center gap-3">
                   <Newspaper className="w-5 h-5 text-[#334155] stroke-[2]" />
-                  <span style={{ fontSize: '15px', fontWeight: 600, color: '#334155' }}>Tin tức</span>
+                  <span style={{ fontSize: '16px', fontWeight: 600, color: '#334155' }}>Tin tức</span>
                 </div>
                 <ChevronRight className="w-4 h-4 text-[#94A3B8] stroke-[2.5]" />
               </button>
@@ -114,7 +114,7 @@ export const MockupDrawer: React.FC<MockupDrawerProps> = ({
               >
                 <div className="flex items-center gap-3">
                   <ShieldCheck className="w-5 h-5 text-[#334155] stroke-[2]" />
-                  <span style={{ fontSize: '15px', fontWeight: 600, color: '#334155' }}>Chính sách bảo hành</span>
+                  <span style={{ fontSize: '16px', fontWeight: 600, color: '#334155' }}>Chính sách bảo hành</span>
                 </div>
                 <ChevronRight className="w-4 h-4 text-[#94A3B8] stroke-[2.5]" />
               </button>
@@ -126,7 +126,7 @@ export const MockupDrawer: React.FC<MockupDrawerProps> = ({
               >
                 <div className="flex items-center gap-3">
                   <Gift className="w-5 h-5 text-[#334155] stroke-[2]" />
-                  <span style={{ fontSize: '15px', fontWeight: 600, color: '#334155' }}>Lợi ích</span>
+                  <span style={{ fontSize: '16px', fontWeight: 600, color: '#334155' }}>Lợi ích</span>
                 </div>
                 <ChevronRight className="w-4 h-4 text-[#94A3B8] stroke-[2.5]" />
               </button>
@@ -138,7 +138,7 @@ export const MockupDrawer: React.FC<MockupDrawerProps> = ({
               >
                 <div className="flex items-center gap-3">
                   <HelpCircle className="w-5 h-5 text-[#334155] stroke-[2]" />
-                  <span style={{ fontSize: '15px', fontWeight: 600, color: '#334155' }}>Hỏi đáp</span>
+                  <span style={{ fontSize: '16px', fontWeight: 600, color: '#334155' }}>Hỏi đáp</span>
                 </div>
                 <ChevronRight className="w-4 h-4 text-[#94A3B8] stroke-[2.5]" />
               </button>
@@ -148,7 +148,7 @@ export const MockupDrawer: React.FC<MockupDrawerProps> = ({
                 SECTION 19: DRAWER — TÀI KHOẢN CỦA TÔI
                 ============================================================ */}
             <div className="p-4 pt-2 border-t border-[#EEF2F6] space-y-1">
-              <div style={{ fontSize: '12px', fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', marginBottom: '8px' }}>
+              <div style={{ fontSize: '13px', fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', marginBottom: '8px' }}>
                 TÀI KHOẢN CỦA TÔI
               </div>
 
@@ -159,7 +159,7 @@ export const MockupDrawer: React.FC<MockupDrawerProps> = ({
               >
                 <div className="flex items-center gap-3">
                   <ShoppingBag className="w-5 h-5 text-[#334155] stroke-[2]" />
-                  <span style={{ fontSize: '15px', fontWeight: 600, color: '#334155' }}>Đơn hàng của tôi</span>
+                  <span style={{ fontSize: '16px', fontWeight: 600, color: '#334155' }}>Đơn hàng của tôi</span>
                 </div>
                 <ChevronRight className="w-4 h-4 text-[#94A3B8] stroke-[2.5]" />
               </button>
@@ -171,7 +171,7 @@ export const MockupDrawer: React.FC<MockupDrawerProps> = ({
               >
                 <div className="flex items-center gap-3">
                   <LayoutGrid className="w-5 h-5 text-[#0072F5] stroke-[2]" />
-                  <span style={{ fontSize: '15px', fontWeight: 600, color: '#0072F5' }}>Quản lý tài khoản CTV</span>
+                  <span style={{ fontSize: '16px', fontWeight: 600, color: '#0072F5' }}>Quản lý tài khoản CTV</span>
                 </div>
                 <ChevronRight className="w-4 h-4 text-[#0072F5] stroke-[2.5]" />
               </button>
@@ -188,7 +188,7 @@ export const MockupDrawer: React.FC<MockupDrawerProps> = ({
                 borderRadius: '14px',
                 background: '#FFF0F2',
                 color: '#ED4956',
-                fontSize: '15px',
+                fontSize: '16px',
                 fontWeight: 600
               }}
             >
