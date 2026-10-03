@@ -163,7 +163,7 @@ export const Hero: React.FC<HeroProps> = ({ onExploreClick, onContactClick }) =>
       {/* ===== HERO BANNER SLIDER SẮC NÉT (KHÔNG PHỦ LỚP MỜ) ===== */}
       <div className="relative w-full overflow-hidden bg-black">
         {/* Khung chứa tỉ lệ chuẩn theo Backdrop 1.92:1 (256x133cm) */}
-        <div className="relative w-full aspect-[256/133] min-h-[220px] max-h-[820px] flex items-center justify-center">
+        <div className="relative w-full aspect-[21/9] min-h-[220px] max-h-[520px] lg:max-h-[560px] xl:max-h-[600px] flex items-center justify-center">
           {slides.map((s, i) => {
             const isActive = i === current;
             return (
