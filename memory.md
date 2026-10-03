@@ -377,3 +377,16 @@ req.user = { id: "U199", userId: "U199", dbId: cuid, role, fullName, phone }
   - CheckoutModal.tsx: Thêm Sticky Header ở đỉnh card, loại bỏ nút X ẩn sâu trong Checkout Form.
   - AccountModal.tsx, NetworkSystemModal.tsx, TermsModal.tsx, SupportModal.tsx: Nâng cấp kích thước nút [X] lên $\ge 36\text{px}$, bổ sung ria-label= Đóng và khóa max-h-[90dvh].
 - **Nghiệm thu**: Playwright đã kiểm thử và xác nhận nút [X] luôn hiển thị và bấm được 100% khi cuộn form.
+
+## Session 2026-10-03 (Review test.wasypro.com)
+
+### Vấn đề phát hiện & Fix:
+1. **Admin 'Failed to fetch categories'**: Prisma schema có cột googleMapUrl trong ProductCategory nhưng SQLite DB thiếu cột này → Chạy ALTER TABLE ProductCategory ADD COLUMN googleMapUrl TEXT; → API hoạt động lại.
+2. **Desktop banner zoom lớn**: Container dùng spect-[256/133] max-h-[820px] quá cao → Đổi thành spect-[21/9] max-h-[520px] lg:max-h-[560px] xl:max-h-[600px] → Banner vừa phải.
+3. **Danh mục khác nhau giữa 2 VPS**: Do database SQLite riêng biệt (staging vs production). Đây là thiết kế có chủ đích, không cần fix.
+
+### Files changed:
+- src/components/Hero.tsx (line 166): Banner aspect ratio + max-height
+- server/dev.db: Added googleMapUrl column to ProductCategory table
+
+### Commit: caef415

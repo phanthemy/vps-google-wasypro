@@ -505,7 +505,7 @@ export const ProductSection: React.FC<ProductSectionProps> = ({
         <ProductQuickViewModal
           product={selectedQuickViewProduct}
           onClose={() => setSelectedQuickViewProduct(null)}
-          onOrder={onOrderProduct}
+          onOrderProduct={onOrderProduct}
           onCallHotline={onCallHotline}
         />
       )}

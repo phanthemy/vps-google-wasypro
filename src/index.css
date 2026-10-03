@@ -143,3 +143,36 @@
 .animate-pulse-glow {
   animation: pulse-glow 3s infinite ease-in-out;
 }
+
+
+/* ===== CHỐNG ZOOM MOBILE - BẮT BUỘC (2026-10-03) ===== */
+/* iOS Safari auto-zoom khi input font-size < 16px */
+/* Áp dụng cho TẤT CẢ input/select/textarea trên mobile */
+@media screen and (max-width: 768px) {
+  input,
+  select,
+  textarea,
+  input[type="text"],
+  input[type="tel"],
+  input[type="email"],
+  input[type="password"],
+  input[type="number"],
+  input[type="search"],
+  input[type="url"] {
+    font-size: 16px !important;
+    transform: none !important;
+  }
+  
+  /* Chặn zoom toàn trang khi modal mở */
+  body.modal-open {
+    touch-action: none;
+    overflow: hidden;
+    position: fixed;
+    width: 100%;
+  }
+}
+
+/* Đảm bảo modal không gây zoom */
+.fixed {
+  -webkit-overflow-scrolling: touch;
+}

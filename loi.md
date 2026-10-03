@@ -325,3 +325,15 @@
   2. **Nút [X]**: Kích thước $\ge 36\text{px} \times 36\text{px}$, màu sắc tương phản rõ ràng, nằm ở góc trên bên phải của Header.
   3. **Responsive**: Chiều rộng w-full max-w-[calc(100vw-24px)], căn giữa an toàn my-auto, dùng dvh chống co kéo thanh địa chỉ trình duyệt.
 - **BÀI HỌC VĨNH VIỄN**: Bất kỳ popup/modal nào được tạo mới hoặc chỉnh sửa trong tương lai đều PHẢI kiểm tra Checklist này trước khi bàn giao.
+
+## L45: Prisma schema vs SQLite out of sync (2026-10-03)
+- **Lỗi**: The column main.ProductCategory.googleMapUrl does not exist in the current database
+- **Nguyên nhân**: Prisma schema thêm cột mới nhưng không chạy migration trên staging VPS
+- **Fix**: sqlite3 dev.db 'ALTER TABLE ProductCategory ADD COLUMN googleMapUrl TEXT;'
+- **Bài học**: Khi thêm cột mới vào Prisma schema, PHẢI chạy migration trên CẢ 2 VPS (production + staging). Hoặc dùng 
+px prisma db push để sync.
+
+## L46: Desktop banner quá cao / zoom (2026-10-03)
+- **Lỗi**: Banner chiếm quá nhiều chiều cao trên desktop (max-h-[820px] + aspect-[256/133])
+- **Fix**: Đổi thành spect-[21/9] max-h-[520px] lg:max-h-[560px] xl:max-h-[600px]
+- **Bài học**: Banner/Hero nên dùng aspect ratio chuẩn (21:9 cinematic) và max-h responsive theo breakpoint, không hardcode một giá trị max-h duy nhất.

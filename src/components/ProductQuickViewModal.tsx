@@ -8,14 +8,14 @@ import {
 interface ProductQuickViewModalProps {
   product: Product | null;
   onClose: () => void;
-  onOrder: (product: Product) => void;
+  onOrderProduct: (product: Product) => void;
   onCallHotline: () => void;
 }
 
 const isVideo = (url: string) => /\.(mp4|webm|ogg|mov)$/i.test(url);
 
 export const ProductQuickViewModal: React.FC<ProductQuickViewModalProps> = ({
-  product, onClose, onOrder, onCallHotline,
+  product, onClose, onOrderProduct, onCallHotline,
 }) => {
   const [activeIndex, setActiveIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -66,7 +66,7 @@ export const ProductQuickViewModal: React.FC<ProductQuickViewModalProps> = ({
     <div className="fixed inset-0 z-50 bg-gray-900/70 backdrop-blur-md overflow-hidden" onClick={onClose}>
       <div 
         className="bg-white w-full sm:max-w-2xl lg:max-w-4xl sm:rounded-2xl overflow-y-auto shadow-xl relative animate-in fade-in zoom-in duration-200 sm:border border-gray-200 mx-auto"
-        style={{ height: '100dvh', maxHeight: '100dvh' }}
+        style={{ maxHeight: '100dvh' }}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Sticky Header with X Button */}
@@ -302,7 +302,7 @@ export const ProductQuickViewModal: React.FC<ProductQuickViewModalProps> = ({
             {/* Action Buttons */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
               <button
-                onClick={() => { onOrder(product); onClose(); }}
+                onClick={() => { onOrderProduct(product); onClose(); }}
                 className="w-full py-3 px-4 rounded-md font-heading font-bold text-white bg-primary hover:bg-primary-dark shadow-sm transition-all duration-200 flex items-center justify-center gap-2 text-[14px] uppercase"
               >
                 <ShoppingBag className="w-4 h-4" />
