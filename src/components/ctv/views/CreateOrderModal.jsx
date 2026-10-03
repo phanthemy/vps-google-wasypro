@@ -286,7 +286,7 @@ export default function CreateOrderModal({ currentUser, onClose, onSuccess }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.5)' }}>
-      <div className="bg-white rounded-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto shadow-2xl">
+      <div className="bg-white rounded-2xl max-w-lg w-full max-h-[88dvh] overflow-y-auto shadow-2xl">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b" style={{ borderColor: '#e2e8f0' }}>
           <div className="flex items-center gap-2">

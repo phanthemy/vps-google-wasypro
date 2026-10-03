@@ -170,9 +170,9 @@ export const ContactModal: React.FC<ContactModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-gray-900/70 backdrop-blur-xs overflow-y-auto" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-4 bg-gray-900/70 backdrop-blur-xs overflow-y-auto" onClick={onClose}>
       <div 
-        className="bg-white w-full max-w-lg rounded-2xl overflow-hidden max-h-[90dvh] flex flex-col shadow-2xl relative animate-in fade-in zoom-in duration-200 my-auto"
+        className="bg-white w-full max-w-lg rounded-2xl overflow-hidden max-h-[88dvh] flex flex-col shadow-2xl relative animate-in fade-in zoom-in duration-200 my-auto"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Sticky Header with Title and X Button */}

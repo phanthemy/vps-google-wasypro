@@ -299,9 +299,9 @@ export const Footer: React.FC<FooterProps> = ({
 
     {/* Policy Modal */}
     {policyModal && (
-      <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+      <div className="fixed inset-0 z-[100] flex items-center justify-center p-5">
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setPolicyModal(null)} />
-        <div className="relative bg-white rounded-lg shadow-2xl max-w-2xl w-full max-h-[80vh] overflow-y-auto z-10">
+        <div className="relative bg-white rounded-lg shadow-2xl max-w-2xl w-full max-h-[85dvh] overflow-y-auto z-10">
           <div className="sticky top-0 bg-primary-darker text-white px-6 py-4 rounded-t-lg flex items-center justify-between">
             <h2 className="text-lg font-bold">{policyContent[policyModal].title}</h2>
             <button onClick={() => setPolicyModal(null)} className="text-white/70 hover:text-white transition-colors">

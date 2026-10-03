@@ -328,7 +328,7 @@ export default function UnifiedAuthModal({
 
       {/* Main Glassmorphic Registration Card - Chuẩn 3 tầng, max-h-[90dvh], chống trôi nút X */}
       <div
-        className="relative bg-white/95 backdrop-blur-md rounded-[28px] sm:rounded-[36px] shadow-[0_25px_70px_rgba(0,102,245,0.28),0_0_0_1px_rgba(255,255,255,0.9)] border-2 border-white/90 w-full max-w-[min(380px,calc(100vw-24px))] my-auto overflow-hidden z-10 animate-in fade-in zoom-in-95 duration-200 max-h-[90dvh] flex flex-col"
+        className="relative bg-white/95 backdrop-blur-md rounded-[28px] sm:rounded-[36px] shadow-[0_25px_70px_rgba(0,102,245,0.28),0_0_0_1px_rgba(255,255,255,0.9)] border-2 border-white/90 w-full max-w-[min(380px,calc(100vw-24px))] my-auto overflow-hidden z-10 animate-in fade-in zoom-in-95 duration-200 max-h-[88dvh] flex flex-col"
         onClick={e => e.stopPropagation()}
       >
         {/* ─── TẦNG 1: STICKY HEADER (CỐ ĐỊNH 100%, KHÔNG CUỘN TRÔI) ─── */}
