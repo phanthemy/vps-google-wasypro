@@ -1,33 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  User, 
-  Link as LinkIcon, 
-  UserPlus, 
-  LogOut, 
-  ArrowLeft, 
-  ShoppingCart, 
-  Coins, 
-  Trophy, 
-  Users, 
+import {
+  LogOut,
+  ShoppingCart,
+  Coins,
+  Trophy,
+  Users,
   ChevronRight,
-  Check,
-  Plus,
-  GitBranch,
-  FileText,
-  Headphones,
-  ShieldCheck,
-  AlertCircle,
-  BookOpen,
-  Layers,
-  Package,
   Globe,
-  Scale
+  Phone,
+  Plus,
+  Gift,
+  Bell,
 } from 'lucide-react';
 import { UserSession } from '../../../hooks/useUnifiedAuth';
-import { AccountModal } from './AccountModal';
-import { NetworkSystemModal } from './NetworkSystemModal';
-import { TermsModal } from './TermsModal';
-import { SupportModal } from './SupportModal';
 
 interface MockupDashboardProps {
   currentUser: UserSession;
@@ -50,523 +35,329 @@ export const MockupDashboard: React.FC<MockupDashboardProps> = ({
     commissionTotal: 31920000,
     directCount: 5,
   });
-
-  // Modals state (A, B, C, D, E)
-  const [accountModalOpen, setAccountModalOpen] = useState(false);
-  const [networkModalOpen, setNetworkModalOpen] = useState(false);
-  const [termsModalOpen, setTermsModalOpen] = useState(false);
-  const [supportModalOpen, setSupportModalOpen] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   useEffect(() => {
-    // 1. Fetch Orders Count
     fetch('/api/orders/my', { credentials: 'include' })
       .then(r => r.json())
       .then(res => {
-        if (res.success && res.data) {
-          const count = (res.data.websiteOrders?.length || 0) + (res.data.ctvOrders?.length || 0);
-          if (count > 0) setStats(prev => ({ ...prev, orderCount: count }));
+        if (res.success && Array.isArray(res.data)) {
+          setStats(prev => ({ ...prev, orderCount: res.data.length }));
         }
       })
       .catch(() => {});
 
-    // 2. Fetch Commissions
-    fetch('/api/ctv/commissions', { credentials: 'include' })
+    fetch('/api/commissions/my-total', { credentials: 'include' })
       .then(r => r.json())
       .then(res => {
-        if (res.success && res.data) {
-          const total = res.data.totalCommission || res.data.grossCommission;
-          if (typeof total === 'number' && total > 0) setStats(prev => ({ ...prev, commissionTotal: total }));
+        if (res.success && res.data?.total !== undefined) {
+          setStats(prev => ({ ...prev, commissionTotal: res.data.total }));
         }
       })
       .catch(() => {});
 
-    // 3. Fetch Direct count (thay cho F1 count)
-    fetch('/api/ctv/network-summary', { credentials: 'include' })
+    fetch('/api/network/direct-count', { credentials: 'include' })
       .then(r => r.json())
       .then(res => {
-        if (res.success && res.data && typeof res.data.directCount === 'number') {
-          setStats(prev => ({ ...prev, directCount: res.data.directCount }));
+        if (res.success && res.data?.count !== undefined) {
+          setStats(prev => ({ ...prev, directCount: res.data.count }));
         }
       })
       .catch(() => {});
   }, []);
 
-  const partnerCode = (userSession as any).businessId || `WK-${userSession.id || userSession.userId || '10002'}`;
-  const rankText = (userSession.rank === 'MANAGER' ? '★ QUẢN LÝ' : userSession.rank === 'DIRECTOR' ? '★ GIÁM ĐỐC' : '★ ĐẠI SỨ');
+  useEffect(() => {
+    setUserSession(currentUser);
+  }, [currentUser]);
+
+  const rankText = (userSession as any).rank || 'Quản Lý';
+  const formatNumber = (n: number) => n.toLocaleString('vi-VN');
 
   return (
-    <div className="space-y-4 pb-4">
-      {/* ============================================================
-          SECTION 2: PROFILE CARD (Exact Design Tokens)
-          ============================================================ */}
-      <div 
-        className="text-[#FFFFFF] shadow-sm"
-        style={{
-          borderRadius: '22px',
-          padding: '20px',
-          background: 'linear-gradient(135deg, #0072F5 0%, #087EF5 100%)',
-        }}
-      >
-        <div className="flex items-center gap-3.5">
-          {/* Avatar Circle: 64x64px white circle, blue user icon */}
-          <div 
-            className="rounded-full flex items-center justify-center shrink-0 border-2 border-white/60 bg-white/20 p-1 shadow-sm"
-            style={{ width: '64px', height: '64px' }}
-          >
-            {(userSession as any).avatarUrl ? (
-              <img 
-                src={(userSession as any).avatarUrl} 
-                alt="Avatar"
-                className="w-full h-full rounded-full object-cover"
-                onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-              />
-            ) : (
-              <div className="w-full h-full rounded-full bg-[#FFFFFF] flex items-center justify-center">
-                <User className="w-8 h-8 text-[#0072F5] stroke-[2.2]" />
-              </div>
-            )}
-          </div>
-
-          {/* Details */}
-          <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-1.5 mb-1">
-              <span 
-                className="text-[13px] font-bold px-2.5 py-0.5 rounded-[6px]"
-                style={{ background: '#FFCC00', color: '#0F172A' }}
-              >
-                {rankText}
-              </span>
-              <span 
-                className="text-[12px] font-bold px-2.5 py-0.5 rounded-[6px]"
-                style={{ background: '#F5A623', color: '#0F172A' }}
-              >
-                Mã đối tác: {partnerCode}
-              </span>
-            </div>
-
-            <div className="text-[14px] font-medium text-white/90">
-              ID: {userSession.id || userSession.userId} (Đối Tác CTV)
-            </div>
-
-            <h2 className="text-[23px] font-bold text-[#FFFFFF] leading-[1.3] truncate mt-0.5">
-              {userSession.fullName || 'Phan Thế Mỹ'}
-            </h2>
-          </div>
-        </div>
-
-
-        {/* ============================================================
-            6 MỤC CHÍNH — THEO YÊU CẦU SẾP
-            ============================================================ */}
-        <div className="grid grid-cols-2 gap-2.5 mt-4 pt-3.5 border-t border-white/25">
-          {/* MỤC 1: NỘI DUNG 1 (Bổ sung sau) */}
-          <button
-            type="button"
-            onClick={() => onSelectTab('home-profile')}
-            className="flex items-center gap-2.5 p-3 rounded-2xl bg-white hover:bg-slate-50 text-slate-900 transition-all active:scale-[0.98] shadow-md border border-white/80 text-left cursor-pointer"
-            style={{ minHeight: '66px' }}
-          >
-            <div className="w-10 h-10 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center text-[#0072F5] shrink-0 shadow-2xs">
-              <BookOpen className="w-5 h-5 stroke-[2.3]" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <div className="text-[13px] font-extrabold text-slate-900 leading-tight truncate">Trang Chủ & Hồ Sơ</div>
-              <div className="text-[10px] text-amber-600 font-semibold leading-tight truncate mt-0.5">Sắp ra mắt</div>
-            </div>
-          </button>
-
-          {/* MỤC 2: NỘI DUNG 2 (Bổ sung sau) */}
-          <button
-            type="button"
-            onClick={() => onSelectTab('team-network')}
-            className="flex items-center gap-2.5 p-3 rounded-2xl bg-white hover:bg-slate-50 text-slate-900 transition-all active:scale-[0.98] shadow-md border border-white/80 text-left cursor-pointer"
-            style={{ minHeight: '66px' }}
-          >
-            <div className="w-10 h-10 rounded-xl bg-purple-50 border border-purple-100 flex items-center justify-center text-[#7C3AED] shrink-0 shadow-2xs">
-              <Layers className="w-5 h-5 stroke-[2.3]" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <div className="text-[13px] font-extrabold text-slate-900 leading-tight truncate">Đội Nhóm & Mạng Lưới</div>
-              <div className="text-[10px] text-amber-600 font-semibold leading-tight truncate mt-0.5">Sắp ra mắt</div>
-            </div>
-          </button>
-
-          {/* MỤC 3: HOA HỒNG */}
-          <button
-            type="button"
-            onClick={() => onSelectTab('commissions')}
-            className="flex items-center gap-2.5 p-3 rounded-2xl bg-white hover:bg-slate-50 text-slate-900 transition-all active:scale-[0.98] shadow-md border border-white/80 text-left cursor-pointer"
-            style={{ minHeight: '66px' }}
-          >
-            <div className="w-10 h-10 rounded-xl bg-amber-50 border border-amber-100 flex items-center justify-center text-[#F59E0B] shrink-0 shadow-2xs">
-              <Coins className="w-5 h-5 stroke-[2.3]" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <div className="text-[13px] font-extrabold text-slate-900 leading-tight truncate">Hoa Hồng</div>
-              <div className="text-[10px] text-slate-500 font-semibold leading-tight truncate mt-0.5">Trực tiếp, Hệ thống, LS</div>
-            </div>
-          </button>
-
-          {/* MỤC 4: ĐẶT HÀNG & GÓI ĐẦU TƯ */}
-          <button
-            type="button"
-            onClick={() => onSelectTab('orders')}
-            className="flex items-center gap-2.5 p-3 rounded-2xl bg-white hover:bg-slate-50 text-slate-900 transition-all active:scale-[0.98] shadow-md border border-white/80 text-left cursor-pointer"
-            style={{ minHeight: '66px' }}
-          >
-            <div className="w-10 h-10 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-[#00B050] shrink-0 shadow-2xs">
-              <Package className="w-5 h-5 stroke-[2.3]" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <div className="text-[13px] font-extrabold text-slate-900 leading-tight truncate">Đặt Hàng & Gói Đầu Tư</div>
-              <div className="text-[10px] text-slate-500 font-semibold leading-tight truncate mt-0.5">SP lẻ, Gói ĐL, Đầu tư</div>
-            </div>
-          </button>
-
-          {/* MỤC 5: MẠNG LƯỚI & TRUYỀN THÔNG */}
-          <button
-            type="button"
-            onClick={() => onSelectTab('network-media')}
-            className="flex items-center gap-2.5 p-3 rounded-2xl bg-white hover:bg-slate-50 text-slate-900 transition-all active:scale-[0.98] shadow-md border border-white/80 text-left cursor-pointer"
-            style={{ minHeight: '66px' }}
-          >
-            <div className="w-10 h-10 rounded-xl bg-sky-50 border border-sky-100 flex items-center justify-center text-[#0284C7] shrink-0 shadow-2xs">
-              <Globe className="w-5 h-5 stroke-[2.3]" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <div className="text-[13px] font-extrabold text-slate-900 leading-tight truncate">Mạng Lưới & Truyền Thông</div>
-              <div className="text-[10px] text-slate-500 font-semibold leading-tight truncate mt-0.5">Đại lý, Sự kiện, Feedback</div>
-            </div>
-          </button>
-
-          {/* MỤC 6: PHÁP LÝ & ĐIỀU KHOẢN */}
-          <button
-            type="button"
-            onClick={() => onSelectTab('legal')}
-            className="flex items-center gap-2.5 p-3 rounded-2xl bg-white hover:bg-slate-50 text-slate-900 transition-all active:scale-[0.98] shadow-md border border-white/80 text-left cursor-pointer"
-            style={{ minHeight: '66px' }}
-          >
-            <div className="w-10 h-10 rounded-xl bg-rose-50 border border-rose-100 flex items-center justify-center text-[#DC2626] shrink-0 shadow-2xs">
-              <Scale className="w-5 h-5 stroke-[2.3]" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <div className="text-[13px] font-extrabold text-slate-900 leading-tight truncate">Pháp Lý & Điều Khoản</div>
-              <div className="text-[10px] text-slate-500 font-semibold leading-tight truncate mt-0.5">Giấy CN, Chính sách, PL</div>
-            </div>
-          </button>
-        </div>
-
-        {/* ROW đăng xuất nhỏ gọn */}
-        <div className="flex gap-2 mt-2.5">
-          <button
-            type="button"
-            onClick={() => setShowLogoutConfirm(true)}
-            className="flex items-center justify-center gap-1.5 h-10 flex-1 rounded-xl bg-[#EF4444] hover:bg-red-600 border border-rose-300/40 text-white transition-all active:scale-95 text-xs font-bold shadow-xs"
-          >
-            <LogOut className="w-3.5 h-3.5 text-white" />
-            <span>Đăng xuất</span>
-          </button>
-        </div>
-
-        {/* Full-width "Xem Website" button */}
-        <div className="mt-3">
-          <button
-            onClick={onNavigateHome}
-            className="w-full flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
-            style={{
-              height: '46px',
-              borderRadius: '14px',
-              background: '#FFFFFF',
-              color: '#0072F5',
-              fontSize: '15px',
-              fontWeight: 600,
-              boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
-            }}
-          >
-            <ArrowLeft className="w-4 h-4 stroke-[2.5]" />
-            <span>Xem Website</span>
-          </button>
-        </div>
-      </div>
-
-      {/* QUICK CTA: TẠO ĐƠN HÀNG */}
-      <button
-        onClick={() => onSelectTab('orders')}
-        className="w-full flex items-center justify-center gap-2 transition-all active:scale-[0.98] shadow-sm hover:shadow-md"
-        style={{
-          height: '48px',
-          borderRadius: '14px',
-          background: '#0072F5',
-          color: '#FFFFFF',
-          fontSize: '15px',
-          fontWeight: 600,
-        }}
-      >
-        <Plus className="w-5 h-5 stroke-[2.5]" />
-        <span>Tạo Đơn Hàng Mới</span>
-      </button>
+    <div className="space-y-4" style={{ fontFamily: 'Inter, -apple-system, sans-serif' }}>
 
       {/* ============================================================
-          4 DASHBOARD CARDS (Đơn hàng, Hoa hồng, Cấp bậc, Đội ngũ đối tác)
+          HERO SECTION — Premium Profile Card
           ============================================================ */}
-      <div className="grid grid-cols-2" style={{ gap: '12px' }}>
-        {/* Card 1: Đơn hàng */}
-        <div
-          onClick={() => onSelectTab('orders')}
-          className="cursor-pointer hover:shadow-md transition-all active:scale-95 flex flex-col justify-between"
-          style={{
-            background: '#FFFFFF',
-            border: '1px solid #EEF2F6',
-            borderRadius: '18px',
-            padding: '13px 12px',
-            minHeight: '124px',
-            boxShadow: '0 4px 14px rgba(15,23,42,0.05)'
-          }}
-        >
-          <div className="flex items-center gap-2">
-            <div 
-              className="rounded-[10px] flex items-center justify-center shrink-0"
-              style={{ width: '36px', height: '36px', background: '#F0F7FF', color: '#0072F5' }}
-            >
-              <ShoppingCart className="w-5 h-5 stroke-[2.2]" />
-            </div>
-            <span style={{ fontSize: '15px', fontWeight: 600, color: '#0F172A', lineHeight: 1.2 }}>
-              Đơn hàng
-            </span>
-          </div>
-
-          <div className="flex items-baseline justify-between mt-1 mb-0.5">
-            <span style={{ fontSize: '25px', fontWeight: 700, color: '#0F172A', lineHeight: 1 }}>
-              {stats.orderCount}
-            </span>
-            <span style={{ fontSize: '19px', fontWeight: 600, color: '#94A3B8' }}>›</span>
-          </div>
-
-          <div style={{ fontSize: '13px', fontWeight: 400, color: '#94A3B8' }} className="truncate">
-            Đơn mới hôm nay
-          </div>
-        </div>
-
-        {/* Card 2: Hoa hồng */}
-        <div
-          onClick={() => onSelectTab('commissions')}
-          className="cursor-pointer hover:shadow-md transition-all active:scale-95 flex flex-col justify-between"
-          style={{
-            background: '#FFFFFF',
-            border: '1px solid #EEF2F6',
-            borderRadius: '18px',
-            padding: '13px 12px',
-            minHeight: '124px',
-            boxShadow: '0 4px 14px rgba(15,23,42,0.05)'
-          }}
-        >
-          <div className="flex items-center gap-2">
-            <div 
-              className="rounded-[10px] flex items-center justify-center shrink-0"
-              style={{ width: '36px', height: '36px', background: '#FFF7E6', color: '#F5A623' }}
-            >
-              <Coins className="w-5 h-5 stroke-[2.2]" />
-            </div>
-            <span style={{ fontSize: '15px', fontWeight: 600, color: '#0F172A', lineHeight: 1.2 }}>
-              Hoa hồng
-            </span>
-          </div>
-
-          <div className="mt-1 mb-0.5">
-            <span style={{ fontSize: '17px', fontWeight: 700, color: '#0072F5', lineHeight: 1.2 }} className="whitespace-nowrap">
-              {stats.commissionTotal.toLocaleString('vi-VN')} <span className="underline text-[15px]">đ</span>
-            </span>
-          </div>
-
-          <div className="flex items-center justify-between">
-            <span style={{ fontSize: '13px', fontWeight: 400, color: '#94A3B8' }}>
-              Tháng 10/2026
-            </span>
-            <span style={{ fontSize: '17px', fontWeight: 600, color: '#94A3B8' }}>›</span>
-          </div>
-        </div>
-
-        {/* Card 3: Cấp bậc & điểm */}
-        <div
-          onClick={() => onSelectTab('rank')}
-          className="cursor-pointer hover:shadow-md transition-all active:scale-95 flex flex-col justify-between"
-          style={{
-            background: '#FFFFFF',
-            border: '1px solid #EEF2F6',
-            borderRadius: '18px',
-            padding: '13px 12px',
-            minHeight: '124px',
-            boxShadow: '0 4px 14px rgba(15,23,42,0.05)'
-          }}
-        >
-          <div className="flex items-start gap-2">
-            <div 
-              className="rounded-[10px] flex items-center justify-center shrink-0 mt-0.5"
-              style={{ width: '36px', height: '36px', background: '#FAF5FF', color: '#7C3AED' }}
-            >
-              <Trophy className="w-5 h-5 stroke-[2.2]" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <div style={{ fontSize: '14px', fontWeight: 700, color: '#0F172A', lineHeight: 1.2 }}>
-                Cấp bậc & điểm
-              </div>
-              <div style={{ fontSize: '12px', fontWeight: 400, color: '#64748B', lineHeight: 1.2 }} className="mt-0.5">
-                Tiến trình lên cấp<br />Trưởng nhóm
-              </div>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2 mt-1">
-            <div className="flex-1 bg-[#E2E8F0] rounded-full h-2 overflow-hidden">
-              <div 
-                className="bg-[#0072F5] h-full rounded-full transition-all duration-500"
-                style={{ width: '20%' }}
-              />
-            </div>
-            <span style={{ fontSize: '13px', fontWeight: 700, color: '#0F172A' }}>
-              20%
-            </span>
-          </div>
-        </div>
-
-        {/* Card 4: Đội ngũ đối tác (Chuẩn hóa không dùng F1) */}
-        <div
-          onClick={() => onSelectTab('team-network')}
-          className="cursor-pointer hover:shadow-md transition-all active:scale-95 flex flex-col justify-between"
-          style={{
-            background: '#FFFFFF',
-            border: '1px solid #EEF2F6',
-            borderRadius: '18px',
-            padding: '13px 12px',
-            minHeight: '124px',
-            boxShadow: '0 4px 14px rgba(15,23,42,0.05)'
-          }}
-        >
-          <div className="flex items-center gap-2">
-            <div 
-              className="rounded-[10px] flex items-center justify-center shrink-0"
-              style={{ width: '36px', height: '36px', background: '#ECFDF5', color: '#00B050' }}
-            >
-              <Users className="w-5 h-5 stroke-[2.2]" />
-            </div>
-            <span style={{ fontSize: '15px', fontWeight: 600, color: '#0F172A', lineHeight: 1.2 }}>
-              Đội ngũ đối tác
-            </span>
-          </div>
-
-          <div className="flex items-baseline justify-between mt-1 mb-0.5">
-            <span style={{ fontSize: '23px', fontWeight: 700, color: '#0F172A', lineHeight: 1 }}>
-              {stats.directCount} / 5
-            </span>
-            <span style={{ fontSize: '19px', fontWeight: 600, color: '#94A3B8' }}>›</span>
-          </div>
-
-          <div className="flex items-center justify-between">
-            <span style={{ fontSize: '13px', fontWeight: 400, color: '#94A3B8' }}>
-              Đối tác Trực tiếp
-            </span>
-            <span style={{ fontSize: '17px', fontWeight: 600, color: '#94A3B8' }}>›</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Card 5: Mạng lưới đối tác (Chuẩn hóa không dùng F1/F2) */}
       <div
-        onClick={() => onSelectTab('team-network')}
-        className="cursor-pointer hover:shadow-md transition-all active:scale-95 flex items-center justify-between mt-3"
+        className="relative overflow-hidden"
         style={{
-          background: 'linear-gradient(135deg, #F0F7FF 0%, #EEF6FF 100%)',
-          border: '1px solid #D4E8FC',
-          borderRadius: '18px',
-          padding: '14px 16px',
-          boxShadow: '0 4px 14px rgba(15,23,42,0.05)'
+          borderRadius: '24px',
+          background: 'linear-gradient(180deg, #0A1628 0%, #0D3B8F 40%, #1E6DD9 70%, #4BA3F5 100%)',
+          padding: '24px 20px 20px',
+          minHeight: '280px',
         }}
       >
-        <div className="flex items-center gap-3">
-          <div 
-            className="rounded-[12px] flex items-center justify-center shrink-0"
-            style={{ width: '42px', height: '42px', background: '#0072F5', color: '#FFFFFF' }}
-          >
-            <GitBranch className="w-5 h-5 stroke-[2.2]" />
-          </div>
-          <div>
-            <div style={{ fontSize: '16px', fontWeight: 700, color: '#0F172A', lineHeight: 1.2 }}>
-              Mạng lưới đối tác kinh doanh
-            </div>
-            <div style={{ fontSize: '12px', fontWeight: 400, color: '#64748B', marginTop: '2px' }}>
-              Xem danh sách đối tác Trực tiếp & Gián tiếp của bạn
-            </div>
+        {/* Background water/building image overlay */}
+        <div
+          className="absolute inset-0 opacity-20"
+          style={{
+            backgroundImage: 'url(/images/hero-poster.jpg)',
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+          }}
+        />
+
+        {/* Notification bell */}
+        <div className="absolute top-4 right-4 z-10">
+          <div className="w-10 h-10 rounded-full bg-white/15 flex items-center justify-center backdrop-blur-sm">
+            <Bell className="w-5 h-5 text-white" />
           </div>
         </div>
-        <span style={{ fontSize: '19px', fontWeight: 600, color: '#0072F5' }}>›</span>
-      </div>
 
-      {/* PROMO BANNER */}
-      <div 
-        onClick={onNavigateHome}
-        className="relative overflow-hidden cursor-pointer group shadow-sm"
-        style={{
-          borderRadius: '18px',
-          border: '1px solid #EEF2F6',
-        }}
-      >
-        <img 
-          src="/images/banner-web.webp" 
-          alt="WASY PRO HYDROGEN" 
-          className="w-full h-36 object-cover group-hover:scale-105 transition-transform duration-500" 
-        />
-        <div className="absolute inset-0 bg-gradient-to-r from-slate-950/85 via-slate-900/50 to-transparent flex items-center p-5">
-          <div className="text-white space-y-1">
-            <span 
-              className="text-[12px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-[6px]"
-              style={{ background: '#0052CC', color: '#FFFFFF' }}
-            >
-              WASY PRO HYDROGEN
-            </span>
-            <h3 className="text-[18px] font-bold text-white leading-tight">
-              NƯỚC TỐT — THÂN AN — TRÍ SÁNG
-            </h3>
-            <button className="text-[14px] font-semibold text-sky-200 flex items-center gap-1 hover:underline pt-0.5">
-              <span>Xem chi tiết</span>
-              <ChevronRight className="w-4 h-4 stroke-[2.5]" />
-            </button>
+        {/* Content */}
+        <div className="relative z-10">
+          {/* Rank Crown Badge */}
+          <div className="flex justify-center mb-2">
+            <div className="relative">
+              <span className="text-3xl">👑</span>
+              <div
+                className="mt-1 px-6 py-1.5 rounded-full text-center"
+                style={{
+                  background: 'linear-gradient(135deg, #FFD700, #FFA500)',
+                  boxShadow: '0 4px 15px rgba(255,165,0,0.4)',
+                }}
+              >
+                <span className="text-sm font-extrabold text-[#1a0a00] tracking-wider uppercase">
+                  {rankText}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Chairman photo + User info */}
+          <div className="flex items-start gap-4 mt-3">
+            {/* Chairman photo */}
+            <div className="shrink-0">
+              <div
+                className="w-20 h-24 rounded-2xl overflow-hidden border-2 border-amber-400/60 shadow-lg"
+                style={{ background: '#1a2a4a' }}
+              >
+                <img
+                  src="/images/chairman.png"
+                  alt="Chairman"
+                  className="w-full h-full object-cover"
+                  onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                />
+              </div>
+              <div
+                className="mt-1.5 px-3 py-1 rounded-lg text-center mx-auto"
+                style={{ background: '#FFD700', color: '#0F172A' }}
+              >
+                <span className="text-[11px] font-extrabold">
+                  {userSession.id || userSession.userId || 'U1002'}
+                </span>
+              </div>
+            </div>
+
+            {/* User name + quote */}
+            <div className="flex-1 min-w-0">
+              <h2 className="text-xl font-bold text-white leading-tight truncate">
+                {userSession.fullName || 'Đối tác CTV'}
+              </h2>
+              <p
+                className="text-[12px] text-white/70 italic leading-snug mt-2"
+                style={{ maxWidth: '220px' }}
+              >
+                "Cuộc đời là một hành trình, hãy làm cuộc đời trở nên ý nghĩa hơn"
+              </p>
+              <p className="text-[11px] text-amber-300/80 font-semibold mt-1.5">
+                (Founder & Chairman Nguyễn Đức Quang)
+              </p>
+              <p
+                className="text-white/50 mt-1"
+                style={{ fontFamily: 'cursive', fontSize: '14px' }}
+              >
+                Nguyễn Đức Quang
+              </p>
+            </div>
           </div>
         </div>
       </div>
 
       {/* ============================================================
-          ALL 5 MODALS (A, B, C, D, E)
+          2 ACTION BUTTONS — Website + Hotline
           ============================================================ */}
-      {/* MODAL A: TÀI KHOẢN & LINK GIỚI THIỆU */}
-      <AccountModal
-        isOpen={accountModalOpen}
-        onClose={() => setAccountModalOpen(false)}
-        currentUser={userSession}
-        onUserUpdated={(updated) => setUserSession(prev => ({ ...prev, ...updated }))}
-      />
+      <div className="grid grid-cols-2 gap-3">
+        {/* Truy cập Website */}
+        <button
+          onClick={onNavigateHome}
+          className="flex items-center gap-3 p-3.5 rounded-2xl bg-white border border-[#EEF2F6] shadow-sm hover:shadow-md transition-all active:scale-[0.98]"
+        >
+          <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center shrink-0">
+            <Globe className="w-5 h-5 text-[#0072F5]" />
+          </div>
+          <div className="text-left min-w-0">
+            <div className="text-[13px] font-bold text-[#0F172A] leading-tight">Truy cập Website</div>
+            <div className="text-[10px] text-[#64748B] font-medium">waterkinggroup.com</div>
+          </div>
+          <ChevronRight className="w-4 h-4 text-[#94A3B8] shrink-0 ml-auto" />
+        </button>
 
-      {/* MODAL B: HỆ THỐNG ĐỐI TÁC (TRỰC TIẾP & GIÁN TIẾP) */}
-      <NetworkSystemModal
-        isOpen={networkModalOpen}
-        onClose={() => setNetworkModalOpen(false)}
-        currentUser={userSession}
-        onOpenNetworkTree={() => onSelectTab('network')}
-      />
+        {/* Hỗ trợ tổng đài */}
+        <a
+          href="tel:1900989878"
+          className="flex items-center gap-3 p-3.5 rounded-2xl bg-white border border-[#EEF2F6] shadow-sm hover:shadow-md transition-all active:scale-[0.98] no-underline"
+        >
+          <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center shrink-0">
+            <Phone className="w-5 h-5 text-amber-600" />
+          </div>
+          <div className="text-left min-w-0">
+            <div className="text-[13px] font-bold text-[#0F172A] leading-tight">Hỗ trợ tổng đài</div>
+            <div className="text-[10px] text-[#64748B] font-medium">1900.98.98.78</div>
+          </div>
+        </a>
+      </div>
 
-      {/* MODAL C: ĐIỀU KHOẢN */}
-      <TermsModal
-        isOpen={termsModalOpen}
-        onClose={() => setTermsModalOpen(false)}
-      />
+      {/* ============================================================
+          6 GRADIENT CARDS — Stats & Quick Actions
+          ============================================================ */}
+      <div className="grid grid-cols-3 gap-3">
+        {/* Card 1: Đơn hàng (Purple gradient) */}
+        <button
+          onClick={() => onSelectTab('orders')}
+          className="relative overflow-hidden rounded-2xl p-3 text-left transition-all active:scale-[0.97]"
+          style={{
+            background: 'linear-gradient(145deg, #7C3AED 0%, #A855F7 50%, #C084FC 100%)',
+            minHeight: '130px',
+            boxShadow: '0 8px 20px rgba(124,58,237,0.3)',
+          }}
+        >
+          <div className="absolute top-2 right-2 w-7 h-7 rounded-full bg-white/20 flex items-center justify-center">
+            <ChevronRight className="w-4 h-4 text-white" />
+          </div>
+          <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center mb-2">
+            <ShoppingCart className="w-5 h-5 text-white" />
+          </div>
+          <div className="text-[12px] font-bold text-white/90">Đơn hàng</div>
+          <div className="text-[28px] font-extrabold text-white leading-none mt-1">
+            {stats.orderCount}
+          </div>
+          <div className="text-[10px] text-white/70 mt-1">Đơn mới hôm nay</div>
+        </button>
 
-      {/* MODAL D: HỖ TRỢ */}
-      <SupportModal
-        isOpen={supportModalOpen}
-        onClose={() => setSupportModalOpen(false)}
-      />
+        {/* Card 2: Hoa hồng (Gold gradient) */}
+        <button
+          onClick={() => onSelectTab('commissions')}
+          className="relative overflow-hidden rounded-2xl p-3 text-left transition-all active:scale-[0.97]"
+          style={{
+            background: 'linear-gradient(145deg, #D97706 0%, #F59E0B 50%, #FBBF24 100%)',
+            minHeight: '130px',
+            boxShadow: '0 8px 20px rgba(217,119,6,0.3)',
+          }}
+        >
+          <div className="absolute top-2 right-2 w-7 h-7 rounded-full bg-white/20 flex items-center justify-center">
+            <ChevronRight className="w-4 h-4 text-white" />
+          </div>
+          <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center mb-2">
+            <Coins className="w-5 h-5 text-white" />
+          </div>
+          <div className="text-[12px] font-bold text-white/90">Hoa hồng</div>
+          <div className="text-[18px] font-extrabold text-white leading-tight mt-1">
+            {formatNumber(stats.commissionTotal)} <span className="text-[14px]">đ</span>
+          </div>
+          <div className="text-[10px] text-white/70 mt-1">Tháng 10/2026</div>
+        </button>
 
-      {/* MODAL E: XÁC NHẬN ĐĂNG XUẤT */}
+        {/* Card 3: Cấp bậc & điểm (Blue gradient) */}
+        <button
+          onClick={() => onSelectTab('rank')}
+          className="relative overflow-hidden rounded-2xl p-3 text-left transition-all active:scale-[0.97]"
+          style={{
+            background: 'linear-gradient(145deg, #1D4ED8 0%, #3B82F6 50%, #60A5FA 100%)',
+            minHeight: '130px',
+            boxShadow: '0 8px 20px rgba(29,78,216,0.3)',
+          }}
+        >
+          <div className="absolute top-2 right-2 w-7 h-7 rounded-full bg-white/20 flex items-center justify-center">
+            <ChevronRight className="w-4 h-4 text-white" />
+          </div>
+          <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center mb-2">
+            <Trophy className="w-5 h-5 text-white" />
+          </div>
+          <div className="text-[12px] font-bold text-white/90">Cấp bậc & điểm</div>
+          <div className="text-[11px] text-white/80 mt-1 leading-snug">
+            Tiến trình lên cấp<br />Trưởng nhóm
+          </div>
+          <div className="flex items-center gap-2 mt-2">
+            <div className="flex-1 bg-white/20 rounded-full h-2 overflow-hidden">
+              <div className="bg-white h-full rounded-full" style={{ width: '20%' }} />
+            </div>
+            <span className="text-[11px] font-bold text-white">20%</span>
+          </div>
+        </button>
+
+        {/* Card 4: Đội ngũ đối tác (Green gradient) */}
+        <button
+          onClick={() => onSelectTab('team-network')}
+          className="relative overflow-hidden rounded-2xl p-3 text-left transition-all active:scale-[0.97]"
+          style={{
+            background: 'linear-gradient(145deg, #059669 0%, #10B981 50%, #34D399 100%)',
+            minHeight: '130px',
+            boxShadow: '0 8px 20px rgba(5,150,105,0.3)',
+          }}
+        >
+          <div className="absolute top-2 right-2 w-7 h-7 rounded-full bg-white/20 flex items-center justify-center">
+            <ChevronRight className="w-4 h-4 text-white" />
+          </div>
+          <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center mb-2">
+            <Users className="w-5 h-5 text-white" />
+          </div>
+          <div className="text-[12px] font-bold text-white/90">Đội ngũ đối tác</div>
+          <div className="text-[28px] font-extrabold text-white leading-none mt-1">
+            {stats.directCount} / 5
+          </div>
+          <div className="text-[10px] text-white/70 mt-1">Đối tác Trực tiếp</div>
+        </button>
+
+        {/* Card 5: Tạo đơn hàng mới (Red/Pink gradient) */}
+        <button
+          onClick={() => onSelectTab('orders')}
+          className="relative overflow-hidden rounded-2xl p-3 text-left transition-all active:scale-[0.97]"
+          style={{
+            background: 'linear-gradient(145deg, #DC2626 0%, #EF4444 50%, #F87171 100%)',
+            minHeight: '130px',
+            boxShadow: '0 8px 20px rgba(220,38,38,0.3)',
+          }}
+        >
+          <div className="absolute top-2 right-2 w-7 h-7 rounded-full bg-white/20 flex items-center justify-center">
+            <Plus className="w-4 h-4 text-white" />
+          </div>
+          <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center mb-2">
+            <ShoppingCart className="w-5 h-5 text-white" />
+          </div>
+          <div className="text-[12px] font-bold text-white/90">Tạo đơn hàng mới</div>
+          <div className="text-[11px] text-white/80 mt-1.5 leading-snug">
+            Đặt hàng nhanh chóng
+          </div>
+        </button>
+
+        {/* Card 6: Hoa hồng & Ưu đãi (Yellow/Orange gradient) */}
+        <button
+          onClick={() => onSelectTab('commissions')}
+          className="relative overflow-hidden rounded-2xl p-3 text-left transition-all active:scale-[0.97]"
+          style={{
+            background: 'linear-gradient(145deg, #EA580C 0%, #F97316 50%, #FB923C 100%)',
+            minHeight: '130px',
+            boxShadow: '0 8px 20px rgba(234,88,12,0.3)',
+          }}
+        >
+          <div className="absolute top-2 right-2 w-7 h-7 rounded-full bg-white/20 flex items-center justify-center">
+            <ChevronRight className="w-4 h-4 text-white" />
+          </div>
+          <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center mb-2">
+            <Gift className="w-5 h-5 text-white" />
+          </div>
+          <div className="text-[12px] font-bold text-white/90">Hoa hồng & Ưu đãi</div>
+          <div className="text-[11px] text-white/80 mt-1.5 leading-snug">
+            Chương trình thưởng dành cho đối tác
+          </div>
+        </button>
+      </div>
+
+      {/* ============================================================
+          LOGOUT CONFIRM MODAL
+          ============================================================ */}
       {showLogoutConfirm && (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fadeIn">
           <div className="bg-white rounded-3xl p-5 max-w-xs w-full text-center space-y-4 shadow-2xl">
