@@ -56,7 +56,13 @@ import {
 } from 'lucide-react';
 
 export const App: React.FC = () => {
-  const [activeSection, setActiveSection] = useState<string>('hero');
+  const [activeSection, setActiveSection] = useState<string>(() => {
+    const p = window.location.pathname;
+    const h = window.location.hash;
+    if (p.startsWith('/ctv') || h === '#ctv') return 'ctv';
+    if (p.startsWith('/my-orders')) return 'my-orders';
+    return h ? h.replace('#', '') : 'hero';
+  });
   const [isContactModalOpen, setIsContactModalOpen] = useState(false);
   const [selectedProductForOrder, setSelectedProductForOrder] = useState<Product | null>(null);
   const [showScrollTop, setShowScrollTop] = useState(false);

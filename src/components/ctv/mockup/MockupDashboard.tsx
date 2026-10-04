@@ -12,9 +12,6 @@ import {
   Radio,
   Scale,
   User,
-  ShoppingCart,
-  Trophy,
-  GitBranch,
 } from 'lucide-react';
 import { UserSession } from '../../../hooks/useUnifiedAuth';
 import { AccountModal } from './AccountModal';
@@ -90,11 +87,6 @@ export const MockupDashboard: React.FC<MockupDashboardProps> = ({
 }) => {
   const [userSession, setUserSession] = useState(currentUser);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
-  const [stats, setStats] = useState({
-    orderCount: 0,
-    commissionTotal: 0,
-    directCount: 0,
-  });
   // Modal states
   const [accountModalOpen, setAccountModalOpen] = useState(false);
   const [networkModalOpen, setNetworkModalOpen] = useState(false);
@@ -104,25 +96,6 @@ export const MockupDashboard: React.FC<MockupDashboardProps> = ({
   useEffect(() => {
     setUserSession(currentUser);
   }, [currentUser]);
-
-  // Fetch real stats
-  useEffect(() => {
-    // Orders count
-    fetch('/api/orders/my', { credentials: 'include' })
-      .then(r => r.json())
-      .then(d => { if (d.success && Array.isArray(d.data)) setStats(prev => ({ ...prev, orderCount: d.data.length })); })
-      .catch(() => {});
-    // Commission total
-    fetch('/api/commissions/my-total', { credentials: 'include' })
-      .then(r => r.json())
-      .then(d => { if (d.success && typeof d.data?.total === 'number') setStats(prev => ({ ...prev, commissionTotal: d.data.total })); })
-      .catch(() => {});
-    // Direct partner count
-    fetch('/api/network/direct-count', { credentials: 'include' })
-      .then(r => r.json())
-      .then(d => { if (d.success && typeof d.data?.directCount === 'number') setStats(prev => ({ ...prev, directCount: d.data.directCount })); })
-      .catch(() => {});
-  }, []);
 
   // Rank mapping — hiển thị đúng cấp bậc CTV/NPP
   const RANK_MAP: Record<string, string> = {
@@ -345,151 +318,29 @@ export const MockupDashboard: React.FC<MockupDashboardProps> = ({
       </div>
 
       {/* ============================================================
-          4 THỐNG KÊ NHANH — Stats Cards (2×2 grid)
+          VIDEO SECTION — embed từ trang chủ
           ============================================================ */}
-      <div className="grid grid-cols-2 gap-3">
-        {/* Card 1: Đơn hàng */}
-        <div
-          onClick={() => onSelectTab('orders')}
-          className="cursor-pointer hover:shadow-lg transition-all active:scale-95 flex flex-col justify-between"
-          style={{
-            background: 'rgba(255,255,255,0.95)',
-            border: '1px solid rgba(255,255,255,0.6)',
-            borderRadius: '18px',
-            padding: '13px 12px',
-            minHeight: '110px',
-            boxShadow: '0 6px 20px rgba(15,23,42,0.08)',
-            backdropFilter: 'blur(8px)',
-          }}
-        >
-          <div className="flex items-center gap-2">
-            <div className="rounded-[10px] flex items-center justify-center shrink-0" style={{ width: '36px', height: '36px', background: '#F0F7FF', color: '#0072F5' }}>
-              <ShoppingCart className="w-5 h-5 stroke-[2.2]" />
-            </div>
-            <span style={{ fontSize: '14px', fontWeight: 600, color: '#0F172A' }}>Đơn hàng</span>
-          </div>
-          <div className="flex items-baseline justify-between mt-1">
-            <span style={{ fontSize: '24px', fontWeight: 700, color: '#0F172A' }}>{stats.orderCount}</span>
-            <span style={{ fontSize: '18px', fontWeight: 600, color: '#94A3B8' }}>›</span>
-          </div>
-          <div style={{ fontSize: '12px', color: '#94A3B8' }}>Tổng đơn hàng</div>
-        </div>
-
-        {/* Card 2: Hoa hồng */}
-        <div
-          onClick={() => onSelectTab('commissions')}
-          className="cursor-pointer hover:shadow-lg transition-all active:scale-95 flex flex-col justify-between"
-          style={{
-            background: 'rgba(255,255,255,0.95)',
-            border: '1px solid rgba(255,255,255,0.6)',
-            borderRadius: '18px',
-            padding: '13px 12px',
-            minHeight: '110px',
-            boxShadow: '0 6px 20px rgba(15,23,42,0.08)',
-            backdropFilter: 'blur(8px)',
-          }}
-        >
-          <div className="flex items-center gap-2">
-            <div className="rounded-[10px] flex items-center justify-center shrink-0" style={{ width: '36px', height: '36px', background: '#FFF7E6', color: '#F5A623' }}>
-              <Coins className="w-5 h-5 stroke-[2.2]" />
-            </div>
-            <span style={{ fontSize: '14px', fontWeight: 600, color: '#0F172A' }}>Hoa hồng</span>
-          </div>
-          <div className="mt-1">
-            <span style={{ fontSize: '16px', fontWeight: 700, color: '#0072F5' }} className="whitespace-nowrap">
-              {stats.commissionTotal.toLocaleString('vi-VN')} <span className="underline text-[14px]">đ</span>
-            </span>
-          </div>
-          <div className="flex items-center justify-between">
-            <span style={{ fontSize: '12px', color: '#94A3B8' }}>Tháng này</span>
-            <span style={{ fontSize: '17px', fontWeight: 600, color: '#94A3B8' }}>›</span>
-          </div>
-        </div>
-
-        {/* Card 3: Cấp bậc & điểm */}
-        <div
-          onClick={() => onSelectTab('rank')}
-          className="cursor-pointer hover:shadow-lg transition-all active:scale-95 flex flex-col justify-between"
-          style={{
-            background: 'rgba(255,255,255,0.95)',
-            border: '1px solid rgba(255,255,255,0.6)',
-            borderRadius: '18px',
-            padding: '13px 12px',
-            minHeight: '110px',
-            boxShadow: '0 6px 20px rgba(15,23,42,0.08)',
-            backdropFilter: 'blur(8px)',
-          }}
-        >
-          <div className="flex items-start gap-2">
-            <div className="rounded-[10px] flex items-center justify-center shrink-0" style={{ width: '36px', height: '36px', background: '#FAF5FF', color: '#7C3AED' }}>
-              <Trophy className="w-5 h-5 stroke-[2.2]" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <div style={{ fontSize: '14px', fontWeight: 700, color: '#0F172A' }}>Cấp bậc & điểm</div>
-              <div style={{ fontSize: '11px', color: '#64748B', marginTop: '2px' }}>
-                {rankText}
-              </div>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 mt-1">
-            <div className="flex-1 bg-[#E2E8F0] rounded-full h-2 overflow-hidden">
-              <div className="bg-[#0072F5] h-full rounded-full transition-all duration-500" style={{ width: '20%' }} />
-            </div>
-            <span style={{ fontSize: '12px', fontWeight: 700, color: '#0F172A' }}>20%</span>
-          </div>
-        </div>
-
-        {/* Card 4: Đội ngũ đối tác */}
-        <div
-          onClick={() => setNetworkModalOpen(true)}
-          className="cursor-pointer hover:shadow-lg transition-all active:scale-95 flex flex-col justify-between"
-          style={{
-            background: 'rgba(255,255,255,0.95)',
-            border: '1px solid rgba(255,255,255,0.6)',
-            borderRadius: '18px',
-            padding: '13px 12px',
-            minHeight: '110px',
-            boxShadow: '0 6px 20px rgba(15,23,42,0.08)',
-            backdropFilter: 'blur(8px)',
-          }}
-        >
-          <div className="flex items-center gap-2">
-            <div className="rounded-[10px] flex items-center justify-center shrink-0" style={{ width: '36px', height: '36px', background: '#ECFDF5', color: '#00B050' }}>
-              <Users className="w-5 h-5 stroke-[2.2]" />
-            </div>
-            <span style={{ fontSize: '14px', fontWeight: 600, color: '#0F172A' }}>Đội ngũ</span>
-          </div>
-          <div className="flex items-baseline justify-between mt-1">
-            <span style={{ fontSize: '22px', fontWeight: 700, color: '#0F172A' }}>{stats.directCount}</span>
-            <span style={{ fontSize: '17px', fontWeight: 600, color: '#94A3B8' }}>›</span>
-          </div>
-          <div style={{ fontSize: '12px', color: '#94A3B8' }}>Đối tác Trực tiếp</div>
-        </div>
-      </div>
-
-      {/* Card: Mạng lưới đối tác */}
       <div
-        onClick={() => setNetworkModalOpen(true)}
-        className="cursor-pointer hover:shadow-lg transition-all active:scale-95 flex items-center justify-between"
+        className="rounded-2xl overflow-hidden"
         style={{
-          background: 'linear-gradient(135deg, rgba(240,247,255,0.95) 0%, rgba(238,246,255,0.95) 100%)',
-          border: '1px solid rgba(212,232,252,0.8)',
-          borderRadius: '18px',
-          padding: '14px 16px',
+          background: 'rgba(255,255,255,0.95)',
+          border: '1px solid rgba(255,255,255,0.6)',
           boxShadow: '0 6px 20px rgba(15,23,42,0.08)',
           backdropFilter: 'blur(8px)',
         }}
       >
-        <div className="flex items-center gap-3">
-          <div className="rounded-[12px] flex items-center justify-center shrink-0" style={{ width: '42px', height: '42px', background: '#0072F5', color: '#FFFFFF' }}>
-            <GitBranch className="w-5 h-5 stroke-[2.2]" />
-          </div>
-          <div>
-            <div style={{ fontSize: '15px', fontWeight: 700, color: '#0F172A' }}>Mạng lưới đối tác</div>
-            <div style={{ fontSize: '12px', color: '#64748B', marginTop: '2px' }}>Xem Trực tiếp & Gián tiếp</div>
-          </div>
+        <div className="p-3 pb-2">
+          <h3 className="text-[14px] font-bold text-[#0F172A]">🎬 Video giới thiệu</h3>
         </div>
-        <span style={{ fontSize: '19px', fontWeight: 600, color: '#0072F5' }}>›</span>
+        <div className="aspect-video w-full">
+          <iframe
+            src="https://www.youtube.com/embed/videoseries?list=PLjVwR9eCJMkSwUUdPVSjY-6h1yCgJNe5w"
+            title="WasyPro Videos"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowFullScreen
+            className="w-full h-full border-0"
+          />
+        </div>
       </div>
 
       {/* ============================================================
