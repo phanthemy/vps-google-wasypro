@@ -19,7 +19,7 @@ export const MockupMore: React.FC<MockupMoreProps> = ({
           SECTION 1: MORE MENU — KHU VỰC ĐỐI TÁC
           ============================================================ */}
       <div className="space-y-2">
-        <h3 style={{ fontSize: '13px', fontWeight: 600, color: '#64748B', textTransform: 'uppercase', paddingLeft: '4px' }}>
+        <h3 style={{ fontSize: '13px', fontWeight: 700, color: '#1E40AF', textTransform: 'uppercase', paddingLeft: '4px', textShadow: '0 1px 2px rgba(255,255,255,0.8)' }}>
           KHU VỰC ĐỐI TÁC
         </h3>
 
@@ -28,7 +28,7 @@ export const MockupMore: React.FC<MockupMoreProps> = ({
             background: '#FFFFFF',
             border: '1px solid #EEF2F6',
             borderRadius: '18px',
-            boxShadow: '0 4px 14px rgba(15,23,42,0.05)',
+            boxShadow: '0 8px 25px rgba(15,23,42,0.10)',
             overflow: 'hidden'
           }}
           className="divide-y divide-[#EEF2F6]"
@@ -46,11 +46,11 @@ export const MockupMore: React.FC<MockupMoreProps> = ({
               >
                 <Users className="w-5 h-5 stroke-[2.2]" />
               </div>
-              <span style={{ fontSize: '16px', fontWeight: 600, color: '#0F172A' }}>
+              <span style={{ fontSize: '16px', fontWeight: 600, color: '#1E293B' }}>
                 Sơ đồ Tuyến dưới
               </span>
             </div>
-            <ChevronRight className="w-5 h-5 text-[#94A3B8] stroke-[2.5]" />
+            <ChevronRight className="w-5 h-5 text-[#64748B] stroke-[2.5]" />
           </button>
 
           {/* Khách hàng của tôi */}
@@ -66,11 +66,11 @@ export const MockupMore: React.FC<MockupMoreProps> = ({
               >
                 <UserCheck className="w-5 h-5 stroke-[2.2]" />
               </div>
-              <span style={{ fontSize: '16px', fontWeight: 600, color: '#0F172A' }}>
+              <span style={{ fontSize: '16px', fontWeight: 600, color: '#1E293B' }}>
                 Khách hàng của tôi
               </span>
             </div>
-            <ChevronRight className="w-5 h-5 text-[#94A3B8] stroke-[2.5]" />
+            <ChevronRight className="w-5 h-5 text-[#64748B] stroke-[2.5]" />
           </button>
 
           {/* Bảng giá & Chiết khấu */}
@@ -86,11 +86,11 @@ export const MockupMore: React.FC<MockupMoreProps> = ({
               >
                 <Tag className="w-5 h-5 stroke-[2.2]" />
               </div>
-              <span style={{ fontSize: '16px', fontWeight: 600, color: '#0F172A' }}>
+              <span style={{ fontSize: '16px', fontWeight: 600, color: '#1E293B' }}>
                 Bảng giá & Chiết khấu
               </span>
             </div>
-            <ChevronRight className="w-5 h-5 text-[#94A3B8] stroke-[2.5]" />
+            <ChevronRight className="w-5 h-5 text-[#64748B] stroke-[2.5]" />
           </button>
 
           {/* Thông tin tài khoản */}
@@ -106,11 +106,11 @@ export const MockupMore: React.FC<MockupMoreProps> = ({
               >
                 <User className="w-5 h-5 stroke-[2.2]" />
               </div>
-              <span style={{ fontSize: '16px', fontWeight: 600, color: '#0F172A' }}>
+              <span style={{ fontSize: '16px', fontWeight: 600, color: '#1E293B' }}>
                 Thông tin tài khoản & Ngân hàng
               </span>
             </div>
-            <ChevronRight className="w-5 h-5 text-[#94A3B8] stroke-[2.5]" />
+            <ChevronRight className="w-5 h-5 text-[#64748B] stroke-[2.5]" />
           </button>
 
           {/* Đổi mật khẩu */}
@@ -126,11 +126,11 @@ export const MockupMore: React.FC<MockupMoreProps> = ({
               >
                 <KeyRound className="w-5 h-5 stroke-[2.2]" />
               </div>
-              <span style={{ fontSize: '16px', fontWeight: 600, color: '#0F172A' }}>
+              <span style={{ fontSize: '16px', fontWeight: 600, color: '#1E293B' }}>
                 Đổi mật khẩu
               </span>
             </div>
-            <ChevronRight className="w-5 h-5 text-[#94A3B8] stroke-[2.5]" />
+            <ChevronRight className="w-5 h-5 text-[#64748B] stroke-[2.5]" />
           </button>
         </div>
       </div>
@@ -139,7 +139,7 @@ export const MockupMore: React.FC<MockupMoreProps> = ({
           SECTION 2: MẠNG LƯỚI & TRUYỀN THÔNG
           ============================================================ */}
       <div className="space-y-2">
-        <h3 style={{ fontSize: '13px', fontWeight: 600, color: '#64748B', textTransform: 'uppercase', paddingLeft: '4px' }}>
+        <h3 style={{ fontSize: '13px', fontWeight: 700, color: '#1E40AF', textTransform: 'uppercase', paddingLeft: '4px', textShadow: '0 1px 2px rgba(255,255,255,0.8)' }}>
           MẠNG LƯỚI & TRUYỀN THÔNG
         </h3>
 
@@ -148,7 +148,7 @@ export const MockupMore: React.FC<MockupMoreProps> = ({
             background: '#FFFFFF',
             border: '1px solid #EEF2F6',
             borderRadius: '18px',
-            boxShadow: '0 4px 14px rgba(15,23,42,0.05)',
+            boxShadow: '0 8px 25px rgba(15,23,42,0.10)',
             overflow: 'hidden'
           }}
           className="divide-y divide-[#EEF2F6]"
@@ -166,11 +166,11 @@ export const MockupMore: React.FC<MockupMoreProps> = ({
               >
                 <MapPin className="w-5 h-5 stroke-[2.2]" />
               </div>
-              <span style={{ fontSize: '16px', fontWeight: 600, color: '#0F172A' }}>
+              <span style={{ fontSize: '16px', fontWeight: 600, color: '#1E293B' }}>
                 Đại lý & Showroom toàn quốc
               </span>
             </div>
-            <ChevronRight className="w-5 h-5 text-[#94A3B8] stroke-[2.5]" />
+            <ChevronRight className="w-5 h-5 text-[#64748B] stroke-[2.5]" />
           </button>
 
           {/* Sự kiện & Báo chí */}
@@ -186,11 +186,11 @@ export const MockupMore: React.FC<MockupMoreProps> = ({
               >
                 <Calendar className="w-5 h-5 stroke-[2.2]" />
               </div>
-              <span style={{ fontSize: '16px', fontWeight: 600, color: '#0F172A' }}>
+              <span style={{ fontSize: '16px', fontWeight: 600, color: '#1E293B' }}>
                 Sự kiện & Báo chí
               </span>
             </div>
-            <ChevronRight className="w-5 h-5 text-[#94A3B8] stroke-[2.5]" />
+            <ChevronRight className="w-5 h-5 text-[#64748B] stroke-[2.5]" />
           </button>
 
           {/* Kết quả sử dụng (Feedback) */}
@@ -206,11 +206,11 @@ export const MockupMore: React.FC<MockupMoreProps> = ({
               >
                 <MessageSquare className="w-5 h-5 stroke-[2.2]" />
               </div>
-              <span style={{ fontSize: '16px', fontWeight: 600, color: '#0F172A' }}>
+              <span style={{ fontSize: '16px', fontWeight: 600, color: '#1E293B' }}>
                 Kết quả sử dụng (Feedback)
               </span>
             </div>
-            <ChevronRight className="w-5 h-5 text-[#94A3B8] stroke-[2.5]" />
+            <ChevronRight className="w-5 h-5 text-[#64748B] stroke-[2.5]" />
           </button>
         </div>
       </div>
@@ -219,7 +219,7 @@ export const MockupMore: React.FC<MockupMoreProps> = ({
           SECTION 3: PHÁP LÝ & ĐIỀU KHOẢN
           ============================================================ */}
       <div className="space-y-2">
-        <h3 style={{ fontSize: '13px', fontWeight: 600, color: '#64748B', textTransform: 'uppercase', paddingLeft: '4px' }}>
+        <h3 style={{ fontSize: '13px', fontWeight: 700, color: '#1E40AF', textTransform: 'uppercase', paddingLeft: '4px', textShadow: '0 1px 2px rgba(255,255,255,0.8)' }}>
           PHÁP LÝ & ĐIỀU KHOẢN
         </h3>
 
@@ -228,7 +228,7 @@ export const MockupMore: React.FC<MockupMoreProps> = ({
             background: '#FFFFFF',
             border: '1px solid #EEF2F6',
             borderRadius: '18px',
-            boxShadow: '0 4px 14px rgba(15,23,42,0.05)',
+            boxShadow: '0 8px 25px rgba(15,23,42,0.10)',
             overflow: 'hidden'
           }}
           className="divide-y divide-[#EEF2F6]"
@@ -246,11 +246,11 @@ export const MockupMore: React.FC<MockupMoreProps> = ({
               >
                 <FileCheck className="w-5 h-5 stroke-[2.2]" />
               </div>
-              <span style={{ fontSize: '16px', fontWeight: 600, color: '#0F172A' }}>
+              <span style={{ fontSize: '16px', fontWeight: 600, color: '#1E293B' }}>
                 Pháp lý & Giấy chứng nhận
               </span>
             </div>
-            <ChevronRight className="w-5 h-5 text-[#94A3B8] stroke-[2.5]" />
+            <ChevronRight className="w-5 h-5 text-[#64748B] stroke-[2.5]" />
           </button>
 
           {/* Chính sách Công ty */}
@@ -266,11 +266,11 @@ export const MockupMore: React.FC<MockupMoreProps> = ({
               >
                 <Shield className="w-5 h-5 stroke-[2.2]" />
               </div>
-              <span style={{ fontSize: '16px', fontWeight: 600, color: '#0F172A' }}>
+              <span style={{ fontSize: '16px', fontWeight: 600, color: '#1E293B' }}>
                 Chính sách Công ty
               </span>
             </div>
-            <ChevronRight className="w-5 h-5 text-[#94A3B8] stroke-[2.5]" />
+            <ChevronRight className="w-5 h-5 text-[#64748B] stroke-[2.5]" />
           </button>
 
           {/* Quy định Pháp luật */}
@@ -286,11 +286,11 @@ export const MockupMore: React.FC<MockupMoreProps> = ({
               >
                 <Scale className="w-5 h-5 stroke-[2.2]" />
               </div>
-              <span style={{ fontSize: '16px', fontWeight: 600, color: '#0F172A' }}>
+              <span style={{ fontSize: '16px', fontWeight: 600, color: '#1E293B' }}>
                 Quy định Pháp luật
               </span>
             </div>
-            <ChevronRight className="w-5 h-5 text-[#94A3B8] stroke-[2.5]" />
+            <ChevronRight className="w-5 h-5 text-[#64748B] stroke-[2.5]" />
           </button>
         </div>
       </div>
