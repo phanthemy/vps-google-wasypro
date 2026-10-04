@@ -425,24 +425,29 @@ export const AccountModal: React.FC<AccountModalProps> = ({
               </div>
             </div>
 
-            {/* Action Save Button */}
-            <div className="pt-2">
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full h-11 bg-[#0072F5] hover:bg-[#0052CC] text-white rounded-xl font-bold text-sm transition-all shadow-sm active:scale-[0.99] flex items-center justify-center gap-2 disabled:opacity-60"
-              >
-                {loading ? (
-                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                ) : (
-                  <>
-                    <Save className="w-4 h-4" />
-                    <span>Lưu Thay Đổi Thông Tin</span>
-                  </>
-                )}
-              </button>
-            </div>
           </form>
+        </div>
+
+        {/* Sticky Save Footer - always visible */}
+        <div className="shrink-0 px-4 py-3 border-t border-gray-100 bg-white safe-bottom" style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 12px)' }}>
+          <button
+            type="button"
+            disabled={loading}
+            onClick={() => {
+              const form = document.querySelector('#account-modal-form') as HTMLFormElement;
+              if (form) form.requestSubmit();
+            }}
+            className="w-full h-12 bg-[#0072F5] hover:bg-[#0052CC] text-white rounded-xl font-bold text-sm transition-all shadow-sm active:scale-[0.99] flex items-center justify-center gap-2 disabled:opacity-60"
+          >
+            {loading ? (
+              <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+            ) : (
+              <>
+                <Save className="w-4 h-4" />
+                <span>Lưu Thay Đổi Thông Tin</span>
+              </>
+            )}
+          </button>
         </div>
       </div>
     </div>
