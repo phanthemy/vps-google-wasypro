@@ -13,7 +13,6 @@ import {
   Scale,
   User,
 } from 'lucide-react';
-import { NewsSection } from '../../NewsSection';
 import { UserSession } from '../../../hooks/useUnifiedAuth';
 import { AccountModal } from './AccountModal';
 import { NetworkSystemModal } from './NetworkSystemModal';
@@ -319,54 +318,27 @@ export const MockupDashboard: React.FC<MockupDashboardProps> = ({
       </div>
 
       {/* ============================================================
-          TIN TỨC & VIDEO — Reuse NewsSection từ trang chủ
+          VIDEO BANNER — hero-video.mp4 từ trang chủ
           ============================================================ */}
       <div
-        className="rounded-2xl overflow-hidden"
+        className="rounded-2xl overflow-hidden cursor-pointer"
         style={{
-          background: 'rgba(255,255,255,0.95)',
-          border: '1px solid rgba(255,255,255,0.6)',
-          boxShadow: '0 6px 20px rgba(15,23,42,0.08)',
-          backdropFilter: 'blur(8px)',
-        }}
-      >
-        <NewsSection />
-      </div>
-
-      {/* ============================================================
-          BANNER QUẢNG CÁO
-          ============================================================ */}
-      <div
-        onClick={onNavigateHome}
-        className="relative overflow-hidden cursor-pointer group"
-        style={{
-          borderRadius: '18px',
-          border: '1px solid rgba(255,255,255,0.5)',
           boxShadow: '0 8px 25px rgba(15,23,42,0.12)',
+          border: '1px solid rgba(255,255,255,0.5)',
         }}
+        onClick={onNavigateHome}
       >
-        <img
-          src="/images/banner-web.webp"
-          alt="WASY PRO HYDROGEN"
-          className="w-full h-36 object-cover group-hover:scale-105 transition-transform duration-500"
-        />
-        <div className="absolute inset-0 bg-gradient-to-r from-slate-950/85 via-slate-900/50 to-transparent flex items-center p-5">
-          <div className="text-white space-y-1">
-            <span
-              className="text-[11px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-[6px]"
-              style={{ background: '#0052CC', color: '#FFFFFF' }}
-            >
-              WASY PRO HYDROGEN
-            </span>
-            <h3 className="text-[17px] font-bold text-white leading-tight">
-              NƯỚC TỐT — THÂN AN — TRÍ SÁNG
-            </h3>
-            <div className="text-[13px] font-semibold text-sky-200 flex items-center gap-1 pt-0.5">
-              <span>Xem chi tiết</span>
-              <ChevronRight className="w-4 h-4 stroke-[2.5]" />
-            </div>
-          </div>
-        </div>
+        <video
+          autoPlay
+          loop
+          muted
+          playsInline
+          className="w-full h-auto object-cover"
+          style={{ maxHeight: '200px' }}
+          poster="/images/banner-web.webp"
+        >
+          <source src="https://wasypro.com/videos/hero-video.mp4" type="video/mp4" />
+        </video>
       </div>
 
       {/* ============================================================
