@@ -100,13 +100,13 @@ export const MockupDashboard: React.FC<MockupDashboardProps> = ({
   // Rank mapping — hiển thị đúng cấp bậc CTV/NPP
   const RANK_MAP: Record<string, string> = {
     'AMBASSADOR': 'Đại Sứ',
-    'SALES_MANAGER': 'Quản Lý',
-    'SALES_DIRECTOR': 'Giám Đốc KD',
+    'MANAGER': 'Trưởng Nhóm',
+    'SALES_MANAGER': 'Trưởng Nhóm',
+    'DIRECTOR': 'Quản Lý',
+    'SALES_DIRECTOR': 'Quản Lý',
     'EXEC_OPERATIONS': 'GĐ Điều Hành',
     'EXEC_PROVINCE': 'GĐ Tỉnh',
     'EXEC_STRATEGIC': 'GĐ Chiến Lược',
-    'MANAGER': 'Quản Lý',
-    'DIRECTOR': 'Giám Đốc',
     'CTV': 'Đại Sứ',
     'NPP': 'Nhà Phân Phối',
   };
@@ -174,8 +174,8 @@ export const MockupDashboard: React.FC<MockupDashboardProps> = ({
               {(() => {
                 const RANK_COLORS: Record<string, { bg: string; shadow: string; text: string }> = {
                   'Đại Sứ': { bg: 'linear-gradient(135deg, #FFD700, #FFA500)', shadow: 'rgba(255,165,0,0.4)', text: '#1a0a00' },
-                  'Quản Lý': { bg: 'linear-gradient(135deg, #1565C0, #42A5F5)', shadow: 'rgba(21,101,192,0.4)', text: '#FFFFFF' },
-                  'Giám Đốc KD': { bg: 'linear-gradient(135deg, #7B1FA2, #AB47BC)', shadow: 'rgba(123,31,162,0.4)', text: '#FFFFFF' },
+                  'Trưởng Nhóm': { bg: 'linear-gradient(135deg, #1565C0, #42A5F5)', shadow: 'rgba(21,101,192,0.4)', text: '#FFFFFF' },
+                  'Quản Lý': { bg: 'linear-gradient(135deg, #7B1FA2, #AB47BC)', shadow: 'rgba(123,31,162,0.4)', text: '#FFFFFF' },
                   'GĐ Điều Hành': { bg: 'linear-gradient(135deg, #C62828, #EF5350)', shadow: 'rgba(198,40,40,0.4)', text: '#FFFFFF' },
                   'GĐ Tỉnh': { bg: 'linear-gradient(135deg, #00695C, #26A69A)', shadow: 'rgba(0,105,92,0.4)', text: '#FFFFFF' },
                   'GĐ Chiến Lược': { bg: 'linear-gradient(135deg, #1A237E, #5C6BC0)', shadow: 'rgba(26,35,126,0.4)', text: '#FFFFFF' },
