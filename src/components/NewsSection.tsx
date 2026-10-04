@@ -141,7 +141,7 @@ export const NewsSection: React.FC = () => {
                     />
 
                     {/* Lớp phủ chuyển sắc nhẹ */}
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/20 group-hover:from-black/40 transition-colors" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/20 pointer-events-none group-hover:from-black/40 transition-colors" />
 
                     {/* Badge Chuyên Mục */}
                     <span className="absolute top-3 left-3 bg-slate-900/80 backdrop-blur-md text-white text-[11px] font-bold px-2.5 py-1 rounded-full border border-white/15 shadow-sm z-10">
@@ -149,14 +149,14 @@ export const NewsSection: React.FC = () => {
                     </span>
 
                     {/* Nút Play Tròn Đỏ (Phong cách Video YouTube nổi bật) */}
-                    <div className="absolute inset-0 flex items-center justify-center z-10">
+                    <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
                       <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-rose-600/90 text-white flex items-center justify-center shadow-xl shadow-rose-600/40 group-hover:scale-115 group-hover:bg-rose-600 transition-all duration-300">
                         <Play className="w-5 h-5 sm:w-6 sm:h-6 fill-white ml-1" />
                       </div>
                     </div>
 
                     {/* Thời lượng / Tag góc dưới */}
-                    <div className="absolute bottom-2.5 right-3 text-[11px] font-semibold text-white/90 bg-black/60 backdrop-blur-xs px-2 py-0.5 rounded flex items-center gap-1">
+                    <div className="absolute bottom-2.5 right-3 text-[11px] pointer-events-none font-semibold text-white/90 bg-black/60 backdrop-blur-xs px-2 py-0.5 rounded flex items-center gap-1">
                       <Video className="w-3 h-3 text-accent" />
                       <span>{art.readTime || 'Video'}</span>
                     </div>

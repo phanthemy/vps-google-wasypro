@@ -274,7 +274,7 @@ export default function CreateOrderModal({ currentUser, onClose, onSuccess }) {
 
   if (success) {
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.5)' }}>
+      <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.5)' }}>
         <div className="bg-white rounded-2xl p-8 max-w-md w-full text-center animate-fadeIn shadow-2xl">
           <CheckCircle size={56} className="mx-auto mb-4" style={{ color: '#10b981' }} />
           <h3 className="text-xl font-extrabold" style={{ color: '#065f46' }}>Tạo Đơn Thành Công!</h3>
@@ -285,7 +285,7 @@ export default function CreateOrderModal({ currentUser, onClose, onSuccess }) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.5)' }}>
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.5)' }}>
       <div className="bg-white rounded-2xl max-w-lg w-full max-h-[88dvh] overflow-y-auto shadow-2xl">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b" style={{ borderColor: '#e2e8f0' }}>

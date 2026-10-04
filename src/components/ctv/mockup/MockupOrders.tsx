@@ -337,7 +337,7 @@ export const MockupOrders: React.FC<MockupOrdersProps> = ({ currentUser, onSelec
 
       {/* 5. MODAL: ORDER DETAILS */}
       {selectedOrder && (
-        <div className="fixed inset-0 z-50 overflow-y-auto bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 animate-fadeIn">
+        <div className="fixed inset-0 z-[9999] overflow-y-auto bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 animate-fadeIn">
           <div 
             className="bg-[#FFFFFF] w-full max-w-lg rounded-[22px] shadow-2xl border border-[#EEF2F6] overflow-hidden"
             style={{ maxHeight: '90vh' }}

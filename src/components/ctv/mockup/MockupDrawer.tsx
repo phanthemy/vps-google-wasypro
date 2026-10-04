@@ -33,7 +33,7 @@ export const MockupDrawer: React.FC<MockupDrawerProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 overflow-hidden animate-fadeIn" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif' }}>
+    <div className="fixed inset-0 z-[9999] overflow-hidden animate-fadeIn" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif' }}>
       {/* Dark overlay */}
       <div 
         className="absolute inset-0 bg-black/40 backdrop-blur-xs transition-opacity"
