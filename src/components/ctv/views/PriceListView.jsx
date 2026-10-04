@@ -7,6 +7,16 @@ export default function PriceListView({ isAdmin, serviceList, onRefresh }) {
   const [search, setSearch] = useState('');
   const [editingServiceId, setEditingServiceId] = useState(null);
   const [editForm, setEditForm] = useState({ price: '', commissionPoints: 0, description: '', imageUrl: '' });
+  const [localServices, setLocalServices] = useState([]);
+
+  useEffect(() => {
+    if (!serviceList || serviceList.length === 0) {
+      fetch('/api/services', { credentials: 'include' })
+        .then(r => r.json())
+        .then(d => { if (d.success && Array.isArray(d.data)) setLocalServices(d.data); })
+        .catch(() => {});
+    }
+  }, [serviceList]);
 
   const [isAdding, setIsAdding] = useState(false);
   const [newService, setNewService] = useState({ name: '', group: '', price: '', commissionPoints: 0, categoryName: 'Máy Lọc Nước', description: '', imageUrl: '' });
@@ -63,8 +73,9 @@ export default function PriceListView({ isAdmin, serviceList, onRefresh }) {
     } catch (e) { alert('Lỗi kết nối máy chủ!'); }
   };
 
-  const filteredServices = (serviceList || []).filter(s => 
-    s.name.toLowerCase().includes(search.toLowerCase()) || (s.group || '').toLowerCase().includes(search.toLowerCase())
+  const activeList = (serviceList && serviceList.length > 0) ? serviceList : localServices;
+  const filteredServices = activeList.filter(s => 
+    (s.name || '').toLowerCase().includes(search.toLowerCase()) || ((s.group || s.category?.name || '')).toLowerCase().includes(search.toLowerCase())
   );
 
   return (
