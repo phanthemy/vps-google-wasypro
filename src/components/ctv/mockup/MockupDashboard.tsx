@@ -13,6 +13,7 @@ import {
   Scale,
   User,
 } from 'lucide-react';
+import { NewsSection } from '../../NewsSection';
 import { UserSession } from '../../../hooks/useUnifiedAuth';
 import { AccountModal } from './AccountModal';
 import { NetworkSystemModal } from './NetworkSystemModal';
@@ -318,7 +319,7 @@ export const MockupDashboard: React.FC<MockupDashboardProps> = ({
       </div>
 
       {/* ============================================================
-          VIDEO SECTION — embed từ trang chủ
+          TIN TỨC & VIDEO — Reuse NewsSection từ trang chủ
           ============================================================ */}
       <div
         className="rounded-2xl overflow-hidden"
@@ -329,18 +330,7 @@ export const MockupDashboard: React.FC<MockupDashboardProps> = ({
           backdropFilter: 'blur(8px)',
         }}
       >
-        <div className="p-3 pb-2">
-          <h3 className="text-[14px] font-bold text-[#0F172A]">🎬 Video giới thiệu</h3>
-        </div>
-        <div className="aspect-video w-full">
-          <iframe
-            src="https://www.youtube.com/embed/videoseries?list=PLjVwR9eCJMkSwUUdPVSjY-6h1yCgJNe5w"
-            title="WasyPro Videos"
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-            allowFullScreen
-            className="w-full h-full border-0"
-          />
-        </div>
+        <NewsSection />
       </div>
 
       {/* ============================================================
