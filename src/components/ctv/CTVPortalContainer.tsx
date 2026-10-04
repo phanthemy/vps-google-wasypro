@@ -113,7 +113,11 @@ export const CTVPortalContainer: React.FC<CTVPortalContainerProps> = ({
     <div 
       className="min-h-screen font-sans pb-24 text-[#0F172A] overflow-x-hidden"
       style={{ 
-        background: 'linear-gradient(180deg, #EBF5FF 0%, #F0F7FF 30%, #F8FAFC 60%, #FFFFFF 100%)',
+        background: 'linear-gradient(180deg, rgba(6,57,112,0.15) 0%, rgba(21,101,192,0.08) 50%, rgba(66,165,245,0.05) 100%)',
+        backgroundImage: 'url(/images/ctv-hero-bg.jpg)',
+        backgroundSize: 'cover',
+        backgroundPosition: 'center top',
+        backgroundAttachment: 'fixed',
         fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif',
         maxWidth: '100%',
         width: '100%',

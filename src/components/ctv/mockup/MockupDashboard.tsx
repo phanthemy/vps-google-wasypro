@@ -158,21 +158,35 @@ export const MockupDashboard: React.FC<MockupDashboardProps> = ({
 
         {/* Content */}
         <div className="relative z-10">
-          {/* Rank Crown Badge — centered */}
+          {/* Rank Crown Badge — centered, color per rank */}
           <div className="flex justify-center mb-4">
             <div className="text-center">
               <span className="text-3xl block">👑</span>
-              <div
-                className="mt-1 px-8 py-2 rounded-full"
-                style={{
-                  background: 'linear-gradient(135deg, #FFD700, #FFA500)',
-                  boxShadow: '0 4px 15px rgba(255,165,0,0.4)',
-                }}
-              >
-                <span className="text-sm font-extrabold text-[#1a0a00] tracking-wider uppercase">
-                  {rankText}
-                </span>
-              </div>
+              {(() => {
+                const RANK_COLORS: Record<string, { bg: string; shadow: string; text: string }> = {
+                  'Đại Sứ': { bg: 'linear-gradient(135deg, #FFD700, #FFA500)', shadow: 'rgba(255,165,0,0.4)', text: '#1a0a00' },
+                  'Quản Lý': { bg: 'linear-gradient(135deg, #1565C0, #42A5F5)', shadow: 'rgba(21,101,192,0.4)', text: '#FFFFFF' },
+                  'Giám Đốc KD': { bg: 'linear-gradient(135deg, #7B1FA2, #AB47BC)', shadow: 'rgba(123,31,162,0.4)', text: '#FFFFFF' },
+                  'GĐ Điều Hành': { bg: 'linear-gradient(135deg, #C62828, #EF5350)', shadow: 'rgba(198,40,40,0.4)', text: '#FFFFFF' },
+                  'GĐ Tỉnh': { bg: 'linear-gradient(135deg, #00695C, #26A69A)', shadow: 'rgba(0,105,92,0.4)', text: '#FFFFFF' },
+                  'GĐ Chiến Lược': { bg: 'linear-gradient(135deg, #1A237E, #5C6BC0)', shadow: 'rgba(26,35,126,0.4)', text: '#FFFFFF' },
+                  'Nhà Phân Phối': { bg: 'linear-gradient(135deg, #E65100, #FB8C00)', shadow: 'rgba(230,81,0,0.4)', text: '#FFFFFF' },
+                };
+                const colors = RANK_COLORS[rankText] || RANK_COLORS['Đại Sứ'];
+                return (
+                  <div
+                    className="mt-1 px-8 py-2 rounded-full"
+                    style={{
+                      background: colors.bg,
+                      boxShadow: `0 4px 15px ${colors.shadow}`,
+                    }}
+                  >
+                    <span className="text-sm font-extrabold tracking-wider uppercase" style={{ color: colors.text }}>
+                      {rankText}
+                    </span>
+                  </div>
+                );
+              })()}
             </div>
           </div>
 
@@ -230,7 +244,7 @@ export const MockupDashboard: React.FC<MockupDashboardProps> = ({
       <div className="grid grid-cols-2 gap-3">
         <button
           onClick={onNavigateHome}
-          className="flex items-center gap-3 p-3.5 rounded-2xl bg-white border border-[#EEF2F6] shadow-sm hover:shadow-md transition-all active:scale-[0.98]"
+          className="flex items-center gap-3 p-3.5 rounded-2xl bg-white/95 backdrop-blur-md border border-white/80 shadow-lg hover:shadow-xl transition-all active:scale-[0.98]"
         >
           <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center shrink-0">
             <Globe className="w-5 h-5 text-[#0072F5]" />
@@ -244,7 +258,7 @@ export const MockupDashboard: React.FC<MockupDashboardProps> = ({
 
         <a
           href="tel:1900989878"
-          className="flex items-center gap-3 p-3.5 rounded-2xl bg-white border border-[#EEF2F6] shadow-sm hover:shadow-md transition-all active:scale-[0.98] no-underline"
+          className="flex items-center gap-3 p-3.5 rounded-2xl bg-white/95 backdrop-blur-md border border-white/80 shadow-lg hover:shadow-xl transition-all active:scale-[0.98] no-underline"
         >
           <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center shrink-0">
             <Phone className="w-5 h-5 text-amber-600" />
@@ -302,8 +316,8 @@ export const MockupDashboard: React.FC<MockupDashboardProps> = ({
         className="relative overflow-hidden cursor-pointer group"
         style={{
           borderRadius: '18px',
-          border: '1px solid #EEF2F6',
-          boxShadow: '0 4px 14px rgba(15,23,42,0.05)',
+          border: '1px solid rgba(255,255,255,0.5)',
+          boxShadow: '0 8px 25px rgba(15,23,42,0.12)',
         }}
       >
         <img
