@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { ChevronRight, Plus, ShoppingBag, X, RefreshCw, MapPin, Phone, User, Package, Calendar, Clock, Gift } from 'lucide-react';
 // @ts-ignore
 import CreateOrderModal from '../views/CreateOrderModal.jsx';
+// @ts-ignore
+import UserNppDashboard from '../UserNppDashboard';
 
 interface MockupOrdersProps {
   currentUser?: any;
@@ -115,34 +117,17 @@ export const MockupOrders: React.FC<MockupOrdersProps> = ({ currentUser, onSelec
       </div>
 
       {/* PLACEHOLDER: Gói ĐL & NPP */}
+      {/* Gói Đại lý & Nhà phân phối — Tích hợp UserNppDashboard thực tế */}
       {orderSection === 'packages' && (
-        <div
-          style={{
-            background: '#FFFFFF',
-            border: '1px solid #EEF2F6',
-            borderRadius: '18px',
-            padding: '40px 20px',
-            boxShadow: '0 4px 14px rgba(15,23,42,0.05)',
-            textAlign: 'center' as const
-          }}
-          className="animate-fadeIn"
-        >
-          <div className="w-16 h-16 rounded-2xl bg-emerald-50 flex items-center justify-center mx-auto mb-4">
-            <Package className="w-8 h-8 text-emerald-400" />
-          </div>
-          <h3 style={{ fontSize: '18px', fontWeight: 700, color: '#0F172A', marginBottom: '8px' }}>
-            Gói Đại lý & Nhà phân phối
-          </h3>
-          <p style={{ fontSize: '14px', color: '#64748B', maxWidth: '280px', margin: '0 auto', lineHeight: 1.5 }}>
-            Các combo sản phẩm kích hoạt cấp bậc Đại lý và Nhà phân phối. Đang cập nhật.
-          </p>
-          <div className="mt-6 inline-flex items-center gap-2 px-4 py-2 rounded-full bg-amber-50 text-amber-700 text-sm font-semibold">
-            <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
-            Đang cập nhật
-          </div>
+        <div className="animate-fadeIn">
+          <UserNppDashboard
+            userId={currentUser?.id || currentUser?.userId}
+            nppStatus={currentUser?.nppStatus}
+            rank={currentUser?.rank}
+            businessId={currentUser?.businessId}
+          />
         </div>
       )}
-
       {/* PLACEHOLDER: Gói Đầu tư & Đồng hành */}
       {orderSection === 'investment' && (
         <div

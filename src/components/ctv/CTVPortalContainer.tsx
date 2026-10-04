@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 // @ts-ignore
 import PlaceholderView from './views/PlaceholderView';
+import UserNppDashboard from './UserNppDashboard';
 import { UserSession } from '../../hooks/useUnifiedAuth';
 
 // Mockup UI Components (Strict Design Tokens)
@@ -75,6 +76,7 @@ export const CTVPortalContainer: React.FC<CTVPortalContainerProps> = ({
     if (activeTab === 'orders') return 'Đơn hàng của tôi';
     if (activeTab === 'more') return 'Menu Thêm';
     if (activeTab === 'network') return 'Sơ đồ Tuyến dưới';
+    if (activeTab === 'npp') return 'Gói Nhà Phân Phối (NPP)';
     if (activeTab === 'account') return 'Thông tin tài khoản';
     if (activeTab === 'customers') return 'Khách hàng của tôi';
     if (activeTab === 'price-list') return 'Bảng giá & Chiết khấu';
@@ -92,7 +94,7 @@ export const CTVPortalContainer: React.FC<CTVPortalContainerProps> = ({
   })();
 
   const handleHeaderBack = () => {
-    if (['network', 'account', 'customers', 'price-list', 'dealers', 'events', 'feedback', 'legal-docs', 'company-policy', 'regulations', 'home-profile', 'team-network', 'network-media', 'legal'].includes(activeTab)) {
+    if (['npp', 'network', 'account', 'customers', 'price-list', 'dealers', 'events', 'feedback', 'legal-docs', 'company-policy', 'regulations', 'home-profile', 'team-network', 'network-media', 'legal'].includes(activeTab)) {
       setActiveTab('more');
     } else if (activeTab === 'commissions-detail') {
       setActiveTab('commissions');
@@ -267,6 +269,25 @@ export const CTVPortalContainer: React.FC<CTVPortalContainerProps> = ({
       
         {activeTab === 'home-profile' && (<PlaceholderView title="Trang Chủ & Hồ Sơ" description="Đang cập nhật — Tính năng sẽ sớm ra mắt. Vui lòng quay lại sau!" />)}
         {activeTab === 'team-network' && (<PlaceholderView title="Đội Nhóm & Mạng Lưới" description="Đang cập nhật — Tính năng sẽ sớm ra mắt. Vui lòng quay lại sau!" />)}
+        {activeTab === 'npp' && (
+          <div 
+            style={{
+              background: '#FFFFFF',
+              border: '1px solid #EEF2F6',
+              borderRadius: '18px',
+              padding: '16px',
+              boxShadow: '0 4px 14px rgba(15,23,42,0.05)'
+            }}
+            className="animate-fadeIn"
+          >
+            <UserNppDashboard
+              userId={currentUser.id || currentUser.userId}
+              nppStatus={(currentUser as any).nppStatus}
+              rank={(currentUser as any).rank}
+              businessId={(currentUser as any).businessId}
+            />
+          </div>
+        )}
         {activeTab === 'network-media' && (<MockupNetworkMedia />)}
         {activeTab === 'legal' && (<MockupLegal />)}
 
@@ -274,7 +295,7 @@ export const CTVPortalContainer: React.FC<CTVPortalContainerProps> = ({
 
       {/* 3. BOTTOM NAVIGATION (Height 66px, 40x40 #0072F5 active icon) */}
       <MockupBottomNav
-        activeTab={['network', 'account', 'customers', 'price-list', 'more', 'dealers', 'events', 'feedback', 'legal-docs', 'company-policy', 'regulations', 'home-profile', 'team-network', 'network-media', 'legal'].includes(activeTab) ? 'more' : activeTab === 'commissions-detail' ? 'commissions' : activeTab}
+        activeTab={['npp', 'network', 'account', 'customers', 'price-list', 'more', 'dealers', 'events', 'feedback', 'legal-docs', 'company-policy', 'regulations', 'home-profile', 'team-network', 'network-media', 'legal'].includes(activeTab) ? 'more' : activeTab === 'commissions-detail' ? 'commissions' : activeTab}
         onChangeTab={setActiveTab}
       />
 

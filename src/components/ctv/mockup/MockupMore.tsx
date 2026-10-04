@@ -1,6 +1,6 @@
 import React from 'react';
 import { 
-  Users, User, ShieldCheck, Gift, HelpCircle, ChevronRight, UserCheck, Tag, KeyRound,
+  Users, User, ShieldCheck, Package, Gift, HelpCircle, ChevronRight, UserCheck, Tag, KeyRound,
   MapPin, Calendar, MessageSquare, FileCheck, Shield, Scale 
 } from 'lucide-react';
 
@@ -48,6 +48,26 @@ export const MockupMore: React.FC<MockupMoreProps> = ({
               </div>
               <span style={{ fontSize: '16px', fontWeight: 600, color: '#1E293B' }}>
                 Sơ đồ Tuyến dưới
+              </span>
+            </div>
+            <ChevronRight className="w-5 h-5 text-[#64748B] stroke-[2.5]" />
+          </button>
+
+          {/* Gói Nhà Phân Phối (NPP) */}
+          <button
+            onClick={() => onSelectSubtab('npp')}
+            className="w-full flex items-center justify-between px-4 hover:bg-[#F8FAFC] transition-colors text-left"
+            style={{ height: '56px' }}
+          >
+            <div className="flex items-center gap-3.5">
+              <div 
+                className="rounded-[12px] flex items-center justify-center shrink-0"
+                style={{ width: '40px', height: '40px', background: '#ECFDF5', color: '#059669' }}
+              >
+                <Package className="w-5 h-5 stroke-[2.2]" />
+              </div>
+              <span style={{ fontSize: '16px', fontWeight: 600, color: '#1E293B' }}>
+                Gói Nhà Phân Phối (NPP)
               </span>
             </div>
             <ChevronRight className="w-5 h-5 text-[#64748B] stroke-[2.5]" />
