@@ -521,6 +521,8 @@ app.post('/api/auth/login', authLimiter, async (req, res) => {
         bankAccount: user.bankAccount ?? null,
         bankName: user.bankName ?? null,
         bankBranch: user.bankBranch ?? null,
+        bankHolder: user.bankInfo ?? null,
+        bankInfo: user.bankInfo ?? null,
         isBankLocked: !!user.isBankLocked,
         parentId: user.parentId ?? null,
         sponsor: sponsorInfo,
@@ -579,6 +581,14 @@ app.get('/api/auth/me', authenticateToken, async (req, res) => {
         nppStatus: nppStatusMe,
         nppRank: (await computeNppRank(user.id)) ?? null,
         avatarUrl: user.avatarUrl ?? null,
+        email: user.email ?? null,
+        address: user.address ?? null,
+        bankAccount: user.bankAccount ?? null,
+        bankName: user.bankName ?? null,
+        bankBranch: user.bankBranch ?? null,
+        bankHolder: user.bankInfo ?? null,
+        bankInfo: user.bankInfo ?? null,
+        isBankLocked: !!user.isBankLocked,
         parentId: user.parentId ?? null,
         sponsor: sponsorInfo,
       }
@@ -599,7 +609,8 @@ app.put('/api/users/me/profile', authenticateToken, async (req, res) => {
     const user = await prisma.user.findFirst({ where: { OR: [{ userId: lookupId }, { id: lookupId }] } });
     if (!user) return res.status(404).json({ success: false, message: 'Người dùng không tồn tại.' });
 
-    const { fullName, phone, email, address, bankAccount, bankName, bankBranch } = req.body;
+    const { fullName, phone, email, address, bankAccount, bankName, bankBranch, bankHolder, bankInfo } = req.body;
+    const targetBankHolder = (bankHolder !== undefined ? bankHolder : bankInfo);
     const updateData = {};
 
     if (fullName && typeof fullName === 'string' && fullName.trim()) {
@@ -624,7 +635,8 @@ app.put('/api/users/me/profile', authenticateToken, async (req, res) => {
     // Security check: ngân hàng đã khóa chưa?
     const isChangingBank = (bankAccount !== undefined && bankAccount !== user.bankAccount) ||
                            (bankName !== undefined && bankName !== user.bankName) ||
-                           (bankBranch !== undefined && bankBranch !== user.bankBranch);
+                           (bankBranch !== undefined && bankBranch !== user.bankBranch) ||
+                           (targetBankHolder !== undefined && targetBankHolder !== user.bankInfo);
 
     if (user.isBankLocked && isChangingBank) {
       return res.status(400).json({
@@ -643,8 +655,11 @@ app.put('/api/users/me/profile', authenticateToken, async (req, res) => {
       if (bankBranch && typeof bankBranch === 'string' && bankBranch.trim()) {
         updateData.bankBranch = bankBranch.trim();
       }
-      // Nếu đã có cả số tài khoản và tên ngân hàng -> tự động khóa vĩnh viễn
-      if (updateData.bankAccount && updateData.bankName) {
+      if (targetBankHolder && typeof targetBankHolder === 'string' && targetBankHolder.trim()) {
+        updateData.bankInfo = targetBankHolder.trim().toUpperCase();
+      }
+      // Nếu đã có cả số tài khoản, chủ tài khoản và tên ngân hàng -> tự động khóa vĩnh viễn
+      if (updateData.bankAccount && (updateData.bankName || user.bankName)) {
         updateData.isBankLocked = true;
       }
     }
@@ -668,6 +683,8 @@ app.put('/api/users/me/profile', authenticateToken, async (req, res) => {
         bankAccount: updatedUser.bankAccount,
         bankName: updatedUser.bankName,
         bankBranch: updatedUser.bankBranch,
+        bankHolder: updatedUser.bankInfo,
+        bankInfo: updatedUser.bankInfo,
         isBankLocked: !!updatedUser.isBankLocked
       }
     });

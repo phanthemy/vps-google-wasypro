@@ -43,6 +43,7 @@ export const AccountModal: React.FC<AccountModalProps> = ({
 
   // Bank states
   const [bankAccount, setBankAccount] = useState((currentUser as any).bankAccount || '');
+  const [bankHolder, setBankHolder] = useState((currentUser as any).bankHolder || (currentUser as any).bankInfo || '');
   const [bankName, setBankName] = useState((currentUser as any).bankName || '');
   const [bankBranch, setBankBranch] = useState((currentUser as any).bankBranch || '');
   const [isBankLocked, setIsBankLocked] = useState(!!(currentUser as any).isBankLocked);
@@ -64,6 +65,7 @@ export const AccountModal: React.FC<AccountModalProps> = ({
             setEmail(d.email || '');
             setAddress(d.address || '');
             setBankAccount(d.bankAccount || '');
+            setBankHolder(d.bankHolder || d.bankInfo || '');
             setBankName(d.bankName || '');
             setBankBranch(d.bankBranch || '');
             setIsBankLocked(!!d.isBankLocked);
@@ -121,6 +123,10 @@ export const AccountModal: React.FC<AccountModalProps> = ({
       // Only send bank fields if not locked yet
       if (!isBankLocked) {
         if (bankAccount.trim()) payload.bankAccount = bankAccount.trim();
+        if (bankHolder.trim()) {
+          payload.bankHolder = bankHolder.trim().toUpperCase();
+          payload.bankInfo = bankHolder.trim().toUpperCase();
+        }
         if (bankName.trim()) payload.bankName = bankName.trim();
         if (bankBranch.trim()) payload.bankBranch = bankBranch.trim();
       }
@@ -343,7 +349,7 @@ export const AccountModal: React.FC<AccountModalProps> = ({
                 </div>
               )}
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {/* Số tài khoản */}
                 <div>
                   <label className="block text-[11px] font-bold text-slate-700 mb-1">Số tài khoản *</label>
@@ -354,6 +360,23 @@ export const AccountModal: React.FC<AccountModalProps> = ({
                     onChange={(e) => setBankAccount(e.target.value)}
                     placeholder="VD: 0123456789"
                     className={`w-full text-xs px-3 py-2 rounded-xl border outline-hidden font-mono font-bold ${
+                      isBankLocked 
+                        ? 'bg-slate-100 border-slate-300 text-slate-600 cursor-not-allowed' 
+                        : 'bg-white border-slate-200 focus:border-[#0072F5] text-slate-900'
+                    }`}
+                  />
+                </div>
+
+                {/* Chủ tài khoản */}
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 mb-1">Chủ tài khoản *</label>
+                  <input
+                    type="text"
+                    disabled={isBankLocked}
+                    value={bankHolder}
+                    onChange={(e) => setBankHolder(e.target.value.toUpperCase())}
+                    placeholder="VD: NGUYEN VAN A"
+                    className={`w-full text-xs px-3 py-2 rounded-xl border outline-hidden font-bold uppercase ${
                       isBankLocked 
                         ? 'bg-slate-100 border-slate-300 text-slate-600 cursor-not-allowed' 
                         : 'bg-white border-slate-200 focus:border-[#0072F5] text-slate-900'
