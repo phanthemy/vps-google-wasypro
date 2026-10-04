@@ -25,52 +25,52 @@ interface MockupDashboardProps {
 
 const CATEGORIES = [
   {
-    id: 'home-profile',
+    id: 'account',
     label: 'Trang Chủ & Hồ Sơ',
-    sub: 'Thông tin cá nhân, tài khoản',
+    sub: 'Thông tin cá nhân, Ngân hàng',
     icon: BookOpen,
-    gradient: 'linear-gradient(145deg, #7C3AED 0%, #A855F7 50%, #C084FC 100%)',
-    shadow: 'rgba(124,58,237,0.3)',
+    gradient: 'linear-gradient(145deg, #5B21B6 0%, #7C3AED 60%, #8B5CF6 100%)',
+    shadow: 'rgba(91,33,182,0.35)',
   },
   {
-    id: 'team-network',
+    id: 'network',
     label: 'Đội Nhóm & Mạng Lưới',
-    sub: 'Hệ thống, đại lý, đối tác',
+    sub: 'Sơ đồ tuyến, Đối tác F1',
     icon: Users,
-    gradient: 'linear-gradient(145deg, #059669 0%, #10B981 50%, #34D399 100%)',
-    shadow: 'rgba(5,150,105,0.3)',
+    gradient: 'linear-gradient(145deg, #047857 0%, #059669 60%, #10B981 100%)',
+    shadow: 'rgba(4,120,87,0.35)',
   },
   {
     id: 'commissions',
     label: 'Hoa Hồng',
     sub: 'Trực tiếp, Hệ thống, Lịch sử',
     icon: Coins,
-    gradient: 'linear-gradient(145deg, #D97706 0%, #F59E0B 50%, #FBBF24 100%)',
-    shadow: 'rgba(217,119,6,0.3)',
+    gradient: 'linear-gradient(145deg, #B45309 0%, #D97706 60%, #F59E0B 100%)',
+    shadow: 'rgba(180,83,9,0.35)',
   },
   {
     id: 'orders',
     label: 'Đặt Hàng & Gói Đầu Tư',
     sub: 'SP lẻ, Gói ĐL, Đầu tư',
     icon: Package,
-    gradient: 'linear-gradient(145deg, #DC2626 0%, #EF4444 50%, #F87171 100%)',
-    shadow: 'rgba(220,38,38,0.3)',
+    gradient: 'linear-gradient(145deg, #B91C1C 0%, #DC2626 60%, #EF4444 100%)',
+    shadow: 'rgba(185,28,28,0.35)',
   },
   {
     id: 'network-media',
     label: 'Mạng Lưới & Truyền Thông',
     sub: 'Đại lý, Sự kiện, Feedback',
     icon: Radio,
-    gradient: 'linear-gradient(145deg, #0369A1 0%, #0EA5E9 50%, #38BDF8 100%)',
-    shadow: 'rgba(3,105,161,0.3)',
+    gradient: 'linear-gradient(145deg, #075985 0%, #0369A1 60%, #0EA5E9 100%)',
+    shadow: 'rgba(7,89,133,0.35)',
   },
   {
     id: 'legal',
     label: 'Pháp Lý & Điều Khoản',
     sub: 'Giấy CN, Chính sách, PL',
     icon: Scale,
-    gradient: 'linear-gradient(145deg, #EA580C 0%, #F97316 50%, #FB923C 100%)',
-    shadow: 'rgba(234,88,12,0.3)',
+    gradient: 'linear-gradient(145deg, #C2410C 0%, #EA580C 60%, #F97316 100%)',
+    shadow: 'rgba(194,65,12,0.35)',
   },
 ];
 
@@ -88,10 +88,23 @@ export const MockupDashboard: React.FC<MockupDashboardProps> = ({
     setUserSession(currentUser);
   }, [currentUser]);
 
-  const rankText = (userSession as any).rank || 'Quản Lý';
+  // Rank mapping — hiển thị đúng cấp bậc CTV/NPP
+  const RANK_MAP: Record<string, string> = {
+    'AMBASSADOR': 'Đại Sứ',
+    'SALES_MANAGER': 'Quản Lý',
+    'SALES_DIRECTOR': 'Giám Đốc KD',
+    'EXEC_OPERATIONS': 'GĐ Điều Hành',
+    'EXEC_PROVINCE': 'GĐ Tỉnh',
+    'EXEC_STRATEGIC': 'GĐ Chiến Lược',
+    'Manager': 'Quản Lý',
+    'Director': 'Giám Đốc',
+  };
+  const rawRank = (userSession as any).rank || (userSession as any).nppRank || '';
+  const rankText = RANK_MAP[rawRank] || rawRank || 'Đối Tác CTV';
   const userId = userSession.id || userSession.userId || 'U1002';
   const userName = userSession.fullName || 'Đối tác CTV';
   const initials = userName.split(' ').map((w: string) => w[0]).join('').slice(-2).toUpperCase();
+  const avatarUrl = (userSession as any).avatarUrl;
 
   return (
     <div className="space-y-4" style={{ fontFamily: 'Inter, -apple-system, sans-serif' }}>
@@ -130,6 +143,17 @@ export const MockupDashboard: React.FC<MockupDashboardProps> = ({
           </div>
         </div>
 
+        {/* WasyPro Logo — top left */}
+        <div className="absolute top-4 left-4 z-10">
+          <img
+            src="/images/logo-rbg.webp"
+            alt="WasyPro"
+            className="h-8 object-contain"
+            style={{ filter: 'brightness(1.1)' }}
+            onError={(e) => { (e.target as HTMLImageElement).src = '/images/logo-moi-1.png'; }}
+          />
+        </div>
+
         {/* Content */}
         <div className="relative z-10">
           {/* Rank Crown Badge — centered */}
@@ -158,9 +182,9 @@ export const MockupDashboard: React.FC<MockupDashboardProps> = ({
                 className="w-20 h-20 rounded-2xl overflow-hidden border-2 border-amber-400/60 shadow-lg flex items-center justify-center"
                 style={{ background: 'linear-gradient(135deg, #1E3A5F, #2563EB)' }}
               >
-                {(userSession as any).avatar ? (
+                {avatarUrl ? (
                   <img
-                    src={(userSession as any).avatar}
+                    src={avatarUrl}
                     alt={userName}
                     className="w-full h-full object-cover"
                   />
@@ -259,10 +283,10 @@ export const MockupDashboard: React.FC<MockupDashboardProps> = ({
               </div>
 
               {/* Label */}
-              <div className="text-[12px] font-bold text-white leading-tight">{cat.label}</div>
+              <div className="text-[12px] font-extrabold text-white leading-tight" style={{ textShadow: '0 1px 3px rgba(0,0,0,0.3)' }}>{cat.label}</div>
 
               {/* Subtitle */}
-              <div className="text-[10px] text-white/70 mt-1.5 leading-snug">{cat.sub}</div>
+              <div className="text-[10px] text-white/80 mt-1.5 leading-snug font-medium" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.2)' }}>{cat.sub}</div>
             </button>
           );
         })}
