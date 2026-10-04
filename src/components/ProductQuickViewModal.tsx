@@ -63,10 +63,10 @@ export const ProductQuickViewModal: React.FC<ProductQuickViewModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-[9999] bg-gray-900/70 backdrop-blur-md overflow-hidden" onClick={onClose}>
+    <div className="fixed inset-0 z-[9999] bg-gray-900/70 backdrop-blur-md overflow-hidden flex flex-col justify-end sm:justify-center sm:items-center sm:p-4" onClick={onClose}>
       <div 
-        className="bg-white w-full sm:max-w-2xl lg:max-w-4xl sm:rounded-2xl overflow-y-auto shadow-xl relative animate-in fade-in zoom-in duration-200 sm:border border-gray-200 mx-auto"
-        style={{ maxHeight: '100dvh', paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}
+        className="bg-white w-full max-w-md sm:max-w-2xl rounded-t-2xl sm:rounded-2xl overflow-y-auto shadow-xl relative sm:border border-gray-200 mx-auto"
+        style={{ maxHeight: '88dvh', marginTop: 'auto', paddingBottom: 'max(env(safe-area-inset-bottom), 16px)' }}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Sticky Header with X Button */}
