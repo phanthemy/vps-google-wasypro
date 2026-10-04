@@ -289,7 +289,11 @@ export const MockupDashboard: React.FC<MockupDashboardProps> = ({
           return (
             <button
               key={cat.id}
-              onClick={() => onSelectTab(cat.id)}
+              onClick={() => {
+                if (cat.id === 'account') { setAccountModalOpen(true); return; }
+                if (cat.id === 'network') { setNetworkModalOpen(true); return; }
+                onSelectTab(cat.id);
+              }}
               className="relative overflow-hidden rounded-2xl p-3 text-left transition-all active:scale-[0.97]"
               style={{
                 background: cat.gradient,
