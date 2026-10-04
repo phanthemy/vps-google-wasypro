@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronRight, Plus, ShoppingBag, X, RefreshCw, MapPin, Phone, User, Package, Calendar } from 'lucide-react';
+import { ChevronRight, Plus, ShoppingBag, X, RefreshCw, MapPin, Phone, User, Package, Calendar, Clock, Gift } from 'lucide-react';
 // @ts-ignore
 import CreateOrderModal from '../views/CreateOrderModal.jsx';
 
@@ -14,6 +14,7 @@ export const MockupOrders: React.FC<MockupOrdersProps> = ({ currentUser, onSelec
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
+  const [orderSection, setOrderSection] = useState<'products' | 'packages' | 'investment'>('products');
 
   const loadOrders = async () => {
     setLoading(true);
@@ -91,6 +92,88 @@ export const MockupOrders: React.FC<MockupOrdersProps> = ({ currentUser, onSelec
 
   return (
     <div className="space-y-4 pb-6" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif' }}>
+      {/* SUB-TABS: Mục 4 — ĐẶT HÀNG & GÓI ĐẦU TƯ */}
+      <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+        <button
+          onClick={() => setOrderSection('products')}
+          className={`shrink-0 rounded-full px-4 py-2 text-sm font-semibold transition-colors ${orderSection === 'products' ? 'bg-[#0072F5] text-white shadow-sm' : 'bg-[#F1F5F9] text-[#64748B] hover:bg-[#E2E8F0]'}`}
+        >
+          Máy móc & SP lẻ
+        </button>
+        <button
+          onClick={() => setOrderSection('packages')}
+          className={`shrink-0 rounded-full px-4 py-2 text-sm font-semibold transition-colors ${orderSection === 'packages' ? 'bg-[#0072F5] text-white shadow-sm' : 'bg-[#F1F5F9] text-[#64748B] hover:bg-[#E2E8F0]'}`}
+        >
+          Gói ĐL & NPP
+        </button>
+        <button
+          onClick={() => setOrderSection('investment')}
+          className={`shrink-0 rounded-full px-4 py-2 text-sm font-semibold transition-colors ${orderSection === 'investment' ? 'bg-[#0072F5] text-white shadow-sm' : 'bg-[#F1F5F9] text-[#64748B] hover:bg-[#E2E8F0]'}`}
+        >
+          Gói Đầu tư
+        </button>
+      </div>
+
+      {/* PLACEHOLDER: Gói ĐL & NPP */}
+      {orderSection === 'packages' && (
+        <div
+          style={{
+            background: '#FFFFFF',
+            border: '1px solid #EEF2F6',
+            borderRadius: '18px',
+            padding: '40px 20px',
+            boxShadow: '0 4px 14px rgba(15,23,42,0.05)',
+            textAlign: 'center' as const
+          }}
+          className="animate-fadeIn"
+        >
+          <div className="w-16 h-16 rounded-2xl bg-emerald-50 flex items-center justify-center mx-auto mb-4">
+            <Package className="w-8 h-8 text-emerald-400" />
+          </div>
+          <h3 style={{ fontSize: '18px', fontWeight: 700, color: '#0F172A', marginBottom: '8px' }}>
+            Gói Đại lý & Nhà phân phối
+          </h3>
+          <p style={{ fontSize: '14px', color: '#64748B', maxWidth: '280px', margin: '0 auto', lineHeight: 1.5 }}>
+            Các combo sản phẩm kích hoạt cấp bậc Đại lý và Nhà phân phối. Đang cập nhật.
+          </p>
+          <div className="mt-6 inline-flex items-center gap-2 px-4 py-2 rounded-full bg-amber-50 text-amber-700 text-sm font-semibold">
+            <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+            Đang cập nhật
+          </div>
+        </div>
+      )}
+
+      {/* PLACEHOLDER: Gói Đầu tư & Đồng hành */}
+      {orderSection === 'investment' && (
+        <div
+          style={{
+            background: '#FFFFFF',
+            border: '1px solid #EEF2F6',
+            borderRadius: '18px',
+            padding: '40px 20px',
+            boxShadow: '0 4px 14px rgba(15,23,42,0.05)',
+            textAlign: 'center' as const
+          }}
+          className="animate-fadeIn"
+        >
+          <div className="w-16 h-16 rounded-2xl bg-purple-50 flex items-center justify-center mx-auto mb-4">
+            <Gift className="w-8 h-8 text-purple-400" />
+          </div>
+          <h3 style={{ fontSize: '18px', fontWeight: 700, color: '#0F172A', marginBottom: '8px' }}>
+            Gói Đầu tư & Đồng hành
+          </h3>
+          <p style={{ fontSize: '14px', color: '#64748B', maxWidth: '280px', margin: '0 auto', lineHeight: 1.5 }}>
+            Thông tin chi tiết các gói hợp tác chiến lược cùng WasyPro. Đang cập nhật.
+          </p>
+          <div className="mt-6 inline-flex items-center gap-2 px-4 py-2 rounded-full bg-amber-50 text-amber-700 text-sm font-semibold">
+            <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+            Đang cập nhật
+          </div>
+        </div>
+      )}
+
+      {/* SECTION: Máy móc & SP lẻ (nội dung đơn hàng hiện tại) */}
+      {orderSection === 'products' && (<>
       {/* 1. TOP ACTION: TẠO ĐƠN HÀNG BUTTON */}
       <div className="flex items-center gap-2.5">
         <button
@@ -236,6 +319,9 @@ export const MockupOrders: React.FC<MockupOrdersProps> = ({ currentUser, onSelec
           })}
         </div>
       )}
+
+      {/* END: Máy móc & SP lẻ section */}
+      </>)}
 
       {/* 4. MODAL: CREATE ORDER MODAL */}
       {showCreateModal && (
