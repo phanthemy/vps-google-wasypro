@@ -171,7 +171,7 @@ export const MockupDashboard: React.FC<MockupDashboardProps> = ({
               <BookOpen className="w-5 h-5 stroke-[2.3]" />
             </div>
             <div className="min-w-0 flex-1">
-              <div className="text-[13px] font-extrabold text-slate-900 leading-tight truncate">Nội dung 1</div>
+              <div className="text-[13px] font-extrabold text-slate-900 leading-tight truncate">Trang Chủ & Hồ Sơ</div>
               <div className="text-[10px] text-amber-600 font-semibold leading-tight truncate mt-0.5">Sắp ra mắt</div>
             </div>
           </button>
@@ -187,7 +187,7 @@ export const MockupDashboard: React.FC<MockupDashboardProps> = ({
               <Layers className="w-5 h-5 stroke-[2.3]" />
             </div>
             <div className="min-w-0 flex-1">
-              <div className="text-[13px] font-extrabold text-slate-900 leading-tight truncate">Nội dung 2</div>
+              <div className="text-[13px] font-extrabold text-slate-900 leading-tight truncate">Đội Nhóm & Mạng Lưới</div>
               <div className="text-[10px] text-amber-600 font-semibold leading-tight truncate mt-0.5">Sắp ra mắt</div>
             </div>
           </button>
@@ -219,7 +219,7 @@ export const MockupDashboard: React.FC<MockupDashboardProps> = ({
               <Package className="w-5 h-5 stroke-[2.3]" />
             </div>
             <div className="min-w-0 flex-1">
-              <div className="text-[13px] font-extrabold text-slate-900 leading-tight truncate">Đặt Hàng & Gói ĐT</div>
+              <div className="text-[13px] font-extrabold text-slate-900 leading-tight truncate">Đặt Hàng & Gói Đầu Tư</div>
               <div className="text-[10px] text-slate-500 font-semibold leading-tight truncate mt-0.5">SP lẻ, Gói ĐL, Đầu tư</div>
             </div>
           </button>
@@ -235,7 +235,7 @@ export const MockupDashboard: React.FC<MockupDashboardProps> = ({
               <Globe className="w-5 h-5 stroke-[2.3]" />
             </div>
             <div className="min-w-0 flex-1">
-              <div className="text-[13px] font-extrabold text-slate-900 leading-tight truncate">Mạng Lưới & TT</div>
+              <div className="text-[13px] font-extrabold text-slate-900 leading-tight truncate">Mạng Lưới & Truyền Thông</div>
               <div className="text-[10px] text-slate-500 font-semibold leading-tight truncate mt-0.5">Đại lý, Sự kiện, Feedback</div>
             </div>
           </button>
