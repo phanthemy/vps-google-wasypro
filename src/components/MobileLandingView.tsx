@@ -100,6 +100,7 @@ export const MobileLandingView: React.FC<MobileLandingViewProps> = ({
     email: 'support@wasypro.com',
     address: 'Tầng 6, Tòa nhà WASY Tower, Q. Cầu Giấy, TP. Hà Nội',
   });
+  const [selectedVideoArticle, setSelectedVideoArticle] = useState<any>(null);
 
   useEffect(() => {
     fetch('/api/public/contact-config')
@@ -1050,7 +1051,11 @@ export const MobileLandingView: React.FC<MobileLandingViewProps> = ({
           {displayedArticles.slice(0, 4).map((art) => (
             <div
               key={art.id}
-              className="bg-white rounded-2xl border border-[#EEF2F6] overflow-hidden shadow-2xs hover:border-[#0072F5] transition-all group flex flex-col"
+              role="button"
+              tabIndex={0}
+              onClick={() => { setSelectedVideoArticle(art); }}
+              onKeyDown={(e) => { if (e.key === 'Enter') setSelectedVideoArticle(art); }}
+              className="bg-white rounded-2xl border border-[#EEF2F6] overflow-hidden shadow-2xs hover:border-[#0072F5] transition-all group flex flex-col cursor-pointer active:scale-[0.98]"
             >
               {/* Thumbnail Video chuẩn 16:9 với Nút Play Đỏ Nổi Bật */}
               <div className="relative aspect-video w-full bg-slate-950 overflow-hidden">
@@ -1066,7 +1071,7 @@ export const MobileLandingView: React.FC<MobileLandingViewProps> = ({
                 />
 
                 {/* Overlay Play Button */}
-                <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
+                <div className="absolute inset-0 bg-black/30 flex items-center justify-center pointer-events-none">
                   <div className="w-12 h-12 rounded-full bg-red-600 text-white flex items-center justify-center shadow-lg group-hover:scale-115 transition-transform duration-300">
                     <Play className="w-6 h-6 fill-current ml-0.5" />
                   </div>
@@ -1122,6 +1127,43 @@ export const MobileLandingView: React.FC<MobileLandingViewProps> = ({
       {/* ==================== 12.5. HỆ THỐNG ĐẠI LÝ ==================== */}
       <DealerSection />
 
+
+      {/* VIDEO POPUP */}
+      {selectedVideoArticle && (() => {
+        let videoId = '';
+        const vurl = selectedVideoArticle.videoUrl || '';
+        if (vurl.includes('youtu.be/')) videoId = vurl.split('youtu.be/')[1].split('?')[0];
+        else if (vurl.includes('watch?v=')) videoId = vurl.split('watch?v=')[1].split('&')[0];
+        else if (vurl.includes('embed/')) videoId = vurl.split('embed/')[1].split('?')[0];
+        const embedUrl = videoId ? `https://www.youtube.com/embed/${videoId}?autoplay=1&rel=0` : null;
+        return (
+          <div
+            className="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center bg-black/80 backdrop-blur-sm animate-fadeIn"
+            style={{ overscrollBehavior: 'contain' }}
+            onClick={() => setSelectedVideoArticle(null)}
+          >
+            <div
+              className="bg-white rounded-t-3xl sm:rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden max-h-[92dvh] flex flex-col"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 bg-slate-50 shrink-0">
+                <span className="text-xs font-bold text-[#0072F5] uppercase">{selectedVideoArticle.category}</span>
+                <button onClick={() => setSelectedVideoArticle(null)} className="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center text-slate-600">✕</button>
+              </div>
+              {embedUrl && (
+                <div className="aspect-video w-full bg-black">
+                  <iframe src={embedUrl} title={selectedVideoArticle.title} allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen className="w-full h-full border-0" />
+                </div>
+              )}
+              <div className="p-4 overflow-y-auto flex-1 overscroll-y-contain">
+                <h3 className="text-base font-bold text-[#0F172A] mb-2">{selectedVideoArticle.title}</h3>
+                <p className="text-sm text-slate-600 leading-relaxed">{selectedVideoArticle.excerpt || selectedVideoArticle.content}</p>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
       {/* ==================== 13. FOOTER WASY PRO ==================== */}
       <footer className="mt-10 bg-[#003E99] text-white pt-8 pb-12 px-4">
         <div className="mb-4">
@@ -1135,15 +1177,15 @@ export const MobileLandingView: React.FC<MobileLandingViewProps> = ({
         <div className="space-y-1.5 text-[11px] text-sky-100/90 border-t border-sky-800/60 pt-3">
           <div className="flex items-start gap-1.5">
             <span className="text-amber-300">📍</span>
-            <span>Trụ sở chính: Tầng 6, Tòa nhà WASY Tower, Q. Cầu Giấy, TP. Hà Nội</span>
+            <span>Trụ sở chính: {contactConfig.address}</span>
           </div>
           <div className="flex items-center gap-1.5">
             <span className="text-amber-300">📞</span>
-            <a href="tel:1900989878" className="hover:underline font-bold text-white">Hotline 24/7: 1900 98 98 78</a>
+            <a href={`tel:${contactConfig.hotlineTel}`} className="hover:underline font-bold text-white">Hotline 24/7: {contactConfig.hotline}</a>
           </div>
           <div className="flex items-center gap-1.5">
             <span className="text-amber-300">✉️</span>
-            <span>Email: support@wasypro.com</span>
+            <span>Email: {contactConfig.email}</span>
           </div>
         </div>
 
