@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+// @ts-ignore
+import PlaceholderView from './views/PlaceholderView';
 import { UserSession } from '../../hooks/useUnifiedAuth';
 
 // Mockup UI Components (Strict Design Tokens)
@@ -74,11 +76,17 @@ export const CTVPortalContainer: React.FC<CTVPortalContainerProps> = ({
     if (activeTab === 'account') return 'Thông tin tài khoản';
     if (activeTab === 'customers') return 'Khách hàng của tôi';
     if (activeTab === 'price-list') return 'Bảng giá & Chiết khấu';
+    if (activeTab === 'dealers') return 'Đại lý & Showroom';
+    if (activeTab === 'events') return 'Sự kiện & Báo chí';
+    if (activeTab === 'feedback') return 'Phản hồi khách hàng';
+    if (activeTab === 'legal-docs') return 'Pháp lý & Giấy CN';
+    if (activeTab === 'company-policy') return 'Chính sách Công ty';
+    if (activeTab === 'regulations') return 'Quy định Pháp luật';
     return undefined;
   })();
 
   const handleHeaderBack = () => {
-    if (['network', 'account', 'customers', 'price-list'].includes(activeTab)) {
+    if (['network', 'account', 'customers', 'price-list', 'dealers', 'events', 'feedback', 'legal-docs', 'company-policy', 'regulations'].includes(activeTab)) {
       setActiveTab('more');
     } else if (activeTab === 'commissions-detail') {
       setActiveTab('commissions');
@@ -245,11 +253,32 @@ export const CTVPortalContainer: React.FC<CTVPortalContainerProps> = ({
             <PriceListView />
           </div>
         )}
+
+      
+        {activeTab === 'dealers' && (
+          <PlaceholderView title="Đại lý & Showroom toàn quốc" description="Bản đồ và danh sách điểm bán, địa chỉ, SĐT các đại lý trên 63 tỉnh thành." />
+        )}
+        {activeTab === 'events' && (
+          <PlaceholderView title="Sự kiện & Báo chí" description="Thư viện Video sự kiện, Lịch Zoom đào tạo, các bài báo đưa tin về tập đoàn." />
+        )}
+        {activeTab === 'feedback' && (
+          <PlaceholderView title="Kết quả sử dụng" description="Tổng hợp Video/Hình ảnh phỏng vấn khách hàng thực tế. Nút chia sẻ TikTok/YouTube/Facebook." />
+        )}
+        {activeTab === 'legal-docs' && (
+          <PlaceholderView title="Pháp lý & Giấy chứng nhận" description="Giấy phép ĐKKD, Giấy kiểm định chất lượng nước, Bằng sáng chế. Cho phép tải PDF." />
+        )}
+        {activeTab === 'company-policy' && (
+          <PlaceholderView title="Chính sách Công ty" description="Quy chế hoạt động, chính sách trả thưởng, quyền lợi & nghĩa vụ thành viên." />
+        )}
+        {activeTab === 'regulations' && (
+          <PlaceholderView title="Quy định Pháp luật" description="Điều khoản cam kết hoạt động thương mại điện tử / Affiliate chuẩn mực." />
+        )}
+
       </main>
 
       {/* 3. BOTTOM NAVIGATION (Height 66px, 40x40 #0072F5 active icon) */}
       <MockupBottomNav
-        activeTab={['network', 'account', 'customers', 'price-list', 'more'].includes(activeTab) ? 'more' : activeTab === 'commissions-detail' ? 'commissions' : activeTab}
+        activeTab={['network', 'account', 'customers', 'price-list', 'more', 'dealers', 'events', 'feedback', 'legal-docs', 'company-policy', 'regulations'].includes(activeTab) ? 'more' : activeTab === 'commissions-detail' ? 'commissions' : activeTab}
         onChangeTab={setActiveTab}
       />
 
