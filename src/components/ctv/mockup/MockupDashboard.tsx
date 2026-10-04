@@ -16,7 +16,12 @@ import {
   FileText,
   Headphones,
   ShieldCheck,
-  AlertCircle
+  AlertCircle,
+  BookOpen,
+  Layers,
+  Package,
+  Globe,
+  Scale
 } from 'lucide-react';
 import { UserSession } from '../../../hooks/useUnifiedAuth';
 import { AccountModal } from './AccountModal';
@@ -150,12 +155,12 @@ export const MockupDashboard: React.FC<MockupDashboardProps> = ({
           </div>
         </div>
 
+
         {/* ============================================================
-            SECTION A, B, C, D, E: ACTION BUTTONS (High Contrast Modern Layout)
+            6 MỤC CHÍNH — THEO YÊU CẦU SẾP
             ============================================================ */}
-        {/* ROW 1: 2 HERO BUTTONS (A & B) — CRISP WHITE CARDS ON BLUE BACKGROUND */}
         <div className="grid grid-cols-2 gap-2.5 mt-4 pt-3.5 border-t border-white/25">
-          {/* NÚT A: TÀI KHOẢN & LINK (NỀN TRẮNG NỔI BẬT) */}
+          {/* MỤC 1: NỘI DUNG 1 (Bổ sung sau) */}
           <button
             type="button"
             onClick={() => setAccountModalOpen(true)}
@@ -163,58 +168,101 @@ export const MockupDashboard: React.FC<MockupDashboardProps> = ({
             style={{ minHeight: '66px' }}
           >
             <div className="w-10 h-10 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center text-[#0072F5] shrink-0 shadow-2xs">
-              <User className="w-5 h-5 stroke-[2.3]" />
+              <BookOpen className="w-5 h-5 stroke-[2.3]" />
             </div>
             <div className="min-w-0 flex-1">
-              <div className="text-[13px] font-extrabold text-slate-900 leading-tight truncate">Tài Khoản & Link</div>
-              <div className="text-[10px] text-slate-500 font-semibold leading-tight truncate mt-0.5">Hồ sơ, Ngân hàng, Ref</div>
+              <div className="text-[13px] font-extrabold text-slate-900 leading-tight truncate">Nội dung 1</div>
+              <div className="text-[10px] text-amber-600 font-semibold leading-tight truncate mt-0.5">Sắp ra mắt</div>
             </div>
           </button>
 
-          {/* NÚT B: HỆ THỐNG ĐỐI TÁC (NỀN TRẮNG NỔI BẬT) */}
+          {/* MỤC 2: NỘI DUNG 2 (Bổ sung sau) */}
           <button
             type="button"
             onClick={() => setNetworkModalOpen(true)}
             className="flex items-center gap-2.5 p-3 rounded-2xl bg-white hover:bg-slate-50 text-slate-900 transition-all active:scale-[0.98] shadow-md border border-white/80 text-left cursor-pointer"
             style={{ minHeight: '66px' }}
           >
-            <div className="w-10 h-10 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-[#00B050] shrink-0 shadow-2xs">
-              <Users className="w-5 h-5 stroke-[2.3]" />
+            <div className="w-10 h-10 rounded-xl bg-purple-50 border border-purple-100 flex items-center justify-center text-[#7C3AED] shrink-0 shadow-2xs">
+              <Layers className="w-5 h-5 stroke-[2.3]" />
             </div>
             <div className="min-w-0 flex-1">
-              <div className="text-[13px] font-extrabold text-slate-900 leading-tight truncate">Hệ Thống</div>
-              <div className="text-[10px] text-slate-500 font-semibold leading-tight truncate mt-0.5">Trực tiếp & Gián tiếp</div>
+              <div className="text-[13px] font-extrabold text-slate-900 leading-tight truncate">Nội dung 2</div>
+              <div className="text-[10px] text-amber-600 font-semibold leading-tight truncate mt-0.5">Sắp ra mắt</div>
+            </div>
+          </button>
+
+          {/* MỤC 3: HOA HỒNG */}
+          <button
+            type="button"
+            onClick={() => onSelectTab('commissions')}
+            className="flex items-center gap-2.5 p-3 rounded-2xl bg-white hover:bg-slate-50 text-slate-900 transition-all active:scale-[0.98] shadow-md border border-white/80 text-left cursor-pointer"
+            style={{ minHeight: '66px' }}
+          >
+            <div className="w-10 h-10 rounded-xl bg-amber-50 border border-amber-100 flex items-center justify-center text-[#F59E0B] shrink-0 shadow-2xs">
+              <Coins className="w-5 h-5 stroke-[2.3]" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="text-[13px] font-extrabold text-slate-900 leading-tight truncate">Hoa Hồng</div>
+              <div className="text-[10px] text-slate-500 font-semibold leading-tight truncate mt-0.5">Trực tiếp, Hệ thống, LS</div>
+            </div>
+          </button>
+
+          {/* MỤC 4: ĐẶT HÀNG & GÓI ĐẦU TƯ */}
+          <button
+            type="button"
+            onClick={() => onSelectTab('orders')}
+            className="flex items-center gap-2.5 p-3 rounded-2xl bg-white hover:bg-slate-50 text-slate-900 transition-all active:scale-[0.98] shadow-md border border-white/80 text-left cursor-pointer"
+            style={{ minHeight: '66px' }}
+          >
+            <div className="w-10 h-10 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-[#00B050] shrink-0 shadow-2xs">
+              <Package className="w-5 h-5 stroke-[2.3]" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="text-[13px] font-extrabold text-slate-900 leading-tight truncate">Đặt Hàng & Gói ĐT</div>
+              <div className="text-[10px] text-slate-500 font-semibold leading-tight truncate mt-0.5">SP lẻ, Gói ĐL, Đầu tư</div>
+            </div>
+          </button>
+
+          {/* MỤC 5: MẠNG LƯỚI & TRUYỀN THÔNG */}
+          <button
+            type="button"
+            onClick={() => onSelectTab('dealers')}
+            className="flex items-center gap-2.5 p-3 rounded-2xl bg-white hover:bg-slate-50 text-slate-900 transition-all active:scale-[0.98] shadow-md border border-white/80 text-left cursor-pointer"
+            style={{ minHeight: '66px' }}
+          >
+            <div className="w-10 h-10 rounded-xl bg-sky-50 border border-sky-100 flex items-center justify-center text-[#0284C7] shrink-0 shadow-2xs">
+              <Globe className="w-5 h-5 stroke-[2.3]" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="text-[13px] font-extrabold text-slate-900 leading-tight truncate">Mạng Lưới & TT</div>
+              <div className="text-[10px] text-slate-500 font-semibold leading-tight truncate mt-0.5">Đại lý, Sự kiện, Feedback</div>
+            </div>
+          </button>
+
+          {/* MỤC 6: PHÁP LÝ & ĐIỀU KHOẢN */}
+          <button
+            type="button"
+            onClick={() => onSelectTab('legal-docs')}
+            className="flex items-center gap-2.5 p-3 rounded-2xl bg-white hover:bg-slate-50 text-slate-900 transition-all active:scale-[0.98] shadow-md border border-white/80 text-left cursor-pointer"
+            style={{ minHeight: '66px' }}
+          >
+            <div className="w-10 h-10 rounded-xl bg-rose-50 border border-rose-100 flex items-center justify-center text-[#DC2626] shrink-0 shadow-2xs">
+              <Scale className="w-5 h-5 stroke-[2.3]" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="text-[13px] font-extrabold text-slate-900 leading-tight truncate">Pháp Lý & Điều Khoản</div>
+              <div className="text-[10px] text-slate-500 font-semibold leading-tight truncate mt-0.5">Giấy CN, Chính sách, PL</div>
             </div>
           </button>
         </div>
 
-        {/* ROW 2: 3 SECONDARY BUTTONS (C, D, E) — HIGH CONTRAST */}
-        <div className="grid grid-cols-3 gap-2 mt-2.5">
-          {/* NÚT C: ĐIỀU KHOẢN */}
-          <button
-            type="button"
-            onClick={() => setTermsModalOpen(true)}
-            className="flex items-center justify-center gap-1.5 h-10 rounded-xl bg-white/20 hover:bg-white/30 border border-white/35 text-white transition-all active:scale-95 text-xs font-bold shadow-2xs"
-          >
-            <FileText className="w-3.5 h-3.5 text-sky-200" />
-            <span>Điều khoản</span>
-          </button>
-
-          {/* NÚT D: SUPPORT / HỖ TRỢ */}
-          <button
-            type="button"
-            onClick={() => setSupportModalOpen(true)}
-            className="flex items-center justify-center gap-1.5 h-10 rounded-xl bg-white/20 hover:bg-white/30 border border-white/35 text-white transition-all active:scale-95 text-xs font-bold shadow-2xs"
-          >
-            <Headphones className="w-3.5 h-3.5 text-emerald-300" />
-            <span>Hỗ trợ</span>
-          </button>
-
-          {/* NÚT E: ĐĂNG XUẤT */}
+        {/* ROW đăng xuất nhỏ gọn */}
+        <div className="flex gap-2 mt-2.5">
           <button
             type="button"
             onClick={() => setShowLogoutConfirm(true)}
-            className="flex items-center justify-center gap-1.5 h-10 rounded-xl bg-[#EF4444] hover:bg-red-600 border border-rose-300/40 text-white transition-all active:scale-95 text-xs font-bold shadow-xs"
+            className="flex items-center justify-center gap-1.5 h-10 flex-1 rounded-xl bg-[#EF4444] hover:bg-red-600 border border-rose-300/40 text-white transition-all active:scale-95 text-xs font-bold shadow-xs"
           >
             <LogOut className="w-3.5 h-3.5 text-white" />
             <span>Đăng xuất</span>
