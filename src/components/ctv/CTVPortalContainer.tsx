@@ -12,6 +12,8 @@ import { MockupCommissions } from './mockup/MockupCommissions';
 import { MockupOrders } from './mockup/MockupOrders';
 import { MockupMore } from './mockup/MockupMore';
 import { MockupDrawer } from './mockup/MockupDrawer';
+import { MockupNetworkMedia } from './mockup/MockupNetworkMedia';
+import { MockupLegal } from './mockup/MockupLegal';
 
 // Subviews
 // @ts-ignore
@@ -76,6 +78,10 @@ export const CTVPortalContainer: React.FC<CTVPortalContainerProps> = ({
     if (activeTab === 'account') return 'Thông tin tài khoản';
     if (activeTab === 'customers') return 'Khách hàng của tôi';
     if (activeTab === 'price-list') return 'Bảng giá & Chiết khấu';
+    if (activeTab === 'home-profile') return 'Trang Chủ & Hồ Sơ';
+    if (activeTab === 'team-network') return 'Đội Nhóm & Mạng Lưới';
+    if (activeTab === 'network-media') return 'Mạng Lưới & Truyền Thông';
+    if (activeTab === 'legal') return 'Pháp Lý & Điều Khoản';
     if (activeTab === 'dealers') return 'Đại lý & Showroom';
     if (activeTab === 'events') return 'Sự kiện & Báo chí';
     if (activeTab === 'feedback') return 'Phản hồi khách hàng';
@@ -86,7 +92,7 @@ export const CTVPortalContainer: React.FC<CTVPortalContainerProps> = ({
   })();
 
   const handleHeaderBack = () => {
-    if (['network', 'account', 'customers', 'price-list', 'dealers', 'events', 'feedback', 'legal-docs', 'company-policy', 'regulations'].includes(activeTab)) {
+    if (['network', 'account', 'customers', 'price-list', 'dealers', 'events', 'feedback', 'legal-docs', 'company-policy', 'regulations', 'home-profile', 'team-network', 'network-media', 'legal'].includes(activeTab)) {
       setActiveTab('more');
     } else if (activeTab === 'commissions-detail') {
       setActiveTab('commissions');
@@ -255,30 +261,16 @@ export const CTVPortalContainer: React.FC<CTVPortalContainerProps> = ({
         )}
 
       
-        {activeTab === 'dealers' && (
-          <PlaceholderView title="Đại lý & Showroom toàn quốc" description="Bản đồ và danh sách điểm bán, địa chỉ, SĐT các đại lý trên 63 tỉnh thành." />
-        )}
-        {activeTab === 'events' && (
-          <PlaceholderView title="Sự kiện & Báo chí" description="Thư viện Video sự kiện, Lịch Zoom đào tạo, các bài báo đưa tin về tập đoàn." />
-        )}
-        {activeTab === 'feedback' && (
-          <PlaceholderView title="Kết quả sử dụng" description="Tổng hợp Video/Hình ảnh phỏng vấn khách hàng thực tế. Nút chia sẻ TikTok/YouTube/Facebook." />
-        )}
-        {activeTab === 'legal-docs' && (
-          <PlaceholderView title="Pháp lý & Giấy chứng nhận" description="Giấy phép ĐKKD, Giấy kiểm định chất lượng nước, Bằng sáng chế. Cho phép tải PDF." />
-        )}
-        {activeTab === 'company-policy' && (
-          <PlaceholderView title="Chính sách Công ty" description="Quy chế hoạt động, chính sách trả thưởng, quyền lợi & nghĩa vụ thành viên." />
-        )}
-        {activeTab === 'regulations' && (
-          <PlaceholderView title="Quy định Pháp luật" description="Điều khoản cam kết hoạt động thương mại điện tử / Affiliate chuẩn mực." />
-        )}
+        {activeTab === 'home-profile' && (<PlaceholderView title="Trang Chủ & Hồ Sơ" description="Đang cập nhật — Tính năng sẽ sớm ra mắt. Vui lòng quay lại sau!" />)}
+        {activeTab === 'team-network' && (<PlaceholderView title="Đội Nhóm & Mạng Lưới" description="Đang cập nhật — Tính năng sẽ sớm ra mắt. Vui lòng quay lại sau!" />)}
+        {activeTab === 'network-media' && (<MockupNetworkMedia />)}
+        {activeTab === 'legal' && (<MockupLegal />)}
 
       </main>
 
       {/* 3. BOTTOM NAVIGATION (Height 66px, 40x40 #0072F5 active icon) */}
       <MockupBottomNav
-        activeTab={['network', 'account', 'customers', 'price-list', 'more', 'dealers', 'events', 'feedback', 'legal-docs', 'company-policy', 'regulations'].includes(activeTab) ? 'more' : activeTab === 'commissions-detail' ? 'commissions' : activeTab}
+        activeTab={['network', 'account', 'customers', 'price-list', 'more', 'dealers', 'events', 'feedback', 'legal-docs', 'company-policy', 'regulations', 'home-profile', 'team-network', 'network-media', 'legal'].includes(activeTab) ? 'more' : activeTab === 'commissions-detail' ? 'commissions' : activeTab}
         onChangeTab={setActiveTab}
       />
 

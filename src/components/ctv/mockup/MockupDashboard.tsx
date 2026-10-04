@@ -163,7 +163,7 @@ export const MockupDashboard: React.FC<MockupDashboardProps> = ({
           {/* MỤC 1: NỘI DUNG 1 (Bổ sung sau) */}
           <button
             type="button"
-            onClick={() => setAccountModalOpen(true)}
+            onClick={() => onSelectTab('home-profile')}
             className="flex items-center gap-2.5 p-3 rounded-2xl bg-white hover:bg-slate-50 text-slate-900 transition-all active:scale-[0.98] shadow-md border border-white/80 text-left cursor-pointer"
             style={{ minHeight: '66px' }}
           >
@@ -179,7 +179,7 @@ export const MockupDashboard: React.FC<MockupDashboardProps> = ({
           {/* MỤC 2: NỘI DUNG 2 (Bổ sung sau) */}
           <button
             type="button"
-            onClick={() => setNetworkModalOpen(true)}
+            onClick={() => onSelectTab('team-network')}
             className="flex items-center gap-2.5 p-3 rounded-2xl bg-white hover:bg-slate-50 text-slate-900 transition-all active:scale-[0.98] shadow-md border border-white/80 text-left cursor-pointer"
             style={{ minHeight: '66px' }}
           >
@@ -227,7 +227,7 @@ export const MockupDashboard: React.FC<MockupDashboardProps> = ({
           {/* MỤC 5: MẠNG LƯỚI & TRUYỀN THÔNG */}
           <button
             type="button"
-            onClick={() => onSelectTab('dealers')}
+            onClick={() => onSelectTab('network-media')}
             className="flex items-center gap-2.5 p-3 rounded-2xl bg-white hover:bg-slate-50 text-slate-900 transition-all active:scale-[0.98] shadow-md border border-white/80 text-left cursor-pointer"
             style={{ minHeight: '66px' }}
           >
@@ -243,7 +243,7 @@ export const MockupDashboard: React.FC<MockupDashboardProps> = ({
           {/* MỤC 6: PHÁP LÝ & ĐIỀU KHOẢN */}
           <button
             type="button"
-            onClick={() => onSelectTab('legal-docs')}
+            onClick={() => onSelectTab('legal')}
             className="flex items-center gap-2.5 p-3 rounded-2xl bg-white hover:bg-slate-50 text-slate-900 transition-all active:scale-[0.98] shadow-md border border-white/80 text-left cursor-pointer"
             style={{ minHeight: '66px' }}
           >
@@ -432,7 +432,7 @@ export const MockupDashboard: React.FC<MockupDashboardProps> = ({
 
         {/* Card 4: Đội ngũ đối tác (Chuẩn hóa không dùng F1) */}
         <div
-          onClick={() => setNetworkModalOpen(true)}
+          onClick={() => onSelectTab('team-network')}
           className="cursor-pointer hover:shadow-md transition-all active:scale-95 flex flex-col justify-between"
           style={{
             background: '#FFFFFF',
@@ -473,7 +473,7 @@ export const MockupDashboard: React.FC<MockupDashboardProps> = ({
 
       {/* Card 5: Mạng lưới đối tác (Chuẩn hóa không dùng F1/F2) */}
       <div
-        onClick={() => setNetworkModalOpen(true)}
+        onClick={() => onSelectTab('team-network')}
         className="cursor-pointer hover:shadow-md transition-all active:scale-95 flex items-center justify-between mt-3"
         style={{
           background: 'linear-gradient(135deg, #F0F7FF 0%, #EEF6FF 100%)',
