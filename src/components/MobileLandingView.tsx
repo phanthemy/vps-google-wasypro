@@ -1214,7 +1214,7 @@ export const MobileLandingView: React.FC<MobileLandingViewProps> = ({
       {/* ===== POPUP XEM VIDEO YOUTUBE (FULL-SCREEN PLAYER) ===== */}
       {selectedArticle && (
         <div 
-          className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/85 backdrop-blur-sm animate-fadeIn"
+          className="fixed inset-0 z-[9999] flex items-center justify-center p-3 bg-black/85 backdrop-blur-sm animate-fadeIn"
           onClick={() => setSelectedArticle(null)}
         >
           <div 
@@ -1292,7 +1292,7 @@ export const MobileLandingView: React.FC<MobileLandingViewProps> = ({
 
       {/* ─── Mobile Drawer Menu (Tư Duy Mới Nhất 2026 - Chuẩn App Đẳng Cấp) ─── */}
       {drawerOpen && (
-        <div className="fixed inset-0 z-50 flex">
+        <div className="fixed inset-0 z-[9999] flex">
           {/* Backdrop Blur */}
           <div 
             onClick={() => setDrawerOpen(false)}

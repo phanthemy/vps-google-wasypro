@@ -45,7 +45,7 @@ export const MobileDrawerMenu: React.FC<MobileDrawerMenuProps> = ({
   const isAdmin = user && (user.role === 'admin' || user.id === 'ADMIN01' || user.userId === 'ADMIN01');
 
   return (
-    <div className="fixed inset-0 z-50 overflow-hidden animate-fadeIn">
+    <div className="fixed inset-0 z-[9999] overflow-hidden animate-fadeIn">
       {/* Backdrop */}
       <div 
         className="absolute inset-0 bg-black/50 backdrop-blur-xs transition-opacity"

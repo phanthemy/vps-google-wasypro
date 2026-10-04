@@ -72,7 +72,7 @@ export const ContactModal: React.FC<ContactModalProps> = ({
   // Wait for CTV check before rendering anything
   if (isOrderMode && !ctvCheckDone) {
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/70 backdrop-blur-md">
+      <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-gray-900/70 backdrop-blur-md">
         <div className="bg-white rounded-2xl p-8 text-center">
           <div className="w-8 h-8 border-4 border-sky-500 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
           <p className="text-sm text-slate-500">Đang kiểm tra...</p>
@@ -83,7 +83,7 @@ export const ContactModal: React.FC<ContactModalProps> = ({
 
   if (isOrderMode && isCtvWithRank) {
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-gray-900/70 backdrop-blur-md" onClick={onClose}>
+      <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 sm:p-6 bg-gray-900/70 backdrop-blur-md" onClick={onClose}>
         <div className="bg-white w-full max-w-md rounded-2xl shadow-xl p-8 text-center space-y-5 animate-in fade-in zoom-in duration-200" onClick={e => e.stopPropagation()}>
           <button onClick={onClose} className="absolute top-4 right-4 w-10 h-10 rounded-full bg-white hover:bg-gray-100 text-gray-700 flex items-center justify-center shadow-lg border border-gray-200">
             <X className="w-5 h-5" />
@@ -170,7 +170,7 @@ export const ContactModal: React.FC<ContactModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-4 bg-gray-900/70 backdrop-blur-xs overflow-y-auto" onClick={onClose}>
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 sm:p-4 bg-gray-900/70 backdrop-blur-xs overflow-y-auto" onClick={onClose}>
       <div 
         className="bg-white w-full max-w-lg rounded-2xl overflow-hidden max-h-[88dvh] flex flex-col shadow-2xl relative animate-in fade-in zoom-in duration-200 my-auto"
         onClick={(e) => e.stopPropagation()}

@@ -63,14 +63,14 @@ export const ProductQuickViewModal: React.FC<ProductQuickViewModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-gray-900/70 backdrop-blur-md overflow-hidden" onClick={onClose}>
+    <div className="fixed inset-0 z-[9999] bg-gray-900/70 backdrop-blur-md overflow-hidden" onClick={onClose}>
       <div 
         className="bg-white w-full sm:max-w-2xl lg:max-w-4xl sm:rounded-2xl overflow-y-auto shadow-xl relative animate-in fade-in zoom-in duration-200 sm:border border-gray-200 mx-auto"
-        style={{ maxHeight: '100dvh' }}
+        style={{ maxHeight: '100dvh', paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Sticky Header with X Button */}
-        <div className="sticky top-0 z-50 flex items-center justify-between px-4 py-3 bg-white/95 backdrop-blur-sm border-b border-gray-100" style={{ minHeight: '48px' }}>
+        <div className="sticky top-0 z-10 flex items-center justify-between px-4 py-3 bg-white/95 backdrop-blur-sm border-b border-gray-100" style={{ minHeight: '48px' }}>
           <h3 className="text-[15px] font-bold text-gray-800 truncate pr-3">Chi tiết sản phẩm</h3>
           <button onClick={onClose} className="w-9 h-9 rounded-full bg-gray-100 hover:bg-red-50 text-gray-600 hover:text-red-500 flex items-center justify-center transition-all flex-shrink-0">
             <X className="w-5 h-5" />
