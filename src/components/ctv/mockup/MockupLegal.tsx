@@ -12,7 +12,7 @@ const SUB_TABS: { id: SubTab; label: string; icon: React.ReactNode }[] = [
 const PlaceholderContent: React.FC<{ title: string; description: string }> = ({ title, description }) => (
   <div
     style={{
-      background: '#FFFFFF',
+      background: 'linear-gradient(135deg, #FFF5F5 0%, #FFFFFF 100%)',
       border: '1px solid #EEF2F6',
       borderRadius: '18px',
       padding: '40px 20px',

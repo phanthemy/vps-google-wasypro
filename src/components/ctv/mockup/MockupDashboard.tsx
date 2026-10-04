@@ -96,11 +96,13 @@ export const MockupDashboard: React.FC<MockupDashboardProps> = ({
     'EXEC_OPERATIONS': 'GĐ Điều Hành',
     'EXEC_PROVINCE': 'GĐ Tỉnh',
     'EXEC_STRATEGIC': 'GĐ Chiến Lược',
-    'Manager': 'Quản Lý',
-    'Director': 'Giám Đốc',
+    'MANAGER': 'Quản Lý',
+    'DIRECTOR': 'Giám Đốc',
+    'CTV': 'Đại Sứ',
+    'NPP': 'Nhà Phân Phối',
   };
-  const rawRank = (userSession as any).rank || (userSession as any).nppRank || '';
-  const rankText = RANK_MAP[rawRank] || rawRank || 'Đối Tác CTV';
+  const rawRank = ((userSession as any).rank || (userSession as any).nppRank || '').toString().toUpperCase().trim();
+  const rankText = RANK_MAP[rawRank] || (rawRank ? rawRank : 'Đại Sứ');
   const userId = userSession.id || userSession.userId || 'U1002';
   const userName = userSession.fullName || 'Đối tác CTV';
   const initials = userName.split(' ').map((w: string) => w[0]).join('').slice(-2).toUpperCase();
@@ -116,18 +118,18 @@ export const MockupDashboard: React.FC<MockupDashboardProps> = ({
         className="relative overflow-hidden"
         style={{
           borderRadius: '24px',
-          background: 'linear-gradient(180deg, #0A1628 0%, #0D3B8F 40%, #1E6DD9 70%, #4BA3F5 100%)',
+          background: 'linear-gradient(180deg, #063970 0%, #1565C0 35%, #1E88E5 65%, #42A5F5 100%)',
           padding: '28px 20px 22px',
           minHeight: '300px',
         }}
       >
-        {/* Background image overlay */}
+        {/* Background water splash image */}
         <div
-          className="absolute inset-0 opacity-15"
+          className="absolute inset-0 opacity-30"
           style={{
-            backgroundImage: 'url(/images/hero-poster.jpg)',
+            backgroundImage: 'url(/images/ctv-hero-bg.jpg)',
             backgroundSize: 'cover',
-            backgroundPosition: 'center bottom',
+            backgroundPosition: 'center',
           }}
         />
 

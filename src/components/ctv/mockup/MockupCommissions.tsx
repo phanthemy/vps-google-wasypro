@@ -51,7 +51,7 @@ export const MockupCommissions: React.FC<MockupCommissionsProps> = ({
         <>
           <div 
             style={{
-              background: '#FFFFFF',
+              background: 'linear-gradient(135deg, #FFF7E6 0%, #FFFBF0 50%, #FFFFFF 100%)',
               border: '1px solid #EEF2F6',
               borderRadius: '18px',
               padding: '20px',
@@ -94,7 +94,7 @@ export const MockupCommissions: React.FC<MockupCommissionsProps> = ({
                 color: '#0072F5',
                 fontSize: '15px',
                 fontWeight: 600,
-                background: '#FFFFFF'
+                background: 'linear-gradient(135deg, #F0F7FF 0%, #F8FBFF 50%, #FFFFFF 100%)'
               }}
             >
               <span>Xem chi tiết hoa hồng</span>
