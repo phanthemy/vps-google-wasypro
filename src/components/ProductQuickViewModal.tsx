@@ -37,9 +37,11 @@ export const ProductQuickViewModal: React.FC<ProductQuickViewModalProps> = ({
   if (!product) return null;
 
   // Build media list (images + videos)
+  const formatMediaUrl = (url: string) => (url && !url.includes("?") ? `${url}?v=20261008` : url);
   const galleryUrls = (product.gallery || []).map((g: any) => typeof g === 'string' ? g : g?.url).filter(Boolean);
-  const mainImg = (product.image && product.image.startsWith('/uploads')) ? product.image : (galleryUrls[0] || product.image);
-  const allMedia = [mainImg, ...galleryUrls.filter((u: string) => u !== mainImg)].filter(Boolean);
+  const rawMainImg = (product.image && product.image.startsWith('/uploads')) ? product.image : (galleryUrls[0] || product.image);
+  const mainImg = formatMediaUrl(rawMainImg);
+  const allMedia = [mainImg, ...galleryUrls.map(formatMediaUrl).filter((u: string) => u !== mainImg)].filter(Boolean);
   const activeUrl = allMedia[activeIndex] || '';
 
   const goNext = () => setActiveIndex(i => (i + 1) % allMedia.length);

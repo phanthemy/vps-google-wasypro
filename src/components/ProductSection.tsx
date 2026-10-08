@@ -339,11 +339,14 @@ export const ProductSection: React.FC<ProductSectionProps> = ({
           <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-5 lg:gap-6">
             {displayedProducts.map((product) => {
               const discount = getDiscountPercent(product.price, product.originalPrice);
-              const imageUrl = product.image && product.image.startsWith("/uploads") 
+              const rawImg = product.image && product.image.startsWith("/uploads") 
                 ? product.image 
                 : ((product.gallery as any[])?.length > 0 
                   ? (typeof (product.gallery as any[])[0] === "string" ? (product.gallery as any[])[0] : (product.gallery as any[])[0]?.url) 
                   : product.image);
+              const imageUrl = rawImg 
+                ? (rawImg.includes("?") ? rawImg : `${rawImg}?v=20261008`) 
+                : "https://images.unsplash.com/photo-1548839140-29a749e1bc4e?w=500&auto=format&fit=crop&q=80";
 
               return (
                 <div
@@ -397,11 +400,13 @@ export const ProductSection: React.FC<ProductSectionProps> = ({
                     <img
                       src={imageUrl}
                       alt={product.title}
-                      className="max-h-full max-w-full object-contain drop-shadow-sm group-hover:scale-108 transition-transform duration-500 ease-out"
+                      loading="lazy"
+                      decoding="async"
+                      className="w-full h-full object-contain drop-shadow-sm group-hover:scale-105 transition-transform duration-500 ease-out"
                       onError={(e) => {
                         const target = e.target as HTMLImageElement;
                         target.onerror = null;
-                        target.src = 'https://images.unsplash.com/photo-1548839140-29a749e1bc4e?w=500&auto=format&fit=crop&q=80';
+                        target.src = '/images/products/prod-1.webp';
                       }}
                     />
                   </div>
