@@ -20,8 +20,8 @@ export const MockupBottomNav: React.FC<MockupBottomNavProps> = ({
 
   return (
     <nav 
-      className="fixed bottom-0 inset-x-0 z-40 bg-[#FFFFFF]"
-      style={{ borderTop: '1px solid #E2E8F0', height: '66px' }}
+      className="fixed bottom-0 z-40 bg-[#FFFFFF] w-full max-w-[480px]" style={{ left: "50%", transform: "translateX(-50%)", borderTop: "1px solid #E2E8F0", height: "66px" }}
+      
     >
       <div className="max-w-md mx-auto grid grid-cols-5 h-full items-center px-1">
         {tabs.map((tab) => {

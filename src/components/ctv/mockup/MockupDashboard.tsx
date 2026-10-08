@@ -12,6 +12,12 @@ import {
   Radio,
   Scale,
   User,
+  ShoppingCart,
+  Handshake,
+  ShieldCheck,
+  GraduationCap,
+  Droplet,
+  Crown
 } from 'lucide-react';
 import { UserSession } from '../../../hooks/useUnifiedAuth';
 import { AccountModal } from './AccountModal';
@@ -27,55 +33,70 @@ interface MockupDashboardProps {
   onInviteMember: () => void;
 }
 
-const CATEGORIES = [
+const NEW_CATEGORIES = [
   {
     id: 'account',
-    label: 'Trang Chủ & Hồ Sơ',
-    sub: 'Thông tin cá nhân, Ngân hàng',
-    icon: BookOpen,
-    gradient: 'linear-gradient(145deg, #5B21B6 0%, #7C3AED 60%, #8B5CF6 100%)',
-    shadow: 'rgba(91,33,182,0.35)',
+    label: 'TÀI KHOẢN CÁ NHÂN',
+    icon: User,
+    gradient: 'linear-gradient(135deg, #1E3A8A 0%, #3B82F6 100%)',
+    shadow: 'rgba(59, 130, 246, 0.4)'
   },
   {
-    id: 'network',
-    label: 'Đội Nhóm & Mạng Lưới',
-    sub: 'Sơ đồ tuyến, Đối tác F1',
-    icon: Users,
-    gradient: 'linear-gradient(145deg, #047857 0%, #059669 60%, #10B981 100%)',
-    shadow: 'rgba(4,120,87,0.35)',
-  },
-  {
-    id: 'commissions',
-    label: 'Hoa Hồng',
-    sub: 'Trực tiếp, Hệ thống, Lịch sử',
-    icon: Coins,
-    gradient: 'linear-gradient(145deg, #B45309 0%, #D97706 60%, #F59E0B 100%)',
-    shadow: 'rgba(180,83,9,0.35)',
+    id: 'price-list',
+    label: 'SẢN PHẨM',
+    icon: Package,
+    gradient: 'linear-gradient(135deg, #0284C7 0%, #06B6D4 100%)',
+    shadow: 'rgba(6, 182, 212, 0.4)'
   },
   {
     id: 'orders',
-    label: 'Đặt Hàng & Gói Đầu Tư',
-    sub: 'SP lẻ, Gói ĐL, Đầu tư',
-    icon: Package,
-    gradient: 'linear-gradient(145deg, #B91C1C 0%, #DC2626 60%, #EF4444 100%)',
-    shadow: 'rgba(185,28,28,0.35)',
+    label: 'ĐẶT HÀNG',
+    icon: ShoppingCart,
+    gradient: 'linear-gradient(135deg, #B45309 0%, #F59E0B 100%)',
+    shadow: 'rgba(245, 158, 11, 0.4)'
   },
   {
-    id: 'network-media',
-    label: 'Mạng Lưới & Truyền Thông',
-    sub: 'Đại lý, Sự kiện, Feedback',
-    icon: Radio,
-    gradient: 'linear-gradient(145deg, #075985 0%, #0369A1 60%, #0EA5E9 100%)',
-    shadow: 'rgba(7,89,133,0.35)',
+    id: 'network',
+    label: 'DOANH NGHIỆP CỦA BẠN',
+    icon: Handshake,
+    gradient: 'linear-gradient(135deg, #047857 0%, #10B981 100%)',
+    shadow: 'rgba(16, 185, 129, 0.4)'
   },
   {
-    id: 'legal',
-    label: 'Pháp Lý & Điều Khoản',
-    sub: 'Giấy CN, Chính sách, PL',
+    id: 'commissions',
+    label: 'THU NHẬP',
+    icon: Coins,
+    gradient: 'linear-gradient(135deg, #D97706 0%, #FBBF24 100%)',
+    shadow: 'rgba(251, 191, 36, 0.4)'
+  },
+  {
+    id: 'company-policy',
+    label: 'CHÍNH SÁCH',
+    icon: ShieldCheck,
+    gradient: 'linear-gradient(135deg, #6D28D9 0%, #A855F7 100%)',
+    shadow: 'rgba(168, 85, 247, 0.4)'
+  },
+  {
+    id: 'events',
+    label: 'SỰ KIỆN ĐÀO TẠO',
+    icon: GraduationCap,
+    gradient: 'linear-gradient(135deg, #BE185D 0%, #EC4899 100%)',
+    shadow: 'rgba(236, 72, 153, 0.4)'
+  },
+  {
+    id: 'feedback',
+    label: 'KẾT QUẢ SỬ DỤNG',
+    icon: Droplet,
+    gradient: 'linear-gradient(135deg, #0369A1 0%, #38BDF8 100%)',
+    shadow: 'rgba(56, 189, 248, 0.4)'
+  },
+  {
+    id: 'legal-docs',
+    label: 'PHÁP LÝ',
     icon: Scale,
-    gradient: 'linear-gradient(145deg, #C2410C 0%, #EA580C 60%, #F97316 100%)',
-    shadow: 'rgba(194,65,12,0.35)',
-  },
+    gradient: 'linear-gradient(135deg, #0F766E 0%, #2DD4BF 100%)',
+    shadow: 'rgba(45, 212, 191, 0.4)'
+  }
 ];
 
 export const MockupDashboard: React.FC<MockupDashboardProps> = ({
@@ -112,249 +133,181 @@ export const MockupDashboard: React.FC<MockupDashboardProps> = ({
   };
   const rawRank = ((userSession as any).rank || (userSession as any).nppRank || '').toString().toUpperCase().trim();
   const rankText = RANK_MAP[rawRank] || (rawRank ? rawRank : 'Đại Sứ');
-  const userId = userSession.id || userSession.userId || 'U1002';
+  const userId = userSession.id || (userSession as any).userId || 'U1002';
   const userName = userSession.fullName || 'Đối tác CTV';
   const initials = userName.split(' ').map((w: string) => w[0]).join('').slice(-2).toUpperCase();
   const avatarUrl = (userSession as any).avatarUrl;
 
   return (
-    <div className="space-y-4" style={{ fontFamily: 'Inter, -apple-system, sans-serif' }}>
-
-      {/* ============================================================
-          HERO SECTION — Profile Card (theo ý sếp)
-          ============================================================ */}
-      <div
-        className="relative overflow-hidden"
-        style={{
-          borderRadius: '24px',
-          background: 'linear-gradient(180deg, #063970 0%, #1565C0 35%, #1E88E5 65%, #42A5F5 100%)',
-          padding: '28px 20px 22px',
-          minHeight: '300px',
-        }}
-      >
-        {/* Background water splash image */}
-        <div
-          className="absolute inset-0 opacity-30"
-          style={{
-            backgroundImage: 'url(/images/ctv-hero-bg.jpg)',
-            backgroundSize: 'cover',
-            backgroundPosition: 'center',
-          }}
+    <div className="bg-[#eaf4fc] min-h-screen pb-28" style={{ fontFamily: 'Inter, -apple-system, sans-serif' }}>
+      
+      {/* 1. HERO BANNER */}
+      <div className="relative w-full aspect-[473/275] bg-sky-100 rounded-b-[2.5rem] shadow-sm overflow-hidden">
+        <img 
+          src="/images/ctv-banner-top-hd.webp" 
+          alt="Banner" 
+          className="w-full h-full object-cover"
         />
+        {/* Transparent Bell button overlay */}
+        <button 
+          className="absolute top-[8%] right-[5%] w-[12%] aspect-square rounded-full opacity-0" 
+          onClick={() => {}}
+        />
+      </div>
 
-        {/* Sparkle decorations */}
-        <div className="absolute top-6 right-8 w-2 h-2 rounded-full bg-white/40 animate-pulse" />
-        <div className="absolute top-14 right-16 w-1.5 h-1.5 rounded-full bg-white/30 animate-pulse" style={{ animationDelay: '0.5s' }} />
-        <div className="absolute top-10 left-10 w-1 h-1 rounded-full bg-white/25 animate-pulse" style={{ animationDelay: '1s' }} />
-
-        {/* Notification bell */}
-        <div className="absolute top-4 right-4 z-10">
-          <div className="w-10 h-10 rounded-full bg-white/15 flex items-center justify-center backdrop-blur-sm">
-            <Bell className="w-5 h-5 text-white" />
+      {/* 2. PROFILE CARD */}
+      <div 
+        className="relative mx-4 -mt-10 bg-white rounded-[24px] p-4 shadow-xl border border-white flex items-center gap-3 cursor-pointer"
+        onClick={() => setAccountModalOpen(true)}
+        style={{ zIndex: 10, boxShadow: '0 10px 30px rgba(0,100,200,0.1)' }}
+      >
+        <div className="relative shrink-0">
+          <div className="w-[72px] h-[72px] rounded-full border-[3px] border-[#FBBF24] p-0.5 shadow-sm overflow-hidden bg-slate-50 flex items-center justify-center">
+            {/* Avatar */}
+            {(userSession as any)?.avatarUrl ? (
+               <img src={(userSession as any).avatarUrl} className="w-full h-full object-cover rounded-full" />
+            ) : (
+               <User className="w-8 h-8 text-slate-300" />
+            )}
+          </div>
+          <div className="absolute -bottom-2.5 left-1/2 -translate-x-1/2 bg-gradient-to-r from-amber-400 to-yellow-300 text-yellow-900 text-[11px] font-bold px-3 py-0.5 rounded-full border border-yellow-200 whitespace-nowrap shadow-sm">
+            {userSession?.phone ? `U${userSession.phone.slice(-4)}` : 'U1002'}
           </div>
         </div>
-
-        {/* WasyPro Logo — top left */}
-        <div className="absolute top-4 left-4 z-10">
-          <img
-            src="/images/logo-rbg.webp"
-            alt="WasyPro"
-            className="h-8 object-contain"
-            style={{ filter: 'brightness(1.1)' }}
-            onError={(e) => { (e.target as HTMLImageElement).src = '/images/logo-moi-1.png'; }}
-          />
+        
+        <div className="flex-1 min-w-0 pt-1 ml-2">
+          <div className="flex items-center gap-1.5 mb-1.5">
+            <div className="bg-gradient-to-r from-amber-50 to-amber-100 text-amber-700 text-[9px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 border border-amber-200 shadow-sm">
+              <Crown className="w-3 h-3 text-amber-500" />
+              {userSession?.rank?.toUpperCase() === 'AMBASSADOR' ? 'ĐẠI SỨ' :
+               userSession?.rank?.toUpperCase() === 'DIRECTOR' || userSession?.rank?.toUpperCase() === 'SALES_DIRECTOR' ? 'QUẢN LÝ' :
+               userSession?.rank?.toUpperCase() === 'MANAGER' || userSession?.rank?.toUpperCase() === 'SALES_MANAGER' ? 'TRƯỞNG NHÓM' : 'ĐỐI TÁC'}
+            </div>
+          </div>
+          <div className="font-extrabold text-[16px] text-sky-900 truncate tracking-tight">
+            {userSession?.fullName || 'Khách hàng'}
+          </div>
+          <div className="text-[11px] text-slate-500 italic leading-snug mt-1 line-clamp-2">
+            "Cuộc đời là một hành trình, hãy làm cuộc đời trở nên ý nghĩa hơn"
+          </div>
+          <div className="text-[10px] text-slate-400 mt-1 font-medium">
+            (Nguyễn Đức Quang)
+          </div>
         </div>
-
-        {/* Content */}
-        <div className="relative z-10">
-          {/* Rank Crown Badge — centered, color per rank */}
-          <div className="flex justify-center mb-4">
-            <div className="text-center">
-              <span className="text-3xl block">👑</span>
-              {(() => {
-                const RANK_COLORS: Record<string, { bg: string; shadow: string; text: string }> = {
-                  'Đại Sứ': { bg: 'linear-gradient(135deg, #FFD700, #FFA500)', shadow: 'rgba(255,165,0,0.4)', text: '#1a0a00' },
-                  'Trưởng Nhóm': { bg: 'linear-gradient(135deg, #1565C0, #42A5F5)', shadow: 'rgba(21,101,192,0.4)', text: '#FFFFFF' },
-                  'Quản Lý': { bg: 'linear-gradient(135deg, #7B1FA2, #AB47BC)', shadow: 'rgba(123,31,162,0.4)', text: '#FFFFFF' },
-                  'GĐ Điều Hành': { bg: 'linear-gradient(135deg, #C62828, #EF5350)', shadow: 'rgba(198,40,40,0.4)', text: '#FFFFFF' },
-                  'GĐ Tỉnh': { bg: 'linear-gradient(135deg, #00695C, #26A69A)', shadow: 'rgba(0,105,92,0.4)', text: '#FFFFFF' },
-                  'GĐ Chiến Lược': { bg: 'linear-gradient(135deg, #1A237E, #5C6BC0)', shadow: 'rgba(26,35,126,0.4)', text: '#FFFFFF' },
-                  'Nhà Phân Phối': { bg: 'linear-gradient(135deg, #E65100, #FB8C00)', shadow: 'rgba(230,81,0,0.4)', text: '#FFFFFF' },
-                };
-                const colors = RANK_COLORS[rankText] || RANK_COLORS['Đại Sứ'];
-                return (
-                  <div
-                    className="mt-1 px-8 py-2 rounded-full"
-                    style={{
-                      background: colors.bg,
-                      boxShadow: `0 4px 15px ${colors.shadow}`,
-                    }}
-                  >
-                    <span className="text-sm font-extrabold tracking-wider uppercase" style={{ color: colors.text }}>
-                      {rankText}
-                    </span>
-                  </div>
-                );
-              })()}
-            </div>
-          </div>
-
-          {/* User photo + User info */}
-          <div className="flex items-center gap-4 mt-2">
-            {/* User Avatar (ảnh user, nằm giữa-dưới) */}
-            <div className="shrink-0 flex flex-col items-center">
-              <div
-                className="w-20 h-20 rounded-2xl overflow-hidden border-2 border-amber-400/60 shadow-lg flex items-center justify-center"
-                style={{ background: 'linear-gradient(135deg, #1E3A5F, #2563EB)' }}
-              >
-                {avatarUrl ? (
-                  <img
-                    src={avatarUrl}
-                    alt={userName}
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <span className="text-2xl font-bold text-white/90">{initials}</span>
-                )}
-              </div>
-              <div
-                className="mt-2 px-3 py-1 rounded-lg text-center"
-                style={{ background: '#FFD700', color: '#0F172A' }}
-              >
-                <span className="text-[11px] font-extrabold">{userId}</span>
-              </div>
-            </div>
-
-            {/* User name + quote */}
-            <div className="flex-1 min-w-0">
-              <h2 className="text-xl font-bold text-white leading-tight">
-                {userName}
-              </h2>
-              <p
-                className="text-[12px] text-white/70 italic leading-snug mt-3"
-                style={{ maxWidth: '220px' }}
-              >
-                "Cuộc đời là một hành trình, hãy làm cuộc đời trở nên ý nghĩa hơn"
-              </p>
-              <p className="text-[11px] text-amber-300/80 font-semibold mt-1.5">
-                (Founder &amp; Chairman Nguyễn Đức Quang)
-              </p>
-              <p className="text-white/40 mt-1" style={{ fontFamily: 'cursive', fontSize: '14px' }}>
-                Nguyễn Đức Quang
-              </p>
-            </div>
-          </div>
+        
+        <div className="shrink-0 w-8 h-8 rounded-full bg-sky-50 flex items-center justify-center border border-sky-100 shadow-sm self-center text-sky-500">
+          <ChevronRight className="w-4 h-4" />
         </div>
       </div>
 
-      {/* ============================================================
-          2 ACTION BUTTONS — Website + Hotline (gọi trực tiếp)
-          ============================================================ */}
-      <div className="grid grid-cols-2 gap-3">
+      {/* 3. QUICK ACTIONS */}
+      <div className="grid grid-cols-2 gap-3 px-4 mt-6">
         <button
           onClick={onNavigateHome}
-          className="flex items-center gap-3 p-3.5 rounded-2xl bg-white/95 backdrop-blur-md border border-white/80 shadow-lg hover:shadow-xl transition-all active:scale-[0.98]"
+          className="flex items-center gap-2 p-3 rounded-[16px] bg-white border border-sky-100 shadow-md shadow-sky-900/5 active:scale-95 transition-transform"
         >
-          <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center shrink-0">
-            <Globe className="w-5 h-5 text-[#0072F5]" />
+          <div className="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center shrink-0">
+            <Globe className="w-4 h-4 text-blue-500" />
           </div>
-          <div className="text-left min-w-0">
-            <div className="text-[13px] font-bold text-[#0F172A] leading-tight">Truy cập Website</div>
-            <div className="text-[10px] text-[#64748B] font-medium">waterkinggroup.com</div>
+          <div className="text-left min-w-0 flex-1">
+            <div className="text-[12px] font-bold text-sky-900 leading-tight">Website</div>
+            <div className="text-[9px] text-slate-500 truncate">waterkinggroup.com</div>
           </div>
-          <ChevronRight className="w-4 h-4 text-[#94A3B8] shrink-0 ml-auto" />
+          <ChevronRight className="w-3.5 h-3.5 text-slate-300" />
         </button>
 
         <a
           href="tel:1900989878"
-          className="flex items-center gap-3 p-3.5 rounded-2xl bg-white/95 backdrop-blur-md border border-white/80 shadow-lg hover:shadow-xl transition-all active:scale-[0.98] no-underline"
+          className="flex items-center gap-2 p-3 rounded-[16px] bg-white border border-sky-100 shadow-md shadow-sky-900/5 active:scale-95 transition-transform no-underline"
         >
-          <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center shrink-0">
-            <Phone className="w-5 h-5 text-amber-600" />
+          <div className="w-8 h-8 rounded-full bg-amber-50 flex items-center justify-center shrink-0">
+            <Phone className="w-4 h-4 text-amber-500" />
           </div>
-          <div className="text-left min-w-0">
-            <div className="text-[13px] font-bold text-[#0F172A] leading-tight">Hỗ trợ tổng đài</div>
-            <div className="text-[10px] text-[#64748B] font-medium">1900.98.98.78</div>
+          <div className="text-left min-w-0 flex-1">
+            <div className="text-[12px] font-bold text-sky-900 leading-tight">Hỗ trợ tổng đài</div>
+            <div className="text-[9px] text-slate-500 truncate">1900.98.98.78</div>
           </div>
+          <ChevronRight className="w-3.5 h-3.5 text-slate-300" />
         </a>
       </div>
 
-      {/* ============================================================
-          6 MỤC CHÍNH — Gradient Cards (2×3 grid)
-          Bấm vào → mở trang con với sub-tabs
-          ============================================================ */}
-      <div className="grid grid-cols-3 gap-3">
-        {CATEGORIES.map((cat) => {
-          const Icon = cat.icon;
-          return (
-            <button
-              key={cat.id}
-              onClick={() => {
-                if (cat.id === 'account') { setAccountModalOpen(true); return; }
-                if (cat.id === 'network') { setNetworkModalOpen(true); return; }
-                onSelectTab(cat.id);
-              }}
-              className="relative overflow-hidden rounded-2xl p-3 text-left transition-all active:scale-[0.97]"
-              style={{
-                background: cat.gradient,
-                minHeight: '130px',
-                boxShadow: `0 8px 20px ${cat.shadow}`,
-              }}
-            >
-              {/* Arrow */}
-              <div className="absolute top-2 right-2 w-7 h-7 rounded-full bg-white/20 flex items-center justify-center">
-                <ChevronRight className="w-4 h-4 text-white" />
-              </div>
-
-              {/* Icon */}
-              <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center mb-2">
-                <Icon className="w-5 h-5 text-white" />
-              </div>
-
-              {/* Label */}
-              <div className="text-[12px] font-extrabold text-white leading-tight" style={{ textShadow: '0 1px 3px rgba(0,0,0,0.3)' }}>{cat.label}</div>
-
-              {/* Subtitle */}
-              <div className="text-[10px] text-white/80 mt-1.5 leading-snug font-medium" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.2)' }}>{cat.sub}</div>
-            </button>
-          );
-        })}
+      {/* 4. 9 CARDS GRID (Using Sprite Map) */}
+      <div className="px-4 mt-5 relative">
+        <img 
+          src="/images/ctv-grid-full-hd.webp" 
+          alt="9 Cards" 
+          className="w-full h-auto rounded-[20px] shadow-lg border border-white/50"
+        />
+        {/* Image Map Grid Overlay */}
+        <div className="absolute inset-0 px-4 grid grid-cols-3 grid-rows-3 gap-0">
+          <button onClick={() => setAccountModalOpen(true)} className="opacity-0 w-full h-full" aria-label="Tài khoản cá nhân" />
+          <button onClick={() => onSelectTab('price-list')} className="opacity-0 w-full h-full" aria-label="Sản phẩm" />
+          <button onClick={() => onSelectTab('orders')} className="opacity-0 w-full h-full" aria-label="Đặt hàng" />
+          
+          <button onClick={() => setNetworkModalOpen(true)} className="opacity-0 w-full h-full" aria-label="Doanh nghiệp của bạn" />
+          <button onClick={() => onSelectTab('commissions')} className="opacity-0 w-full h-full" aria-label="Thu nhập" />
+          <button onClick={() => onSelectTab('company-policy')} className="opacity-0 w-full h-full" aria-label="Chính sách" />
+          
+          <button onClick={() => onSelectTab('events')} className="opacity-0 w-full h-full" aria-label="Sự kiện đào tạo" />
+          <button onClick={() => onSelectTab('feedback')} className="opacity-0 w-full h-full" aria-label="Kết quả sử dụng" />
+          <button onClick={() => onSelectTab('legal-docs')} className="opacity-0 w-full h-full" aria-label="Pháp lý" />
+        </div>
       </div>
 
-      {/* ============================================================
-          VIDEO BANNER — hero-video.mp4 từ trang chủ
-          ============================================================ */}
-      <div
-        className="rounded-2xl overflow-hidden cursor-pointer"
-        style={{
-          boxShadow: '0 8px 25px rgba(15,23,42,0.12)',
-          border: '1px solid rgba(255,255,255,0.5)',
-        }}
-        onClick={onNavigateHome}
-      >
-        <video
-          autoPlay
-          loop
-          muted
-          playsInline
-          className="w-full h-auto object-cover"
-          style={{ maxHeight: '200px' }}
-          poster="/images/banner-web.webp"
+      {/* 5. BOTTOM BANNER */}
+      <div className="px-4 mt-4 mb-3">
+        <button 
+          className="w-full relative shadow-md rounded-2xl overflow-hidden active:scale-[0.98] transition-transform border border-white/60 block bg-white"
+          onClick={() => onSelectTab('price-list')}
+          aria-label="Xem sản phẩm Water King"
         >
-          <source src="https://wasypro.com/videos/hero-video.mp4" type="video/mp4" />
-        </video>
+          <img 
+            src="/images/ctv-banner-bottom.jpg" 
+            alt="Water King WASY PRO" 
+            className="w-full h-auto object-cover block"
+          />
+        </button>
       </div>
 
-      {/* ============================================================
-          ĐĂNG XUẤT — nhỏ gọn cuối trang
-          ============================================================ */}
-      <button
-        onClick={() => setShowLogoutConfirm(true)}
-        className="w-full flex items-center justify-center gap-2 h-11 rounded-2xl bg-rose-50 border border-rose-100 text-rose-600 text-sm font-bold hover:bg-rose-100 transition-all active:scale-[0.98]"
-      >
-        <LogOut className="w-4 h-4" />
-        Đăng xuất
-      </button>
+      {/* 6. CAM KẾT CHẤT LƯỢNG & ĐẶC QUYỀN ĐỐI TÁC */}
+      <div className="px-4 mb-4">
+        <div className="bg-white/90 backdrop-blur-md rounded-2xl p-3 border border-sky-100/80 shadow-sm grid grid-cols-3 gap-2 text-center">
+          <div className="flex flex-col items-center">
+            <div className="w-8 h-8 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center mb-1 shadow-xs">
+              <ShieldCheck className="w-4 h-4" />
+            </div>
+            <span className="text-[10px] font-extrabold text-slate-800 leading-tight">Bảo Hành 1 Năm</span>
+            <span className="text-[8px] text-slate-400 mt-0.5">Tận nhà chu đáo</span>
+          </div>
+
+          <div className="flex flex-col items-center border-x border-slate-100 px-1">
+            <div className="w-8 h-8 rounded-full bg-sky-50 text-sky-600 flex items-center justify-center mb-1 shadow-xs">
+              <Droplet className="w-4 h-4" />
+            </div>
+            <span className="text-[10px] font-extrabold text-slate-800 leading-tight">Hydrogen Chuẩn</span>
+            <span className="text-[8px] text-slate-400 mt-0.5">Giàu ion kiềm sạch</span>
+          </div>
+
+          <div className="flex flex-col items-center">
+            <div className="w-8 h-8 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center mb-1 shadow-xs">
+              <Package className="w-4 h-4" />
+            </div>
+            <span className="text-[10px] font-extrabold text-slate-800 leading-tight">Lắp Đặt Tận Nơi</span>
+            <span className="text-[8px] text-slate-400 mt-0.5">Miễn phí toàn quốc</span>
+          </div>
+        </div>
+      </div>
+      
+      {/* ĐĂNG XUẤT */}
+      <div className="px-4 mt-2">
+        <button
+          onClick={() => setShowLogoutConfirm(true)}
+          className="w-full flex items-center justify-center gap-2 h-10 rounded-xl bg-slate-200/50 text-slate-500 text-xs font-bold hover:bg-slate-200 hover:text-slate-700 transition-all active:scale-[0.98]"
+        >
+          <LogOut className="w-3.5 h-3.5" />
+          Đăng xuất
+        </button>
+      </div>
 
       {/* MODAL: XÁC NHẬN ĐĂNG XUẤT */}
       {showLogoutConfirm && (

@@ -193,7 +193,7 @@ function getCsrfToken() {
             <div className="text-xl font-extrabold text-primary truncate">{currentUser.fullName || '—'}</div>
             <div className="text-sm font-medium text-secondary">{currentUser.phone || '—'}</div>
             <div className="text-xs font-mono text-muted mt-1 bg-gray-100 px-2 py-0.5 rounded inline-block">
-              ID: {currentUser.id || currentUser.userId}
+              ID: {currentUser.id || currentUser.id}
             </div>
           </div>
         </div>
@@ -380,7 +380,7 @@ function getCsrfToken() {
           <div className="text-xs font-bold text-secondary uppercase tracking-wider px-1">
             Tiến Trình Cấp Bậc
           </div>
-          <AmbassadorProgressCard userId={currentUser.id || currentUser.userId} />
+          <AmbassadorProgressCard userId={currentUser.id || currentUser.id} />
         </div>
       )}
 

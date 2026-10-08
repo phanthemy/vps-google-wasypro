@@ -54,6 +54,18 @@ export const CTVPortalContainer: React.FC<CTVPortalContainerProps> = ({
   const [activeTab, setActiveTab] = useState(initialTab);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [passModalOpen, setPassModalOpen] = useState(false);
+  const [realCommissionTotal, setRealCommissionTotal] = useState<number>(0);
+
+  React.useEffect(() => {
+    fetch('/api/ctv/network-summary', { credentials: 'include' })
+      .then(r => r.json())
+      .then(res => {
+        if (res.success && res.data && typeof res.data.totalCommission === 'number') {
+          setRealCommissionTotal(res.data.totalCommission);
+        }
+      })
+      .catch(() => {});
+  }, [currentUser]);
 
   // Invite member
   const handleInviteMember = () => {
@@ -61,7 +73,7 @@ export const CTVPortalContainer: React.FC<CTVPortalContainerProps> = ({
       onOpenAuth('register');
     } else {
       const origin = typeof window !== 'undefined' ? window.location.origin : '';
-      const ref = currentUser.id || currentUser.userId;
+      const ref = currentUser.id || currentUser.id;
       navigator.clipboard?.writeText(`${origin}/?ref=${ref}`);
       alert('Đã sao chép link giới thiệu của bạn!');
     }
@@ -94,7 +106,7 @@ export const CTVPortalContainer: React.FC<CTVPortalContainerProps> = ({
   })();
 
   const handleHeaderBack = () => {
-    if (['npp', 'network', 'account', 'customers', 'price-list', 'dealers', 'events', 'feedback', 'legal-docs', 'company-policy', 'regulations', 'home-profile', 'team-network', 'network-media', 'legal'].includes(activeTab)) {
+    if (false) {
       setActiveTab('more');
     } else if (activeTab === 'commissions-detail') {
       setActiveTab('commissions');
@@ -112,8 +124,8 @@ export const CTVPortalContainer: React.FC<CTVPortalContainerProps> = ({
   };
 
   return (
-    <div 
-      className="min-h-screen font-sans pb-24 text-[#0F172A] overflow-x-hidden"
+    <div className="bg-[#f1f5f9] min-h-screen w-full flex justify-center"><div 
+      className="w-full max-w-[480px] min-h-screen font-sans pb-24 text-[#0F172A] overflow-x-hidden relative shadow-2xl bg-white"
       style={{ 
         background: 'linear-gradient(180deg, rgba(6,57,112,0.15) 0%, rgba(21,101,192,0.08) 50%, rgba(66,165,245,0.05) 100%)',
         backgroundImage: 'url(/images/ctv-hero-bg.jpg)',
@@ -133,7 +145,6 @@ export const CTVPortalContainer: React.FC<CTVPortalContainerProps> = ({
         onBack={handleHeaderBack}
         onSearchClick={() => onNavigateHome()}
         onCartClick={onCartClick || (() => onNavigateHome())}
-        onMenuClick={() => setDrawerOpen(true)}
         cartCount={cartItemCount}
       />
 
@@ -161,7 +172,7 @@ export const CTVPortalContainer: React.FC<CTVPortalContainerProps> = ({
         {/* Screen 3: Trang hoa hồng */}
         {activeTab === 'commissions' && (
           <MockupCommissions
-            totalCommission={31920000}
+            totalCommission={realCommissionTotal}
             periodName="10/2026"
             onViewDetails={() => setActiveTab('commissions-detail')}
           />
@@ -214,7 +225,7 @@ export const CTVPortalContainer: React.FC<CTVPortalContainerProps> = ({
             }}
             className="animate-fadeIn"
           >
-            <NetworkView currentUser={currentUser} />
+            <NetworkView currentUser={currentUser} refreshKey={Date.now()} />
           </div>
         )}
 
@@ -230,7 +241,7 @@ export const CTVPortalContainer: React.FC<CTVPortalContainerProps> = ({
             }}
             className="animate-fadeIn"
           >
-            <SettingsView currentUser={currentUser} onLogout={onLogout} />
+            <SettingsView currentUser={currentUser} />
           </div>
         )}
 
@@ -246,7 +257,7 @@ export const CTVPortalContainer: React.FC<CTVPortalContainerProps> = ({
             }}
             className="animate-fadeIn"
           >
-            <CustomersView currentUser={currentUser} />
+            <CustomersView currentUser={currentUser} refreshKey={Date.now()} onAddCustomer={() => {}} />
           </div>
         )}
 
@@ -262,7 +273,7 @@ export const CTVPortalContainer: React.FC<CTVPortalContainerProps> = ({
             }}
             className="animate-fadeIn"
           >
-            <PriceListView />
+            <PriceListView isAdmin={false} serviceList={[]} onRefresh={() => {}} />
           </div>
         )}
 
@@ -281,7 +292,7 @@ export const CTVPortalContainer: React.FC<CTVPortalContainerProps> = ({
             className="animate-fadeIn"
           >
             <UserNppDashboard
-              userId={currentUser.id || currentUser.userId}
+              userId={currentUser.id || currentUser.id}
               nppStatus={(currentUser as any).nppStatus}
               rank={(currentUser as any).rank}
               businessId={(currentUser as any).businessId}
@@ -316,7 +327,7 @@ export const CTVPortalContainer: React.FC<CTVPortalContainerProps> = ({
           onClose={() => setPassModalOpen(false)}
         />
       )}
-    </div>
+    </div></div>
   );
 };
 export default CTVPortalContainer;

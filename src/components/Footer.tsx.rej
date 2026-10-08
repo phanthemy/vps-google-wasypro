@@ -1,0 +1,12 @@
+--- src/components/Footer.tsx	2026-10-07
++++ src/components/Footer.tsx	2026-10-07
+@@ -301,6 +323,9 @@
+           <div className= flex items-center gap-6>
+             <button onClick={() => setPolicyModal('privacy')} className=hover:text-white cursor-pointer transition-colors>Bảo mật thông tin</button>
+             <button onClick={() => setPolicyModal('terms')} className=hover:text-white cursor-pointer transition-colors>Điều khoản dịch vụ</button>
++            <button onClick={() => setPolicyModal('return')} className=hover:text-white cursor-pointer transition-colors>Đổi trả</button>
++            <button onClick={() => setPolicyModal('shipping')} className=hover:text-white cursor-pointer transition-colors>Giao hàng</button>
++            <button onClick={() => setPolicyModal('payment')} className=hover:text-white cursor-pointer transition-colors>Thanh toán</button>
+             <button
+               onClick={onOpenAdmin}
+               className=text-white hover:text-accent font-bold transition-colors flex items-center gap-1

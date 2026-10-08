@@ -337,3 +337,8 @@ px prisma db push để sync.
 - **Lỗi**: Banner chiếm quá nhiều chiều cao trên desktop (max-h-[820px] + aspect-[256/133])
 - **Fix**: Đổi thành spect-[21/9] max-h-[520px] lg:max-h-[560px] xl:max-h-[600px]
 - **Bài học**: Banner/Hero nên dùng aspect ratio chuẩn (21:9 cinematic) và max-h responsive theo breakpoint, không hardcode một giá trị max-h duy nhất.
+
+### L30: Gate `priorBusinessId` chặn sai hoa hồng 10% của F0 khi khách chưa có UID
+- **Triệu chứng**: Khi F1 giới thiệu khách hàng chưa có UID (hoặc F1 mua đơn đầu tiên để lấy UID), người bảo trợ F0 bị mất hoa hồng đồng hành 10%, và tuyến trên của F0 mất 5%.
+- **Nguyên nhân**: Trong `calculateAndCreateCommissions` (server/index.js), điều kiện kiểm tra upstream D1/D2 sử dụng `isParticipant && priorBusinessId` của khách mua. Khi khách chưa có UID, biến này là null khiến toàn bộ nhánh upstream bị bỏ qua.
+- **Giải pháp chuẩn**: Khi khách chưa có UID, đơn hàng tính là doanh số bán lẻ của F1. F1 hưởng 20-30%, và vì F1 đã có UID nên F0 hưởng 10% (D1), tuyến trên của F0 hưởng 5% (D2). Không chặn bằng BID của khách.

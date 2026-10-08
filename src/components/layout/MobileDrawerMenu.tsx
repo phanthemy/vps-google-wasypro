@@ -42,7 +42,7 @@ export const MobileDrawerMenu: React.FC<MobileDrawerMenuProps> = ({
     onClose();
   };
 
-  const isAdmin = user && (user.role === 'admin' || user.id === 'ADMIN01' || user.userId === 'ADMIN01');
+  const isAdmin = user && (user.role === 'admin' || user.id === 'ADMIN01' || user.id === 'ADMIN01');
 
   return (
     <div className="fixed inset-0 z-[9999] overflow-hidden animate-fadeIn">
@@ -81,7 +81,7 @@ export const MobileDrawerMenu: React.FC<MobileDrawerMenuProps> = ({
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="text-xs font-extrabold text-gray-900 truncate">{user.fullName}</p>
-                  <p className="text-[11px] text-gray-500 font-mono">{user.phone} • {user.id || user.userId}</p>
+                  <p className="text-[11px] text-gray-500 font-mono">{user.phone} • {user.id || user.id}</p>
                 </div>
               </div>
             ) : (

@@ -45,6 +45,23 @@
 - `NppCommission` PHẢI có `periodId` khi tạo
 - Sponsor = `User.parentId`, KHÔNG phải `Customer.sourceCtvId`
 
+### 6.1. QUY TẮC PHÂN PHỐI HOA HỒNG TRỰC TIẾP & ĐỒNG HÀNH (F0 - F1 - KHÁCH HÀNG) ⭐⭐⭐⭐⭐
+- **Nguyên lý cốt lõi**:
+  1. **Khách hàng CHƯA CÓ UID (chưa có BID) mua qua giới thiệu của F1 (hoặc F1 tự mua hàng)**:
+     - Đơn hàng này được xem là **doanh số bán lẻ trực tiếp của F1** (vì khách chưa có mã kinh doanh, công sức bán hàng hoàn toàn do F1 phụ trách).
+     - **F1 (Người bán trực tiếp - đã có UID)**: Hưởng hoa hồng bán lẻ trực tiếp theo cấp bậc:
+       + Đại sứ (Ambassador): **20%**
+       + Trưởng nhóm (Manager): **25%**
+       + Quản lý (Director): **30%**
+     - **F0 (Người bảo trợ trực tiếp của F1 - đã có UID)**: Vì F1 là tuyến dưới trực tiếp tạo ra doanh số nên F0 được hưởng hoa hồng đồng hành tuyến F1 là **10%** (D1 Upstream).
+     - **Tuyến trên của F0 (nếu có)**: Hưởng hoa hồng đồng hành tuyến F2 là **5%** (D2 Upstream).
+     - **Tuyệt đối không dùng cờ `priorBusinessId` của khách hàng để chặn hoa hồng 10% của F0 và 5% của tuyến trên**! Chỉ cần F1 (người tạo đơn) đã có UID là F0 và tuyến trên được hưởng đầy đủ.
+  2. **Khách hàng ĐÃ CÓ UID (đã là Đại sứ/CTV có mã) tự mua hàng**:
+     - Khách hàng hưởng chiết khấu tự mua cá nhân (`SELF` 20% - 30% tùy cấp bậc).
+     - **F1 (Người tuyển/bảo trợ trực tiếp của khách)**: Hưởng hoa hồng trực tiếp thành viên có ID `DIRECT_WITH_ID` = **10%**.
+     - **F0 (Bảo trợ của F1, tức tầng 2 phía trên khách)**: Hưởng hoa hồng đồng hành gián tiếp `UPSTREAM_D2` = **5%**.
+     - **Tuyến trên của F0**: Không nhận (đảm bảo luật Depth Invariant: tối đa 2 cấp bảo trợ phía trên người có UID).
+
 ## 7. NPP COMBO ⭐⭐⭐
 - Chỉ hiện máy lọc nước: `title startsWith 'Máy'` + `categoryId IN ('cat-01','cat-02')`
 - Loại trừ: Bộ điện phân, Lõi, Phụ kiện

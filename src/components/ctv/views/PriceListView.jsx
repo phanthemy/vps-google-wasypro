@@ -201,8 +201,8 @@ export default function PriceListView({ isAdmin, serviceList, onRefresh }) {
           {filteredServices.map(s => (
             <div key={s.id} className="card glass-panel flex-col" style={{ padding: '0', overflow: 'hidden', border: 'var(--border-subtle)', background: 'var(--bg-card)' }}>
               <div style={{ height: '200px', width: '100%', overflow: 'hidden', background: 'var(--bg-secondary)', position: 'relative' }}>
-                {s.imageUrl ? (
-                  <img src={s.imageUrl} alt={s.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                {s.imageUrl || "/images/product-1.webp" ? (
+                  <img src={s.imageUrl || "/images/product-1.webp"} alt={s.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                 ) : (
                   <div className="flex items-center justify-center h-full w-full text-muted"><Layers size={48} /></div>
                 )}

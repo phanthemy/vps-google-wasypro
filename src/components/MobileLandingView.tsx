@@ -91,6 +91,53 @@ export const MobileLandingView: React.FC<MobileLandingViewProps> = ({
   user,
   onNavigate
 }) => {
+  const [policyModal, setPolicyModal] = React.useState<'privacy' | 'terms' | 'return' | 'shipping' | 'payment' | null>(null);
+  const policyContent = {
+    privacy: {
+      title: 'Chính Sách Bảo Mật Thông Tin',
+      content: [
+        { heading: '1. Thu thập thông tin', text: 'WASY PRO thu thập thông tin cá nhân khi quý khách đăng ký tư vấn, đặt hàng hoặc liên hệ qua hotline. Thông tin bao gồm: Họ tên, số điện thoại, email, địa chỉ giao hàng.' },
+        { heading: '2. Mục đích sử dụng', text: 'Thông tin được sử dụng để: Xử lý đơn hàng và giao hàng, hỗ trợ bảo hành sản phẩm, gửi thông tin khuyến mãi (nếu khách hàng đồng ý), liên hệ tư vấn khi khách hàng yêu cầu.' },
+        { heading: '3. Bảo vệ thông tin', text: 'WASY PRO cam kết bảo mật tuyệt đối thông tin cá nhân của khách hàng. Chúng tôi không chia sẻ, bán hoặc cho thuê thông tin cho bất kỳ bên thứ ba nào mà không có sự đồng ý của khách hàng.' },
+        { heading: '4. Quyền của khách hàng', text: 'Quý khách có quyền yêu cầu xem, sửa đổi hoặc xóa thông tin cá nhân bất cứ lúc nào bằng cách liên hệ Hotline 1900 98 98 78 hoặc email support@wasypro.com.' },
+        { heading: '5. Cookie', text: 'Website sử dụng cookie để cải thiện trải nghiệm người dùng. Quý khách có thể tắt cookie trong trình duyệt nếu không muốn sử dụng tính năng này.' },
+      ]
+    },
+    terms: {
+      title: 'Điều Khoản Dịch Vụ',
+      content: [
+        { heading: '1. Điều kiện sử dụng', text: 'Khi truy cập và sử dụng website wasypro.com, quý khách đồng ý tuân thủ các điều khoản dịch vụ được nêu dưới đây. WASY PRO có quyền thay đổi điều khoản mà không cần thông báo trước.' },
+        { heading: '2. Sản phẩm và giá cả', text: 'Giá sản phẩm trên website là giá bán lẻ đề xuất, có thể thay đổi tùy thời điểm. WASY PRO cam kết cung cấp sản phẩm chính hãng 100%, đầy đủ tem nhãn và phiếu bảo hành.' },
+        { heading: '3. Chính sách đặt hàng', text: 'Đơn hàng được xác nhận qua điện thoại trong vòng 24h. Khách hàng có quyền hủy đơn trước khi hàng được vận chuyển. Thời gian giao hàng từ 2-5 ngày làm việc tùy khu vực.' },
+        { heading: '4. Bảo hành', text: 'Sản phẩm máy lọc nước WASY PRO được bảo hành chính hãng 5 năm tại nhà. Lõi lọc bảo hành 12 tháng. Phụ kiện bảo hành 6 tháng. Tra cứu bảo hành tại mục "Chính sách bảo hành" trên website.' },
+        { heading: '5. Đổi trả', text: 'Khách hàng được đổi trả sản phẩm trong vòng 7 ngày kể từ ngày nhận hàng nếu sản phẩm bị lỗi do nhà sản xuất. Sản phẩm đổi trả phải còn nguyên vẹn, đầy đủ phụ kiện và hóa đơn.' },
+        { heading: '6. Liên hệ', text: 'Mọi thắc mắc về điều khoản dịch vụ, vui lòng liên hệ: Hotline 1900 98 98 78 (24/7) hoặc email support@wasypro.com.' },
+      ]
+    },
+    return: {
+      title: 'Chính Sách Đổi Trả',
+      content: [
+        { heading: '1. Điều kiện đổi trả', text: 'Sản phẩm lỗi do nhà sản xuất (hỏng hóc kỹ thuật, móp méo khi nhận hàng). Hàng phải còn nguyên tem mác, phiếu bảo hành và phụ kiện đi kèm.' },
+        { heading: '2. Thời gian đổi trả', text: 'Khách hàng có quyền đổi sản phẩm mới cùng loại trong vòng 7 ngày kể từ ngày nhận hàng.' },
+        { heading: '3. Quy trình xử lý', text: 'Quý khách vui lòng gọi Hotline để thông báo tình trạng. Kỹ thuật viên sẽ kiểm tra và xác nhận. Sau đó, chúng tôi sẽ tiến hành đổi trả tận nhà miễn phí.' },
+      ]
+    },
+    shipping: {
+      title: 'Chính Sách Giao Hàng',
+      content: [
+        { heading: '1. Phạm vi giao hàng', text: 'WASY PRO giao hàng và lắp đặt tận nơi trên toàn quốc, có kỹ thuật viên đi kèm tại các thành phố lớn.' },
+        { heading: '2. Phí giao hàng', text: 'Miễn phí giao hàng và công lắp đặt đối với các sản phẩm Máy lọc nước.' },
+        { heading: '3. Thời gian giao hàng', text: 'Khu vực nội thành (HCM, Hà Nội): Giao và lắp trong vòng 24h. Khu vực tỉnh: Từ 2-5 ngày làm việc.' },
+      ]
+    },
+    payment: {
+      title: 'Chính Sách Thanh Toán',
+      content: [
+        { heading: '1. Thanh toán khi nhận hàng (COD)', text: 'Đối với khách hàng mua qua ứng dụng Zalo, chúng tôi áp dụng hình thức thanh toán trực tiếp cho nhân viên khi nhận hàng và kiểm tra máy thành công.' },
+      ]
+    }
+  };
+
   // Dynamic Contact Config for Drawer & Mobile Footer
   const [contactConfig, setContactConfig] = useState({
     facebook: 'https://facebook.com/wasypro',
@@ -1215,10 +1262,12 @@ export const MobileLandingView: React.FC<MobileLandingViewProps> = ({
 
         <div className="mt-6 pt-4 border-t border-sky-800/60 text-center text-[10px] text-sky-200/70">
           <div>© 2026 WASY PRO. Tất cả các quyền được bảo lưu.</div>
-          <div className="mt-1 flex justify-center gap-3">
-            <span className="cursor-pointer hover:underline">Điều khoản</span>
-            <span>|</span>
-            <span className="cursor-pointer hover:underline">Chính sách bảo mật</span>
+          <div className="mt-2 flex flex-wrap justify-center gap-3 pb-8">
+            <button onClick={() => setPolicyModal('privacy')} className="cursor-pointer hover:underline px-2 py-1 border border-sky-800 rounded">Bảo mật</button>
+            <button onClick={() => setPolicyModal('terms')} className="cursor-pointer hover:underline px-2 py-1 border border-sky-800 rounded">Điều khoản</button>
+            <button onClick={() => setPolicyModal('return')} className="cursor-pointer hover:underline px-2 py-1 border border-sky-800 rounded">Đổi trả</button>
+            <button onClick={() => setPolicyModal('shipping')} className="cursor-pointer hover:underline px-2 py-1 border border-sky-800 rounded">Giao hàng</button>
+            <button onClick={() => setPolicyModal('payment')} className="cursor-pointer hover:underline px-2 py-1 border border-sky-800 rounded">Thanh toán</button>
           </div>
         </div>
       </footer>
@@ -1662,6 +1711,32 @@ export const MobileLandingView: React.FC<MobileLandingViewProps> = ({
         </div>
       )}
 
+
+      {/* Policy Modal */}
+      {policyModal && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-5">
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setPolicyModal(null)} />
+          <div className="relative bg-white rounded-lg shadow-2xl max-w-2xl w-full max-h-[85vh] overflow-y-auto z-10">
+            <div className="sticky top-0 bg-sky-900 text-white px-6 py-4 rounded-t-lg flex items-center justify-between">
+              <h2 className="text-lg font-bold">{policyContent[policyModal].title}</h2>
+              <button onClick={() => setPolicyModal(null)} className="text-white/70 hover:text-white transition-colors">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-6 space-y-5">
+              {policyContent[policyModal].content.map((section, idx) => (
+                <div key={idx}>
+                  <h3 className="text-[15px] font-bold text-gray-900 mb-2">{section.heading}</h3>
+                  <p className="text-[14px] text-gray-600 leading-relaxed">{section.text}</p>
+                </div>
+              ))}
+              <div className="pt-4 border-t border-gray-100 text-center">
+                <p className="text-[13px] text-gray-500">Liên hệ Hotline <strong className="text-sky-600">1900 98 98 78</strong> nếu cần hỗ trợ thêm.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

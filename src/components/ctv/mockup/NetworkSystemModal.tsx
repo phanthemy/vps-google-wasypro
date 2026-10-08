@@ -124,7 +124,7 @@ export const NetworkSystemModal: React.FC<NetworkSystemModalProps> = ({
   if (!isOpen) return null;
 
   const origin = typeof window !== 'undefined' ? window.location.origin : 'https://test.wasypro.com';
-  const partnerId = currentUser.id || currentUser.userId;
+  const partnerId = currentUser.id || currentUser.id;
   const refLink = `${origin}/?ref=${partnerId}`;
 
   const handleCopyLink = () => {

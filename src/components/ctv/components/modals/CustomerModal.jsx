@@ -44,7 +44,7 @@ export default function CustomerModal({ userList, onClose, onSuccess, currentUse
                </select>
             ) : (
                <select disabled className="input-field" value={formData.sourceCtvId}>
-                 <option value={currentUser.id}>{currentUser.fullName || currentUser.userId}</option>
+                 <option value={currentUser.id}>{currentUser.fullName || currentUser.id}</option>
                </select>
             )}
           </div>

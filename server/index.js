@@ -758,44 +758,63 @@ app.get('/api/ctv/network-summary', authenticateToken, async (req, res) => {
 
     const directUserIds = directUsers.map(u => u.userId);
 
-    // 2. Đối tác Gián tiếp (Indirect partners)
+    // 2. Đối tác Gián tiếp (Indirect partners) — BFS toàn cây, không giới hạn cấp
     let indirectUsers = [];
     if (directUserIds.length > 0) {
-      indirectUsers = await prisma.user.findMany({
-        where: { parentId: { in: directUserIds } },
-        select: {
-          id: true,
-          userId: true,
-          fullName: true,
-          phone: true,
-          tier: true,
-          rank: true,
-          businessId: true,
-          parentId: true,
-          createdAt: true,
-          qualifyingPoints: true,
-          sPoints: true
-        },
-        orderBy: { createdAt: 'desc' }
-      });
+      // BFS: duyệt toàn bộ cây hậu duệ (không giới hạn độ sâu)
+      const visited = new Set(directUserIds); // tránh vòng lặp
+      let frontier = [...directUserIds]; // bắt đầu từ các direct userIds
+      while (frontier.length > 0) {
+        const nextLevel = await prisma.user.findMany({
+          where: { parentId: { in: frontier } },
+          select: {
+            id: true,
+            userId: true,
+            fullName: true,
+            phone: true,
+            tier: true,
+            rank: true,
+            businessId: true,
+            parentId: true,
+            createdAt: true,
+            qualifyingPoints: true,
+            sPoints: true
+          },
+          orderBy: { createdAt: 'desc' }
+        });
+        const newOnes = nextLevel.filter(u => !visited.has(u.userId));
+        newOnes.forEach(u => visited.add(u.userId));
+        indirectUsers.push(...newOnes);
+        frontier = newOnes.map(u => u.userId);
+      }
     }
 
-    const directMap = {};
-    directUsers.forEach(d => { directMap[d.userId] = d.fullName; });
+    // Xây map userId -> fullName cho toàn bộ mạng lưới (direct + indirect)
+    const allNetworkMap = {};
+    directUsers.forEach(d => { allNetworkMap[d.userId] = d.fullName; });
+    indirectUsers.forEach(u => { allNetworkMap[u.userId] = u.fullName; });
+
     const indirectMapped = indirectUsers.map(u => ({
       ...u,
-      sponsorName: directMap[u.parentId] || u.parentId
+      sponsorName: allNetworkMap[u.parentId] || u.parentId
     }));
 
     // 3. Tính toán Doanh số (Sales) cho mạng lưới Trực tiếp & Gián tiếp
     const allUserIds = [...directUserIds, ...indirectUsers.map(u => u.userId)];
     const allUserDbIds = [...directUsers.map(u => u.id), ...indirectUsers.map(u => u.id)];
 
+    const allUsersList = [...directUsers, ...indirectUsers];
+    const userLookupByAnyId = {};
+    allUsersList.forEach(u => {
+      userLookupByAnyId[u.id] = u.userId;
+      userLookupByAnyId[u.userId] = u.userId;
+    });
+
     const completedOrders = await prisma.order.findMany({
       where: {
         status: 'COMPLETED',
         OR: [
-          { ordererUserId: { in: allUserIds } },
+          { ordererUserId: { in: [...allUserIds, ...allUserDbIds] } },
           { customer: { sourceCtvId: { in: allUserIds } } },
           { customer: { linkedUserId: { in: allUserDbIds } } }
         ]
@@ -810,10 +829,12 @@ app.get('/api/ctv/network-summary', authenticateToken, async (req, res) => {
     const salesMap = {};
     const countMap = {};
     completedOrders.forEach(o => {
-      const uid = o.ordererUserId || o.customer?.sourceCtvId;
-      if (uid) {
-        salesMap[uid] = (salesMap[uid] || 0) + (Number(o.totalAmount) || 0);
-        countMap[uid] = (countMap[uid] || 0) + 1;
+      const matchedUserId = userLookupByAnyId[o.ordererUserId] 
+        || userLookupByAnyId[o.customer?.linkedUserId]
+        || userLookupByAnyId[o.customer?.sourceCtvId];
+      if (matchedUserId) {
+        salesMap[matchedUserId] = (salesMap[matchedUserId] || 0) + (Number(o.totalAmount) || 0);
+        countMap[matchedUserId] = (countMap[matchedUserId] || 0) + 1;
       }
     });
 
@@ -5975,93 +5996,108 @@ async function calculateAndCreateCommissions(tx, context) {
   // -------------------------------------------------------------
   // 3. UPSTREAM COMMISSION (Depth-1 & Depth-2 via parentId chain)
   // -------------------------------------------------------------
-  // F1 = direct parent của member trong sponsor tree (parentId)
-  // F2 = parent của parent
-  // Rules (boss đã chốt):
-  //   Ambassador: không nhận F1/F2 upstream (không có policy key)
-  //   Manager: F1 = MANAGER_F1_PURCHASE (10%), F2 = MANAGER_F2_PURCHASE (5%)
-  //   Director: F1 = DIRECTOR_F1 (10%), F2 = DIRECTOR_F2 (5%)
-  // Áp dụng cho MỌI trường hợp (tự mua hoặc bán cho khách)
-  // KHÔNG skip sponsor chưa có businessId
+  // CANONICAL BOSS RULE (2026-10-05):
+  // 1. Nếu người mua CHƯA CÓ BID (Khách mới chưa có UID / đơn chạm ngưỡng):
+  //    - Xem đơn hàng như doanh số bán lẻ trực tiếp của Sponsor (F1).
+  //    - Sponsor (F1) đã nhận DIRECT_NO_ID (20%-30% theo rank).
+  //    - Tuyến trên của Sponsor (F0 = Sponsor.parentId): Nhận hoa hồng đồng hành F1 (D1 = 10%).
+  //    - Tuyến trên của F0 (D2 = F0.parentId): Nhận hoa hồng đồng hành F2 (D2 = 5%).
+  // 2. Nếu người mua ĐÃ CÓ BID (Đã là Đại sứ/CTV có mã):
+  //    - Người mua nhận SELF (20%-30%).
+  //    - Sponsor (F1) đã nhận DIRECT_WITH_ID (10%).
+  //    - Tuyến trên của Sponsor (F0 = Sponsor.parentId): Nhận hoa hồng đồng hành gián tiếp F2 (D2 = 5%).
+  //    - Tuyến trên của F0: Dừng, không nhận (giới hạn tối đa 2 cấp bảo trợ phía trên người có BID).
 
-  // For F1/F2: traverse upstream from the SPONSOR (not the buyer)
-  // This prevents sponsor from getting BOTH DIRECT and F1
-  // Self-buy: Buyer → Sponsor (DIRECT) → Sponsor's Parent (F1) → Sponsor's Grandparent (F2)
-  // Customer: Buyer → Sponsor (DIRECT) → Sponsor's Parent (F1) → Sponsor's Grandparent (F2)
-  const memberForUpstream = directSponsor || (isSelf ? orderer : qualifyingMember);
+  if (directSponsor && directSponsor.businessId) {
+    const buyerHasBid = Boolean(qualifyingMember && priorBusinessId);
 
-  // F1/F2 GATE: Only fire upstream commission when the buyer/member is
-  // a system participant WITH Business ID AT TIME OF ORDER (pre-order state).
-  // BOSS RULE: Order crossing threshold does NOT retroactively qualify for F1/F2.
-  // Uses priorBusinessId and isParticipant from pre-order snapshot.
-  if (memberForUpstream && memberForUpstream.parentId
-      && isParticipant
-      && priorBusinessId) {
-    // --- Depth-1: parent trực tiếp của member ---
-    const d1User = await tx.user.findUnique({ where: { userId: memberForUpstream.parentId } });
+    if (!buyerHasBid) {
+      // ═══════════════════════════════════════════════════════════
+      // TRƯỜNG HỢP 1: Khách hàng / Tuyến dưới CHƯA CÓ BID
+      // Sponsor (F1) đại diện nhận doanh số bán lẻ trực tiếp
+      // ═══════════════════════════════════════════════════════════
 
-    if (d1User && d1User.businessId) {
-      const d1Rank = d1User.rank || null; // L27: NO rank = NO commission
-      const d1Prefix = normalizeRankPrefix(d1Rank);
+      // --- Depth-1 phía trên F1: F0 (Sponsor.parentId) nhận 10% ---
+      if (directSponsor.parentId) {
+        const f0User = await tx.user.findUnique({ where: { userId: directSponsor.parentId } });
+        if (f0User && f0User.businessId) {
+          const f0Prefix = normalizeRankPrefix(f0User.rank || null);
+          if (f0Prefix) {
+            let f0RuleKey = 'AMBASSADOR_F1';
+            if (f0Prefix === 'DIRECTOR') f0RuleKey = 'DIRECTOR_F1';
+            else if (f0Prefix === 'MANAGER') f0RuleKey = 'MANAGER_F1_PURCHASE';
 
-      if (d1Prefix) {
-        // Rule key cố định theo rank — không phụ thuộc isSelf
-        let d1RuleKey = null;
-        if (d1Prefix === 'DIRECTOR') d1RuleKey = 'DIRECTOR_F1';
-        else if (d1Prefix === 'MANAGER') d1RuleKey = 'MANAGER_F1_PURCHASE';
-        else if (d1Prefix === 'AMBASSADOR') d1RuleKey = 'AMBASSADOR_F1';
-        // Boss approved: Ambassador F1=10%, F2=5% — DO NOT skip
-
-        if (d1RuleKey) {
-          const d1Rate = getPolicyRate(d1RuleKey);
-          if (d1Rate) {
-            await createCommissionRecord({
-              receiver: d1User,
-              role: 'UPSTREAM_D1',
-              ruleKey: d1RuleKey,
-              rateSnapshot: d1Rate,
-              basePoints: orderTotalCP,
-              type: 'OVERRIDE_F1',
-              metadata: { depth: 1, buyerUserId: memberForUpstream.userId },
-            });
+            const f0Rate = getPolicyRate(f0RuleKey) || 0.10;
+            if (f0Rate > 0) {
+              await createCommissionRecord({
+                receiver: f0User,
+                role: 'UPSTREAM_D1',
+                ruleKey: f0RuleKey,
+                rateSnapshot: f0Rate,
+                basePoints: orderTotalCP,
+                type: 'OVERRIDE_F1',
+                metadata: { depth: 1, sponsorUserId: directSponsor.userId, buyerHasBid: false },
+              });
+            }
           }
-        }
-      }
 
-      // --- Depth-2: parent của D1 ---
-      if (d1User.parentId) {
-        const d2User = await tx.user.findUnique({ where: { userId: d1User.parentId } });
+          // --- Depth-2 phía trên F1: Tuyến trên của F0 (F0.parentId) nhận 5% ---
+          if (f0User.parentId) {
+            const grandUser = await tx.user.findUnique({ where: { userId: f0User.parentId } });
+            if (grandUser && grandUser.businessId) {
+              const grandPrefix = normalizeRankPrefix(grandUser.rank || null);
+              if (grandPrefix) {
+                let grandRuleKey = 'AMBASSADOR_F2';
+                if (grandPrefix === 'DIRECTOR') grandRuleKey = 'DIRECTOR_F2';
+                else if (grandPrefix === 'MANAGER') grandRuleKey = 'MANAGER_F2_PURCHASE';
 
-        if (d2User && d2User.businessId) {
-          const d2Rank = d2User.rank || null; // L27: NO rank = NO commission
-          const d2Prefix = normalizeRankPrefix(d2Rank);
-
-          if (d2Prefix) {
-            let d2RuleKey = null;
-            if (d2Prefix === 'DIRECTOR') d2RuleKey = 'DIRECTOR_F2';
-            else if (d2Prefix === 'MANAGER') d2RuleKey = 'MANAGER_F2_PURCHASE';
-            else if (d2Prefix === 'AMBASSADOR') d2RuleKey = 'AMBASSADOR_F2';
-            // Boss approved: Ambassador F2=5% — DO NOT skip
-
-            if (d2RuleKey) {
-              const d2Rate = getPolicyRate(d2RuleKey);
-              if (d2Rate) {
-                await createCommissionRecord({
-                  receiver: d2User,
-                  role: 'UPSTREAM_D2',
-                  ruleKey: d2RuleKey,
-                  rateSnapshot: d2Rate,
-                  basePoints: orderTotalCP,
-                  type: 'OVERRIDE_F2',
-                  metadata: { depth: 2, buyerUserId: memberForUpstream.userId },
-                });
+                const grandRate = getPolicyRate(grandRuleKey) || 0.05;
+                if (grandRate > 0) {
+                  await createCommissionRecord({
+                    receiver: grandUser,
+                    role: 'UPSTREAM_D2',
+                    ruleKey: grandRuleKey,
+                    rateSnapshot: grandRate,
+                    basePoints: orderTotalCP,
+                    type: 'OVERRIDE_F2',
+                    metadata: { depth: 2, sponsorUserId: directSponsor.userId, buyerHasBid: false },
+                  });
+                }
               }
             }
           }
         }
       }
+    } else {
+      // ═══════════════════════════════════════════════════════════
+      // TRƯỜNG HỢP 2: Người mua ĐÃ CÓ BID
+      // Sponsor (F1) đã nhận DIRECT_WITH_ID (10%)
+      // Tuyến trên của Sponsor (F0 = Sponsor.parentId) nhận D2 = 5%
+      // ═══════════════════════════════════════════════════════════
+      if (directSponsor.parentId) {
+        const f0User = await tx.user.findUnique({ where: { userId: directSponsor.parentId } });
+        if (f0User && f0User.businessId) {
+          const f0Prefix = normalizeRankPrefix(f0User.rank || null);
+          if (f0Prefix) {
+            let f0RuleKey = 'AMBASSADOR_F2';
+            if (f0Prefix === 'DIRECTOR') f0RuleKey = 'DIRECTOR_F2';
+            else if (f0Prefix === 'MANAGER') f0RuleKey = 'MANAGER_F2_PURCHASE';
 
-      // Depth-3+ không có commission theo spec
+            const f0Rate = getPolicyRate(f0RuleKey) || 0.05;
+            if (f0Rate > 0) {
+              await createCommissionRecord({
+                receiver: f0User,
+                role: 'UPSTREAM_D2',
+                ruleKey: f0RuleKey,
+                rateSnapshot: f0Rate,
+                basePoints: orderTotalCP,
+                type: 'OVERRIDE_F2',
+                metadata: { depth: 2, sponsorUserId: directSponsor.userId, buyerHasBid: true },
+              });
+            }
+          }
+        }
+      }
     }
   }
 

@@ -97,7 +97,7 @@ export const AccountModal: React.FC<AccountModalProps> = ({
   if (!isOpen) return null;
 
   const origin = typeof window !== 'undefined' ? window.location.origin : 'https://test.wasypro.com';
-  const partnerId = currentUser.id || currentUser.userId;
+  const partnerId = currentUser.id || currentUser.id;
   const refLink = `${origin}/?ref=${partnerId}`;
   const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(refLink)}`;
 

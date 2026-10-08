@@ -79,6 +79,28 @@ export const Footer: React.FC<FooterProps> = ({
         { heading: '5. Đổi trả', text: 'Khách hàng được đổi trả sản phẩm trong vòng 7 ngày kể từ ngày nhận hàng nếu sản phẩm bị lỗi do nhà sản xuất. Sản phẩm đổi trả phải còn nguyên vẹn, đầy đủ phụ kiện và hóa đơn.' },
         { heading: '6. Liên hệ', text: 'Mọi thắc mắc về điều khoản dịch vụ, vui lòng liên hệ: Hotline 1900 98 98 78 (24/7) hoặc email support@wasypro.com.' },
       ]
+    },
+    return: {
+      title: 'Chính Sách Đổi Trả',
+      content: [
+        { heading: '1. Điều kiện đổi trả', text: 'Sản phẩm lỗi do nhà sản xuất (hỏng hóc kỹ thuật, móp méo khi nhận hàng). Hàng phải còn nguyên tem mác, phiếu bảo hành và phụ kiện đi kèm.' },
+        { heading: '2. Thời gian đổi trả', text: 'Khách hàng có quyền đổi sản phẩm mới cùng loại trong vòng 7 ngày kể từ ngày nhận hàng.' },
+        { heading: '3. Quy trình xử lý', text: 'Quý khách vui lòng gọi Hotline để thông báo tình trạng. Kỹ thuật viên sẽ kiểm tra và xác nhận. Sau đó, chúng tôi sẽ tiến hành đổi trả tận nhà miễn phí.' },
+      ]
+    },
+    shipping: {
+      title: 'Chính Sách Giao Hàng',
+      content: [
+        { heading: '1. Phạm vi giao hàng', text: 'WASY PRO giao hàng và lắp đặt tận nơi trên toàn quốc, có kỹ thuật viên đi kèm tại các thành phố lớn.' },
+        { heading: '2. Phí giao hàng', text: 'Miễn phí giao hàng và công lắp đặt đối với các sản phẩm Máy lọc nước.' },
+        { heading: '3. Thời gian giao hàng', text: 'Khu vực nội thành (HCM, Hà Nội): Giao và lắp trong vòng 24h. Khu vực tỉnh: Từ 2-5 ngày làm việc.' },
+      ]
+    },
+    payment: {
+      title: 'Chính Sách Thanh Toán',
+      content: [
+        { heading: '1. Thanh toán khi nhận hàng (COD)', text: 'Đối với khách hàng mua qua ứng dụng Zalo, chúng tôi áp dụng hình thức thanh toán trực tiếp cho nhân viên khi nhận hàng và kiểm tra máy thành công.' },
+      ]
     }
   };
 
@@ -281,9 +303,12 @@ export const Footer: React.FC<FooterProps> = ({
         {/* Bottom Copyright Bar */}
         <div className="pt-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-[13px] text-gray-400">
           <div className="flex items-center gap-3 flex-wrap"><p>© 2026 WASY PRO. Tất cả các quyền được bảo lưu.</p><span>•</span><a href="https://mapgo.vn" target="_blank" rel="noopener noreferrer" className="hover:text-accent transition-colors" title="Bản đồ bãi giữ xe và tiện ích MapGo">MapGo - Bãi giữ xe & Tiện ích</a></div>
-          <div className="flex items-center gap-6">
-            <button onClick={() => setPolicyModal('privacy')} className="hover:text-white cursor-pointer transition-colors">Bảo mật thông tin</button>
-            <button onClick={() => setPolicyModal('terms')} className="hover:text-white cursor-pointer transition-colors">Điều khoản dịch vụ</button>
+          <div className="flex items-center justify-center gap-3 flex-wrap sm:gap-6 pb-6">
+            <button onClick={() => { console.log("CLICKED PRIVACY"); setPolicyModal('privacy'); }} className="hover:text-white cursor-pointer transition-colors py-2 px-2 border border-gray-600 rounded">Bảo mật thông tin</button>
+            <button onClick={() => setPolicyModal('terms')} className="hover:text-white cursor-pointer transition-colors py-2 px-2 border border-gray-600 rounded">Điều khoản</button>
+            <button onClick={() => setPolicyModal('return' as any)} className="hover:text-white cursor-pointer transition-colors py-2 px-2 border border-gray-600 rounded">Đổi trả</button>
+            <button onClick={() => setPolicyModal('shipping' as any)} className="hover:text-white cursor-pointer transition-colors py-2 px-2 border border-gray-600 rounded">Giao hàng</button>
+            <button onClick={() => setPolicyModal('payment' as any)} className="hover:text-white cursor-pointer transition-colors py-2 px-2 border border-gray-600 rounded">Thanh toán</button>
             <button
               onClick={onOpenAdmin}
               className="text-white hover:text-accent font-bold transition-colors flex items-center gap-1"
@@ -299,9 +324,9 @@ export const Footer: React.FC<FooterProps> = ({
 
     {/* Policy Modal */}
     {policyModal && (
-      <div className="fixed inset-0 z-[100] flex items-center justify-center p-5">
+      <div className="fixed inset-0 z-[9999] flex items-center justify-center p-5">
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setPolicyModal(null)} />
-        <div className="relative bg-white rounded-lg shadow-2xl max-w-2xl w-full max-h-[85dvh] overflow-y-auto z-10">
+        <div className="relative bg-white rounded-lg shadow-2xl max-w-2xl w-full max-h-[85vh] overflow-y-auto z-10">
           <div className="sticky top-0 bg-primary-darker text-white px-6 py-4 rounded-t-lg flex items-center justify-between">
             <h2 className="text-lg font-bold">{policyContent[policyModal].title}</h2>
             <button onClick={() => setPolicyModal(null)} className="text-white/70 hover:text-white transition-colors">

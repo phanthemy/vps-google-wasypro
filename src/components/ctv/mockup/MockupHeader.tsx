@@ -22,7 +22,7 @@ export const MockupHeader: React.FC<MockupHeaderProps> = ({
   const heightClass = showBack ? 'h-[56px]' : 'h-[64px]';
 
   return (
-    <header className="sticky top-0 z-30 bg-[#FFFFFF] border-b border-[#EEF2F6]">
+    <header className="sticky top-0 z-30 bg-[#FFFFFF] border-b border-[#EEF2F6] w-full">
       <div className={`max-w-md mx-auto px-4 ${heightClass} flex items-center justify-between`}>
         {showBack ? (
           <div className="flex items-center gap-3">

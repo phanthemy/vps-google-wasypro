@@ -390,3 +390,8 @@ req.user = { id: "U199", userId: "U199", dbId: cuid, role, fullName, phone }
 - server/dev.db: Added googleMapUrl column to ProductCategory table
 
 ### Commit: caef415
+
+## Cập nhật ngày 05/10/2026: Chốt chuẩn quy tắc hoa hồng F0 - F1 - Khách hàng
+1. Khách hàng chưa có UID mua qua F1: F1 hưởng bán lẻ trực tiếp (20% Đại sứ, 25% Trưởng nhóm, 30% Quản lý). F0 (bảo trợ của F1) hưởng 10% đồng hành F1. Tuyến trên F0 hưởng 5% đồng hành F2.
+2. Khách hàng đã có UID tự mua: Khách hưởng chiết khấu tự mua (20-30%). F1 hưởng 10% DIRECT_WITH_ID. F0 hưởng 5% UPSTREAM_D2.
+3. Đã xóa bỏ gate chặn sai `priorBusinessId` của người mua khi F1 đã có Business ID.

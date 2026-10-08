@@ -15,11 +15,9 @@ export const MockupCommissions: React.FC<MockupCommissionsProps> = ({
   const [activeSubTab, setActiveSubTab] = useState<'direct' | 'system' | 'payment'>('direct');
 
   const history = [
-    { period: '10/2026', amount: '+ 31.920.000 đ' },
-    { period: '09/2026', amount: '+ 28.450.000 đ' },
-    { period: '08/2026', amount: '+ 25.120.000 đ' },
-    { period: '07/2026', amount: '+ 18.750.000 đ' },
-    { period: '06/2026', amount: '+ 12.300.000 đ' },
+    { period: periodName || '10/2026', amount: '+ ' + (totalCommission || 0).toLocaleString('vi-VN') + ' đ' },
+    { period: '09/2026', amount: '+ 0 đ' },
+    { period: '08/2026', amount: '+ 0 đ' },
   ];
 
   return (

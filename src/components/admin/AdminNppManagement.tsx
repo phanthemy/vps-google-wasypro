@@ -290,7 +290,7 @@ const AdminNppManagement: React.FC = () => {
                             <div className="flex items-center gap-2">
                               <span className="text-[10px] text-slate-500 w-16 shrink-0">CTV Portal:</span>
                               <code className="flex-1 text-[11px] bg-white px-2 py-0.5 rounded border border-slate-200 truncate select-all">
-                                {`${window.location.origin}/ctv?ref=${reg.user.userId}`}
+                                {`${window.location.origin}/ctv?ref=${reg.user.id}`}
                               </code>
                               <button
                                 onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(`${window.location.origin}/ctv?ref=${reg.user!.userId}`); alert('✅ Đã copy!'); }}
@@ -300,7 +300,7 @@ const AdminNppManagement: React.FC = () => {
                             <div className="flex items-center gap-2">
                               <span className="text-[10px] text-slate-500 w-16 shrink-0">Website:</span>
                               <code className="flex-1 text-[11px] bg-white px-2 py-0.5 rounded border border-slate-200 truncate select-all">
-                                {`${window.location.origin}?ref=${reg.user.userId}`}
+                                {`${window.location.origin}?ref=${reg.user.id}`}
                               </code>
                               <button
                                 onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(`${window.location.origin}?ref=${reg.user!.userId}`); alert('✅ Đã copy!'); }}

@@ -239,6 +239,18 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
               </div>
             )}
 
+            <div className="mt-2 p-4 bg-blue-50 border border-blue-100 rounded-lg">
+              <h4 className="font-semibold text-blue-900 mb-2 text-sm">Phương thức thanh toán</h4>
+              <div className="flex items-center gap-3">
+                <div className="w-6 h-6 rounded-full border-4 border-primary bg-white flex-shrink-0"></div>
+                <div>
+                  <p className="font-medium text-gray-800 text-sm">Thanh toán khi nhận hàng (COD)</p>
+                  <p className="text-xs text-gray-500 mt-0.5">Kiểm tra hàng trước khi thanh toán</p>
+                </div>
+              </div>
+              <p className="text-xs text-blue-700 mt-3 italic">* Lưu ý: Đối với Ứng dụng Zalo Mini App, hiện tại chúng tôi chỉ hỗ trợ thanh toán trực tiếp khi nhận hàng. Vui lòng thanh toán cho nhân viên giao hàng sau khi kiểm tra sản phẩm.</p>
+            </div>
+
             <button 
               type="submit" 
               disabled={loading}
