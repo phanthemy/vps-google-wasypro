@@ -124,25 +124,34 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     if (!res.ok) throw new Error('Có lỗi xảy ra, vui lòng thử lại.');
   };
 
-  // Detect Zalo Mini App context - 4 signals (priority order):
-  // 1. URL param ?_zmp=1 (set by app.js when loading iframe)
-  // 2. localStorage _zmp=1 (persists across full-page reloads in Zalo WebView)
-  // 3. sessionStorage _zmp=1 (fallback)
-  // 4. User-Agent contains zalo/miniapp/zmp (Zalo WebView UA signature)
+  // Detect Zalo Mini App context
+  // KEY RULE: window.parent !== window ⟹ running inside iframe (Zalo Mini App loads us in iframe)
+  //           window.parent === window ⟹ desktop/mobile browser, NEVER Zalo Mini App
+  // Do NOT rely on localStorage alone — it persists across sessions and would break desktop.
   const isZaloMiniApp = (() => {
     if (typeof window === 'undefined') return false;
-    // Signal 1: URL param
+    // Guard: if NOT inside an iframe → immediately false (desktop browser / direct URL)
+    // This prevents stale localStorage from triggering Zalo flow on desktop.
+    const inIframe = window.parent !== window;
+    if (!inIframe) {
+      // Clean up any stale flag so desktop users are never affected
+      try { localStorage.removeItem('_zmp'); } catch(e) {}
+      try { sessionStorage.removeItem('_zmp'); } catch(e) {}
+      return false;
+    }
+    // We are inside an iframe — check if it is the Zalo Mini App iframe
+    // Signal 1: URL param ?_zmp=1 (app.js sets this when creating the iframe src)
     const fromUrl = new URLSearchParams(window.location.search).get('_zmp') === '1';
     if (fromUrl) {
       try { localStorage.setItem('_zmp', '1'); } catch(e) {}
       try { sessionStorage.setItem('_zmp', '1'); } catch(e) {}
       return true;
     }
-    // Signal 2: localStorage (survives full page reload in Zalo WebView)
+    // Signal 2: localStorage (survives full page reload inside Zalo WebView)
     try { if (localStorage.getItem('_zmp') === '1') return true; } catch(e) {}
     // Signal 3: sessionStorage fallback
     try { if (sessionStorage.getItem('_zmp') === '1') return true; } catch(e) {}
-    // Signal 4: User-Agent based detection (Zalo WebView injects UA signature)
+    // Signal 4: User-Agent (Zalo WebView UA contains 'zalo' when inside Mini App)
     const ua = (navigator.userAgent || '').toLowerCase();
     if (ua.includes('zalo') || ua.includes('miniapp') || ua.includes('zmp')) {
       try { localStorage.setItem('_zmp', '1'); } catch(e) {}
