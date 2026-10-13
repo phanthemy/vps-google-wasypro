@@ -69,6 +69,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [isSuccess, setIsSuccess] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
 
   if (!isOpen) return null;
 
@@ -161,12 +162,22 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     return false;
   })();
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  // Form submit: validate → show confirm popup (desktop) or go directly (Zalo)
+  const handleFormSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     const err = validate();
     if (err) { setError(err); return; }
+    if (!isZaloMiniApp) {
+      setShowConfirm(true); // show confirm popup before creating COD order
+      return;
+    }
+    // Zalo: go directly to payment bridge
+    void handleActualSubmit();
+  };
 
+  // eslint-disable-next-line prefer-const
+  async function handleActualSubmit() {
     setLoading(true);
     try {
       if (isZaloMiniApp && !isReviewerPhone(user?.phone)) {
@@ -261,6 +272,45 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     );
   }
 
+  // CONFIRM OVERLAY: shown for desktop COD before creating order
+  if (showConfirm) {
+    return (
+      <div className="fixed inset-0 z-[70] bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 text-center animate-in fade-in zoom-in duration-200">
+          <div className="w-14 h-14 rounded-full bg-blue-50 flex items-center justify-center mx-auto mb-4">
+            <CheckCircle className="w-8 h-8 text-primary" />
+          </div>
+          <h3 className="text-xl font-bold text-gray-800 mb-1">Xác nhận đặt hàng</h3>
+          <p className="text-sm text-gray-500 mb-4">Phương thức: <span className="font-semibold text-gray-700">Thanh toán khi nhận hàng (COD)</span></p>
+          <div className="bg-gray-50 rounded-xl p-4 mb-5 text-left space-y-1">
+            <p className="text-sm text-gray-600"><span className="font-medium">Khách hàng:</span> {formData.customerName}</p>
+            <p className="text-sm text-gray-600"><span className="font-medium">SĐT:</span> {formData.customerPhone}</p>
+            <p className="text-sm text-gray-600"><span className="font-medium">Địa chỉ:</span> {formData.address}</p>
+            <p className="text-sm font-semibold text-primary mt-2">Tổng: {formatVND(totalAmount)}</p>
+          </div>
+          {error && <div className="mb-3 p-3 bg-red-50 text-red-600 rounded-lg text-sm">{error}</div>}
+          <div className="flex gap-3">
+            <button
+              type="button"
+              onClick={() => setShowConfirm(false)}
+              className="flex-1 py-3 border border-gray-200 rounded-xl text-gray-600 font-semibold hover:bg-gray-50 transition-all"
+            >
+              Quay lại
+            </button>
+            <button
+              type="button"
+              disabled={loading}
+              onClick={async () => { setShowConfirm(false); await handleActualSubmit(); }}
+              className="flex-1 py-3 bg-primary text-white font-bold rounded-xl hover:bg-opacity-90 disabled:bg-gray-400 flex justify-center items-center gap-2 transition-all"
+            >
+              {loading ? <Loader2 className="animate-spin" size={20} /> : 'Xác nhận đặt hàng'}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="fixed inset-0 z-[60] bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto" onClick={onClose}>
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[88dvh] overflow-hidden flex flex-col my-auto animate-in fade-in zoom-in duration-200" onClick={e => e.stopPropagation()}>
@@ -299,7 +349,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
           <div className="w-full md:w-2/3 p-5 sm:p-6 overflow-y-auto">
             <h3 className="text-lg font-bold mb-4 text-gray-800">Thông tin giao hàng</h3>
             {error && <div className="mb-4 p-3 bg-red-50 text-red-600 rounded-lg text-sm">{error}</div>}
-            <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+            <form onSubmit={handleFormSubmit} className="flex flex-col gap-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Họ và tên *</label>
