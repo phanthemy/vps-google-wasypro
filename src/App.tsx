@@ -1,3 +1,10 @@
+
+// Helper: Kiểm tra tài khoản Zalo Reviewer
+const isReviewerPhone = (phone?: string | null) => {
+  if (!phone) return false;
+  const p = phone.replace(/\s+/g, '');
+  return ['0831111111', '0768068594', '0768068930'].includes(p);
+};
 import React, { useState, useEffect } from 'react';
 import { Header } from './components/Header';
 import { useCart } from './hooks/useCart';
@@ -129,6 +136,17 @@ export const App: React.FC = () => {
     }
   }, []);
 
+  // Tự động chuyển reviewer và khách hàng về Trang chủ nếu vào /ctv
+  useEffect(() => {
+    if (activeSection === 'ctv') {
+      const isReviewer = isReviewerPhone(user?.phone);
+      if (isReviewer || user?.role === 'customer' || (user && !user.isSystemParticipant)) {
+        setActiveSection('hero');
+        window.history.pushState(null, '', '/');
+      }
+    }
+  }, [activeSection, user]);
+
   // Listen for browser popstate
   useEffect(() => {
     const handlePopState = () => {
@@ -212,12 +230,12 @@ export const App: React.FC = () => {
       localStorage.setItem('wasy_admin_user', JSON.stringify(adminData));
       setIsAdminMode(true);
       window.history.pushState(null, '', '/');
-    } else if (loggedInUser.isSystemParticipant || ((loggedInUser as any).nppStatus && (loggedInUser as any).nppStatus !== 'NONE') || ['AMBASSADOR','MANAGER','DIRECTOR'].includes(loggedInUser.rank || '')) {
-      // CTV partner → CTV Portal
+    } else if (!isReviewerPhone(loggedInUser.phone) && loggedInUser.role !== 'customer' && (loggedInUser.isSystemParticipant || ((loggedInUser as any).nppStatus && (loggedInUser as any).nppStatus !== 'NONE') || ['AMBASSADOR','MANAGER','DIRECTOR'].includes(loggedInUser.rank || ''))) {
+      // CTV partner → CTV Portal (chỉ dành cho đối tác thật)
       setActiveSection('ctv');
       window.history.pushState(null, '', '/ctv');
     } else {
-      // Regular customer → stay on website
+      // Reviewers và Khách hàng → Luôn ở TRANG CHỦ
       setActiveSection('hero');
       window.history.pushState(null, '', '/');
     }
@@ -489,7 +507,7 @@ export const App: React.FC = () => {
             <div className="block md:hidden">
               <MobileLandingView
                 onOrderProduct={(product) => {
-                  if (user && user.isSystemParticipant && user.rank && ['AMBASSADOR','MANAGER','DIRECTOR'].includes((user.rank || '').toUpperCase())) {
+                  if (user && !isReviewerPhone(user?.phone) && user.isSystemParticipant && user.rank && ['AMBASSADOR','MANAGER','DIRECTOR'].includes((user.rank || '').toUpperCase())) {
                     handleOpenContact(product);
                     return;
                   }
@@ -516,7 +534,7 @@ export const App: React.FC = () => {
               <ProductSection
                 onOrderProduct={(product) => {
                   // CTV with rank → redirect to CTV Portal via ContactModal
-                  if (user && user.isSystemParticipant && user.rank && ['AMBASSADOR','MANAGER','DIRECTOR'].includes((user.rank || '').toUpperCase())) {
+                  if (user && !isReviewerPhone(user?.phone) && user.isSystemParticipant && user.rank && ['AMBASSADOR','MANAGER','DIRECTOR'].includes((user.rank || '').toUpperCase())) {
                     handleOpenContact(product);
                     return;
                   }
@@ -626,7 +644,8 @@ export const App: React.FC = () => {
         onClose={() => setIsCheckoutOpen(false)} 
         items={cartItems}
         totalAmount={totalAmount} 
-        onSuccess={clearCart} 
+        onSuccess={clearCart}
+        user={user}
       />
     </div>
   );
