@@ -19,7 +19,7 @@ const formatVND = (amount: number) => {
 const isReviewerPhone = (phone?: string | null): boolean => {
   if (!phone) return false;
   const p = phone.replace(/\s+/g, '');
-  return ['0831111111', '0768068594', '0768068930'].includes(p);
+  return ['0768068594', '0768068930'].includes(p); // 0831111111 removed: reviewer cần test đúng Zalo SDK flow
 };
 
 // Detect xem đang trong Zalo Mini App (iframe của ZMP WebView)
@@ -124,9 +124,33 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     if (!res.ok) throw new Error('Có lỗi xảy ra, vui lòng thử lại.');
   };
 
-  // Detect Zalo Mini App context (app.js bridge adds ?_zmp=1)
-  const isZaloMiniApp = typeof window !== 'undefined' &&
-    new URLSearchParams(window.location.search).get('_zmp') === '1';
+  // Detect Zalo Mini App context - 4 signals (priority order):
+  // 1. URL param ?_zmp=1 (set by app.js when loading iframe)
+  // 2. localStorage _zmp=1 (persists across full-page reloads in Zalo WebView)
+  // 3. sessionStorage _zmp=1 (fallback)
+  // 4. User-Agent contains zalo/miniapp/zmp (Zalo WebView UA signature)
+  const isZaloMiniApp = (() => {
+    if (typeof window === 'undefined') return false;
+    // Signal 1: URL param
+    const fromUrl = new URLSearchParams(window.location.search).get('_zmp') === '1';
+    if (fromUrl) {
+      try { localStorage.setItem('_zmp', '1'); } catch(e) {}
+      try { sessionStorage.setItem('_zmp', '1'); } catch(e) {}
+      return true;
+    }
+    // Signal 2: localStorage (survives full page reload in Zalo WebView)
+    try { if (localStorage.getItem('_zmp') === '1') return true; } catch(e) {}
+    // Signal 3: sessionStorage fallback
+    try { if (sessionStorage.getItem('_zmp') === '1') return true; } catch(e) {}
+    // Signal 4: User-Agent based detection (Zalo WebView injects UA signature)
+    const ua = (navigator.userAgent || '').toLowerCase();
+    if (ua.includes('zalo') || ua.includes('miniapp') || ua.includes('zmp')) {
+      try { localStorage.setItem('_zmp', '1'); } catch(e) {}
+      try { sessionStorage.setItem('_zmp', '1'); } catch(e) {}
+      return true;
+    }
+    return false;
+  })();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
