@@ -211,8 +211,10 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
             if (event.data?.type === 'ZALO_CHECKOUT_RESULT') {
               clearTimeout(timeout);
               window.removeEventListener('message', handler);
+              // Debug: log raw Zalo SDK result
+              console.log('[WasyPro] ZALO_CHECKOUT_RESULT received:', JSON.stringify(event.data));
               if (event.data.success) resolve(event.data.orderId || '');
-              else reject(new Error(event.data.error || 'Thanh toán thất bại'));
+              else reject(new Error(event.data.error || 'Đã hủy hoặc thanh toán thất bại'));
             }
           };
           window.addEventListener('message', handler);
