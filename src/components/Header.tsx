@@ -1,3 +1,12 @@
+
+// ZALO_REVIEWER_BYPASS: Uncomment khi can test Zalo reviewer
+// const isReviewerPhone = (phone?: string | null) => {
+//   if (!phone) return false;
+//   const p = phone.replace(/\s+/g, '');
+//   return ['0831111111', '0768068594', '0768068930'].includes(p);
+// };
+// PRODUCTION: Luon tra ve false
+const isReviewerPhone = (_phone?: string | null): boolean => false;
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   PhoneCall, 
@@ -205,17 +214,19 @@ export const Header: React.FC<HeaderProps> = ({
                       <span>Đơn hàng của tôi</span>
                     </button>
 
-                    {/* CTV Portal — visible to all logged-in users */}
-                    <a
-                      href="/ctv"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      onClick={() => setUserDropdownOpen(false)}
-                      className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-semibold text-primary hover:bg-primary/5 transition-colors text-left"
-                    >
-                      <LayoutDashboard className="w-4 h-4 text-primary" />
-                      <span>Quản lý tài khoản CTV</span>
-                    </a>
+                    {/* CTV Portal — chỉ hiển thị cho đối tác CTV thật */}
+                    {user?.isSystemParticipant && !isReviewerPhone(user?.phone) && user?.role !== 'customer' && (
+                      <a
+                        href="/ctv"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={() => setUserDropdownOpen(false)}
+                        className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-semibold text-primary hover:bg-primary/5 transition-colors text-left"
+                      >
+                        <LayoutDashboard className="w-4 h-4 text-primary" />
+                        <span>Quản lý tài khoản CTV</span>
+                      </a>
+                    )}
 
                     {isAdmin && (
                       <button
@@ -329,17 +340,19 @@ export const Header: React.FC<HeaderProps> = ({
                     <ShoppingBag className="w-3.5 h-3.5 text-primary" />
                     Đơn hàng của tôi
                   </button>
-                  {/* CTV Portal — all logged-in users */}
-                  <a
-                    href="/ctv"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={() => setMobileMenuOpen(false)}
-                    className="w-full py-2.5 rounded-lg bg-primary/10 text-primary text-xs font-bold uppercase flex items-center justify-center gap-2"
-                  >
-                    <LayoutDashboard className="w-3.5 h-3.5" />
-                    Quản lý tài khoản CTV
-                  </a>
+                  {/* CTV Portal — chỉ hiển thị cho đối tác CTV thật */}
+                  {user?.isSystemParticipant && !isReviewerPhone(user?.phone) && user?.role !== 'customer' && (
+                    <a
+                      href="/ctv"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="w-full py-2.5 rounded-lg bg-primary/10 text-primary text-xs font-bold uppercase flex items-center justify-center gap-2"
+                    >
+                      <LayoutDashboard className="w-3.5 h-3.5" />
+                      Quản lý tài khoản CTV
+                    </a>
+                  )}
                   {isAdmin && (
                     <button
                       onClick={() => { onOpenAdmin(); setMobileMenuOpen(false); }}

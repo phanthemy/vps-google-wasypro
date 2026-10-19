@@ -1,8 +1,17 @@
+
+// ZALO_REVIEWER_BYPASS: Uncomment khi can test Zalo reviewer
+// const isReviewerPhone = (phone?: string | null) => {
+//   if (!phone) return false;
+//   const p = phone.replace(/\s+/g, '');
+//   return ['0831111111', '0768068594', '0768068930'].includes(p);
+// };
+// PRODUCTION: Luon tra ve false
+const isReviewerPhone = (_phone?: string | null): boolean => false;
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
   PhoneCall, 
   Search, 
-  ShoppingCart, 
+  ShoppingCart, ShoppingBag, 
   Menu, 
   X, 
   ChevronRight, 
@@ -91,6 +100,7 @@ export const MobileLandingView: React.FC<MobileLandingViewProps> = ({
   user,
   onNavigate
 }) => {
+  const isReviewerOrCustomer = !user || isReviewerPhone(user?.phone) || user?.role === 'customer' || !user?.isSystemParticipant;
   const [policyModal, setPolicyModal] = React.useState<'privacy' | 'terms' | 'return' | 'shipping' | 'payment' | null>(null);
   const policyContent = {
     privacy: {
@@ -343,6 +353,11 @@ export const MobileLandingView: React.FC<MobileLandingViewProps> = ({
               <User className="w-3.5 h-3.5" />
               <span>Đăng nhập</span>
             </button>
+          ) : isReviewerOrCustomer ? (
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-blue-50 border border-blue-200 text-[#0072F5] text-xs font-bold shadow-xs">
+              <User className="w-3.5 h-3.5 text-[#0072F5]" />
+              <span className="max-w-[85px] truncate">{user.fullName || 'Khách Hàng'}</span>
+            </div>
           ) : (
             <a
               href="/ctv"
@@ -554,22 +569,34 @@ export const MobileLandingView: React.FC<MobileLandingViewProps> = ({
               <span className="text-[11px] font-bold text-[#0F172A] leading-tight">Video Sự Kiện</span>
             </div>
 
-            {/* Cục 6: Kinh Doanh CTV */}
-            <div 
-              onClick={() => {
-                if (user) {
-                  window.location.href = '/ctv';
-                } else {
-                  onOpenAuth('login');
-                }
-              }}
-              className="flex flex-col items-center cursor-pointer group active:scale-95 transition-all"
-            >
-              <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-[#7C3AED] to-[#A855F7] text-white flex items-center justify-center shadow-md shadow-[#7C3AED]/20 mb-1 group-hover:scale-105 transition-transform">
-                <Users className="w-6 h-6" />
+            {/* Cục 6: Kinh Doanh CTV hoặc Ưu Đãi Quà Tặng */}
+            {isReviewerOrCustomer ? (
+              <div 
+                onClick={() => {
+                  const el = document.getElementById('featured-products-section');
+                  if (el) el.scrollIntoView({ behavior: 'smooth' });
+                  else onNavigate('products');
+                }}
+                className="flex flex-col items-center cursor-pointer group active:scale-95 transition-all"
+              >
+                <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-[#7C3AED] to-[#A855F7] text-white flex items-center justify-center shadow-md shadow-[#7C3AED]/20 mb-1 group-hover:scale-105 transition-transform">
+                  <Gift className="w-6 h-6" />
+                </div>
+                <span className="text-[11px] font-bold text-[#0F172A] leading-tight">Ưu Đãi Quà Tặng</span>
               </div>
-              <span className="text-[11px] font-bold text-[#0F172A] leading-tight">Đối Tác CTV</span>
-            </div>
+            ) : (
+              <div 
+                onClick={() => {
+                  window.location.href = '/ctv';
+                }}
+                className="flex flex-col items-center cursor-pointer group active:scale-95 transition-all"
+              >
+                <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-[#7C3AED] to-[#A855F7] text-white flex items-center justify-center shadow-md shadow-[#7C3AED]/20 mb-1 group-hover:scale-105 transition-transform">
+                  <Users className="w-6 h-6" />
+                </div>
+                <span className="text-[11px] font-bold text-[#0F172A] leading-tight">Đối Tác CTV</span>
+              </div>
+            )}
 
             {/* Cục 7: Hệ Thống Đại Lý */}
             <div 
@@ -1424,28 +1451,52 @@ export const MobileLandingView: React.FC<MobileLandingViewProps> = ({
                       <div className="text-[10px] text-white/80">Trải nghiệm hệ sinh thái Water King</div>
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-2 mt-3 pt-2.5 border-t border-white/15 relative z-10">
+                  <div className="mt-3 pt-2.5 border-t border-white/15 relative z-10">
                     <button
                       onClick={() => {
                         setDrawerOpen(false);
                         onOpenAuth('login');
                       }}
-                      className="py-2 px-3 rounded-xl bg-white text-blue-700 font-extrabold text-xs shadow-xs hover:bg-blue-50 active:scale-95 transition-all text-center flex items-center justify-center gap-1.5 cursor-pointer"
+                      className="w-full py-2.5 px-3 rounded-xl bg-white text-blue-700 font-extrabold text-xs shadow-xs hover:bg-blue-50 active:scale-95 transition-all text-center flex items-center justify-center gap-1.5 cursor-pointer"
                     >
                       <User className="w-3.5 h-3.5 text-blue-600" />
                       <span>Đăng Nhập</span>
                     </button>
-                    <button
-                      onClick={() => {
-                        setDrawerOpen(false);
-                        onOpenAuth('register');
-                      }}
-                      className="py-2 px-3 rounded-xl bg-white/15 backdrop-blur-xs text-white border border-white/30 font-bold text-xs hover:bg-white/25 active:scale-95 transition-all text-center flex items-center justify-center gap-1.5 cursor-pointer"
-                    >
-                      <Gift className="w-3.5 h-3.5 text-amber-300" />
-                      <span>Đăng Ký</span>
-                    </button>
+                    {/* Tạm ẩn Đăng Ký trên mobile theo yêu cầu duyệt Mini App */}
                   </div>
+                </div>
+              ) : isReviewerOrCustomer ? (
+                <div className="p-3.5 rounded-2xl bg-gradient-to-br from-[#0052CC] to-[#0072F5] text-white shadow-lg border border-blue-400/40 relative overflow-hidden">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center text-white font-black text-sm shadow-md">
+                      {user.fullName ? user.fullName.charAt(0).toUpperCase() : 'K'}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="text-xs font-black truncate">{user.fullName || 'Khách Hàng'}</div>
+                      <div className="text-[11px] text-blue-100 font-mono flex items-center gap-1.5">
+                        <span>{user.phone}</span>
+                        <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-white/20 text-white font-bold">
+                          Khách Hàng
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setDrawerOpen(false);
+                      onCartClick();
+                    }}
+                    className="mt-3 w-full py-2 bg-white text-[#0052CC] rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 shadow-md active:scale-95 transition-all text-center cursor-pointer"
+                  >
+                    <ShoppingBag className="w-3.5 h-3.5" />
+                    <span>Xem Giỏ Hàng Mua Sắm</span>
+                  </button>
+                  <button
+                    onClick={() => { setDrawerOpen(false); onNavigate('my-orders'); }}
+                    className="mt-2 w-full py-2 bg-white/20 text-white rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 active:scale-95 transition-all text-center cursor-pointer border border-white/30"
+                  >
+                    <span>📦 Đơn Hàng Của Tôi</span>
+                  </button>
                 </div>
               ) : (
                 <div className="p-3.5 rounded-2xl bg-gradient-to-br from-slate-900 via-slate-850 to-slate-900 text-white shadow-lg border border-slate-700/60 relative overflow-hidden">
@@ -1672,19 +1723,6 @@ export const MobileLandingView: React.FC<MobileLandingViewProps> = ({
               <div className="flex items-center justify-between pt-1 px-1">
                 <span className="text-[10px] text-slate-400 font-semibold">Kết nối:</span>
                 <div className="flex items-center gap-2">
-                  {/* Facebook */}
-                  <a
-                    href={contactConfig.facebook}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="w-7 h-7 rounded-full bg-[#1877F2] text-white flex items-center justify-center hover:scale-110 active:scale-95 transition-transform shadow-xs"
-                    title="Facebook"
-                  >
-                    <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
-                      <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
-                    </svg>
-                  </a>
-
                   {/* Zalo */}
                   <a
                     href={contactConfig.zalo}
