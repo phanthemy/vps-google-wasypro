@@ -85,19 +85,14 @@ export const MobileDrawerMenu: React.FC<MobileDrawerMenuProps> = ({
                 </div>
               </div>
             ) : (
-              <div className="p-4 bg-gray-50 border-b border-gray-100 flex items-center gap-2">
+              <div className="p-4 bg-gray-50 border-b border-gray-100">
                 <button
                   onClick={() => { onOpenAuth('login'); onClose(); }}
-                  className="flex-1 py-2 rounded-xl bg-primary text-white text-xs font-bold text-center shadow-xs hover:bg-primary-dark transition-all"
+                  className="w-full py-2.5 rounded-xl bg-primary text-white text-xs font-bold text-center shadow-xs hover:bg-primary-dark transition-all"
                 >
                   Đăng Nhập
                 </button>
-                <button
-                  onClick={() => { onOpenAuth('register'); onClose(); }}
-                  className="flex-1 py-2 rounded-xl bg-white border border-primary/30 text-primary text-xs font-bold text-center hover:bg-sky-50 transition-all"
-                >
-                  Đăng Ký
-                </button>
+                {/* Tạm ẩn Đăng Ký trên mobile theo yêu cầu duyệt Mini App */}
               </div>
             )}
 

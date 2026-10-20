@@ -12,7 +12,7 @@ const path = require('path');
 
 const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET) {
-  console.error('FATAL ERROR: JWT_SECRET environment variable is not defined!');
+  console.error('FATAL ERROR: JWT_SECRET environment variable is not defined!'); process.exit(1);
   process.exit(1);
 }
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '24h';
@@ -29,7 +29,9 @@ const productionOrigins = [
   'https://www.wasypro.com',
   'https://app.wasypro.com',
   'http://test.wasypro.com',
-  'https://test.wasypro.com'
+  'https://test.wasypro.com',
+  'https://h5.zdn.vn',
+  'http://h5.zdn.vn'
 ];
 
 const developmentOrigins = [
@@ -88,7 +90,9 @@ const csrfProtection = (req, res, next) => {
     req.path.startsWith('/api/leads') ||           // Leads management
     req.path.startsWith('/api/internal-users') ||  // Internal users
     req.path.startsWith('/api/services') ||          // Services
-    req.path.startsWith('/api/product-categories')   // Admin product categories CRUD
+    req.path.startsWith('/api/product-categories') ||  // Admin product categories CRUD
+    req.path.startsWith('/api/website-orders') ||       // Public website orders — phone-verified, no CSRF needed
+    req.path.startsWith('/api/zalo-checkout')           // Zalo checkout SDK — public endpoint
   ) {
     return next();
   }
@@ -1381,7 +1385,7 @@ phone = phone.trim();
     // Auto-login: set session cookie so user is logged in immediately
     const token = jwt.sign(
       { id: newUser.userId, userId: newUser.userId, dbId: newUser.id, role: newUser.role, fullName: newUser.fullName, phone: newUser.phone, tier: newUser.tier, parentId: newUser.parentId, mustChangePassword: false },
-      process.env.JWT_SECRET || 'your-secret-key',
+      JWT_SECRET,
       { expiresIn: '7d' }
     );
     res.cookie('auth_token', token, { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax', maxAge: 7 * 24 * 60 * 60 * 1000 });
@@ -5151,10 +5155,53 @@ app.get('/api/admin/ctv/:id', authenticateToken, requireRole(['admin', 'accounta
       tier: user.tier, rank: user.rank, rankStatus: user.rankStatus, sPoints: user.sPoints,
       businessId: user.businessId, isSystemParticipant: user.isSystemParticipant,
       status: user.status, createdAt: user.createdAt, note: user.note, zaloUid: user.zaloUid,
-      parentId: user.parentId, parent: user.parent, directDownline: user.children
+      parentId: user.parentId, parent: user.parent, directDownline: user.children,
+      bankAccount: user.bankAccount ?? null,
+      bankName: user.bankName ?? null,
+      bankBranch: user.bankBranch ?? null,
+      bankHolder: user.bankInfo ?? null,
+      isBankLocked: user.isBankLocked ?? false,
+      email: user.email ?? null,
+      address: user.address ?? null
     };
 
     res.json({ success: true, data: { ctv: ctvInfo, customers, orders, commissions } });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// PUT /api/admin/users/:id/bank — Admin cập nhật thông tin NH của CTV
+app.put('/api/admin/users/:id/bank', authenticateToken, requireRole(['admin']), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { bankAccount, bankName, bankBranch, bankHolder } = req.body;
+    const user = await prisma.user.findFirst({
+      where: { OR: [{ userId: id }, { id }] }
+    });
+    if (!user) return res.status(404).json({ success: false, message: 'Không tìm thấy user.' });
+
+    const updateData = {};
+    if (bankAccount !== undefined) updateData.bankAccount = bankAccount?.trim() || null;
+    if (bankName !== undefined) updateData.bankName = bankName?.trim() || null;
+    if (bankBranch !== undefined) updateData.bankBranch = bankBranch?.trim() || null;
+    if (bankHolder !== undefined) updateData.bankInfo = bankHolder?.trim().toUpperCase() || null;
+
+    const updated = await prisma.user.update({
+      where: { id: user.id },
+      data: updateData
+    });
+
+    res.json({
+      success: true,
+      message: 'Đã cập nhật thông tin ngân hàng.',
+      data: {
+        bankAccount: updated.bankAccount,
+        bankName: updated.bankName,
+        bankBranch: updated.bankBranch,
+        bankHolder: updated.bankInfo
+      }
+    });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
@@ -7490,6 +7537,42 @@ app.get('/api/website-orders/lookup', async (req, res) => {
   }
 });
 
+
+/**
+ * DELETE /api/website-orders/:id — Xóa đơn hàng (owner by phone or admin)
+ */
+app.delete('/api/website-orders/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { phone } = req.query; // phone của người dùng để xác thực
+
+    const order = await prisma.websiteOrder.findUnique({ where: { id } });
+    if (!order) return res.status(404).json({ success: false, message: 'Không tìm thấy đơn hàng' });
+
+    // Chỉ cho phép xóa nếu phone khớp HOẶC là admin token
+    const authHeader = req.headers['authorization'];
+    let isAdmin = false;
+    if (authHeader) {
+      try {
+        const jwt = require('jsonwebtoken');
+        const decoded = jwt.verify(authHeader.replace('Bearer ', ''), JWT_SECRET);
+        if (decoded && decoded.role === 'admin') isAdmin = true;
+      } catch (e) {}
+    }
+
+    if (!isAdmin && (!phone || order.customerPhone !== phone.trim())) {
+      return res.status(403).json({ success: false, message: 'Không có quyền xóa đơn hàng này' });
+    }
+
+    await prisma.websiteOrder.delete({ where: { id } });
+    console.log('[DELETE ORDER]', id, 'phone:', order.customerPhone);
+    res.json({ success: true, message: 'Đã xóa đơn hàng' });
+  } catch (e) {
+    console.error('DELETE /api/website-orders/:id error:', e);
+    res.status(500).json({ success: false, message: 'Lỗi server' });
+  }
+});
+
 app.post('/api/orders/website', async (req, res) => {
   try {
     const { customerName, customerPhone, address, shippingAddress, recipientPhone, recipientEmail, contactHotline, message, type, productId, productTitle, productPrice, qty, refCode, items, wantInvoice, companyName, taxCode, companyAddr, invoiceEmail } = req.body;
@@ -7506,7 +7589,7 @@ app.post('/api/orders/website', async (req, res) => {
       const token = req.cookies?.auth_token;
       if (token) {
         const jwt = require('jsonwebtoken');
-        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key-here');
+        const decoded = jwt.verify(token, JWT_SECRET);
         authedUser = await prisma.user.findUnique({ where: { userId: decoded.userId } });
       }
     } catch (_) { /* guest order */ }
@@ -9541,6 +9624,98 @@ app.post('/api/npp/my-purchase', authenticateToken, async (req, res) => {
 module.exports = app;
 
 module.exports.app = app;
+
+// ============================================================
+// ZALO CHECKOUT SDK ROUTES
+// ============================================================
+const ZALO_CHECKOUT_PRIVATE_KEY = '0f63b88e2862a357244354653b168476';
+const ZALO_APP_ID = '3686707325232684734';
+
+// Tạo MAC signature cho Payment.createOrder (frontend gọi trước khi tạo order)
+
+// Zalo Debug endpoint - nhận globals list từ app.js (CORS cho h5.zdn.vn)
+app.options('/api/zalo-debug', (req, res) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type');
+  res.sendStatus(200);
+});
+app.post('/api/zalo-debug', (req, res) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  const info = req.body;
+  console.log('[ZaloDebug] globals from listSyncJS:', JSON.stringify(info));
+  res.json({ ok: true });
+});
+
+app.post('/api/zalo-checkout/create-mac', async (req, res) => {
+  try {
+    const { amount, desc, item, extradata, method } = req.body;
+    if (!amount || !desc) {
+      return res.status(400).json({ success: false, message: 'Thiếu amount hoặc desc' });
+    }
+    // MAC theo docs Zalo: sort keys alphabetically, stringify objects
+    const itemStr = typeof item === 'string' ? item : JSON.stringify(item || []);
+    const methodStr = typeof method === 'string' ? method : JSON.stringify(method || {});
+    const extradataStr = typeof extradata === 'string' ? extradata : JSON.stringify(extradata || {});
+
+    // Formula 1: with method (sorted: amount, desc, extradata, item, method)
+    const rawData1 = { amount: String(amount), desc: String(desc), extradata: extradataStr, item: itemStr, method: methodStr };
+    const macData1 = Object.keys(rawData1).sort().map(k => k + '=' + rawData1[k]).join('&');
+    const mac1 = crypto.createHmac('sha256', ZALO_CHECKOUT_PRIVATE_KEY).update(macData1).digest('hex');
+
+    // Formula 2: without method (sorted: amount, desc, extradata, item)
+    const rawData2 = { amount: String(amount), desc: String(desc), extradata: extradataStr, item: itemStr };
+    const macData2 = Object.keys(rawData2).sort().map(k => k + '=' + rawData2[k]).join('&');
+    const mac2 = crypto.createHmac('sha256', ZALO_CHECKOUT_PRIVATE_KEY).update(macData2).digest('hex');
+
+    console.log('[MAC DEBUG] formula1 (with method):', macData1.substring(0, 200));
+    console.log('[MAC DEBUG] mac1:', mac1);
+    console.log('[MAC DEBUG] formula2 (no method):', macData2.substring(0, 200));
+    console.log('[MAC DEBUG] mac2:', mac2);
+
+    // Dùng formula1 (có method) theo docs Zalo
+    const mac = mac1;
+    const macData = macData1;
+    return res.json({ success: true, mac, _debug: { macData: macData.substring(0, 300), mac1, mac2 } });
+  } catch (err) {
+    console.error('[ZaloCheckout] create-mac error:', err);
+    return res.status(500).json({ success: false, message: 'Lỗi tạo MAC' });
+  }
+});
+
+// Callback từ Zalo server (Zalo gọi vào đây sau khi giao dịch)
+app.post('/api/zalo-checkout/callback', async (req, res) => {
+  try {
+    console.log('[ZaloCheckout] Callback received:', JSON.stringify(req.body));
+    const { appId, orderId, resultCode, mac } = req.body;
+    // Verify MAC
+    const macData = 'appId=' + appId + '&orderId=' + orderId + '&resultCode=' + resultCode + '&privateKey=' + ZALO_CHECKOUT_PRIVATE_KEY;
+    const expectedMac = crypto.createHmac('sha256', ZALO_CHECKOUT_PRIVATE_KEY)
+      .update(macData)
+      .digest('hex');
+    if (mac !== expectedMac) {
+      console.warn('[ZaloCheckout] MAC mismatch!', { received: mac, expected: expectedMac });
+      return res.status(400).json({ success: false, message: 'MAC invalid' });
+    }
+    console.log('[ZaloCheckout] Callback OK - orderId=' + orderId + ', resultCode=' + resultCode);
+    return res.json({ success: true });
+  } catch (err) {
+    console.error('[ZaloCheckout] callback error:', err);
+    return res.status(500).json({ success: false });
+  }
+});
+
+// COD callback - update status sau khi giao hàng xong
+app.post('/api/zalo-checkout/cod-callback', async (req, res) => {
+  try {
+    const { orderId, resultCode } = req.body;
+    console.log('[ZaloCheckout] COD callback - orderId=' + orderId + ', resultCode=' + resultCode);
+    return res.json({ success: true });
+  } catch (err) {
+    console.error('[ZaloCheckout] cod-callback error:', err);
+    return res.status(500).json({ success: false });
+  }
+});
 module.exports.executeOrderSettlement = executeOrderSettlement;
 module.exports.calculateAndCreateCommissions = calculateAndCreateCommissions;
 module.exports.processOrderPointsAndActivation = processOrderPointsAndActivation;

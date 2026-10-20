@@ -139,15 +139,23 @@ export const MockupDashboard: React.FC<MockupDashboardProps> = ({
   const avatarUrl = (userSession as any).avatarUrl;
 
   return (
-    <div className="bg-[#eaf4fc] min-h-screen pb-28" style={{ fontFamily: 'Inter, -apple-system, sans-serif' }}>
+    <div className="bg-transparent pb-6" style={{ fontFamily: 'Inter, -apple-system, sans-serif' }}>
       
-      {/* 1. HERO BANNER */}
-      <div className="relative w-full aspect-[473/275] bg-sky-100 rounded-b-[2.5rem] shadow-sm overflow-hidden">
-        <img 
-          src="/images/ctv-banner-top-hd.webp" 
-          alt="Banner" 
-          className="w-full h-full object-cover"
-        />
+      {/* 1. HERO BANNER - VIDEO */}
+      <div className="relative w-full overflow-hidden rounded-b-[28px] shadow-md" style={{height: '220px'}}>
+        <video
+          autoPlay
+          muted
+          loop
+          playsInline
+          poster="/images/video-thumb.jpg"
+          style={{width:'100%', height:'100%', objectFit:'cover'}}
+        >
+          <source src="/videos/hero-video.mp4" type="video/mp4"/>
+          <img src="/images/ctv-banner-top-hd.webp" alt="Banner" style={{width:'100%',height:'100%',objectFit:'cover'}}/>
+        </video>
+        {/* Gradient overlay bottom */}
+        <div style={{position:'absolute',inset:0,background:'linear-gradient(to bottom,transparent 50%,rgba(14,90,168,0.35) 100%)'}}/>
         {/* Transparent Bell button overlay */}
         <button 
           className="absolute top-[8%] right-[5%] w-[12%] aspect-square rounded-full opacity-0" 
@@ -157,9 +165,9 @@ export const MockupDashboard: React.FC<MockupDashboardProps> = ({
 
       {/* 2. PROFILE CARD */}
       <div 
-        className="relative mx-4 -mt-10 bg-white rounded-[24px] p-4 shadow-xl border border-white flex items-center gap-3 cursor-pointer"
+        className="relative mx-4 -mt-10 rounded-[24px] p-4 shadow-xl flex items-center gap-3 cursor-pointer"
         onClick={() => setAccountModalOpen(true)}
-        style={{ zIndex: 10, boxShadow: '0 10px 30px rgba(0,100,200,0.1)' }}
+        style={{ zIndex: 10, background:"rgba(255,255,255,0.72)", backdropFilter:"blur(16px)", WebkitBackdropFilter:"blur(16px)", border:"1px solid rgba(255,255,255,0.5)", boxShadow:"0 10px 30px rgba(0,100,200,0.12)" }}
       >
         <div className="relative shrink-0">
           <div className="w-[72px] h-[72px] rounded-full border-[3px] border-[#FBBF24] p-0.5 shadow-sm overflow-hidden bg-slate-50 flex items-center justify-center">
@@ -204,7 +212,7 @@ export const MockupDashboard: React.FC<MockupDashboardProps> = ({
       <div className="grid grid-cols-2 gap-3 px-4 mt-6">
         <button
           onClick={onNavigateHome}
-          className="flex items-center gap-2 p-3 rounded-[16px] bg-white border border-sky-100 shadow-md shadow-sky-900/5 active:scale-95 transition-transform"
+          className="flex items-center gap-2 p-3 rounded-[16px] active:scale-95 transition-transform" style={{background:"rgba(255,255,255,0.75)",backdropFilter:"blur(12px)",WebkitBackdropFilter:"blur(12px)",border:"1px solid rgba(255,255,255,0.5)",boxShadow:"0 4px 16px rgba(0,50,150,0.08)"}}
         >
           <div className="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center shrink-0">
             <Globe className="w-4 h-4 text-blue-500" />
@@ -218,7 +226,7 @@ export const MockupDashboard: React.FC<MockupDashboardProps> = ({
 
         <a
           href="tel:1900989878"
-          className="flex items-center gap-2 p-3 rounded-[16px] bg-white border border-sky-100 shadow-md shadow-sky-900/5 active:scale-95 transition-transform no-underline"
+          className="flex items-center gap-2 p-3 rounded-[16px] active:scale-95 transition-transform no-underline" style={{background:"rgba(255,255,255,0.75)",backdropFilter:"blur(12px)",WebkitBackdropFilter:"blur(12px)",border:"1px solid rgba(255,255,255,0.5)",boxShadow:"0 4px 16px rgba(0,50,150,0.08)"}}
         >
           <div className="w-8 h-8 rounded-full bg-amber-50 flex items-center justify-center shrink-0">
             <Phone className="w-4 h-4 text-amber-500" />
@@ -271,7 +279,7 @@ export const MockupDashboard: React.FC<MockupDashboardProps> = ({
 
       {/* 6. CAM KẾT CHẤT LƯỢNG & ĐẶC QUYỀN ĐỐI TÁC */}
       <div className="px-4 mb-4">
-        <div className="bg-white/90 backdrop-blur-md rounded-2xl p-3 border border-sky-100/80 shadow-sm grid grid-cols-3 gap-2 text-center">
+        <div className="rounded-2xl p-3 grid grid-cols-3 gap-2 text-center" style={{background:"rgba(255,255,255,0.7)",backdropFilter:"blur(14px)",WebkitBackdropFilter:"blur(14px)",border:"1px solid rgba(255,255,255,0.5)",boxShadow:"0 4px 20px rgba(0,50,150,0.08)"}}>
           <div className="flex flex-col items-center">
             <div className="w-8 h-8 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center mb-1 shadow-xs">
               <ShieldCheck className="w-4 h-4" />
@@ -302,7 +310,7 @@ export const MockupDashboard: React.FC<MockupDashboardProps> = ({
       <div className="px-4 mt-2">
         <button
           onClick={() => setShowLogoutConfirm(true)}
-          className="w-full flex items-center justify-center gap-2 h-10 rounded-xl bg-slate-200/50 text-slate-500 text-xs font-bold hover:bg-slate-200 hover:text-slate-700 transition-all active:scale-[0.98]"
+          className="w-full flex items-center justify-center gap-2 h-10 rounded-xl text-slate-600 text-xs font-bold transition-all active:scale-[0.98]" style={{background:"rgba(255,255,255,0.55)",backdropFilter:"blur(10px)",WebkitBackdropFilter:"blur(10px)",border:"1px solid rgba(255,255,255,0.4)"}}
         >
           <LogOut className="w-3.5 h-3.5" />
           Đăng xuất

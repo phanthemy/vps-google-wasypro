@@ -127,8 +127,8 @@ export const CTVPortalContainer: React.FC<CTVPortalContainerProps> = ({
     <div className="bg-[#f1f5f9] min-h-screen w-full flex justify-center"><div 
       className="w-full max-w-[480px] min-h-screen font-sans pb-24 text-[#0F172A] overflow-x-hidden relative shadow-2xl bg-white"
       style={{ 
-        background: 'linear-gradient(180deg, rgba(6,57,112,0.15) 0%, rgba(21,101,192,0.08) 50%, rgba(66,165,245,0.05) 100%)',
-        backgroundImage: 'url(/images/ctv-hero-bg.jpg)',
+        background: 'linear-gradient(180deg, rgba(14,90,168,0.08) 0%, rgba(14,90,168,0.04) 100%)',
+        backgroundImage: 'url(/images/water-auth-bg.jpg)',
         backgroundSize: 'cover',
         backgroundPosition: 'center top',
         backgroundAttachment: 'fixed',

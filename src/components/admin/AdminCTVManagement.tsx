@@ -32,6 +32,10 @@ interface CtvDetail {
     tier: string; rank?: string | null; rankStatus?: string | null;
     sPoints: number; businessId?: string | null; isSystemParticipant: boolean;
     status: string; createdAt: string; note?: string | null;
+    email?: string | null; address?: string | null;
+    bankAccount?: string | null; bankName?: string | null;
+    bankBranch?: string | null; bankHolder?: string | null;
+    isBankLocked?: boolean;
     parent?: { userId: string; fullName: string; phone: string } | null;
     directDownline: { userId: string; fullName: string; phone: string; rank?: string | null; tier: string }[];
   };
@@ -72,6 +76,127 @@ function getItemName(item: { service?: { name: string } | null; product?: { titl
   return item.product?.title || item.service?.name || 'Không xác định';
 }
 
+
+interface BankEditFormProps {
+  ctvId: string;
+  ctv: {
+    bankAccount?: string | null; bankName?: string | null;
+    bankBranch?: string | null; bankHolder?: string | null;
+    isBankLocked?: boolean;
+  };
+  onRefresh: () => void;
+}
+
+function BankEditForm({ ctvId, ctv, onRefresh }: BankEditFormProps) {
+  const [editing, setEditing] = React.useState(false);
+  const [saving, setSaving] = React.useState(false);
+  const [bankAccount, setBankAccount] = React.useState(ctv.bankAccount || '');
+  const [bankName, setBankName] = React.useState(ctv.bankName || '');
+  const [bankBranch, setBankBranch] = React.useState(ctv.bankBranch || '');
+  const [bankHolder, setBankHolder] = React.useState(ctv.bankHolder || '');
+  const [msg, setMsg] = React.useState<{ type: 'ok' | 'err'; text: string } | null>(null);
+
+  const handleSave = async () => {
+    setSaving(true);
+    setMsg(null);
+    try {
+      const res = await fetch(`/api/admin/users/${ctvId}/bank`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ bankAccount, bankName, bankBranch, bankHolder }),
+      });
+      const d = await res.json();
+      if (d.success) {
+        setMsg({ type: 'ok', text: '✅ Đã cập nhật thông tin ngân hàng' });
+        setEditing(false);
+        onRefresh();
+      } else {
+        setMsg({ type: 'err', text: d.message || 'Lỗi cập nhật' });
+      }
+    } catch {
+      setMsg({ type: 'err', text: 'Lỗi kết nối' });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="border-t border-slate-200 pt-4">
+      {msg && (
+        <div className={`mb-3 p-3 rounded-xl text-xs font-semibold ${msg.type === 'ok' ? 'bg-emerald-50 text-emerald-800' : 'bg-rose-50 text-rose-800'}`}>
+          {msg.text}
+        </div>
+      )}
+      {!editing ? (
+        <button
+          onClick={() => setEditing(true)}
+          className="px-4 py-2 bg-slate-800 text-white text-sm font-bold rounded-xl hover:bg-slate-700 transition-colors"
+        >
+          ✏️ Chỉnh sửa thông tin NH
+        </button>
+      ) : (
+        <div className="space-y-3">
+          <div className="text-sm font-bold text-slate-700 mb-3">Chỉnh sửa thông tin ngân hàng</div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="text-[11px] font-bold text-slate-500 uppercase">Số Tài Khoản</label>
+              <input
+                value={bankAccount}
+                onChange={e => setBankAccount(e.target.value)}
+                placeholder="VD: 1234567890"
+                className="mt-1 w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-blue-400"
+              />
+            </div>
+            <div>
+              <label className="text-[11px] font-bold text-slate-500 uppercase">Tên Ngân Hàng</label>
+              <input
+                value={bankName}
+                onChange={e => setBankName(e.target.value)}
+                placeholder="VD: Vietcombank"
+                className="mt-1 w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-blue-400"
+              />
+            </div>
+            <div>
+              <label className="text-[11px] font-bold text-slate-500 uppercase">Chi Nhánh</label>
+              <input
+                value={bankBranch}
+                onChange={e => setBankBranch(e.target.value)}
+                placeholder="VD: TP.HCM"
+                className="mt-1 w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-blue-400"
+              />
+            </div>
+            <div>
+              <label className="text-[11px] font-bold text-slate-500 uppercase">Chủ Tài Khoản</label>
+              <input
+                value={bankHolder}
+                onChange={e => setBankHolder(e.target.value.toUpperCase())}
+                placeholder="VD: NGUYEN VAN A"
+                className="mt-1 w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-blue-400 uppercase"
+              />
+            </div>
+          </div>
+          <div className="flex gap-2 pt-1">
+            <button
+              onClick={handleSave}
+              disabled={saving}
+              className="px-5 py-2 bg-blue-600 text-white text-sm font-bold rounded-xl hover:bg-blue-700 disabled:opacity-60 transition-colors"
+            >
+              {saving ? 'Đang lưu...' : '💾 Lưu thay đổi'}
+            </button>
+            <button
+              onClick={() => { setEditing(false); setMsg(null); }}
+              className="px-4 py-2 bg-slate-100 text-slate-600 text-sm font-bold rounded-xl hover:bg-slate-200 transition-colors"
+            >
+              Hủy
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export const AdminCTVManagement: React.FC = () => {
   const [ctvList, setCtvList] = useState<CtvUser[]>([]);
   const [loading, setLoading] = useState(true);
@@ -83,7 +208,7 @@ export const AdminCTVManagement: React.FC = () => {
   const [selectedCtvId, setSelectedCtvId] = useState<string | null>(null);
   const [detail, setDetail] = useState<CtvDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
-  const [detailTab, setDetailTab] = useState<'orders' | 'customers' | 'commissions' | 'network'>('orders');
+  const [detailTab, setDetailTab] = useState<'orders' | 'customers' | 'commissions' | 'network' | 'bank'>('orders');
   const [resetPwLoading, setResetPwLoading] = useState(false);
 
   const fetchList = async () => {
@@ -380,6 +505,7 @@ export const AdminCTVManagement: React.FC = () => {
                 { id: 'customers', label: `Khách Hàng (${detail.customers.length})` },
                 { id: 'commissions', label: `Hoa Hồng (${detail.commissions.length})` },
                 { id: 'network', label: `Downline (${detail.ctv.directDownline.length})` },
+                { id: 'bank', label: '🏦 Ngân Hàng' },
               ] as { id: typeof detailTab; label: string }[]).map(tab => (
                 <button
                   key={tab.id}
@@ -544,6 +670,44 @@ export const AdminCTVManagement: React.FC = () => {
                     </table>
                   </div>
                 )
+              )}
+
+              {/* Bank tab */}
+              {detailTab === 'bank' && (
+                <div className="p-5 space-y-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="text-sm font-bold text-slate-700">Thông Tin Ngân Hàng</h4>
+                    {detail.ctv.isBankLocked && (
+                      <span className="text-[11px] font-bold px-2 py-1 bg-amber-100 text-amber-700 rounded-lg">🔒 Đã khoá</span>
+                    )}
+                  </div>
+                  {!detail.ctv.bankAccount && !detail.ctv.bankName ? (
+                    <div className="p-8 text-center text-slate-400 text-sm">CTV chưa cập nhật thông tin ngân hàng.</div>
+                  ) : (
+                    <div className="space-y-3">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200">
+                          <div className="text-[11px] font-bold text-slate-400 uppercase mb-1">Số Tài Khoản</div>
+                          <div className="font-bold text-slate-900 text-base">{detail.ctv.bankAccount || '—'}</div>
+                        </div>
+                        <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200">
+                          <div className="text-[11px] font-bold text-slate-400 uppercase mb-1">Ngân Hàng</div>
+                          <div className="font-bold text-slate-900">{detail.ctv.bankName || '—'}</div>
+                        </div>
+                        <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200">
+                          <div className="text-[11px] font-bold text-slate-400 uppercase mb-1">Chi Nhánh</div>
+                          <div className="font-bold text-slate-900">{detail.ctv.bankBranch || '—'}</div>
+                        </div>
+                        <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200">
+                          <div className="text-[11px] font-bold text-slate-400 uppercase mb-1">Chủ Tài Khoản</div>
+                          <div className="font-bold text-slate-900">{detail.ctv.bankHolder || '—'}</div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  {/* Edit bank info form */}
+                  <BankEditForm ctvId={detail.ctv.userId} ctv={detail.ctv} onRefresh={() => fetchDetail(detail.ctv.userId)} />
+                </div>
               )}
 
               {/* Network tab */}

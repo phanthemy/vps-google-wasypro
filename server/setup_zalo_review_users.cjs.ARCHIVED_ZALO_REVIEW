@@ -1,0 +1,94 @@
+const { PrismaClient } = require('@prisma/client');
+const bcrypt = require('bcryptjs');
+
+const prisma = new PrismaClient();
+
+const reviewUsers = [
+  { phone: '0831111111', fullName: 'Zalo Reviewer 1', role: 'ctv' },
+  { phone: '0768068594', fullName: 'Zalo Reviewer 2', role: 'ctv' },
+  { phone: '0768068930', fullName: 'Zalo Reviewer 3', role: 'ctv' }
+];
+
+async function main() {
+  const pwdPlain = '123456';
+  const pwdHash = await bcrypt.hash(pwdPlain, 10);
+  console.log('Password hash generated for 123456:', pwdHash);
+
+  for (let i = 0; i < reviewUsers.length; i++) {
+    const u = reviewUsers[i];
+    const existing = await prisma.user.findFirst({
+      where: { phone: u.phone }
+    });
+
+    if (existing) {
+      console.log(`User ${u.phone} already exists (${existing.userId}). Updating...`);
+      const updated = await prisma.user.update({
+        where: { id: existing.id },
+        data: {
+          fullName: u.fullName,
+          password: pwdHash,
+          mustChangePassword: false,
+          status: 'ACTIVE',
+          role: 'ctv',
+          isSystemParticipant: true,
+          rank: 'Đại Sứ',
+          tier: 'TIER_1',
+          totalMachinesBought: 1,
+          sPoints: 100,
+        }
+      });
+      console.log(`Updated user ${u.phone}:`, updated.userId, updated.phone, 'isSystemParticipant:', updated.isSystemParticipant);
+    } else {
+      const newUserId = `ZALO_REV_${i + 1}`;
+      const newBid = `WK_ZALO_${i + 1}`;
+      console.log(`Creating user ${u.phone} (${newUserId})...`);
+      const created = await prisma.user.create({
+        data: {
+          userId: newUserId,
+          fullName: u.fullName,
+          phone: u.phone,
+          password: pwdHash,
+          role: 'ctv',
+          mustChangePassword: false,
+          status: 'ACTIVE',
+          tier: 'TIER_1',
+          rank: 'Đại Sứ',
+          businessId: newBid,
+          isSystemParticipant: true,
+          totalMachinesBought: 1,
+          sPoints: 100,
+        }
+      });
+      console.log(`Created user ${u.phone}:`, created.userId, created.phone, 'isSystemParticipant:', created.isSystemParticipant);
+    }
+  }
+
+  console.log('\n--- VERIFYING ALL 3 REVIEW USERS ---');
+  for (const u of reviewUsers) {
+    const user = await prisma.user.findFirst({
+      where: { phone: u.phone },
+      select: {
+        id: true,
+        userId: true,
+        fullName: true,
+        phone: true,
+        role: true,
+        rank: true,
+        isSystemParticipant: true,
+        mustChangePassword: true,
+        status: true,
+      }
+    });
+    console.log(`[VERIFY OK] ${u.phone} =>`, user);
+  }
+}
+
+main()
+  .catch((e) => {
+    console.error('Fatal error:', e);
+    process.exit(1);
+  })
+  .finally(async () => {
+    await prisma.$disconnect();
+    console.log('Done!');
+  });

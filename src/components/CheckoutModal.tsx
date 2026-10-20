@@ -16,11 +16,14 @@ const formatVND = (amount: number) => {
 };
 
 // Kiểm tra tài khoản Zalo Reviewer (bypass Zalo SDK, dùng COD trực tiếp)
-const isReviewerPhone = (phone?: string | null): boolean => {
-  if (!phone) return false;
-  const p = phone.replace(/\s+/g, '');
-  return ['0768068594', '0768068930'].includes(p); // 0831111111 removed: reviewer cần test đúng Zalo SDK flow
-};
+// ZALO_REVIEWER_BYPASS: Uncomment khi cần test Zalo reviewer lại
+// const isReviewerPhone = (phone?: string | null): boolean => {
+//   if (!phone) return false;
+//   const p = phone.replace(/\s+/g, '');
+//   return ['0768068594', '0768068930'].includes(p); // 0831111111 removed: reviewer cần test đúng Zalo SDK flow
+// };
+// PRODUCTION: Luôn trả về false
+const isReviewerPhone = (_phone?: string | null): boolean => false;
 
 // Detect xem đang trong Zalo Mini App (iframe của ZMP WebView)
 const isInZaloWebView = (): boolean => {
@@ -282,6 +285,24 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
           </div>
           <h3 className="text-xl font-bold text-gray-800 mb-1">Xác nhận đặt hàng</h3>
           <p className="text-sm text-gray-500 mb-4">Phương thức: <span className="font-semibold text-gray-700">Thanh toán khi nhận hàng (COD)</span></p>
+          {/* Danh sách sản phẩm */}
+          <div className="bg-gray-50 rounded-xl p-3 mb-3 text-left">
+            <p className="text-xs font-semibold text-gray-500 uppercase mb-2">Sản phẩm đặt hàng</p>
+            <div className="space-y-2">
+              {items.map(item => (
+                <div key={item.productId} className="flex items-center gap-3">
+                  <div className="relative shrink-0">
+                    <img src={item.image} alt={item.title} className="w-12 h-12 object-cover rounded-lg border" />
+                    <span className="absolute -top-1.5 -right-1.5 bg-gray-500 text-white text-[10px] w-4 h-4 flex items-center justify-center rounded-full">{item.quantity}</span>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-medium text-gray-800 line-clamp-2">{item.title}</p>
+                    <p className="text-xs text-primary font-semibold">{formatVND(item.price)} / sp</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
           <div className="bg-gray-50 rounded-xl p-4 mb-5 text-left space-y-1">
             <p className="text-sm text-gray-600"><span className="font-medium">Khách hàng:</span> {formData.customerName}</p>
             <p className="text-sm text-gray-600"><span className="font-medium">SĐT:</span> {formData.customerPhone}</p>

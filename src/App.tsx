@@ -1,10 +1,13 @@
 
 // Helper: Kiểm tra tài khoản Zalo Reviewer
-const isReviewerPhone = (phone?: string | null) => {
-  if (!phone) return false;
-  const p = phone.replace(/\s+/g, '');
-  return ['0831111111', '0768068594', '0768068930'].includes(p);
-};
+// ZALO_REVIEWER_BYPASS: Uncomment khi cần test Zalo reviewer
+// const isReviewerPhone = (phone?: string | null) => {
+//   if (!phone) return false;
+//   const p = phone.replace(/\s+/g, '');
+//   return ['0831111111', '0768068594', '0768068930'].includes(p);
+// };
+// PRODUCTION: Luôn trả về false - không có tài khoản reviewer
+const isReviewerPhone = (_phone?: string | null): boolean => false;
 import React, { useState, useEffect } from 'react';
 import { Header } from './components/Header';
 import { useCart } from './hooks/useCart';
@@ -311,11 +314,18 @@ export const App: React.FC = () => {
     showToast(`Chào mừng ${user.name} trở lại trang Quản trị Website!`);
   };
 
-  const handleAdminLogout = () => {
+  const handleAdminLogout = async () => {
     setAdminUser(null);
     setIsAdminMode(false);
     localStorage.removeItem('wasy_admin_user');
-    showToast('Đã đăng xuất khỏi hệ thống Admin Portal.');
+    await logout();
+    try {
+      localStorage.removeItem('wasy_ref_code');
+      sessionStorage.removeItem('wasy_ref_code');
+    } catch (e) {}
+    setActiveSection('hero');
+    window.history.pushState(null, '', '/');
+    showToast('Da dang xuat khoi he thong.');
   };
 
   // Render Admin Portal View (Website content management)
@@ -555,7 +565,7 @@ export const App: React.FC = () => {
       </main>
 
       {/* Main Unified Footer (Desktop only - MobileLandingView has its own mobile footer) */}
-      <div className="hidden md:block">
+      {activeSection !== 'ctv' && <div className="hidden md:block">
         <Footer
           onNavigate={handleNavigate}
           onOpenWarranty={handleOpenWarranty}
@@ -563,7 +573,7 @@ export const App: React.FC = () => {
           onOpenAdmin={handleOpenAdminPortal}
           onSuccessToast={showToast}
         />
-      </div>
+      </div>}
 
       {/* Contact & Consultation Drawer Modal */}
       <ContactModal

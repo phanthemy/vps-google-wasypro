@@ -322,7 +322,7 @@ export const MobileLandingView: React.FC<MobileLandingViewProps> = ({
       {/* ==================== 1. TOP BAR ==================== */}
       <div className="bg-[#0052CC] text-white text-[11px] py-1.5 px-3 flex justify-between items-center font-medium tracking-wide">
         <a href="tel:1900989878" className="flex items-center gap-1 font-bold hover:underline">
-          <PhoneCall className="w-3 h-3 text-[#FFCC00]" />
+          <span style={{ fontSize: "13px", lineHeight: 1 }}>📞</span>
           <span>HOTLINE: 1900 98 98 78</span>
         </a>
         <div className="flex items-center gap-2 text-[10px] uppercase font-semibold text-sky-100">

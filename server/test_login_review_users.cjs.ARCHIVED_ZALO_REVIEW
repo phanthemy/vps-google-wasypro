@@ -1,0 +1,18 @@
+async function testLogins() {
+  const phones = ['0831111111', '0768068594', '0768068930'];
+  for (const phone of phones) {
+    try {
+      const res = await fetch('http://localhost:3011/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone, password: '123456' })
+      });
+      const data = await res.json();
+      console.log(`Login test for ${phone}: status=${res.status}, success=${data.success}, user=${data.data ? `${data.data.fullName} (${data.data.role})` : data.message}`);
+    } catch (err) {
+      console.error(`Error logging in ${phone}:`, err.message);
+    }
+  }
+}
+
+testLogins();

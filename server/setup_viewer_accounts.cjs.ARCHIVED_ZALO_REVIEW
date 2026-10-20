@@ -1,0 +1,52 @@
+const { PrismaClient } = require('@prisma/client');
+const bcrypt = require('bcryptjs');
+
+const prisma = new PrismaClient();
+
+const viewerPhones = ['0831111111', '0768068594', '0768068930'];
+
+async function main() {
+  const pwdHash = await bcrypt.hash('123456', 10);
+
+  for (let i = 0; i < viewerPhones.length; i++) {
+    const phone = viewerPhones[i];
+    const existing = await prisma.user.findFirst({ where: { phone } });
+
+    if (existing) {
+      const updated = await prisma.user.update({
+        where: { id: existing.id },
+        data: {
+          fullName: 'Khách Hàng',
+          password: pwdHash,
+          mustChangePassword: false,
+          status: 'ACTIVE',
+          role: 'customer',
+          isSystemParticipant: false,
+          rank: null,
+          businessId: null,
+          tier: 'CUSTOMER',
+        }
+      });
+      console.log(`[UPDATED VIEWER] ${phone}: role=${updated.role}, isSystemParticipant=${updated.isSystemParticipant}, fullName=${updated.fullName}`);
+    } else {
+      const created = await prisma.user.create({
+        data: {
+          userId: `KH_ZALO_${i + 1}`,
+          fullName: 'Khách Hàng',
+          phone,
+          password: pwdHash,
+          role: 'customer',
+          mustChangePassword: false,
+          status: 'ACTIVE',
+          tier: 'CUSTOMER',
+          isSystemParticipant: false,
+        }
+      });
+      console.log(`[CREATED VIEWER] ${phone}: role=${created.role}, isSystemParticipant=${created.isSystemParticipant}`);
+    }
+  }
+}
+
+main()
+  .catch(console.error)
+  .finally(() => prisma.$disconnect());

@@ -395,3 +395,38 @@ req.user = { id: "U199", userId: "U199", dbId: cuid, role, fullName, phone }
 1. Khách hàng chưa có UID mua qua F1: F1 hưởng bán lẻ trực tiếp (20% Đại sứ, 25% Trưởng nhóm, 30% Quản lý). F0 (bảo trợ của F1) hưởng 10% đồng hành F1. Tuyến trên F0 hưởng 5% đồng hành F2.
 2. Khách hàng đã có UID tự mua: Khách hưởng chiết khấu tự mua (20-30%). F1 hưởng 10% DIRECT_WITH_ID. F0 hưởng 5% UPSTREAM_D2.
 3. Đã xóa bỏ gate chặn sai `priorBusinessId` của người mua khi F1 đã có Business ID.
+
+
+---
+
+## Session 2026-10-14 — CTV Portal UI Redesign (water-auth-bg + Glassmorphism)
+
+### Yêu cầu:
+- Giữ background `water-auth-bg.jpg` (ảnh nước splash + đá cẩm thạch) làm nền chủ đạo
+- Thay banner ảnh tĩnh (`ctv-banner-top-hd.webp`) bằng video (`hero-video.mp4`)
+- Đổi tất cả cards sang Glassmorphism (`rgba(255,255,255,0.7x)` + `blur(12-16px)`)
+- Xóa footer trang chủ khi ở CTV portal trên desktop
+
+### Quyết định kỹ thuật:
+1. `CTVPortalContainer.tsx` giữ vai trò wrapper, đặt `backgroundImage: water-auth-bg.jpg` tại đây
+2. `MockupDashboard.tsx` dùng `bg-transparent` để lộ background xuyên qua
+3. Video banner dùng `<video autoPlay muted loop playsInline>` với poster fallback → không ảnh hưởng lúc headless screenshot
+4. Không dùng `min-h-screen` trong MockupDashboard (gây khoảng trắng thừa trên desktop)
+5. Footer ẩn bằng JSX conditional `{activeSection !== 'ctv' && <div>...</div>}` thay vì CSS
+
+### Lỗi gặp phải:
+- TS17001: duplicate `style` prop trên Profile card → fix: merge 2 style thành 1
+- `bg-[#eaf4fc]` cần escape trong sed → dùng Python script thay thế
+- Footer vẫn hiện trên desktop dù content CTV → fix App.tsx wrapper
+
+### Credentials test (2026-10-14):
+- CTV account: `0933893539` / `wasygp23` (Phan Thế Mỹ / U3539)
+- Password `0937353535` đã reset sang `123456` bằng bcrypt qua node script trong server/
+
+### Build info:
+- VPS: `34.173.189.105` (Google Cloud), user `mapgovn`
+- SSH key: `C:\Users\editor02\.ssh\vps_google`
+- Path: `/var/www/wasypro`
+- Build: `cd /var/www/wasypro && npm run build` (~10-21s)
+- Serve: Nginx static từ `/var/www/wasypro/dist`
+- Reload: `sudo nginx -s reload`

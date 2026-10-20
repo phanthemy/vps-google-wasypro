@@ -156,9 +156,9 @@ export const AccountModal: React.FC<AccountModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-xs animate-fadeIn" style={{ overscrollBehavior: "contain" }} onClick={onClose}>
+    <div className="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-xs animate-fadeIn" style={{ overscrollBehavior: "contain", paddingBottom: "env(safe-area-inset-bottom)" }} onClick={onClose}>
       <div 
-        className="bg-white rounded-t-3xl sm:rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden max-h-[92dvh] flex flex-col"
+        className="bg-white rounded-t-3xl sm:rounded-3xl w-full max-w-lg shadow-2xl overflow-clip max-h-[92svh] max-h-[calc(92svh-env(safe-area-inset-bottom,0px))] flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -172,17 +172,36 @@ export const AccountModal: React.FC<AccountModalProps> = ({
               <p className="text-[11px] text-white/80">Quản lý hồ sơ, link giới thiệu & bảo mật ngân hàng</p>
             </div>
           </div>
-          <button 
-            type="button" 
-            onClick={onClose}
-            className="w-9 h-9 min-w-[36px] min-h-[36px] rounded-full bg-white/20 hover:bg-white/30 text-white flex items-center justify-center transition-all cursor-pointer shrink-0" aria-label="Đóng"
-          >
-            <X className="w-5 h-5" />
-          </button>
+          <div className="flex items-center gap-2 shrink-0">
+            {/* Nút Lưu trong header - luôn visible trên mọi thiết bị */}
+            <button
+              type="button"
+              disabled={loading}
+              onClick={() => {
+                const form = document.getElementById('account-modal-form') as HTMLFormElement;
+                if (form) form.requestSubmit();
+              }}
+              className="flex items-center gap-1.5 px-3 h-9 rounded-full bg-white/25 hover:bg-white/40 text-white text-xs font-bold transition-all disabled:opacity-60"
+            >
+              {loading ? (
+                <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <Save className="w-3.5 h-3.5" />
+              )}
+              <span>Lưu</span>
+            </button>
+            <button 
+              type="button" 
+              onClick={onClose}
+              className="w-9 h-9 min-w-[36px] min-h-[36px] rounded-full bg-white/20 hover:bg-white/30 text-white flex items-center justify-center transition-all cursor-pointer shrink-0" aria-label="Đóng"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
         </div>
 
         {/* Scrollable Body */}
-        <div className="p-4 sm:p-6 overflow-y-auto space-y-5 flex-1 overscroll-y-contain">
+        <div className="overflow-y-auto flex-1 overscroll-y-contain">
           {/* Status Message */}
           {msg && (
             <div className={`p-3 rounded-xl text-xs font-semibold flex items-center gap-2 ${
@@ -237,7 +256,7 @@ export const AccountModal: React.FC<AccountModalProps> = ({
             )}
           </div>
 
-          <form onSubmit={handleSaveProfile} className="space-y-5">
+          <form id="account-modal-form" onSubmit={handleSaveProfile} className="space-y-5 p-4 sm:p-6">
             {/* BOX 2: THÔNG TIN CÁ NHÂN (CÓ THỂ SỬA ĐỔI) */}
             <div className="bg-white border border-slate-200/80 rounded-2xl p-4 space-y-3.5 shadow-2xs">
               <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
@@ -448,29 +467,32 @@ export const AccountModal: React.FC<AccountModalProps> = ({
               </div>
             </div>
 
-          </form>
-        </div>
-
-        {/* Sticky Save Footer - always visible */}
-        <div className="shrink-0 px-4 py-3 border-t border-gray-100 bg-white safe-bottom" style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 12px)' }}>
-          <button
-            type="button"
-            disabled={loading}
-            onClick={() => {
-              const form = document.querySelector('#account-modal-form') as HTMLFormElement;
-              if (form) form.requestSubmit();
+          {/* Save Button - INSIDE scroll area, sticky with iOS-safe offset */}
+          <div
+            className="sticky left-0 right-0 bg-white border-t border-gray-100 -mx-4 sm:-mx-6 px-4 sm:px-6 pt-3"
+            style={{
+              bottom: 'env(safe-area-inset-bottom, 0px)',
+              paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 20px)',
+              marginTop: '24px',
+              marginBottom: '56px'
             }}
-            className="w-full h-12 bg-[#0072F5] hover:bg-[#0052CC] text-white rounded-xl font-bold text-sm transition-all shadow-sm active:scale-[0.99] flex items-center justify-center gap-2 disabled:opacity-60"
           >
-            {loading ? (
-              <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-            ) : (
-              <>
-                <Save className="w-4 h-4" />
-                <span>Lưu Thay Đổi Thông Tin</span>
-              </>
-            )}
-          </button>
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full h-12 bg-[#0072F5] hover:bg-[#0052CC] text-white rounded-xl font-bold text-sm transition-all shadow-sm active:scale-[0.99] flex items-center justify-center gap-2 disabled:opacity-60"
+            >
+              {loading ? (
+                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <>
+                  <Save className="w-4 h-4" />
+                  <span>Lưu Thay Đổi Thông Tin</span>
+                </>
+              )}
+            </button>
+          </div>
+          </form>
         </div>
       </div>
     </div>

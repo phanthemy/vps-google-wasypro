@@ -36,7 +36,7 @@ interface Props {
 export default function UnifiedAuthModal({
   isOpen,
   onClose,
-  initialTab = 'register',
+  initialTab = 'login',
   referralCode = '',
   onSuccess,
 }: Props) {
@@ -75,7 +75,8 @@ export default function UnifiedAuthModal({
   const liveRef = getLiveUrlRef();
   const effectiveRefCode = liveRef || (referralCode ? referralCode.trim().toUpperCase() : '');
   const hasReferral = Boolean(effectiveRefCode);
-  const allowRegister = hasReferral || (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('register') === '0937353535');
+  // Tạm ẩn đăng ký khi duyệt Mini App
+  const allowRegister = false;
   const [regRefCode, setRegRefCode] = useState(effectiveRefCode);
 
   // CTV / NPP Registration Options
@@ -826,59 +827,22 @@ export default function UnifiedAuthModal({
               )}
             </button>
 
-            {/* Quên mật khẩu & Hỗ trợ */}
+            {/* Quên mật khẩu & Hỗ trợ (Loại bỏ link ngoài để tránh thoát khỏi Zalo Mini App) */}
             <div className="text-center text-xs text-[#4b6b8b] pt-1">
               <span>Quên mật khẩu? </span>
-              <a href={`tel:${contactConfig.hotlineTel}`} className="text-red-600 font-bold hover:underline">
+              <span className="text-red-600 font-bold">
                 Hotline: {contactConfig.hotline}
-              </a>
-              <span className="mx-1.5">·</span>
-              <a
-                href={contactConfig.zalo}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-[#0072F5] font-bold hover:underline"
-              >
-                Zalo OA
-              </a>
+              </span>
             </div>
           </form>
         )}
 
-        {/* ─── 3 BUTTONS: FACEBOOK, ZALO, HOTLINE (Divider & Google removed per request) ─── */}
-        <div className="flex items-center justify-center gap-4 mt-4 pt-1">
-          {/* 1. Facebook (f trắng nền tròn xanh) */}
-          <a
-            href={contactConfig.facebook}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="w-10 h-10 rounded-full bg-[#1877F2] shadow-[0_3px_10px_rgba(24,119,242,0.3)] flex items-center justify-center hover:scale-110 active:scale-95 transition-all text-white cursor-pointer"
-            title="Facebook"
-          >
-            <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
-              <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
-            </svg>
-          </a>
-
-          {/* 2. Zalo (Chữ Zalo xanh viền xanh) */}
-          <a
-            href={contactConfig.zalo}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="w-10 h-10 rounded-full bg-white shadow-xs border border-blue-200 flex items-center justify-center hover:scale-110 active:scale-95 transition-all cursor-pointer"
-            title="Zalo Official Account"
-          >
-            <span className="font-extrabold text-[#0068FF] text-[11px] tracking-tight">Zalo</span>
-          </a>
-
-          {/* 3. Hotline */}
-          <a
-            href={`tel:${contactConfig.hotlineTel}`}
-            className="w-10 h-10 rounded-full bg-gradient-to-br from-[#ff3b30] to-[#e60000] shadow-[0_3px_10px_rgba(255,59,48,0.35)] flex items-center justify-center hover:scale-110 active:scale-95 transition-all text-white cursor-pointer"
-            title={`Gọi Hotline ${contactConfig.hotline} hỗ trợ`}
-          >
-            <PhoneCall className="w-4 h-4 stroke-[2.2]" />
-          </a>
+        {/* ─── THÔNG TIN LIÊN HỆ HỖ TRỢ NỘI BỘ (KHÔNG ĐIỀU HƯỚNG RA NGOÀI) ─── */}
+        <div className="flex items-center justify-center mt-3 pt-1">
+          <div className="flex items-center gap-2 text-xs text-slate-600 font-medium bg-slate-50 px-4 py-2 rounded-full border border-slate-200 shadow-2xs">
+            <PhoneCall className="w-3.5 h-3.5 text-[#0072F5] shrink-0" />
+            <span>Tổng đài CSKH: <strong className="text-[#0c2340] font-bold">{contactConfig.hotline}</strong> (24/7)</span>
+          </div>
         </div>
         </div>
       </div>

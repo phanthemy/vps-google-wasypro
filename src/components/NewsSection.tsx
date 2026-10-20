@@ -264,26 +264,15 @@ export const NewsSection: React.FC = () => {
                 </div>
               )}
 
-              {/* Link xem trên YouTube */}
-              {selectedArticle.videoUrl && (
-                <div className="pt-3 flex items-center justify-between border-t border-slate-100">
-                  <a
-                    href={selectedArticle.videoUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 text-xs font-bold text-rose-600 hover:text-rose-700 hover:underline"
-                  >
-                    <span>Mở xem trên YouTube</span>
-                    <ExternalLink className="w-3.5 h-3.5" />
-                  </a>
-                  <button
-                    onClick={() => setSelectedArticle(null)}
-                    className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold"
-                  >
-                    Đóng
-                  </button>
-                </div>
-              )}
+              {/* Nút đóng popup (Đã loại bỏ link ngoài YouTube để tuân thủ chính sách Zalo Mini App 4.1) */}
+              <div className="pt-3 flex items-center justify-end border-t border-slate-100">
+                <button
+                  onClick={() => setSelectedArticle(null)}
+                  className="px-5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold transition-all active:scale-95"
+                >
+                  Đóng
+                </button>
+              </div>
             </div>
           </div>
         </div>
